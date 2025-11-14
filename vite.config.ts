@@ -8,4 +8,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  define: {
+    'import.meta.env.VITE_AUTH_MODE': JSON.stringify(process.env.VITE_AUTH_MODE || 'php'),
+  },
 });
