@@ -1,5 +1,10 @@
 import { supabase } from './supabase';
-import { User } from './api';
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  name?: string;
+}
 
 interface ApiResponse<T> {
   data?: T;
@@ -7,7 +12,7 @@ interface ApiResponse<T> {
 }
 
 export const supabaseAuthApi = {
-  async login(email: string, password: string): Promise<ApiResponse<{ user: User; message: string }>> {
+  async login(email: string, password: string): Promise<ApiResponse<{ user: AdminUser; message: string }>> {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -43,7 +48,7 @@ export const supabaseAuthApi = {
     return { data: { message: 'Logout successful' } };
   },
 
-  async checkAuth(): Promise<ApiResponse<{ user: User | null }>> {
+  async checkAuth(): Promise<ApiResponse<{ user: AdminUser | null }>> {
     const { data: { session }, error } = await supabase.auth.getSession();
 
     if (error || !session?.user) {
@@ -61,7 +66,7 @@ export const supabaseAuthApi = {
     };
   },
 
-  onAuthStateChange(callback: (user: User | null) => void) {
+  onAuthStateChange(callback: (user: AdminUser | null) => void) {
     return supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         callback({

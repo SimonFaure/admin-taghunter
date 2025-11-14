@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { phpAuthApi, User } from '../lib/api';
-import { supabaseAuthApi } from '../lib/supabaseAuth';
+import { supabaseAuthApi, AdminUser } from '../lib/supabaseAuth';
 
 interface AuthContextType {
-  user: User | null;
+  user: User | AdminUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -15,7 +15,7 @@ const authMode = import.meta.env.VITE_AUTH_MODE || 'supabase';
 const authApi = authMode === 'php' ? phpAuthApi : supabaseAuthApi;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

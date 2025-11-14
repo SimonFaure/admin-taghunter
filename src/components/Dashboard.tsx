@@ -1,6 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, Home, Users, Tag, Settings, BarChart3, Package } from 'lucide-react';
 import { useState } from 'react';
+import { ClientsView } from './ClientsView';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -11,7 +12,7 @@ export function Dashboard() {
     { id: 'tags', label: 'Tags', icon: Tag },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'users', label: 'Users', icon: Users },
+    { id: 'clients', label: 'Clients', icon: Users },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -78,10 +79,14 @@ export function Dashboard() {
               {menuItems.find((item) => item.id === activeTab)?.label}
             </h2>
             <p className="text-slate-600">
-              Welcome back! Here's what's happening today.
+              {activeTab === 'home' ? "Welcome back! Here's what's happening today." : ''}
             </p>
           </div>
 
+          {activeTab === 'clients' && <ClientsView />}
+
+          {activeTab === 'home' && (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
               <div className="flex items-center justify-between mb-4">
@@ -119,7 +124,7 @@ export function Dashboard() {
                 </span>
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-1">89</h3>
-              <p className="text-sm text-slate-600">Active Users</p>
+              <p className="text-sm text-slate-600">Clients</p>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -175,14 +180,19 @@ export function Dashboard() {
                   <p className="text-sm font-medium text-slate-900">View Reports</p>
                   <p className="text-xs text-slate-500">Analytics data</p>
                 </button>
-                <button className="p-4 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all text-left">
+                <button
+                  onClick={() => setActiveTab('clients')}
+                  className="p-4 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all text-left"
+                >
                   <Users className="w-6 h-6 text-slate-900 mb-2" />
-                  <p className="text-sm font-medium text-slate-900">Manage Users</p>
-                  <p className="text-xs text-slate-500">User permissions</p>
+                  <p className="text-sm font-medium text-slate-900">Manage Clients</p>
+                  <p className="text-xs text-slate-500">Client management</p>
                 </button>
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
       </main>
     </div>
