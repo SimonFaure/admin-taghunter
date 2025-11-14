@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Eye } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, CreateClientData } from '../types/client';
 
-export function ClientsView() {
+interface ClientsViewProps {
+  onViewClient?: (clientId: string) => void;
+}
+
+export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -180,15 +184,26 @@ export function ClientsView() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end space-x-2">
+                        {onViewClient && (
+                          <button
+                            onClick={() => onViewClient(client.id)}
+                            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleEdit(client)}
                           className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                          title="Quick Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(client.id)}
                           className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

@@ -2,10 +2,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { LogOut, Home, Users, Tag, Settings, BarChart3, Package } from 'lucide-react';
 import { useState } from 'react';
 import { ClientsView } from './ClientsView';
+import { ClientDetailView } from './ClientDetailView';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const menuItems = [
     { id: 'home', label: 'Dashboard', icon: Home },
@@ -83,7 +85,16 @@ export function Dashboard() {
             </p>
           </div>
 
-          {activeTab === 'clients' && <ClientsView />}
+          {activeTab === 'clients' && (
+            selectedClientId ? (
+              <ClientDetailView
+                clientId={selectedClientId}
+                onBack={() => setSelectedClientId(null)}
+              />
+            ) : (
+              <ClientsView onViewClient={(id) => setSelectedClientId(id)} />
+            )
+          )}
 
           {activeTab === 'home' && (
           <>
