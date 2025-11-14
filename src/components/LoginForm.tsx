@@ -17,7 +17,7 @@ export function LoginForm() {
     const { error } = await signIn(email, password);
 
     if (error) {
-      setError(error.message);
+      setError(typeof error === 'string' ? error : error.message || 'Login failed');
     }
 
     setIsLoading(false);
