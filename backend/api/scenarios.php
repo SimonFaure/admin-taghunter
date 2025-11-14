@@ -50,39 +50,89 @@ try {
 
     switch ($action) {
         case 'create':
-            requireAuth();
-
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            // Validate required fields
-            if (!isset($_POST['client_id']) || !isset($_POST['title']) || !isset($_POST['description'])) {
-                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Missing required fields'], 400);
-                jsonResponse(['error' => 'Missing required fields: client_id, title, description'], 400);
+            // Check if this is an admin request (with session) or client request (with email)
+            $isAdminRequest = isset($_SESSION['user_id']);
+            $userEmail = $_POST['userEmail'] ?? null;
+
+            if (!$isAdminRequest && !$userEmail) {
+                Logger::log('scenarios', $method, 'create', null, $_POST, ['error' => 'Unauthorized - no session or email'], 401);
+                jsonResponse(['error' => 'Unauthorized'], 401);
             }
 
-            $client_id = (int)$_POST['client_id'];
-            $title = trim($_POST['title']);
-            $description = trim($_POST['description']);
+            // Parse scenario data if it's JSON string
+            $scenarioData = null;
+            if (isset($_POST['scenarioData'])) {
+                $scenarioData = json_decode($_POST['scenarioData'], true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Invalid JSON in scenarioData'], 400);
+                    jsonResponse(['error' => 'Invalid JSON in scenarioData'], 400);
+                }
+            }
+
+            // Get fields from either direct POST or scenarioData
+            $client_id = null;
+            $title = null;
+            $description = null;
+
+            if ($scenarioData) {
+                // Client app format
+                $title = $scenarioData['title'] ?? null;
+                $description = $scenarioData['description'] ?? null;
+
+                // Look up client by email
+                if ($userEmail) {
+                    $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$userEmail]);
+                    if ($client) {
+                        $client_id = (int)$client['id'];
+                    }
+                }
+            } else {
+                // Admin format
+                $client_id = isset($_POST['client_id']) ? (int)$_POST['client_id'] : null;
+                $title = $_POST['title'] ?? null;
+                $description = $_POST['description'] ?? null;
+            }
+
+            // Validate required fields
+            if (!$title || !$description) {
+                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Missing title or description'], 400);
+                jsonResponse(['error' => 'Missing required fields: title, description'], 400);
+            }
+
+            $title = trim($title);
+            $description = trim($description);
 
             if (empty($title) || empty($description)) {
-                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Empty fields'], 400);
+                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Empty fields'], 400);
                 jsonResponse(['error' => 'Title and description cannot be empty'], 400);
             }
 
-            // Verify client exists
-            $client = $db->fetch('SELECT id FROM clients WHERE id = ?', [$client_id]);
-            if (!$client) {
-                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Client not found'], 404);
-                jsonResponse(['error' => 'Client not found'], 404);
+            // For client requests, client_id might be null if email not found
+            if (!$client_id && $userEmail) {
+                Logger::log('scenarios', $method, 'create', null, ['email' => $userEmail], ['error' => 'Client not found for email'], 404);
+                jsonResponse(['error' => 'Client not found for email: ' . $userEmail], 404);
             }
 
-            // Handle zip file upload
+            // Verify client exists if client_id provided
+            if ($client_id) {
+                $client = $db->fetch('SELECT id FROM clients WHERE id = ?', [$client_id]);
+                if (!$client) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Client not found'], 404);
+                    jsonResponse(['error' => 'Client not found'], 404);
+                }
+            }
+
+            // Handle zip file upload (accept both 'zip_file' and 'scenario' field names)
             $media_path = null;
-            if (isset($_FILES['zip_file']) && $_FILES['zip_file']['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES['zip_file'];
+            $fileField = isset($_FILES['scenario']) ? 'scenario' : 'zip_file';
+
+            if (isset($_FILES[$fileField]) && $_FILES[$fileField]['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES[$fileField];
 
                 // Validate file type
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -122,8 +172,9 @@ try {
             }
 
             // Insert scenario into database
+            $created_by = $_SESSION['user_id'] ?? null;
             $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, created_by) VALUES (?, ?, ?, ?, ?)';
-            $db->query($sql, [$client_id, $title, $description, $media_path, $_SESSION['user_id']]);
+            $db->query($sql, [$client_id, $title, $description, $media_path, $created_by]);
 
             $scenario_id = $db->getConnection()->lastInsertId();
 
@@ -140,7 +191,7 @@ try {
                 'message' => 'Scenario created successfully'
             ];
 
-            Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], ['client_id' => $client_id, 'title' => $title], $responseData, 201);
+            Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, ['client_id' => $client_id, 'title' => $title, 'email' => $userEmail], $responseData, 201);
             jsonResponse($responseData, 201);
             break;
 
