@@ -13,6 +13,10 @@ interface ApiResponse<T> {
 
 export const supabaseAuthApi = {
   async login(email: string, password: string): Promise<ApiResponse<{ user: AdminUser; message: string }>> {
+    if (!supabase) {
+      return { error: 'Supabase is not configured' };
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -39,6 +43,10 @@ export const supabaseAuthApi = {
   },
 
   async logout(): Promise<ApiResponse<{ message: string }>> {
+    if (!supabase) {
+      return { error: 'Supabase is not configured' };
+    }
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -49,6 +57,10 @@ export const supabaseAuthApi = {
   },
 
   async checkAuth(): Promise<ApiResponse<{ user: AdminUser | null }>> {
+    if (!supabase) {
+      return { data: { user: null } };
+    }
+
     const { data: { session }, error } = await supabase.auth.getSession();
 
     if (error || !session?.user) {
@@ -67,6 +79,10 @@ export const supabaseAuthApi = {
   },
 
   onAuthStateChange(callback: (user: AdminUser | null) => void) {
+    if (!supabase) {
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    }
+
     return supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         callback({

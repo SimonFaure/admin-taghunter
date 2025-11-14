@@ -73,6 +73,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     const filePath = `${fileName}`;
 
     try {
+      if (!supabase) {
+        throw new Error('Supabase is not configured');
+      }
+
       if (client?.avatar_url) {
         const oldPath = client.avatar_url.split('/').pop();
         if (oldPath) {
