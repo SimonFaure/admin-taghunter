@@ -5,7 +5,7 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-interface User {
+export interface User {
   id: number;
   email: string;
   name?: string;
@@ -34,7 +34,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 }
 
-export const authApi = {
+export const phpAuthApi = {
   async login(email: string, password: string): Promise<ApiResponse<{ user: User; message: string }>> {
     return apiRequest('/auth.php?action=login', {
       method: 'POST',
