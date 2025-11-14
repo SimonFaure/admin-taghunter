@@ -1,0 +1,9 @@
+RewriteEngine On
+RewriteBase /backend/
+
+# Handle CORS preflight requests
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Deny access to config and database directories
+RewriteRule ^(config|database)/ - [F,L]
