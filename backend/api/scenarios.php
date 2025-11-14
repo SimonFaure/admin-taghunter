@@ -130,49 +130,8 @@ try {
                 }
             }
 
-            // Handle zip file upload (accept both 'zip_file' and 'scenario' field names)
+            // Skip file upload for now - will be handled in a separate request
             $media_path = null;
-            $fileField = isset($_FILES['scenario']) ? 'scenario' : 'zip_file';
-
-            if (isset($_FILES[$fileField]) && $_FILES[$fileField]['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES[$fileField];
-
-                // Validate file type
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mimeType = finfo_file($finfo, $file['tmp_name']);
-                finfo_close($finfo);
-
-                $allowedTypes = ['application/zip', 'application/x-zip-compressed'];
-                if (!in_array($mimeType, $allowedTypes)) {
-                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Invalid file type'], 400);
-                    jsonResponse(['error' => 'Only zip files are allowed'], 400);
-                }
-
-                // Validate file size (50MB max)
-                if ($file['size'] > 50 * 1024 * 1024) {
-                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'File too large'], 400);
-                    jsonResponse(['error' => 'File size must be less than 50MB'], 400);
-                }
-
-                // Create upload directory if it doesn't exist
-                $uploadDir = __DIR__ . '/../../uploads/scenarios/';
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
-
-                // Generate unique filename
-                $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
-                $uniqueName = uniqid('scenario_', true) . '.' . $fileExtension;
-                $uploadPath = $uploadDir . $uniqueName;
-
-                // Move uploaded file
-                if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
-                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Upload failed'], 500);
-                    jsonResponse(['error' => 'Failed to upload file'], 500);
-                }
-
-                $media_path = '/uploads/scenarios/' . $uniqueName;
-            }
 
             // Insert scenario into database
             $created_by = $_SESSION['user_id'] ?? null;
