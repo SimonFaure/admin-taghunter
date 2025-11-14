@@ -93,4 +93,18 @@ export const clientApi = {
 
     return { data: undefined };
   },
+
+  async checkEmailExists(email: string): Promise<ApiResponse<{ exists: boolean }>> {
+    const { data, error } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: { exists: !!data } };
+  },
 };
