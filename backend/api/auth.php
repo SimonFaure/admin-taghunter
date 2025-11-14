@@ -48,8 +48,12 @@ try {
                 [$email]
             );
 
-            if (!$user || !password_verify($password, $user['password'])) {
-                jsonResponse(['error' => 'Invalid credentials'], 401);
+            if (!$user) {
+                jsonResponse(['error' => 'User not found. Please run the database migration or create_admin.php script.'], 401);
+            }
+
+            if (!password_verify($password, $user['password'])) {
+                jsonResponse(['error' => 'Invalid password'], 401);
             }
 
             unset($user['password']);
