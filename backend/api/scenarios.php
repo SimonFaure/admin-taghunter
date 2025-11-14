@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 session_start();
 
 require_once __DIR__ . '/../database/Database.php';
+require_once __DIR__ . '/../utils/Logger.php';
 
 function jsonResponse($data, $statusCode = 200) {
     header('Content-Type: application/json');
@@ -34,17 +35,20 @@ function getRequestData() {
 try {
     $db = Database::getInstance();
     $action = $_GET['action'] ?? '';
+    $method = $_SERVER['REQUEST_METHOD'];
 
     switch ($action) {
         case 'create':
             requireAuth();
 
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
             // Validate required fields
             if (!isset($_POST['client_id']) || !isset($_POST['title']) || !isset($_POST['description'])) {
+                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Missing required fields'], 400);
                 jsonResponse(['error' => 'Missing required fields: client_id, title, description'], 400);
             }
 
@@ -53,12 +57,14 @@ try {
             $description = trim($_POST['description']);
 
             if (empty($title) || empty($description)) {
+                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Empty fields'], 400);
                 jsonResponse(['error' => 'Title and description cannot be empty'], 400);
             }
 
             // Verify client exists
             $client = $db->fetch('SELECT id FROM clients WHERE id = ?', [$client_id]);
             if (!$client) {
+                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Client not found'], 404);
                 jsonResponse(['error' => 'Client not found'], 404);
             }
 
@@ -74,11 +80,13 @@ try {
 
                 $allowedTypes = ['application/zip', 'application/x-zip-compressed'];
                 if (!in_array($mimeType, $allowedTypes)) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Invalid file type'], 400);
                     jsonResponse(['error' => 'Only zip files are allowed'], 400);
                 }
 
                 // Validate file size (50MB max)
                 if ($file['size'] > 50 * 1024 * 1024) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'File too large'], 400);
                     jsonResponse(['error' => 'File size must be less than 50MB'], 400);
                 }
 
@@ -95,6 +103,7 @@ try {
 
                 // Move uploaded file
                 if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], $_POST, ['error' => 'Upload failed'], 500);
                     jsonResponse(['error' => 'Failed to upload file'], 500);
                 }
 
@@ -107,7 +116,7 @@ try {
 
             $scenario_id = $db->getConnection()->lastInsertId();
 
-            jsonResponse([
+            $responseData = [
                 'success' => true,
                 'scenario' => [
                     'id' => $scenario_id,
@@ -118,13 +127,17 @@ try {
                     'created_at' => date('Y-m-d H:i:s')
                 ],
                 'message' => 'Scenario created successfully'
-            ], 201);
+            ];
+
+            Logger::log('scenarios', $method, 'create', $_SESSION['user_id'], ['client_id' => $client_id, 'title' => $title], $responseData, 201);
+            jsonResponse($responseData, 201);
             break;
 
         case 'list':
             requireAuth();
 
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                Logger::log('scenarios', $method, 'list', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
@@ -149,6 +162,7 @@ try {
                 );
             }
 
+            Logger::log('scenarios', $method, 'list', $_SESSION['user_id'], ['client_id' => $client_id], ['count' => count($scenarios)], 200);
             jsonResponse(['scenarios' => $scenarios]);
             break;
 
@@ -156,11 +170,13 @@ try {
             requireAuth();
 
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                Logger::log('scenarios', $method, 'get', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
             $id = $_GET['id'] ?? null;
             if (!$id) {
+                Logger::log('scenarios', $method, 'get', $_SESSION['user_id'], [], ['error' => 'Missing ID'], 400);
                 jsonResponse(['error' => 'Scenario ID is required'], 400);
             }
 
@@ -174,9 +190,11 @@ try {
             );
 
             if (!$scenario) {
+                Logger::log('scenarios', $method, 'get', $_SESSION['user_id'], ['id' => $id], ['error' => 'Not found'], 404);
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
+            Logger::log('scenarios', $method, 'get', $_SESSION['user_id'], ['id' => $id], ['success' => true], 200);
             jsonResponse(['scenario' => $scenario]);
             break;
 
@@ -266,6 +284,7 @@ try {
             requireAuth();
 
             if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'DELETE') {
+                Logger::log('scenarios', $method, 'delete', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
@@ -273,12 +292,14 @@ try {
             $id = $data['id'] ?? $_GET['id'] ?? null;
 
             if (!$id) {
+                Logger::log('scenarios', $method, 'delete', $_SESSION['user_id'], [], ['error' => 'Missing ID'], 400);
                 jsonResponse(['error' => 'Scenario ID is required'], 400);
             }
 
             // Get scenario to delete associated file
             $scenario = $db->fetch('SELECT media_url FROM scenarios WHERE id = ?', [(int)$id]);
             if (!$scenario) {
+                Logger::log('scenarios', $method, 'delete', $_SESSION['user_id'], ['id' => $id], ['error' => 'Not found'], 404);
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
@@ -290,6 +311,7 @@ try {
             // Delete scenario from database
             $db->query('DELETE FROM scenarios WHERE id = ?', [(int)$id]);
 
+            Logger::log('scenarios', $method, 'delete', $_SESSION['user_id'], ['id' => $id], ['success' => true], 200);
             jsonResponse([
                 'success' => true,
                 'message' => 'Scenario deleted successfully'
@@ -297,8 +319,10 @@ try {
             break;
 
         default:
+            Logger::log('scenarios', $method, $action ?: 'none', $_SESSION['user_id'] ?? null, [], ['error' => 'Invalid action'], 400);
             jsonResponse(['error' => 'Invalid action. Available actions: create, list, get, update, delete'], 400);
     }
 } catch (Exception $e) {
+    Logger::log('scenarios', $method, $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], ['error' => $e->getMessage()], 500);
     jsonResponse(['error' => 'Server error: ' . $e->getMessage()], 500);
 }
