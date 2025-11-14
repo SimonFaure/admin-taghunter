@@ -11,6 +11,26 @@ CREATE TABLE IF NOT EXISTS admin_users (
     INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Clients Table Migration
+-- Create the clients table
+
+CREATE TABLE IF NOT EXISTS clients (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(255),
+    company VARCHAR(255),
+    phone VARCHAR(50),
+    notes TEXT,
+    avatar_url TEXT,
+    license_type ENUM('access', 'premium') DEFAULT 'access',
+    billing_up_to_date BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_by INT,
+    INDEX idx_email (email),
+    FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Insert a default admin user (password: admin123)
 -- Password hash for 'admin123' using PASSWORD_DEFAULT (bcrypt)
 INSERT INTO admin_users (email, password, name)
