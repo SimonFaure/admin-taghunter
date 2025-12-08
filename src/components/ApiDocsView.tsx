@@ -150,9 +150,11 @@ export default function ApiDocsView() {
             { name: 'userEmail', type: 'string', description: 'Client email (for client app)' },
             { name: 'title', type: 'string', description: 'Scenario title (required)' },
             { name: 'description', type: 'string', description: 'Scenario description (required)' },
-            { name: 'scenarioData', type: 'JSON string', description: 'Alternative format for client apps' },
+            { name: 'game_data', type: 'string/JSON', description: 'Game data as JSON string or object (optional)' },
+            { name: 'game_type', type: 'string', description: 'Type of game (optional)' },
+            { name: 'scenarioData', type: 'JSON string', description: 'Alternative format for client apps with nested title, description, gameData, game_type' },
           ],
-          response: '{ "success": true, "scenario": { "id": 1, "title": "New Scenario", "description": "Description", "client_id": 1, "created_at": "2024-01-15T10:30:00Z" }, "message": "Scenario created successfully" }',
+          response: '{ "success": true, "scenario": { "id": 1, "title": "New Scenario", "description": "Description", "client_id": 1, "game_data": "{\\"key\\":\\"value\\"}", "game_type": "puzzle", "created_at": "2024-01-15T10:30:00Z" }, "message": "Scenario created successfully" }',
         },
         {
           method: 'POST',
@@ -178,6 +180,31 @@ export default function ApiDocsView() {
       ],
     },
     {
+      title: 'Statistics',
+      icon: <Activity className="w-5 h-5" />,
+      color: 'bg-pink-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/statistics.php?action=overview',
+          description: 'Get statistics overview with games, clients, and top performers',
+          auth: true,
+          response: '{ "overview": { "total_games": 150, "unique_clients": 25, "avg_duration": 45.5, "completion_rate": 85.5 }, "games_per_day": [...], "top_scenarios": [...], "top_clients": [...] }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/statistics.php?action=recent',
+          description: 'Get recent launched games with pagination',
+          auth: true,
+          params: [
+            { name: 'limit', type: 'integer', description: 'Number of games to return (default: 50)' },
+            { name: 'offset', type: 'integer', description: 'Offset for pagination (default: 0)' },
+          ],
+          response: '{ "games": [...], "total": 150, "limit": 50, "offset": 0 }',
+        },
+      ],
+    },
+    {
       title: 'Logs',
       icon: <Activity className="w-5 h-5" />,
       color: 'bg-orange-500',
@@ -185,13 +212,13 @@ export default function ApiDocsView() {
         {
           method: 'GET',
           path: '/backend/api/logs.php?action=list',
-          description: 'Get API logs with pagination',
+          description: 'Get API logs with pagination and request parameters',
           auth: true,
           params: [
             { name: 'limit', type: 'integer', description: 'Number of logs to return (default: 100)' },
             { name: 'offset', type: 'integer', description: 'Offset for pagination (default: 0)' },
           ],
-          response: '{ "logs": [...], "total": 500, "limit": 100, "offset": 0 }',
+          response: '{ "logs": [{ "timestamp": "2024-01-15T10:30:00Z", "endpoint": "clients", "method": "POST", "action": "create", "user_id": 1, "ip": "127.0.0.1", "user_agent": "Mozilla/5.0...", "data": { "email": "test@example.com" }, "response": { "success": true }, "status_code": 200 }], "total": 500, "limit": 100, "offset": 0 }',
         },
         {
           method: 'POST',
@@ -210,10 +237,10 @@ export default function ApiDocsView() {
         {
           method: 'GET',
           path: '/backend/api/check_email.php?email={email}',
-          description: 'Check if email exists in clients table (PHP backend)',
-          auth: true,
+          description: 'Check if email exists in clients table',
+          auth: false,
           params: [{ name: 'email', type: 'string', description: 'Email address to check' }],
-          response: '{ "exists": true }',
+          response: '{ "exists": true, "client_id": 1 }',
         },
       ],
     },
