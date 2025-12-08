@@ -21,7 +21,9 @@ export function ScenariosView() {
   const [error, setError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [gameVisualImage, setGameVisualImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
+  const [visualError, setVisualError] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
@@ -29,35 +31,47 @@ export function ScenariosView() {
 
   useEffect(() => {
     if (selectedScenario?.uniqid) {
-      findBackgroundImage(selectedScenario);
+      findImages(selectedScenario);
     }
   }, [selectedScenario]);
 
-  const findBackgroundImage = (scenario: Scenario) => {
+  const findImages = (scenario: Scenario) => {
     setImageError(false);
+    setVisualError(false);
     setBackgroundImage(null);
+    setGameVisualImage(null);
 
     if (!scenario.uniqid) return;
 
-    let imageUrl: string | null = null;
+    let backgroundUrl: string | null = null;
+    let visualUrl: string | null = null;
 
     if (scenario.game_data) {
       try {
         const gameData = JSON.parse(scenario.game_data);
         if (gameData.backgroundImage) {
-          imageUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
+          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
+        }
+        if (gameData.game_visual) {
+          visualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
         }
       } catch (e) {
         console.error('Failed to parse game_data', e);
       }
     }
 
-    if (!imageUrl) {
+    if (!backgroundUrl) {
       const commonBackgroundNames = ['background.png', 'background.jpg', 'background.jpeg', 'bg.png', 'bg.jpg'];
-      imageUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${commonBackgroundNames[0]}`;
+      backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${commonBackgroundNames[0]}`;
     }
 
-    setBackgroundImage(imageUrl);
+    if (!visualUrl) {
+      const commonVisualNames = ['game_visual.png', 'game_visual.jpg', 'game_visual.jpeg', 'visual.png', 'visual.jpg'];
+      visualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${commonVisualNames[0]}`;
+    }
+
+    setBackgroundImage(backgroundUrl);
+    setGameVisualImage(visualUrl);
   };
 
   const fetchScenarios = async () => {
@@ -102,7 +116,9 @@ export function ScenariosView() {
       setScenarios(scenarios.filter(s => s.id !== id));
       setSelectedScenario(null);
       setBackgroundImage(null);
+      setGameVisualImage(null);
       setImageError(false);
+      setVisualError(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete scenario');
     }
@@ -131,7 +147,9 @@ export function ScenariosView() {
           onClick={() => {
             setSelectedScenario(null);
             setBackgroundImage(null);
+            setGameVisualImage(null);
             setImageError(false);
+            setVisualError(false);
           }}
           className="text-slate-600 hover:text-slate-900 font-medium"
         >
@@ -173,6 +191,24 @@ export function ScenariosView() {
                     alt="Scenario background"
                     className="w-full h-auto max-h-96 object-contain"
                     onError={() => setImageError(true)}
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            )}
+
+            {gameVisualImage && !visualError && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Game Visual</span>
+                </h4>
+                <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                  <img
+                    src={gameVisualImage}
+                    alt="Game visual"
+                    className="w-full h-auto max-h-96 object-contain"
+                    onError={() => setVisualError(true)}
                     loading="lazy"
                   />
                 </div>
