@@ -8,6 +8,10 @@ interface ApiResponse<T> {
 
 export const clientApi = {
   async getClients(): Promise<ApiResponse<Client[]>> {
+    if (!supabase) {
+      return { error: 'Supabase client not initialized' };
+    }
+
     const { data, error } = await supabase
       .from('clients')
       .select('*')
@@ -21,6 +25,10 @@ export const clientApi = {
   },
 
   async getClient(id: string): Promise<ApiResponse<Client>> {
+    if (!supabase) {
+      return { error: 'Supabase client not initialized' };
+    }
+
     const { data, error } = await supabase
       .from('clients')
       .select('*')
@@ -66,6 +74,10 @@ export const clientApi = {
   },
 
   async updateClient(clientData: UpdateClientData): Promise<ApiResponse<Client>> {
+    if (!supabase) {
+      return { error: 'Supabase client not initialized' };
+    }
+
     const { id, ...updates } = clientData;
 
     const { data, error } = await supabase
@@ -86,6 +98,10 @@ export const clientApi = {
   },
 
   async deleteClient(id: string): Promise<ApiResponse<void>> {
+    if (!supabase) {
+      return { error: 'Supabase client not initialized' };
+    }
+
     const { error } = await supabase
       .from('clients')
       .delete()
@@ -99,6 +115,10 @@ export const clientApi = {
   },
 
   async checkEmailExists(email: string): Promise<ApiResponse<{ exists: boolean }>> {
+    if (!supabase) {
+      return { error: 'Supabase client not initialized' };
+    }
+
     const { data, error } = await supabase
       .from('clients')
       .select('id')
