@@ -21,10 +21,10 @@ export function ScenariosView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [gameVisualImage, setGameVisualImage] = useState<string | null>(null);
+  const [displayImage, setDisplayImage] = useState<string | null>(null);
+  const [imageLabel, setImageLabel] = useState<string>('');
   const [imageError, setImageError] = useState(false);
-  const [visualError, setVisualError] = useState(false);
+  const [fallbackAttempted, setFallbackAttempted] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
@@ -38,41 +38,54 @@ export function ScenariosView() {
 
   const findImages = (scenario: Scenario) => {
     setImageError(false);
-    setVisualError(false);
-    setBackgroundImage(null);
-    setGameVisualImage(null);
+    setFallbackAttempted(false);
+    setDisplayImage(null);
+    setImageLabel('');
 
     if (!scenario.uniqid) return;
 
+    let gameVisualUrl: string | null = null;
     let backgroundUrl: string | null = null;
-    let visualUrl: string | null = null;
 
     if (scenario.game_data) {
       try {
         const gameData = JSON.parse(scenario.game_data);
+        if (gameData.game_visual) {
+          gameVisualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
+        }
         if (gameData.backgroundImage) {
           backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
-        }
-        if (gameData.game_visual) {
-          visualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
         }
       } catch (e) {
         console.error('Failed to parse game_data', e);
       }
     }
 
-    if (!backgroundUrl) {
-      const commonBackgroundNames = ['background.png', 'background.jpg', 'background.jpeg', 'bg.png', 'bg.jpg'];
-      backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${commonBackgroundNames[0]}`;
+    if (gameVisualUrl) {
+      setDisplayImage(gameVisualUrl);
+      setImageLabel('Game Visual');
+    } else if (backgroundUrl) {
+      setDisplayImage(backgroundUrl);
+      setImageLabel('Background Image');
     }
+  };
 
-    if (!visualUrl) {
-      const commonVisualNames = ['game_visual.png', 'game_visual.jpg', 'game_visual.jpeg', 'visual.png', 'visual.jpg'];
-      visualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${commonVisualNames[0]}`;
+  const handleImageError = () => {
+    if (!fallbackAttempted && selectedScenario?.uniqid && selectedScenario.game_data) {
+      try {
+        const gameData = JSON.parse(selectedScenario.game_data);
+        if (imageLabel === 'Game Visual' && gameData.backgroundImage) {
+          setFallbackAttempted(true);
+          setDisplayImage(`https://admin.taghunter.fr/media/${selectedScenario.uniqid}/${gameData.backgroundImage}`);
+          setImageLabel('Background Image');
+          setImageError(false);
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to parse game_data for fallback', e);
+      }
     }
-
-    setBackgroundImage(backgroundUrl);
-    setGameVisualImage(visualUrl);
+    setImageError(true);
   };
 
   const fetchScenarios = async () => {
@@ -116,10 +129,10 @@ export function ScenariosView() {
 
       setScenarios(scenarios.filter(s => s.id !== id));
       setSelectedScenario(null);
-      setBackgroundImage(null);
-      setGameVisualImage(null);
+      setDisplayImage(null);
+      setImageLabel('');
       setImageError(false);
-      setVisualError(false);
+      setFallbackAttempted(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete scenario');
     }
@@ -147,10 +160,10 @@ export function ScenariosView() {
         <button
           onClick={() => {
             setSelectedScenario(null);
-            setBackgroundImage(null);
-            setGameVisualImage(null);
+            setDisplayImage(null);
+            setImageLabel('');
             setImageError(false);
-            setVisualError(false);
+            setFallbackAttempted(false);
           }}
           className="text-slate-600 hover:text-slate-900 font-medium"
         >
@@ -184,36 +197,18 @@ export function ScenariosView() {
               <p className="text-slate-600 whitespace-pre-wrap">{selectedScenario.description}</p>
             </div>
 
-            {backgroundImage && !imageError && (
+            {displayImage && !imageError && (
               <div className="mb-6">
                 <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
                   <ImageIcon className="w-4 h-4" />
-                  <span>Background Image</span>
+                  <span>{imageLabel}</span>
                 </h4>
                 <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
                   <img
-                    src={backgroundImage}
-                    alt="Scenario background"
+                    src={displayImage}
+                    alt={imageLabel}
                     className="w-full h-auto max-h-96 object-contain"
-                    onError={() => setImageError(true)}
-                    loading="lazy"
-                  />
-                </div>
-              </div>
-            )}
-
-            {gameVisualImage && !visualError && (
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
-                  <ImageIcon className="w-4 h-4" />
-                  <span>Game Visual</span>
-                </h4>
-                <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                  <img
-                    src={gameVisualImage}
-                    alt="Game visual"
-                    className="w-full h-auto max-h-96 object-contain"
-                    onError={() => setVisualError(true)}
+                    onError={handleImageError}
                     loading="lazy"
                   />
                 </div>
