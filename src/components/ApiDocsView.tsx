@@ -23,7 +23,7 @@ export default function ApiDocsView() {
 
   const apiSections: ApiSection[] = [
     {
-      title: 'Authentication',
+      title: 'Admin Authentication',
       icon: <Lock className="w-5 h-5" />,
       color: 'bg-blue-500',
       endpoints: [
@@ -51,6 +51,65 @@ export default function ApiDocsView() {
           description: 'Check current authentication status',
           auth: false,
           response: '{ "user": { "id": 1, "email": "admin@example.com", "name": "Admin" } }',
+        },
+      ],
+    },
+    {
+      title: 'Client Authentication (Secure)',
+      icon: <Lock className="w-5 h-5" />,
+      color: 'bg-indigo-500',
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/backend/api/secure_auth.php?action=request-code',
+          description: 'Request OTP code or magic link for passwordless authentication',
+          auth: false,
+          body: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'type', type: 'string', description: '"otp" or "magic_link" (default: otp)' },
+          ],
+          response: '{ "success": true, "message": "Code sent to your email", "expires_in": 900 }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/secure_auth.php?action=verify-code',
+          description: 'Verify OTP code and receive authentication token',
+          auth: false,
+          body: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'code', type: 'string', description: '6-digit OTP code' },
+          ],
+          response: '{ "success": true, "data": { "token": "auth_token_here", "expires_at": "2024-01-15T10:30:00Z", "client_id": 1, "email": "client@example.com", "name": "Client Name" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/secure_auth.php?action=validate',
+          description: 'Validate authentication token',
+          auth: false,
+          body: [
+            { name: 'token', type: 'string', description: 'Authentication token (or send as X-Auth-Token header)' },
+          ],
+          response: '{ "valid": true, "client_id": 1, "email": "client@example.com", "name": "Client Name", "expires_at": "2024-01-15T10:30:00Z" }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/secure_auth.php?action=refresh',
+          description: 'Refresh authentication token before expiry',
+          auth: false,
+          body: [
+            { name: 'token', type: 'string', description: 'Current authentication token' },
+          ],
+          response: '{ "success": true, "data": { "token": "new_auth_token_here", "expires_at": "2024-01-15T12:30:00Z" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/secure_auth.php?action=logout',
+          description: 'Revoke authentication token',
+          auth: false,
+          body: [
+            { name: 'token', type: 'string', description: 'Authentication token to revoke' },
+          ],
+          response: '{ "success": true, "message": "Logged out successfully" }',
         },
       ],
     },
