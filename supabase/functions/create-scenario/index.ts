@@ -51,6 +51,7 @@ Deno.serve(async (req: Request) => {
     const formData = await req.formData();
     
     // Get scenario data from form
+    const uniqid = formData.get("uniqid") as string;
     const title = formData.get("title") as string;
     const gameType = formData.get("game_type") as string;
     const slug = formData.get("slug") as string;
@@ -60,9 +61,9 @@ Deno.serve(async (req: Request) => {
     const zipFile = formData.get("media_zip") as File;
 
     // Validate required fields
-    if (!title || !gameType || !slug) {
+    if (!uniqid || !title || !gameType || !slug) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: title, game_type, slug" }),
+        JSON.stringify({ error: "Missing required fields: uniqid, title, game_type, slug" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -117,39 +118,91 @@ Deno.serve(async (req: Request) => {
       mediaUrl = urlData.publicUrl;
     }
 
-    // Insert scenario into database
-    const { data: scenario, error: insertError } = await supabase
+    // Check if scenario with this uniqid already exists
+    const { data: existingScenario } = await supabase
       .from("scenarios")
-      .insert({
+      .select("id")
+      .eq("uniqid", uniqid)
+      .maybeSingle();
+
+    let scenario;
+    let isUpdate = false;
+
+    if (existingScenario) {
+      // Update existing scenario
+      isUpdate = true;
+      const updateData: any = {
         title,
         game_type: gameType,
         slug,
         description,
         status,
         data,
-        media_url: mediaUrl,
-        created_by: user.id,
-      })
-      .select()
-      .single();
+        updated_at: new Date().toISOString(),
+      };
 
-    if (insertError) {
-      return new Response(
-        JSON.stringify({ error: `Failed to create scenario: ${insertError.message}` }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      // Only update media_url if a new file was uploaded
+      if (mediaUrl) {
+        updateData.media_url = mediaUrl;
+      }
+
+      const { data: updatedScenario, error: updateError } = await supabase
+        .from("scenarios")
+        .update(updateData)
+        .eq("uniqid", uniqid)
+        .select()
+        .single();
+
+      if (updateError) {
+        return new Response(
+          JSON.stringify({ error: `Failed to update scenario: ${updateError.message}` }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      scenario = updatedScenario;
+    } else {
+      // Insert new scenario
+      const { data: newScenario, error: insertError } = await supabase
+        .from("scenarios")
+        .insert({
+          uniqid,
+          title,
+          game_type: gameType,
+          slug,
+          description,
+          status,
+          data,
+          media_url: mediaUrl,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        return new Response(
+          JSON.stringify({ error: `Failed to create scenario: ${insertError.message}` }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      scenario = newScenario;
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         scenario,
+        action: isUpdate ? "updated" : "created",
       }),
       {
-        status: 201,
+        status: isUpdate ? 200 : 201,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
