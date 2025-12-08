@@ -10,8 +10,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-session_start();
-
 require_once __DIR__ . '/../database/Database.php';
 
 function jsonResponse($data, $statusCode = 200) {
@@ -25,10 +23,6 @@ try {
         jsonResponse(['error' => 'Method not allowed'], 405);
     }
 
-    if (!isset($_SESSION['user_id'])) {
-        jsonResponse(['error' => 'Unauthorized'], 401);
-    }
-
     $email = $_GET['email'] ?? '';
 
     if (empty($email)) {
@@ -36,16 +30,6 @@ try {
     }
 
     $db = Database::getInstance();
-
-    $user = $db->fetch(
-        'SELECT id, email, name FROM admin_users WHERE id = ?',
-        [$_SESSION['user_id']]
-    );
-
-    if (!$user) {
-        session_destroy();
-        jsonResponse(['error' => 'Unauthorized'], 401);
-    }
 
     $client = $db->fetch(
         'SELECT id FROM clients WHERE email = ?',
