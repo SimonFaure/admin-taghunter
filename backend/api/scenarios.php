@@ -358,9 +358,101 @@ try {
             ]);
             break;
 
+        case 'upload_media':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                Logger::log('scenarios', $method, 'upload_media', null, [], ['error' => 'Method not allowed'], 405);
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            // Get required fields
+            $uniqid = $_POST['uniqid'] ?? null;
+            $userEmail = $_POST['userEmail'] ?? null;
+
+            // Validate required fields
+            if (!$uniqid || !$userEmail) {
+                Logger::log('scenarios', $method, 'upload_media', null, $_POST, ['error' => 'Missing required fields'], 400);
+                jsonResponse(['error' => 'uniqid and userEmail are required'], 400);
+            }
+
+            // Validate file upload
+            if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+                $errorMsg = isset($_FILES['file']) ? 'Upload error: ' . $_FILES['file']['error'] : 'No file uploaded';
+                Logger::log('scenarios', $method, 'upload_media', null, $_POST, ['error' => $errorMsg], 400);
+                jsonResponse(['error' => $errorMsg], 400);
+            }
+
+            $file = $_FILES['file'];
+
+            // Verify scenario exists and belongs to userEmail
+            $scenario = $db->fetch(
+                'SELECT s.id, s.uniqid, c.email as client_email
+                 FROM scenarios s
+                 LEFT JOIN clients c ON s.client_id = c.id
+                 WHERE s.uniqid = ?',
+                [$uniqid]
+            );
+
+            if (!$scenario) {
+                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'userEmail' => $userEmail], ['error' => 'Scenario not found'], 404);
+                jsonResponse(['error' => 'Scenario not found'], 404);
+            }
+
+            // Verify ownership
+            if ($scenario['client_email'] !== $userEmail) {
+                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'userEmail' => $userEmail], ['error' => 'Unauthorized - email mismatch'], 403);
+                jsonResponse(['error' => 'Unauthorized - scenario does not belong to this user'], 403);
+            }
+
+            // Validate file size (50MB max)
+            if ($file['size'] > 50 * 1024 * 1024) {
+                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'File too large'], 400);
+                jsonResponse(['error' => 'File size must be less than 50MB'], 400);
+            }
+
+            // Create media directory structure: /media/{uniqid}/
+            $mediaBaseDir = __DIR__ . '/../../media/';
+            $scenarioMediaDir = $mediaBaseDir . $uniqid . '/';
+
+            if (!is_dir($scenarioMediaDir)) {
+                if (!mkdir($scenarioMediaDir, 0755, true)) {
+                    Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'Failed to create directory'], 500);
+                    jsonResponse(['error' => 'Failed to create media directory'], 500);
+                }
+            }
+
+            // Sanitize filename
+            $originalFilename = basename($file['name']);
+            $originalFilename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $originalFilename);
+
+            // Full path for the file
+            $filePath = $scenarioMediaDir . $originalFilename;
+
+            // Move uploaded file
+            if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'Failed to move file'], 500);
+                jsonResponse(['error' => 'Failed to save file'], 500);
+            }
+
+            // Build response
+            $relativePath = '/media/' . $uniqid . '/' . $originalFilename;
+            $fullUrl = 'https://admin.taghunter.fr' . $relativePath;
+
+            $responseData = [
+                'success' => true,
+                'file' => [
+                    'name' => $originalFilename,
+                    'path' => $relativePath,
+                    'url' => $fullUrl
+                ]
+            ];
+
+            Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'userEmail' => $userEmail, 'filename' => $originalFilename], $responseData, 200);
+            jsonResponse($responseData, 200);
+            break;
+
         default:
             Logger::log('scenarios', $method, $action ?: 'none', $_SESSION['user_id'] ?? null, [], ['error' => 'Invalid action'], 400);
-            jsonResponse(['error' => 'Invalid action. Available actions: create, list, get, update, delete'], 400);
+            jsonResponse(['error' => 'Invalid action. Available actions: create, list, get, update, delete, upload_media'], 400);
     }
 } catch (Exception $e) {
     Logger::log('scenarios', $method, $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], ['error' => $e->getMessage()], 500);
