@@ -6,6 +6,7 @@ export function SettingsView() {
   const [migrationStatus, setMigrationStatus] = useState<{
     success: boolean;
     message: string;
+    details?: string[];
   } | null>(null);
 
   const runMigrations = async () => {
@@ -24,11 +25,13 @@ export function SettingsView() {
         setMigrationStatus({
           success: true,
           message: data.message || 'Database migrations completed successfully!',
+          details: data.details || [],
         });
       } else {
         setMigrationStatus({
           success: false,
           message: data.error || 'Migration failed. Please check the server logs.',
+          details: data.details || [],
         });
       }
     } catch (error) {
@@ -90,6 +93,20 @@ export function SettingsView() {
               >
                 {migrationStatus.message}
               </p>
+              {migrationStatus.details && migrationStatus.details.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  {migrationStatus.details.map((detail, index) => (
+                    <p
+                      key={index}
+                      className={`text-xs font-mono ${
+                        migrationStatus.success ? 'text-green-700' : 'text-red-700'
+                      }`}
+                    >
+                      {detail}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
