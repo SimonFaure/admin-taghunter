@@ -54,3 +54,45 @@ export const phpAuthApi = {
     });
   },
 };
+
+export interface MediaFile {
+  id: string;
+  name: string;
+  scenario_uniqid: string;
+  path: string;
+  url: string;
+  size: number;
+  mime_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Scenario {
+  id: string;
+  title: string;
+  description: string;
+  game_type: string;
+  uniqid: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const mediaApi = {
+  async listMedia(): Promise<ApiResponse<{ media: MediaFile[] }>> {
+    return apiRequest('/media.php?action=list', {
+      method: 'GET',
+    });
+  },
+
+  async getMedia(uniqid: string, filename: string): Promise<ApiResponse<{ media: MediaFile }>> {
+    return apiRequest(`/media.php?action=get&uniqid=${encodeURIComponent(uniqid)}&filename=${encodeURIComponent(filename)}`, {
+      method: 'GET',
+    });
+  },
+
+  async getMediaScenarios(uniqid: string): Promise<ApiResponse<{ scenarios: Scenario[] }>> {
+    return apiRequest(`/media.php?action=scenarios&uniqid=${encodeURIComponent(uniqid)}`, {
+      method: 'GET',
+    });
+  },
+};
