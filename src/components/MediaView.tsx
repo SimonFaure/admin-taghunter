@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Image, Calendar, HardDrive, Film, X, AlertCircle } from 'lucide-react';
+import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers } from 'lucide-react';
 import { mediaApi, MediaFile, Scenario } from '../lib/api';
+
+type ViewMode = 'grid' | 'list';
+type GroupMode = 'all' | 'scenario';
 
 export function MediaView() {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
@@ -9,6 +12,8 @@ export function MediaView() {
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
   const [relatedScenarios, setRelatedScenarios] = useState<Scenario[]>([]);
   const [loadingScenarios, setLoadingScenarios] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [groupMode, setGroupMode] = useState<GroupMode>('all');
 
   useEffect(() => {
     fetchMediaFiles();
@@ -60,6 +65,30 @@ export function MediaView() {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const isImageFile = (mimeType: string | null): boolean => {
+    if (!mimeType) return false;
+    return mimeType.startsWith('image/');
+  };
+
+  const isVideoFile = (mimeType: string | null): boolean => {
+    if (!mimeType) return false;
+    return mimeType.startsWith('video/');
+  };
+
+  const groupMediaByScenario = () => {
+    const grouped: Record<string, MediaFile[]> = {};
+
+    mediaFiles.forEach(media => {
+      const key = media.scenario_uniqid || 'Unassigned';
+      if (!grouped[key]) {
+        grouped[key] = [];
+      }
+      grouped[key].push(media);
+    });
+
+    return grouped;
   };
 
   if (loading) {
@@ -197,8 +226,157 @@ export function MediaView() {
     );
   }
 
+  const renderMediaCard = (media: MediaFile) => {
+    const isGrid = viewMode === 'grid';
+
+    return (
+      <div
+        key={media.id}
+        className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all cursor-pointer ${
+          isGrid ? '' : 'flex'
+        }`}
+        onClick={() => setSelectedMedia(media)}
+      >
+        <div className={`${isGrid ? 'aspect-video' : 'w-48 flex-shrink-0'} bg-slate-100 relative overflow-hidden`}>
+          {isImageFile(media.mime_type) ? (
+            <img
+              src={media.url}
+              alt={media.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : isVideoFile(media.mime_type) ? (
+            <video
+              src={media.url}
+              className="w-full h-full object-cover"
+              muted
+              playsInline
+            />
+          ) : null}
+          <div className="hidden absolute inset-0 flex items-center justify-center bg-slate-100">
+            <Film className="w-12 h-12 text-slate-400" />
+          </div>
+        </div>
+
+        <div className="p-4 flex-1">
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-bold text-slate-900 truncate">{media.name}</h3>
+              <p className="text-xs text-slate-500 truncate">
+                {media.mime_type || 'Unknown type'}
+              </p>
+            </div>
+          </div>
+
+          <div className={`${isGrid ? 'space-y-1' : 'flex items-center space-x-4'} text-xs text-slate-600`}>
+            <div className="flex items-center space-x-1">
+              <HardDrive className="w-3 h-3" />
+              <span>{formatFileSize(media.size)}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <Calendar className="w-3 h-3" />
+              <span>{new Date(media.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderMediaList = () => {
+    if (groupMode === 'scenario') {
+      const grouped = groupMediaByScenario();
+      const scenarioIds = Object.keys(grouped).sort();
+
+      return (
+        <div className="space-y-6">
+          {scenarioIds.map(scenarioId => (
+            <div key={scenarioId} className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Layers className="w-5 h-5 text-slate-600" />
+                <h3 className="text-lg font-semibold text-slate-900">
+                  {scenarioId === 'Unassigned' ? 'Unassigned Media' : `Scenario: ${scenarioId}`}
+                </h3>
+                <span className="text-sm text-slate-500">({grouped[scenarioId].length})</span>
+              </div>
+              <div className={viewMode === 'grid'
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+                : 'space-y-3'
+              }>
+                {grouped[scenarioId].map(renderMediaCard)}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className={viewMode === 'grid'
+        ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+        : 'space-y-3'
+      }>
+        {mediaFiles.map(renderMediaCard)}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setGroupMode('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              groupMode === 'all'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            All Media
+          </button>
+          <button
+            onClick={() => setGroupMode('scenario')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all inline-flex items-center space-x-2 ${
+              groupMode === 'scenario'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>By Scenario</span>
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-2 rounded-lg transition-all ${
+              viewMode === 'grid'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+            title="Grid view"
+          >
+            <Grid3x3 className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-2 rounded-lg transition-all ${
+              viewMode === 'list'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+            title="List view"
+          >
+            <List className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
       {mediaFiles.length === 0 ? (
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-12 text-center">
           <Image className="w-12 h-12 text-slate-400 mx-auto mb-4" />
@@ -206,46 +384,7 @@ export function MediaView() {
           <p className="text-slate-600">No media files have been uploaded yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mediaFiles.map((media) => (
-            <div
-              key={media.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Image className="w-5 h-5 text-slate-600" />
-                      <h3 className="text-base font-bold text-slate-900 truncate">{media.name}</h3>
-                    </div>
-                    <p className="text-xs text-slate-500 truncate">
-                      {media.mime_type || 'Unknown type'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center space-x-2 text-sm text-slate-600">
-                    <HardDrive className="w-4 h-4" />
-                    <span>{formatFileSize(media.size)}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-slate-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>{new Date(media.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setSelectedMedia(media)}
-                  className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all inline-flex items-center justify-center space-x-2"
-                >
-                  <span>View Details</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        renderMediaList()
       )}
     </div>
   );
