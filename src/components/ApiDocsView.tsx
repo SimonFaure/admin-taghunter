@@ -339,7 +339,7 @@ export default function ApiDocsView() {
                           <h4 className="font-semibold text-gray-900 mb-2 text-sm">
                             Request Body
                           </h4>
-                          <div className="bg-white rounded border border-gray-200 overflow-hidden">
+                          <div className="bg-white rounded border border-gray-200 overflow-hidden mb-3">
                             {endpoint.body.map((field, idx) => (
                               <div
                                 key={idx}
@@ -359,19 +359,61 @@ export default function ApiDocsView() {
                               </div>
                             ))}
                           </div>
+                          <div>
+                            <h5 className="font-medium text-gray-700 mb-2 text-xs">Example Request Body:</h5>
+                            <pre className="bg-gray-900 text-gray-100 p-4 rounded text-xs font-mono overflow-x-auto">
+                              {JSON.stringify(
+                                Object.fromEntries(
+                                  endpoint.body.map(field => {
+                                    if (field.type === 'string') return [field.name, 'example_string'];
+                                    if (field.type === 'integer') return [field.name, 1];
+                                    if (field.type === 'boolean') return [field.name, true];
+                                    if (field.type === 'JSON string') return [field.name, '{"key": "value"}'];
+                                    if (field.type === 'file') return [field.name, '(binary file data)'];
+                                    return [field.name, 'example_value'];
+                                  })
+                                ),
+                                null,
+                                2
+                              )}
+                            </pre>
+                          </div>
                         </div>
                       )}
 
                       {endpoint.response && (
                         <div>
                           <h4 className="font-semibold text-gray-900 mb-2 text-sm">
-                            Response Example
+                            Success Response (200)
                           </h4>
-                          <pre className="bg-gray-900 text-gray-100 p-4 rounded text-xs font-mono overflow-x-auto">
+                          <pre className="bg-gray-900 text-green-100 p-4 rounded text-xs font-mono overflow-x-auto border-2 border-green-600">
                             {JSON.stringify(JSON.parse(endpoint.response), null, 2)}
                           </pre>
                         </div>
                       )}
+
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-2 text-sm">
+                          cURL Example
+                        </h4>
+                        <pre className="bg-gray-900 text-blue-100 p-4 rounded text-xs font-mono overflow-x-auto">
+                          {`curl -X ${endpoint.method} '${window.location.origin}${endpoint.path}' \\
+  -H 'Content-Type: application/json'${endpoint.auth ? " \\\n  --cookie 'PHPSESSID=your_session_id'" : ''}${
+                            endpoint.body && endpoint.body.length > 0
+                              ? ` \\\n  -d '${JSON.stringify(
+                                  Object.fromEntries(
+                                    endpoint.body.map(field => {
+                                      if (field.type === 'string') return [field.name, 'example_string'];
+                                      if (field.type === 'integer') return [field.name, 1];
+                                      if (field.type === 'boolean') return [field.name, true];
+                                      return [field.name, 'example_value'];
+                                    })
+                                  )
+                                )}'`
+                              : ''
+                          }`}
+                        </pre>
+                      </div>
                     </div>
                   )}
                 </div>
