@@ -130,7 +130,7 @@ export default function ApiDocsView() {
           params: [
             { name: 'client_id', type: 'integer', description: 'Filter by client ID (optional)' },
           ],
-          response: '{ "scenarios": [{ "id": 1, "client_id": 1, "title": "Scenario Title", "description": "Scenario description", "media_url": "https://example.com/media.zip", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
+          response: '{ "scenarios": [{ "id": 1, "client_id": 1, "title": "Scenario Title", "description": "Scenario description", "media_url": "https://example.com/media.zip", "game_data": "{\\"key\\":\\"value\\"}", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
         },
         {
           method: 'GET',
@@ -138,7 +138,7 @@ export default function ApiDocsView() {
           description: 'Get single scenario by ID',
           auth: true,
           params: [{ name: 'id', type: 'integer', description: 'Scenario ID' }],
-          response: '{ "scenario": { "id": 1, "client_id": 1, "title": "Scenario Title", "description": "Scenario description", "media_url": "https://example.com/media.zip", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+          response: '{ "scenario": { "id": 1, "client_id": 1, "title": "Scenario Title", "description": "Scenario description", "media_url": "https://example.com/media.zip", "game_data": "{\\"key\\":\\"value\\"}", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
         },
         {
           method: 'POST',
@@ -154,7 +154,7 @@ export default function ApiDocsView() {
             { name: 'game_type', type: 'string', description: 'Type of game (optional)' },
             { name: 'scenarioData', type: 'JSON string', description: 'Alternative format for client apps with nested title, description, gameData, game_type' },
           ],
-          response: '{ "success": true, "scenario": { "id": 1, "title": "New Scenario", "description": "Description", "client_id": 1, "game_data": "{\\"key\\":\\"value\\"}", "game_type": "puzzle", "created_at": "2024-01-15T10:30:00Z" }, "message": "Scenario created successfully" }',
+          response: '{ "success": true, "scenario": { "id": 1, "title": "New Scenario", "description": "Description", "client_id": 1, "game_data": "{\\"key\\":\\"value\\"}", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6", "created_at": "2024-01-15T10:30:00Z" }, "message": "Scenario created successfully" }',
         },
         {
           method: 'POST',

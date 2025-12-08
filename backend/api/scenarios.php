@@ -117,10 +117,13 @@ try {
             // Skip file upload for now - will be handled in a separate request
             $media_path = null;
 
+            // Generate unique ID
+            $uniqid = uniqid('scenario_', true);
+
             // Insert scenario into database
             $created_by = $_SESSION['user_id'] ?? null;
-            $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, game_data, game_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)';
-            $db->query($sql, [$client_id, $title, $description, $media_path, $game_data, $game_type, $created_by]);
+            $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, game_data, game_type, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+            $db->query($sql, [$client_id, $title, $description, $media_path, $game_data, $game_type, $uniqid, $created_by]);
 
             $scenario_id = $db->getConnection()->lastInsertId();
 
@@ -134,6 +137,7 @@ try {
                     'media_url' => $media_path,
                     'game_data' => $game_data,
                     'game_type' => $game_type,
+                    'uniqid' => $uniqid,
                     'created_at' => date('Y-m-d H:i:s')
                 ],
                 'message' => 'Scenario created successfully'
