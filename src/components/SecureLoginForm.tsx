@@ -72,10 +72,12 @@ export default function SecureLoginForm({ onSuccess }: SecureLoginFormProps) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 px-4">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-2xl">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
+          <div className="flex justify-center mb-6">
+            <img
+              src="/logo_tag_hunter.png"
+              alt="Tag Hunter"
+              className="h-24 w-auto"
+            />
           </div>
           <h2 className="text-3xl font-bold text-white">Secure Login</h2>
           <p className="mt-2 text-slate-400">

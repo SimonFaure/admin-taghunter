@@ -27,13 +27,15 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-2xl">
         <div className="flex items-center justify-center mb-8">
-          <div className="p-3 bg-slate-900 rounded-xl">
-            <LogIn className="w-8 h-8 text-white" />
-          </div>
+          <img
+            src="/logo_tag_hunter.png"
+            alt="Tag Hunter"
+            className="h-24 w-auto"
+          />
         </div>
 
         <h1 className="text-3xl font-bold text-center text-slate-900 mb-2">
-          Admin Taghunter
+          Admin Tag Hunter
         </h1>
         <p className="text-center text-slate-600 mb-8">
           Sign in to access your dashboard

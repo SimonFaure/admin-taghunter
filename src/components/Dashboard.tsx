@@ -39,14 +39,16 @@ export function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white">
         <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-slate-800 rounded-lg">
-                <Tag className="w-6 h-6" />
-              </div>
-              <h1 className="text-xl font-bold">Admin Taghunter</h1>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <img
+                src="/logo_tag_hunter.png"
+                alt="Tag Hunter"
+                className="h-12 w-auto"
+              />
+              <NotificationsList onNotificationClick={handleNotificationClick} />
             </div>
-            <NotificationsList onNotificationClick={handleNotificationClick} />
+            <h1 className="text-lg font-bold">Admin Dashboard</h1>
           </div>
         </div>
 
