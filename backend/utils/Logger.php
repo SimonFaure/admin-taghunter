@@ -65,7 +65,25 @@ class Logger {
                     ORDER BY timestamp DESC
                     LIMIT ? OFFSET ?";
 
-            return $db->fetchAll($sql, [$limit, $offset]) ?: [];
+            $logs = $db->fetchAll($sql, [$limit, $offset]) ?: [];
+
+            // Parse JSON fields and rename for frontend
+            return array_map(function($log) {
+                return [
+                    'id' => $log['id'],
+                    'timestamp' => $log['timestamp'],
+                    'endpoint' => $log['endpoint'],
+                    'method' => $log['method'],
+                    'action' => $log['action'],
+                    'user_id' => $log['user_id'],
+                    'ip' => $log['ip'],
+                    'user_agent' => $log['user_agent'],
+                    'data' => $log['request_data'] ? json_decode($log['request_data'], true) : null,
+                    'response' => $log['response_data'] ? json_decode($log['response_data'], true) : null,
+                    'status_code' => $log['status_code'],
+                    'created_at' => $log['created_at']
+                ];
+            }, $logs);
         } catch (Exception $e) {
             self::$lastError = $e->getMessage();
             error_log("Logger getLogs error: " . $e->getMessage());
