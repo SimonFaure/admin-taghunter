@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon } from 'lucide-react';
 
 interface Scenario {
   id: number;
@@ -11,6 +11,8 @@ interface Scenario {
   creator_name: string | null;
   media_url: string | null;
   created_at: string;
+  uniqid: string | null;
+  game_data: string | null;
 }
 
 export function ScenariosView() {
@@ -18,10 +20,45 @@ export function ScenariosView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
   }, []);
+
+  useEffect(() => {
+    if (selectedScenario?.uniqid) {
+      findBackgroundImage(selectedScenario);
+    }
+  }, [selectedScenario]);
+
+  const findBackgroundImage = (scenario: Scenario) => {
+    setImageError(false);
+    setBackgroundImage(null);
+
+    if (!scenario.uniqid) return;
+
+    let imageUrl: string | null = null;
+
+    if (scenario.game_data) {
+      try {
+        const gameData = JSON.parse(scenario.game_data);
+        if (gameData.backgroundImage) {
+          imageUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
+        }
+      } catch (e) {
+        console.error('Failed to parse game_data', e);
+      }
+    }
+
+    if (!imageUrl) {
+      const commonBackgroundNames = ['background.png', 'background.jpg', 'background.jpeg', 'bg.png', 'bg.jpg'];
+      imageUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${commonBackgroundNames[0]}`;
+    }
+
+    setBackgroundImage(imageUrl);
+  };
 
   const fetchScenarios = async () => {
     try {
@@ -64,6 +101,8 @@ export function ScenariosView() {
 
       setScenarios(scenarios.filter(s => s.id !== id));
       setSelectedScenario(null);
+      setBackgroundImage(null);
+      setImageError(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete scenario');
     }
@@ -89,7 +128,11 @@ export function ScenariosView() {
     return (
       <div className="space-y-6">
         <button
-          onClick={() => setSelectedScenario(null)}
+          onClick={() => {
+            setSelectedScenario(null);
+            setBackgroundImage(null);
+            setImageError(false);
+          }}
           className="text-slate-600 hover:text-slate-900 font-medium"
         >
           ← Back to scenarios
@@ -117,6 +160,24 @@ export function ScenariosView() {
               <h4 className="text-sm font-semibold text-slate-700 mb-2">Description</h4>
               <p className="text-slate-600 whitespace-pre-wrap">{selectedScenario.description}</p>
             </div>
+
+            {backgroundImage && !imageError && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
+                  <ImageIcon className="w-4 h-4" />
+                  <span>Background Image</span>
+                </h4>
+                <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                  <img
+                    src={backgroundImage}
+                    alt="Scenario background"
+                    className="w-full h-auto max-h-96 object-contain"
+                    onError={() => setImageError(true)}
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            )}
 
             {selectedScenario.client_name && (
               <div className="mb-6">
