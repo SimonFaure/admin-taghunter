@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, User, CheckCircle, FileText, Calendar, GamepadIcon } from 'lucide-react';
+import { ArrowLeft, Upload, User, CheckCircle, FileText, Calendar, GamepadIcon, Package } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { supabase } from '../lib/supabase';
@@ -29,6 +29,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     notes: '',
     license_type: 'access' as LicenseType,
     billing_up_to_date: true,
+    playground_version: '',
+    creator_version: '',
   });
 
   useEffect(() => {
@@ -110,6 +112,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         notes: data.notes || '',
         license_type: (data.license_type as LicenseType) || 'access',
         billing_up_to_date: data.billing_up_to_date ?? true,
+        playground_version: data.playground_version || '',
+        creator_version: data.creator_version || '',
       });
     }
     setLoading(false);
@@ -276,7 +280,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 {client.name || 'Unnamed Client'}
               </h2>
               <p className="text-slate-600 mb-4">{client.email}</p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                   client.license_type === 'premium'
                     ? 'bg-amber-100 text-amber-800'
@@ -291,6 +295,18 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 }`}>
                   {client.billing_up_to_date ? 'Billing Current' : 'Billing Overdue'}
                 </span>
+                {client.playground_version && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    <Package className="w-3.5 h-3.5" />
+                    Playground v{client.playground_version}
+                  </span>
+                )}
+                {client.creator_version && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                    <Package className="w-3.5 h-3.5" />
+                    Creator v{client.creator_version}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -381,6 +397,32 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
                   placeholder="+33 6 12 34 56 78"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Playground Version
+                </label>
+                <input
+                  type="text"
+                  value={formData.playground_version}
+                  onChange={(e) => setFormData({ ...formData, playground_version: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  placeholder="1.0.0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Creator Version
+                </label>
+                <input
+                  type="text"
+                  value={formData.creator_version}
+                  onChange={(e) => setFormData({ ...formData, creator_version: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  placeholder="1.0.0"
                 />
               </div>
             </div>
