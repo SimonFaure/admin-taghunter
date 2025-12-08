@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, User } from 'lucide-react';
+import { ArrowLeft, Upload, User, CheckCircle } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { supabase } from '../lib/supabase';
@@ -16,6 +16,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pendingInstallation, setPendingInstallation] = useState<any>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -29,7 +31,47 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
   useEffect(() => {
     loadClient();
+    checkPendingInstallation();
   }, [clientId]);
+
+  const checkPendingInstallation = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('client_id', clientId)
+        .eq('type', 'app_installation_request')
+        .eq('is_read', false)
+        .maybeSingle();
+
+      if (!error && data) {
+        setPendingInstallation(data);
+      }
+    } catch (err) {
+      console.error('Error checking pending installation:', err);
+    }
+  };
+
+  const handleConfirmInstallation = async () => {
+    if (!pendingInstallation) return;
+
+    setConfirming(true);
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', pendingInstallation.id);
+
+      setSuccess('Taghunter Creator app installation confirmed');
+      setPendingInstallation(null);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('Failed to confirm installation');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const loadClient = async () => {
     setLoading(true);
@@ -230,6 +272,30 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               </div>
             </div>
           </div>
+
+          {pendingInstallation && (
+            <div className="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                    App Installation Request
+                  </h3>
+                  <p className="text-blue-700 mb-4">
+                    This client is requesting to install the Taghunter Creator app.
+                    Please confirm the installation to proceed.
+                  </p>
+                </div>
+                <button
+                  onClick={handleConfirmInstallation}
+                  disabled={confirming}
+                  className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  <span>{confirming ? 'Confirming...' : 'Confirm Installation'}</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {(error || success) && (
             <div className={`mb-6 p-3 rounded-lg text-sm ${

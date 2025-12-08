@@ -72,7 +72,7 @@ Deno.serve(async (req: Request) => {
 
     const { data, error } = await supabase
       .from('clients')
-      .select('id')
+      .select('id, name, email')
       .eq('email', email)
       .maybeSingle();
 
@@ -90,6 +90,21 @@ Deno.serve(async (req: Request) => {
     }
 
     if (data) {
+      const notificationData = {
+        client_id: data.id,
+        type: 'app_installation_request',
+        title: 'Taghunter Creator App Installation Request',
+        message: `${data.name || email} is requesting to install the Taghunter Creator app`,
+        metadata: {
+          email: email,
+          client_name: data.name
+        }
+      };
+
+      await supabase
+        .from('notifications')
+        .insert(notificationData);
+
       return new Response(
         JSON.stringify({
           success: true,

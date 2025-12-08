@@ -5,11 +5,17 @@ import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
 import LogsView from './LogsView';
 import ApiDocsView from './ApiDocsView';
+import { NotificationsList } from './NotificationsList';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+
+  const handleNotificationClick = (clientId: string) => {
+    setSelectedClientId(clientId);
+    setActiveTab('clients');
+  };
 
   const menuItems = [
     { id: 'home', label: 'Dashboard', icon: Home },
@@ -26,11 +32,14 @@ export function Dashboard() {
     <div className="min-h-screen bg-slate-50">
       <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white">
         <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-slate-800 rounded-lg">
-              <Tag className="w-6 h-6" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-slate-800 rounded-lg">
+                <Tag className="w-6 h-6" />
+              </div>
+              <h1 className="text-xl font-bold">Admin Taghunter</h1>
             </div>
-            <h1 className="text-xl font-bold">Admin Taghunter</h1>
+            <NotificationsList onNotificationClick={handleNotificationClick} />
           </div>
         </div>
 
