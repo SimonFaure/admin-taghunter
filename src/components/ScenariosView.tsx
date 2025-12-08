@@ -42,7 +42,14 @@ export function ScenariosView() {
     setDisplayImage(null);
     setImageLabel('');
 
-    if (!scenario.uniqid) return;
+    console.log('Finding images for scenario:', scenario.title);
+    console.log('Scenario uniqid:', scenario.uniqid);
+    console.log('Scenario game_data:', scenario.game_data);
+
+    if (!scenario.uniqid) {
+      console.log('No uniqid found');
+      return;
+    }
 
     let gameVisualUrl: string | null = null;
     let backgroundUrl: string | null = null;
@@ -50,11 +57,15 @@ export function ScenariosView() {
     if (scenario.game_data) {
       try {
         const gameData = JSON.parse(scenario.game_data);
+        console.log('Parsed game_data:', gameData);
+
         if (gameData.game_visual) {
           gameVisualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
+          console.log('Found game_visual:', gameVisualUrl);
         }
         if (gameData.backgroundImage) {
           backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
+          console.log('Found backgroundImage:', backgroundUrl);
         }
       } catch (e) {
         console.error('Failed to parse game_data', e);
@@ -62,19 +73,28 @@ export function ScenariosView() {
     }
 
     if (gameVisualUrl) {
+      console.log('Setting display image to game_visual');
       setDisplayImage(gameVisualUrl);
       setImageLabel('Game Visual');
     } else if (backgroundUrl) {
+      console.log('Setting display image to backgroundImage');
       setDisplayImage(backgroundUrl);
       setImageLabel('Background Image');
+    } else {
+      console.log('No images found in game_data');
     }
   };
 
   const handleImageError = () => {
+    console.log('Image failed to load:', displayImage);
+    console.log('Current label:', imageLabel);
+    console.log('Fallback attempted:', fallbackAttempted);
+
     if (!fallbackAttempted && selectedScenario?.uniqid && selectedScenario.game_data) {
       try {
         const gameData = JSON.parse(selectedScenario.game_data);
         if (imageLabel === 'Game Visual' && gameData.backgroundImage) {
+          console.log('Trying fallback to backgroundImage');
           setFallbackAttempted(true);
           setDisplayImage(`https://admin.taghunter.fr/media/${selectedScenario.uniqid}/${gameData.backgroundImage}`);
           setImageLabel('Background Image');
@@ -85,6 +105,7 @@ export function ScenariosView() {
         console.error('Failed to parse game_data for fallback', e);
       }
     }
+    console.log('No fallback available, marking as error');
     setImageError(true);
   };
 
