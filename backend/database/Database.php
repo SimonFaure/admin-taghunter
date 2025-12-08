@@ -44,4 +44,9 @@ class Database {
     public function fetchAll($sql, $params = []) {
         return $this->query($sql, $params)->fetchAll();
     }
+
+    public function execute($sql, $params = []) {
+        $this->query($sql, $params);
+        return $this->connection->lastInsertId();
+    }
 }
