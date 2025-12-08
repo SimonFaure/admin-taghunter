@@ -7,20 +7,23 @@ function setCorsHeaders() {
         'http://localhost:5173',
         'http://localhost:3000',
         'http://localhost:4173',
-        'https://admin.taghunter.fr'
+        'https://admin.taghunter.fr',
+        'http://admin.taghunter.fr'
     ];
 
     if (in_array($origin, $allowedOrigins)) {
         header("Access-Control-Allow-Origin: $origin");
         header("Access-Control-Allow-Credentials: true");
+    } elseif (!empty($origin) && (strpos($origin, 'localhost') !== false || strpos($origin, 'taghunter.fr') !== false)) {
+        header("Access-Control-Allow-Origin: $origin");
+        header("Access-Control-Allow-Credentials: true");
     } else {
-        http_response_code(403);
-        echo json_encode(['error' => 'Origin not allowed']);
-        exit();
+        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Credentials: false");
     }
 
     header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Auth-Token");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Auth-Token, X-Requested-With");
     header("Access-Control-Max-Age: 3600");
 
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

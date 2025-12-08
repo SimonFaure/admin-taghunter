@@ -1,5 +1,7 @@
 <?php
 require_once __DIR__ . '/../utils/cors.php';
+setCorsHeaders();
+
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 
@@ -37,9 +39,11 @@ try {
     $migrations = [
         'migration.sql',
         'add_roles_migration.sql',
+        'add_uniqid_migration.sql',
         'launched_games_migration.sql',
         'api_logs.sql',
-        'add_game_fields_migration.sql'
+        'add_game_fields_migration.sql',
+        'secure_auth_migration.sql'
     ];
 
     $results = [];
