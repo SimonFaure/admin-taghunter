@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 session_start();
 
 require_once __DIR__ . '/../database/Database.php';
+require_once __DIR__ . '/../utils/Logger.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -32,28 +33,36 @@ try {
     switch ($action) {
         case 'list':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'list', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
-            requireAuth();
+            $userId = requireAuth();
 
             $clients = $db->fetchAll(
                 'SELECT * FROM clients ORDER BY created_at DESC'
             );
 
-            jsonResponse(['data' => $clients]);
+            $response = ['data' => $clients];
+            Logger::log('clients', 'GET', 'list', $userId, [], $response, 200);
+            jsonResponse($response);
             break;
 
         case 'get':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'get', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
-            requireAuth();
+            $userId = requireAuth();
 
             $id = $_GET['id'] ?? '';
             if (empty($id)) {
-                jsonResponse(['error' => 'Client ID is required'], 400);
+                $response = ['error' => 'Client ID is required'];
+                Logger::log('clients', 'GET', 'get', $userId, ['id' => ''], $response, 400);
+                jsonResponse($response, 400);
             }
 
             $client = $db->fetch(
@@ -62,15 +71,21 @@ try {
             );
 
             if (!$client) {
-                jsonResponse(['error' => 'Client not found'], 404);
+                $response = ['error' => 'Client not found'];
+                Logger::log('clients', 'GET', 'get', $userId, ['id' => $id], $response, 404);
+                jsonResponse($response, 404);
             }
 
-            jsonResponse(['data' => $client]);
+            $response = ['data' => $client];
+            Logger::log('clients', 'GET', 'get', $userId, ['id' => $id], $response, 200);
+            jsonResponse($response);
             break;
 
         case 'create':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'create', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
             $userId = requireAuth();
@@ -79,7 +94,9 @@ try {
             $requiredFields = ['email', 'name'];
             foreach ($requiredFields as $field) {
                 if (empty($data[$field])) {
-                    jsonResponse(['error' => ucfirst($field) . ' is required'], 400);
+                    $response = ['error' => ucfirst($field) . ' is required'];
+                    Logger::log('clients', 'POST', 'create', $userId, $data, $response, 400);
+                    jsonResponse($response, 400);
                 }
             }
 
@@ -89,7 +106,9 @@ try {
             );
 
             if ($existingClient) {
-                jsonResponse(['error' => 'A client with this email already exists'], 400);
+                $response = ['error' => 'A client with this email already exists'];
+                Logger::log('clients', 'POST', 'create', $userId, $data, $response, 400);
+                jsonResponse($response, 400);
             }
 
             $fields = [
@@ -116,20 +135,26 @@ try {
                 [$clientId]
             );
 
-            jsonResponse(['data' => $client]);
+            $response = ['data' => $client];
+            Logger::log('clients', 'POST', 'create', $userId, $data, $response, 200);
+            jsonResponse($response);
             break;
 
         case 'update':
             if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'update', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
-            requireAuth();
+            $userId = requireAuth();
             $data = getRequestData();
 
             $id = $data['id'] ?? '';
             if (empty($id)) {
-                jsonResponse(['error' => 'Client ID is required'], 400);
+                $response = ['error' => 'Client ID is required'];
+                Logger::log('clients', 'PUT', 'update', $userId, $data, $response, 400);
+                jsonResponse($response, 400);
             }
 
             $existingClient = $db->fetch(
@@ -138,7 +163,9 @@ try {
             );
 
             if (!$existingClient) {
-                jsonResponse(['error' => 'Client not found'], 404);
+                $response = ['error' => 'Client not found'];
+                Logger::log('clients', 'PUT', 'update', $userId, $data, $response, 404);
+                jsonResponse($response, 404);
             }
 
             $updates = [];
@@ -153,7 +180,9 @@ try {
             }
 
             if (empty($updates)) {
-                jsonResponse(['error' => 'No fields to update'], 400);
+                $response = ['error' => 'No fields to update'];
+                Logger::log('clients', 'PUT', 'update', $userId, $data, $response, 400);
+                jsonResponse($response, 400);
             }
 
             $values[] = $id;
@@ -165,19 +194,25 @@ try {
                 [$id]
             );
 
-            jsonResponse(['data' => $client]);
+            $response = ['data' => $client];
+            Logger::log('clients', 'PUT', 'update', $userId, $data, $response, 200);
+            jsonResponse($response);
             break;
 
         case 'delete':
             if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'delete', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
-            requireAuth();
+            $userId = requireAuth();
 
             $id = $_GET['id'] ?? '';
             if (empty($id)) {
-                jsonResponse(['error' => 'Client ID is required'], 400);
+                $response = ['error' => 'Client ID is required'];
+                Logger::log('clients', 'DELETE', 'delete', $userId, ['id' => ''], $response, 400);
+                jsonResponse($response, 400);
             }
 
             $existingClient = $db->fetch(
@@ -186,7 +221,9 @@ try {
             );
 
             if (!$existingClient) {
-                jsonResponse(['error' => 'Client not found'], 404);
+                $response = ['error' => 'Client not found'];
+                Logger::log('clients', 'DELETE', 'delete', $userId, ['id' => $id], $response, 404);
+                jsonResponse($response, 404);
             }
 
             $db->execute(
@@ -194,12 +231,18 @@ try {
                 [$id]
             );
 
-            jsonResponse(['message' => 'Client deleted successfully']);
+            $response = ['message' => 'Client deleted successfully'];
+            Logger::log('clients', 'DELETE', 'delete', $userId, ['id' => $id], $response, 200);
+            jsonResponse($response);
             break;
 
         default:
-            jsonResponse(['error' => 'Invalid action'], 400);
+            $response = ['error' => 'Invalid action'];
+            Logger::log('clients', $_SERVER['REQUEST_METHOD'], $action, $_SESSION['user_id'] ?? null, [], $response, 400);
+            jsonResponse($response, 400);
     }
 } catch (Exception $e) {
-    jsonResponse(['error' => 'Server error: ' . $e->getMessage()], 500);
+    $response = ['error' => 'Server error: ' . $e->getMessage()];
+    Logger::log('clients', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], $response, 500);
+    jsonResponse($response, 500);
 }

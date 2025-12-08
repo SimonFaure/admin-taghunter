@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 session_start();
 
 require_once __DIR__ . '/../database/Database.php';
+require_once __DIR__ . '/../utils/Logger.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -22,14 +23,16 @@ function requireAuth() {
 }
 
 try {
-    requireAuth();
+    $userId = requireAuth();
     $db = Database::getInstance();
     $action = $_GET['action'] ?? 'overview';
 
     switch ($action) {
         case 'overview':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('statistics', $_SERVER['REQUEST_METHOD'], 'overview', $userId, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
             // Total games launched
@@ -90,7 +93,7 @@ try {
                 LIMIT 10
             ');
 
-            jsonResponse([
+            $response = [
                 'overview' => [
                     'total_games' => (int)$totalGames['count'],
                     'unique_clients' => (int)$uniqueClients['count'],
@@ -100,12 +103,16 @@ try {
                 'games_per_day' => $gamesPerDay,
                 'top_scenarios' => $topScenarios,
                 'top_clients' => $topClients
-            ]);
+            ];
+            Logger::log('statistics', 'GET', 'overview', $userId, [], $response, 200);
+            jsonResponse($response);
             break;
 
         case 'recent':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('statistics', $_SERVER['REQUEST_METHOD'], 'recent', $userId, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
             $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
@@ -126,17 +133,23 @@ try {
 
             $total = $db->fetch('SELECT COUNT(*) as count FROM launched_games');
 
-            jsonResponse([
+            $response = [
                 'games' => $recentGames,
                 'total' => (int)$total['count'],
                 'limit' => $limit,
                 'offset' => $offset
-            ]);
+            ];
+            Logger::log('statistics', 'GET', 'recent', $userId, ['limit' => $limit, 'offset' => $offset], $response, 200);
+            jsonResponse($response);
             break;
 
         default:
-            jsonResponse(['error' => 'Invalid action'], 400);
+            $response = ['error' => 'Invalid action'];
+            Logger::log('statistics', $_SERVER['REQUEST_METHOD'], $action, $userId, [], $response, 400);
+            jsonResponse($response, 400);
     }
 } catch (Exception $e) {
-    jsonResponse(['error' => 'Server error: ' . $e->getMessage()], 500);
+    $response = ['error' => 'Server error: ' . $e->getMessage()];
+    Logger::log('statistics', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], $response, 500);
+    jsonResponse($response, 500);
 }

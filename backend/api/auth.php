@@ -7,6 +7,7 @@ header('Content-Type: application/json');
 session_start();
 
 require_once __DIR__ . '/../database/Database.php';
+require_once __DIR__ . '/../utils/Logger.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -25,7 +26,9 @@ try {
     switch ($action) {
         case 'login':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('auth', $_SERVER['REQUEST_METHOD'], 'login', null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
             $data = getRequestData();
@@ -33,7 +36,9 @@ try {
             $password = $data['password'] ?? '';
 
             if (empty($email) || empty($password)) {
-                jsonResponse(['error' => 'Email and password are required'], 400);
+                $response = ['error' => 'Email and password are required'];
+                Logger::log('auth', 'POST', 'login', null, ['email' => $email], $response, 400);
+                jsonResponse($response, 400);
             }
 
             $user = $db->fetch(
@@ -42,39 +47,54 @@ try {
             );
 
             if (!$user) {
-                jsonResponse(['error' => 'User not found. Please run the database migration or create_admin.php script.'], 401);
+                $response = ['error' => 'User not found. Please run the database migration or create_admin.php script.'];
+                Logger::log('auth', 'POST', 'login', null, ['email' => $email], $response, 401);
+                jsonResponse($response, 401);
             }
 
             if (!password_verify($password, $user['password'])) {
-                jsonResponse(['error' => 'Invalid password'], 401);
+                $response = ['error' => 'Invalid password'];
+                Logger::log('auth', 'POST', 'login', null, ['email' => $email], $response, 401);
+                jsonResponse($response, 401);
             }
 
             unset($user['password']);
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user'] = $user;
 
-            jsonResponse([
+            $response = [
                 'user' => $user,
                 'message' => 'Login successful'
-            ]);
+            ];
+            Logger::log('auth', 'POST', 'login', $user['id'], ['email' => $email], $response, 200);
+            jsonResponse($response);
             break;
 
         case 'logout':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('auth', $_SERVER['REQUEST_METHOD'], 'logout', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
+            $userId = $_SESSION['user_id'] ?? null;
             session_destroy();
-            jsonResponse(['message' => 'Logout successful']);
+            $response = ['message' => 'Logout successful'];
+            Logger::log('auth', 'POST', 'logout', $userId, [], $response, 200);
+            jsonResponse($response);
             break;
 
         case 'check':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('auth', $_SERVER['REQUEST_METHOD'], 'check', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
             }
 
             if (!isset($_SESSION['user_id'])) {
-                jsonResponse(['user' => null]);
+                $response = ['user' => null];
+                Logger::log('auth', 'GET', 'check', null, [], $response, 200);
+                jsonResponse($response);
             }
 
             $user = $db->fetch(
@@ -84,15 +104,23 @@ try {
 
             if (!$user) {
                 session_destroy();
-                jsonResponse(['user' => null]);
+                $response = ['user' => null];
+                Logger::log('auth', 'GET', 'check', $_SESSION['user_id'] ?? null, [], $response, 200);
+                jsonResponse($response);
             }
 
-            jsonResponse(['user' => $user]);
+            $response = ['user' => $user];
+            Logger::log('auth', 'GET', 'check', $user['id'], [], $response, 200);
+            jsonResponse($response);
             break;
 
         default:
-            jsonResponse(['error' => 'Invalid action'], 400);
+            $response = ['error' => 'Invalid action'];
+            Logger::log('auth', $_SERVER['REQUEST_METHOD'], $action, $_SESSION['user_id'] ?? null, [], $response, 400);
+            jsonResponse($response, 400);
     }
 } catch (Exception $e) {
-    jsonResponse(['error' => 'Server error: ' . $e->getMessage()], 500);
+    $response = ['error' => 'Server error: ' . $e->getMessage()];
+    Logger::log('auth', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], $response, 500);
+    jsonResponse($response, 500);
 }
