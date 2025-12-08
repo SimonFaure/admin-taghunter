@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Tag, Settings, BarChart3, Package, FileText, Code, Film, TrendingUp } from 'lucide-react';
+import { LogOut, Home, Users, Tag, Settings, BarChart3, Package, FileText, Code, Film, TrendingUp, Image } from 'lucide-react';
 import { useState } from 'react';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
@@ -9,6 +9,7 @@ import { NotificationsList } from './NotificationsList';
 import { ScenariosView } from './ScenariosView';
 import { StatisticsView } from './StatisticsView';
 import { SettingsView } from './SettingsView';
+import { MediaView } from './MediaView';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -27,6 +28,7 @@ export function Dashboard() {
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'scenarios', label: 'Scenarios', icon: Film },
+    { id: 'media', label: 'Media', icon: Image },
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
     { id: 'logs', label: 'API Logs', icon: FileText },
     { id: 'api-docs', label: 'API Docs', icon: Code },
@@ -115,6 +117,8 @@ export function Dashboard() {
           )}
 
           {activeTab === 'scenarios' && <ScenariosView />}
+
+          {activeTab === 'media' && <MediaView />}
 
           {activeTab === 'statistics' && <StatisticsView />}
 
