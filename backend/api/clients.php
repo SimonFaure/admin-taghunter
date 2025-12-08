@@ -26,6 +26,16 @@ function requireAuth() {
     return $_SESSION['user_id'];
 }
 
+function formatClientData($client) {
+    if (!$client) return $client;
+
+    if (isset($client['billing_up_to_date'])) {
+        $client['billing_up_to_date'] = (bool)$client['billing_up_to_date'];
+    }
+
+    return $client;
+}
+
 try {
     $db = Database::getInstance();
     $action = $_GET['action'] ?? '';
@@ -43,6 +53,8 @@ try {
             $clients = $db->fetchAll(
                 'SELECT * FROM clients ORDER BY created_at DESC'
             );
+
+            $clients = array_map('formatClientData', $clients);
 
             $response = ['data' => $clients];
             Logger::log('clients', 'GET', 'list', $userId, [], $response, 200);
@@ -75,6 +87,8 @@ try {
                 Logger::log('clients', 'GET', 'get', $userId, ['id' => $id], $response, 404);
                 jsonResponse($response, 404);
             }
+
+            $client = formatClientData($client);
 
             $response = ['data' => $client];
             Logger::log('clients', 'GET', 'get', $userId, ['id' => $id], $response, 200);
@@ -119,7 +133,7 @@ try {
                 'notes' => $data['notes'] ?? null,
                 'avatar_url' => $data['avatar_url'] ?? null,
                 'license_type' => $data['license_type'] ?? 'access',
-                'billing_up_to_date' => isset($data['billing_up_to_date']) ? (bool)$data['billing_up_to_date'] : true,
+                'billing_up_to_date' => (isset($data['billing_up_to_date']) ? $data['billing_up_to_date'] : true) ? 1 : 0,
                 'created_by' => $userId,
             ];
 
@@ -134,6 +148,8 @@ try {
                 'SELECT * FROM clients WHERE id = ?',
                 [$clientId]
             );
+
+            $client = formatClientData($client);
 
             $response = ['data' => $client];
             Logger::log('clients', 'POST', 'create', $userId, $data, $response, 200);
@@ -173,9 +189,13 @@ try {
 
             $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date'];
             foreach ($allowedFields as $field) {
-                if (isset($data[$field])) {
+                if (array_key_exists($field, $data)) {
                     $updates[] = "$field = ?";
-                    $values[] = $data[$field];
+                    $value = $data[$field];
+                    if ($field === 'billing_up_to_date') {
+                        $value = $value ? 1 : 0;
+                    }
+                    $values[] = $value;
                 }
             }
 
@@ -193,6 +213,8 @@ try {
                 'SELECT * FROM clients WHERE id = ?',
                 [$id]
             );
+
+            $client = formatClientData($client);
 
             $response = ['data' => $client];
             Logger::log('clients', 'PUT', 'update', $userId, $data, $response, 200);
