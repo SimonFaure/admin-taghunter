@@ -11,10 +11,20 @@ function setCorsHeaders() {
         'http://admin.taghunter.fr'
     ];
 
+    $isDevelopment = !empty($origin) && (
+        strpos($origin, 'localhost') !== false ||
+        strpos($origin, 'taghunter.fr') !== false ||
+        strpos($origin, 'webcontainer') !== false ||
+        strpos($origin, '127.0.0.1') !== false ||
+        strpos($origin, 'stackblitz') !== false ||
+        strpos($origin, 'gitpod') !== false ||
+        strpos($origin, 'codesandbox') !== false
+    );
+
     if (in_array($origin, $allowedOrigins)) {
         header("Access-Control-Allow-Origin: $origin");
         header("Access-Control-Allow-Credentials: true");
-    } elseif (!empty($origin) && (strpos($origin, 'localhost') !== false || strpos($origin, 'taghunter.fr') !== false)) {
+    } elseif ($isDevelopment) {
         header("Access-Control-Allow-Origin: $origin");
         header("Access-Control-Allow-Credentials: true");
     } else {
