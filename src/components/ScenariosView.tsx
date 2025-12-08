@@ -5,6 +5,7 @@ interface Scenario {
   id: number;
   title: string;
   description: string;
+  game_type: string;
   client_id: number | null;
   client_name: string | null;
   client_email: string | null;
@@ -160,6 +161,10 @@ export function ScenariosView() {
           <div className="p-6 border-b border-slate-200">
             <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedScenario.title}</h3>
             <div className="flex items-center space-x-6 text-sm text-slate-600">
+              <div className="flex items-center space-x-2">
+                <Film className="w-4 h-4" />
+                <span className="font-medium">{selectedScenario.game_type}</span>
+              </div>
               {selectedScenario.creator_name && (
                 <div className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
@@ -283,6 +288,10 @@ export function ScenariosView() {
                 </div>
 
                 <div className="space-y-2 mb-4">
+                  <div className="flex items-center space-x-2 text-sm text-slate-600">
+                    <Film className="w-4 h-4" />
+                    <span className="font-medium">{scenario.game_type}</span>
+                  </div>
                   {scenario.creator_name && (
                     <div className="flex items-center space-x-2 text-sm text-slate-600">
                       <User className="w-4 h-4" />
