@@ -8,6 +8,7 @@ import ApiDocsView from './ApiDocsView';
 import { NotificationsList } from './NotificationsList';
 import { ScenariosView } from './ScenariosView';
 import { StatisticsView } from './StatisticsView';
+import { SettingsView } from './SettingsView';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -120,6 +121,8 @@ export function Dashboard() {
           {activeTab === 'logs' && <LogsView />}
 
           {activeTab === 'api-docs' && <ApiDocsView />}
+
+          {activeTab === 'settings' && <SettingsView />}
 
           {activeTab === 'home' && (
           <>
