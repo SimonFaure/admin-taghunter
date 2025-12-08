@@ -1,45 +1,50 @@
 <?php
 
 class Logger {
-    private static $logFile = __DIR__ . '/../../logs/api.log';
     private static $lastError = null;
+    private static $supabaseUrl = 'https://gaolbjmyiitbdbbszteg.supabase.co';
+    private static $supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdhb2xiam15aWl0YmRiYnN6dGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMDEwNzYsImV4cCI6MjA3ODY3NzA3Nn0.-RzOhEnJPl2LQe9gwuClF8m3f1MGAQ95-kar-d5x8xM';
 
     public static function log($endpoint, $method, $action, $userId = null, $data = [], $response = null, $statusCode = 200) {
         try {
-            $logDir = dirname(self::$logFile);
-
-            if (!is_dir($logDir)) {
-                if (!mkdir($logDir, 0755, true)) {
-                    self::$lastError = "Failed to create log directory: $logDir";
-                    error_log("Logger: Failed to create directory $logDir");
-                    return false;
-                }
-            }
-
-            if (!is_writable($logDir)) {
-                self::$lastError = "Log directory is not writable: $logDir";
-                error_log("Logger: Directory $logDir is not writable");
-                return false;
-            }
-
             $logEntry = [
-                'timestamp' => date('Y-m-d H:i:s'),
                 'endpoint' => $endpoint,
                 'method' => $method,
                 'action' => $action,
                 'user_id' => $userId,
                 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
                 'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
-                'data' => $data,
-                'response' => $response,
+                'request_data' => !empty($data) ? $data : null,
+                'response_data' => $response,
                 'status_code' => $statusCode
             ];
 
-            $logLine = json_encode($logEntry) . PHP_EOL;
+            $ch = curl_init(self::$supabaseUrl . '/rest/v1/api_logs');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'apikey: ' . self::$supabaseKey,
+                'Authorization: Bearer ' . self::$supabaseKey,
+                'Prefer: return=minimal'
+            ]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($logEntry));
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
 
-            if (file_put_contents(self::$logFile, $logLine, FILE_APPEND | LOCK_EX) === false) {
-                self::$lastError = "Failed to write to log file: " . self::$logFile;
-                error_log("Logger: Failed to write to " . self::$logFile);
+            $result = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+
+            if ($curlError) {
+                self::$lastError = "cURL error: $curlError";
+                error_log("Logger: cURL error - $curlError");
+                return false;
+            }
+
+            if ($httpCode < 200 || $httpCode >= 300) {
+                self::$lastError = "HTTP $httpCode: $result";
+                error_log("Logger: HTTP $httpCode - $result");
                 return false;
             }
 
@@ -56,59 +61,86 @@ class Logger {
         return self::$lastError;
     }
 
-    public static function getLogPath() {
-        return self::$logFile;
-    }
-
     public static function checkPermissions() {
-        $logDir = dirname(self::$logFile);
         return [
-            'log_path' => self::$logFile,
-            'log_dir' => $logDir,
-            'dir_exists' => is_dir($logDir),
-            'dir_writable' => is_dir($logDir) && is_writable($logDir),
-            'file_exists' => file_exists(self::$logFile),
-            'file_writable' => file_exists(self::$logFile) ? is_writable(self::$logFile) : null,
+            'storage_type' => 'supabase',
+            'supabase_url' => self::$supabaseUrl,
             'last_error' => self::$lastError
         ];
     }
 
     public static function getLogs($limit = 100, $offset = 0) {
-        if (!file_exists(self::$logFile)) {
-            return [];
-        }
+        try {
+            $url = self::$supabaseUrl . '/rest/v1/api_logs?order=timestamp.desc&limit=' . $limit . '&offset=' . $offset;
 
-        $lines = file(self::$logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if (!$lines) {
-            return [];
-        }
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . self::$supabaseKey,
+                'Authorization: Bearer ' . self::$supabaseKey
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-        $lines = array_reverse($lines);
-        $lines = array_slice($lines, $offset, $limit);
+            $result = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-        $logs = [];
-        foreach ($lines as $line) {
-            $decoded = json_decode($line, true);
-            if ($decoded) {
-                $logs[] = $decoded;
+            if ($httpCode === 200) {
+                return json_decode($result, true) ?: [];
             }
-        }
 
-        return $logs;
+            return [];
+        } catch (Exception $e) {
+            error_log("Logger getLogs error: " . $e->getMessage());
+            return [];
+        }
     }
 
     public static function clearLogs() {
-        if (file_exists(self::$logFile)) {
-            unlink(self::$logFile);
+        try {
+            $ch = curl_init(self::$supabaseUrl . '/rest/v1/api_logs');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . self::$supabaseKey,
+                'Authorization: Bearer ' . self::$supabaseKey,
+                'Prefer: return=minimal'
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+            curl_exec($ch);
+            curl_close($ch);
+        } catch (Exception $e) {
+            error_log("Logger clearLogs error: " . $e->getMessage());
         }
     }
 
     public static function getLogCount() {
-        if (!file_exists(self::$logFile)) {
+        try {
+            $url = self::$supabaseUrl . '/rest/v1/api_logs?select=count';
+
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'apikey: ' . self::$supabaseKey,
+                'Authorization: Bearer ' . self::$supabaseKey,
+                'Prefer: count=exact'
+            ]);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+            $result = curl_exec($ch);
+            $headers = curl_getinfo($ch, CURLINFO_HEADER_OUT);
+            curl_close($ch);
+
+            $count = 0;
+            if (preg_match('/content-range: \d+-\d+\/(\d+)/i', $headers, $matches)) {
+                $count = (int)$matches[1];
+            }
+
+            return $count;
+        } catch (Exception $e) {
+            error_log("Logger getLogCount error: " . $e->getMessage());
             return 0;
         }
-
-        $lines = file(self::$logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        return $lines ? count($lines) : 0;
     }
 }
