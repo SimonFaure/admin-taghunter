@@ -59,17 +59,37 @@ Deno.serve(async (req: Request) => {
     const status = formData.get("status") as string || "draft";
     const gameDataStr = formData.get("gameData") as string;
     const zipFile = formData.get("media_zip") as File;
+    const userEmail = formData.get("userEmail") as string;
 
     // Validate required fields
-    if (!uniqid || !title || !gameType || !slug) {
+    if (!uniqid || !title || !gameType || !slug || !userEmail) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: uniqid, title, game_type, slug" }),
+        JSON.stringify({ error: "Missing required fields: uniqid, title, game_type, slug, userEmail" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
+
+    // Look up client_id from email
+    const { data: client, error: clientError } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("email", userEmail)
+      .maybeSingle();
+
+    if (clientError || !client) {
+      return new Response(
+        JSON.stringify({ error: `Client not found for email: ${userEmail}` }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const clientId = client.id;
 
     let gameData = {};
     if (gameDataStr) {
@@ -138,6 +158,7 @@ Deno.serve(async (req: Request) => {
         description,
         status,
         gameData,
+        client_id: clientId,
         updated_at: new Date().toISOString(),
       };
 
@@ -178,6 +199,7 @@ Deno.serve(async (req: Request) => {
           gameData,
           media_url: mediaUrl,
           created_by: user.id,
+          client_id: clientId,
         })
         .select()
         .single();
