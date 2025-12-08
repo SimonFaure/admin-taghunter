@@ -26,6 +26,8 @@ export function NotificationsList({ onNotificationClick }: NotificationsListProp
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) return;
+
     fetchNotifications();
 
     const channel = supabase
@@ -49,6 +51,11 @@ export function NotificationsList({ onNotificationClick }: NotificationsListProp
   }, []);
 
   const fetchNotifications = async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -66,6 +73,8 @@ export function NotificationsList({ onNotificationClick }: NotificationsListProp
   };
 
   const markAsRead = async (id: string) => {
+    if (!supabase) return;
+
     try {
       await supabase
         .from('notifications')
