@@ -64,7 +64,7 @@ export default function ApiDocsView() {
           path: '/backend/api/clients.php?action=list',
           description: 'Get all clients',
           auth: true,
-          response: '{ "data": [{ "id": 1, "email": "client@example.com", "name": "Client Name", ... }] }',
+          response: '{ "data": [{ "id": 1, "email": "client@example.com", "name": "Client Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "created_at": "2024-01-15T10:30:00Z" }] }',
         },
         {
           method: 'GET',
@@ -72,7 +72,7 @@ export default function ApiDocsView() {
           description: 'Get single client by ID',
           auth: true,
           params: [{ name: 'id', type: 'integer', description: 'Client ID' }],
-          response: '{ "data": { "id": 1, "email": "client@example.com", "name": "Client Name", ... } }',
+          response: '{ "data": { "id": 1, "email": "client@example.com", "name": "Client Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "created_at": "2024-01-15T10:30:00Z" } }',
         },
         {
           method: 'POST',
@@ -88,7 +88,7 @@ export default function ApiDocsView() {
             { name: 'license_type', type: 'string', description: '"access" or "premium" (optional)' },
             { name: 'billing_up_to_date', type: 'boolean', description: 'Billing status (optional)' },
           ],
-          response: '{ "data": { "id": 1, "email": "client@example.com", ... } }',
+          response: '{ "data": { "id": 1, "email": "client@example.com", "name": "Client Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "created_at": "2024-01-15T10:30:00Z" } }',
         },
         {
           method: 'PUT',
@@ -105,7 +105,7 @@ export default function ApiDocsView() {
             { name: 'license_type', type: 'string', description: '"access" or "premium" (optional)' },
             { name: 'billing_up_to_date', type: 'boolean', description: 'Billing status (optional)' },
           ],
-          response: '{ "data": { "id": 1, "email": "client@example.com", ... } }',
+          response: '{ "data": { "id": 1, "email": "updated@example.com", "name": "Updated Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "created_at": "2024-01-15T10:30:00Z" } }',
         },
         {
           method: 'DELETE',
@@ -130,7 +130,7 @@ export default function ApiDocsView() {
           params: [
             { name: 'client_id', type: 'integer', description: 'Filter by client ID (optional)' },
           ],
-          response: '{ "scenarios": [{ "id": 1, "client_id": 1, "title": "Scenario Title", ... }] }',
+          response: '{ "scenarios": [{ "id": 1, "client_id": 1, "title": "Scenario Title", "description": "Scenario description", "media_url": "https://example.com/media.zip", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
         },
         {
           method: 'GET',
@@ -138,7 +138,7 @@ export default function ApiDocsView() {
           description: 'Get single scenario by ID',
           auth: true,
           params: [{ name: 'id', type: 'integer', description: 'Scenario ID' }],
-          response: '{ "scenario": { "id": 1, "client_id": 1, "title": "Scenario Title", ... } }',
+          response: '{ "scenario": { "id": 1, "client_id": 1, "title": "Scenario Title", "description": "Scenario description", "media_url": "https://example.com/media.zip", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
         },
         {
           method: 'POST',
@@ -152,7 +152,7 @@ export default function ApiDocsView() {
             { name: 'description', type: 'string', description: 'Scenario description (required)' },
             { name: 'scenarioData', type: 'JSON string', description: 'Alternative format for client apps' },
           ],
-          response: '{ "success": true, "scenario": { "id": 1, "title": "...", ... }, "message": "Scenario created successfully" }',
+          response: '{ "success": true, "scenario": { "id": 1, "title": "New Scenario", "description": "Description", "client_id": 1, "created_at": "2024-01-15T10:30:00Z" }, "message": "Scenario created successfully" }',
         },
         {
           method: 'POST',
@@ -165,7 +165,7 @@ export default function ApiDocsView() {
             { name: 'description', type: 'string', description: 'Scenario description (optional)' },
             { name: 'zip_file', type: 'file', description: 'Media file upload (optional)' },
           ],
-          response: '{ "success": true, "scenario": { "id": 1, ... }, "message": "Scenario updated successfully" }',
+          response: '{ "success": true, "scenario": { "id": 1, "title": "Updated Scenario", "description": "Updated description", "media_url": "https://example.com/media.zip", "updated_at": "2024-01-15T11:00:00Z" }, "message": "Scenario updated successfully" }',
         },
         {
           method: 'POST/DELETE',
