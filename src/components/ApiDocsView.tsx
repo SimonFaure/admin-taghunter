@@ -146,7 +146,7 @@ export default function ApiDocsView() {
           description: 'Create new scenario (admin or client)',
           auth: false,
           body: [
-            { name: 'client_id', type: 'integer', description: 'Client ID (for admin)' },
+            { name: 'client_id', type: 'integer', description: 'Client ID (optional - for admin to associate with client)' },
             { name: 'userEmail', type: 'string', description: 'Client email (for client app)' },
             { name: 'title', type: 'string', description: 'Scenario title (required)' },
             { name: 'description', type: 'string', description: 'Scenario description (required)' },

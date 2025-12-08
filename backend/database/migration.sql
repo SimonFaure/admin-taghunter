@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS clients (
 
 CREATE TABLE IF NOT EXISTS scenarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    client_id INT NOT NULL,
+    client_id INT,
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     media_url TEXT,
@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS scenarios (
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES admin_users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Make client_id nullable for existing tables
+ALTER TABLE scenarios MODIFY COLUMN client_id INT NULL;
 
 -- Insert a default admin user (password: admin123)
 -- Password hash for 'admin123' using PASSWORD_DEFAULT (bcrypt)

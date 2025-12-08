@@ -115,13 +115,7 @@ try {
                 jsonResponse(['error' => 'Title and description cannot be empty'], 400);
             }
 
-            // For client requests, client_id might be null if email not found
-            if (!$client_id && $userEmail) {
-                Logger::log('scenarios', $method, 'create', null, ['email' => $userEmail], ['error' => 'Client not found for email'], 404);
-                jsonResponse(['error' => 'Client not found for email: ' . $userEmail], 404);
-            }
-
-            // Verify client exists if client_id provided
+            // Verify client exists if client_id provided (client_id is optional)
             if ($client_id) {
                 $client = $db->fetch('SELECT id FROM clients WHERE id = ?', [$client_id]);
                 if (!$client) {
