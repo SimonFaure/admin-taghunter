@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Tag, Settings, BarChart3, Package, FileText, Code, Film, TrendingUp, Image } from 'lucide-react';
+import { LogOut, Home, Users, Tag, Settings, BarChart3, Package, FileText, Code, Film, TrendingUp, Image, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
@@ -10,6 +10,7 @@ import { ScenariosView } from './ScenariosView';
 import { StatisticsView } from './StatisticsView';
 import { SettingsView } from './SettingsView';
 import { MediaView } from './MediaView';
+import { AdminUsersView } from './AdminUsersView';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -30,6 +31,7 @@ export function Dashboard() {
     { id: 'scenarios', label: 'Scenarios', icon: Film },
     { id: 'media', label: 'Media', icon: Image },
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
+    { id: 'admin-users', label: 'Admin Users', icon: Shield },
     { id: 'logs', label: 'API Logs', icon: FileText },
     { id: 'api-docs', label: 'API Docs', icon: Code },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -123,6 +125,8 @@ export function Dashboard() {
           {activeTab === 'media' && <MediaView />}
 
           {activeTab === 'statistics' && <StatisticsView />}
+
+          {activeTab === 'admin-users' && <AdminUsersView />}
 
           {activeTab === 'logs' && <LogsView />}
 

@@ -96,3 +96,53 @@ export const mediaApi = {
     });
   },
 };
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAdminData {
+  email: string;
+  password: string;
+  name?: string;
+}
+
+export interface UpdateAdminData {
+  id: string;
+  email?: string;
+  password?: string;
+  name?: string;
+}
+
+export const adminUsersApi = {
+  async getAdminUsers(): Promise<ApiResponse<{ admins: AdminUser[] }>> {
+    return apiRequest('/admin_users.php?action=list', {
+      method: 'GET',
+    });
+  },
+
+  async createAdminUser(data: CreateAdminData): Promise<ApiResponse<{ admin: AdminUser }>> {
+    return apiRequest('/admin_users.php?action=create', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateAdminUser(data: UpdateAdminData): Promise<ApiResponse<{ admin: AdminUser }>> {
+    return apiRequest('/admin_users.php?action=update', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteAdminUser(id: string): Promise<ApiResponse<{ success: boolean }>> {
+    return apiRequest('/admin_users.php?action=delete', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    });
+  },
+};
