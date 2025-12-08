@@ -47,7 +47,7 @@ try {
         [$email]
     );
 
-    $response = ['data' => ['exists' => $client !== null]];
+    $response = ['data' => ['exists' => !empty($client)]];
     Logger::log('check_email', 'GET', 'check', null, ['email' => $email], $response, 200);
     jsonResponse($response);
 
