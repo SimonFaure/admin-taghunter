@@ -215,14 +215,6 @@ export default function ApiDocsView() {
           params: [{ name: 'email', type: 'string', description: 'Email address to check' }],
           response: '{ "exists": true }',
         },
-        {
-          method: 'GET',
-          path: '/functions/v1/check-email?email={email}',
-          description: 'Check if email exists in Taghunter admin database (Supabase). Creates installation notification if client exists.',
-          auth: true,
-          params: [{ name: 'email', type: 'string', description: 'Email address to check' }],
-          response: '{ "success": true, "message": "Client exists", "client": { "id": "uuid", "email": "client@example.com" } }',
-        },
       ],
     },
   ];
