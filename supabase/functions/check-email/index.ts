@@ -89,16 +89,39 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    return new Response(
-      JSON.stringify({ exists: !!data }),
-      {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    if (data) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Client exists',
+          client: {
+            id: data.id,
+            email: email
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    } else {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Client not found'
+        }),
+        {
+          status: 404,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+    }
   } catch (error) {
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
