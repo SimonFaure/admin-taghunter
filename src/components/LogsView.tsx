@@ -197,7 +197,7 @@ export default function LogsView() {
                           <span className="text-gray-900 break-all">{log.user_agent}</span>
                         </div>
                       </div>
-                      {Object.keys(log.data).length > 0 && (
+                      {log.data && Object.keys(log.data).length > 0 && (
                         <div className="mt-3">
                           <h5 className="text-xs font-semibold text-gray-700 mb-1">Request Data</h5>
                           <pre className="text-xs bg-white p-2 rounded border border-gray-200 overflow-x-auto">
@@ -209,7 +209,7 @@ export default function LogsView() {
                     <div>
                       <h4 className="text-xs font-semibold text-gray-700 mb-2">Response</h4>
                       <pre className="text-xs bg-white p-2 rounded border border-gray-200 overflow-x-auto">
-                        {JSON.stringify(log.response, null, 2)}
+                        {JSON.stringify(log.response || {}, null, 2)}
                       </pre>
                     </div>
                   </div>
