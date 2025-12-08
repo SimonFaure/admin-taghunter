@@ -6,8 +6,38 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+const authMode = import.meta.env.VITE_AUTH_MODE || 'supabase';
+const API_BASE_URL = '/backend/api';
+
+async function phpFetch<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return { error: result.error || 'Request failed' };
+    }
+
+    return result;
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Network error' };
+  }
+}
+
 export const clientApi = {
   async getClients(): Promise<ApiResponse<Client[]>> {
+    if (authMode === 'php') {
+      return phpFetch<Client[]>('/clients.php?action=list');
+    }
+
     if (!supabase) {
       return { error: 'Supabase client not initialized' };
     }
@@ -25,6 +55,10 @@ export const clientApi = {
   },
 
   async getClient(id: string): Promise<ApiResponse<Client>> {
+    if (authMode === 'php') {
+      return phpFetch<Client>(`/clients.php?action=get&id=${id}`);
+    }
+
     if (!supabase) {
       return { error: 'Supabase client not initialized' };
     }
@@ -47,6 +81,13 @@ export const clientApi = {
   },
 
   async createClient(clientData: CreateClientData): Promise<ApiResponse<Client>> {
+    if (authMode === 'php') {
+      return phpFetch<Client>('/clients.php?action=create', {
+        method: 'POST',
+        body: JSON.stringify(clientData),
+      });
+    }
+
     if (!supabase) {
       return { error: 'Supabase client not initialized' };
     }
@@ -74,6 +115,13 @@ export const clientApi = {
   },
 
   async updateClient(clientData: UpdateClientData): Promise<ApiResponse<Client>> {
+    if (authMode === 'php') {
+      return phpFetch<Client>('/clients.php?action=update', {
+        method: 'PUT',
+        body: JSON.stringify(clientData),
+      });
+    }
+
     if (!supabase) {
       return { error: 'Supabase client not initialized' };
     }
@@ -98,6 +146,13 @@ export const clientApi = {
   },
 
   async deleteClient(id: string): Promise<ApiResponse<void>> {
+    if (authMode === 'php') {
+      const result = await phpFetch<void>(`/clients.php?action=delete&id=${id}`, {
+        method: 'DELETE',
+      });
+      return result;
+    }
+
     if (!supabase) {
       return { error: 'Supabase client not initialized' };
     }
@@ -115,6 +170,10 @@ export const clientApi = {
   },
 
   async checkEmailExists(email: string): Promise<ApiResponse<{ exists: boolean }>> {
+    if (authMode === 'php') {
+      return phpFetch<{ exists: boolean }>(`/check_email.php?email=${encodeURIComponent(email)}`);
+    }
+
     if (!supabase) {
       return { error: 'Supabase client not initialized' };
     }
