@@ -1,9 +1,10 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Tag, Settings, BarChart3, Package, FileText } from 'lucide-react';
+import { LogOut, Home, Users, Tag, Settings, BarChart3, Package, FileText, Code } from 'lucide-react';
 import { useState } from 'react';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
 import LogsView from './LogsView';
+import ApiDocsView from './ApiDocsView';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -17,6 +18,7 @@ export function Dashboard() {
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'logs', label: 'API Logs', icon: FileText },
+    { id: 'api-docs', label: 'API Docs', icon: Code },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -99,6 +101,8 @@ export function Dashboard() {
           )}
 
           {activeTab === 'logs' && <LogsView />}
+
+          {activeTab === 'api-docs' && <ApiDocsView />}
 
           {activeTab === 'home' && (
           <>
