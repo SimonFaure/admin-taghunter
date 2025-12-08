@@ -64,32 +64,37 @@ try {
             continue;
         }
 
+        // Remove single-line comments (-- comments)
+        $sql = preg_replace('/--[^\n]*\n/', "\n", $sql);
+
+        // Remove multi-line comments (/* */ comments)
+        $sql = preg_replace('/\/\*.*?\*\//s', '', $sql);
+
         // Split SQL file into individual statements
         $statements = array_filter(
             array_map('trim', explode(';', $sql)),
             function($stmt) {
-                // Filter out empty statements and comments
-                return !empty($stmt) &&
-                       strpos($stmt, '--') !== 0 &&
-                       strpos($stmt, '/*') !== 0;
+                return !empty($stmt) && strlen(trim($stmt)) > 0;
             }
         );
 
         foreach ($statements as $statement) {
-            if (empty(trim($statement))) {
+            $statement = trim($statement);
+            if (empty($statement)) {
                 continue;
             }
 
             try {
                 $conn->exec($statement);
-                $results[] = "Executed statement from $migrationFile";
+                $results[] = "Executed: " . substr($statement, 0, 60) . "...";
             } catch (PDOException $e) {
                 // Check if error is about table/column already existing
                 if (strpos($e->getMessage(), 'already exists') !== false ||
-                    strpos($e->getMessage(), 'Duplicate') !== false) {
-                    $results[] = "Skipped (already exists): $migrationFile";
+                    strpos($e->getMessage(), 'Duplicate') !== false ||
+                    strpos($e->getMessage(), 'Duplicate key') !== false) {
+                    $results[] = "Skipped (already exists): " . substr($statement, 0, 40) . "...";
                 } else {
-                    $errors[] = "Error in $migrationFile: " . $e->getMessage();
+                    $errors[] = "Error: " . $e->getMessage() . " | SQL: " . substr($statement, 0, 100);
                 }
             }
         }
