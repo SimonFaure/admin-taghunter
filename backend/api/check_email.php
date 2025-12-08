@@ -36,7 +36,7 @@ try {
         [$email]
     );
 
-    jsonResponse(['exists' => $client !== null]);
+    jsonResponse(['data' => ['exists' => $client !== null]]);
 
 } catch (Exception $e) {
     jsonResponse(['error' => 'Server error: ' . $e->getMessage()], 500);
