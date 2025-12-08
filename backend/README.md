@@ -24,23 +24,31 @@ public_html/
 └── assets/
 ```
 
-### 2. Run Database Migration
+### 2. Run Database Migrations
 
-Connect to your database and run the SQL in `backend/database/migration.sql`:
+Connect to your database and run the SQL migration files in order:
 
 **Option A: Using phpMyAdmin**
 1. Log into phpMyAdmin
 2. Select your database: `dboqjtvuf38s1n`
 3. Go to the SQL tab
-4. Copy and paste the contents of `migration.sql`
-5. Click "Go"
+4. Run each migration file in this order:
+   - Copy and paste contents of `migration.sql` → Click "Go"
+   - Copy and paste contents of `add_roles_migration.sql` → Click "Go"
+   - Copy and paste contents of `launched_games_migration.sql` → Click "Go"
+   - Copy and paste contents of `api_logs.sql` → Click "Go"
+   - Copy and paste contents of `add_game_fields_migration.sql` → Click "Go"
 
 **Option B: Using MySQL command line**
 ```bash
 mysql -u u0vswg9avwvro -p dboqjtvuf38s1n < backend/database/migration.sql
+mysql -u u0vswg9avwvro -p dboqjtvuf38s1n < backend/database/add_roles_migration.sql
+mysql -u u0vswg9avwvro -p dboqjtvuf38s1n < backend/database/launched_games_migration.sql
+mysql -u u0vswg9avwvro -p dboqjtvuf38s1n < backend/database/api_logs.sql
+mysql -u u0vswg9avwvro -p dboqjtvuf38s1n < backend/database/add_game_fields_migration.sql
 ```
 
-This will create the `admin_users` table and add a default admin user.
+This will create all necessary tables and add a default admin user.
 
 ### 3. Default Login Credentials
 

@@ -60,11 +60,15 @@ try {
             $client_id = null;
             $title = null;
             $description = null;
+            $game_data = null;
+            $game_type = null;
 
             if ($scenarioData) {
                 // Client app format
                 $title = $scenarioData['title'] ?? null;
                 $description = $scenarioData['description'] ?? null;
+                $game_data = $scenarioData['gameData'] ?? null;
+                $game_type = $scenarioData['game_type'] ?? null;
 
                 // Look up client by email
                 if ($userEmail) {
@@ -78,6 +82,13 @@ try {
                 $client_id = isset($_POST['client_id']) ? (int)$_POST['client_id'] : null;
                 $title = $_POST['title'] ?? null;
                 $description = $_POST['description'] ?? null;
+                $game_data = $_POST['game_data'] ?? null;
+                $game_type = $_POST['game_type'] ?? null;
+            }
+
+            // Convert game_data to JSON string if it's an array
+            if (is_array($game_data)) {
+                $game_data = json_encode($game_data);
             }
 
             // Validate required fields
@@ -108,8 +119,8 @@ try {
 
             // Insert scenario into database
             $created_by = $_SESSION['user_id'] ?? null;
-            $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, created_by) VALUES (?, ?, ?, ?, ?)';
-            $db->query($sql, [$client_id, $title, $description, $media_path, $created_by]);
+            $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, game_data, game_type, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)';
+            $db->query($sql, [$client_id, $title, $description, $media_path, $game_data, $game_type, $created_by]);
 
             $scenario_id = $db->getConnection()->lastInsertId();
 
@@ -121,6 +132,8 @@ try {
                     'title' => $title,
                     'description' => $description,
                     'media_url' => $media_path,
+                    'game_data' => $game_data,
+                    'game_type' => $game_type,
                     'created_at' => date('Y-m-d H:i:s')
                 ],
                 'message' => 'Scenario created successfully'
@@ -217,6 +230,13 @@ try {
             $title = isset($_POST['title']) ? trim($_POST['title']) : $scenario['title'];
             $description = isset($_POST['description']) ? trim($_POST['description']) : $scenario['description'];
             $media_path = $scenario['media_url'];
+            $game_data = isset($_POST['game_data']) ? $_POST['game_data'] : $scenario['game_data'];
+            $game_type = isset($_POST['game_type']) ? $_POST['game_type'] : $scenario['game_type'];
+
+            // Convert game_data to JSON string if it's an array
+            if (is_array($game_data)) {
+                $game_data = json_encode($game_data);
+            }
 
             // Handle new zip file upload
             if (isset($_FILES['zip_file']) && $_FILES['zip_file']['error'] === UPLOAD_ERR_OK) {
@@ -262,8 +282,8 @@ try {
             }
 
             // Update scenario
-            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, updated_at = NOW() WHERE id = ?';
-            $db->query($sql, [$title, $description, $media_path, $id]);
+            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, game_data = ?, game_type = ?, updated_at = NOW() WHERE id = ?';
+            $db->query($sql, [$title, $description, $media_path, $game_data, $game_type, $id]);
 
             jsonResponse([
                 'success' => true,
@@ -271,7 +291,9 @@ try {
                     'id' => $id,
                     'title' => $title,
                     'description' => $description,
-                    'media_url' => $media_path
+                    'media_url' => $media_path,
+                    'game_data' => $game_data,
+                    'game_type' => $game_type
                 ],
                 'message' => 'Scenario updated successfully'
             ]);
