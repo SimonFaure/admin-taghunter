@@ -42,10 +42,25 @@ try {
         [$email]
     );
 
-    $responseData = ['exists' => !empty($client)];
+    $admin = $db->fetch(
+        'SELECT id FROM admin_users WHERE email = ?',
+        [$email]
+    );
+
+    $exists = !empty($client) || !empty($admin);
+    $responseData = [
+        'exists' => $exists,
+        'is_admin' => !empty($admin)
+    ];
+
     if ($client) {
         $responseData['client_id'] = (int)$client['id'];
     }
+
+    if ($admin) {
+        $responseData['admin_id'] = (int)$admin['id'];
+    }
+
     $response = ['data' => $responseData];
     Logger::log('check_email', 'GET', 'check', null, ['email' => $email], $response, 200);
     jsonResponse($response);

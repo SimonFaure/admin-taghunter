@@ -169,25 +169,49 @@ export const clientApi = {
     return { data: undefined };
   },
 
-  async checkEmailExists(email: string): Promise<ApiResponse<{ exists: boolean }>> {
+  async checkEmailExists(email: string): Promise<ApiResponse<{ exists: boolean; is_admin?: boolean; client_id?: number; admin_id?: number }>> {
     if (authMode === 'php') {
-      return phpFetch<{ exists: boolean }>(`/check_email.php?email=${encodeURIComponent(email)}`);
+      return phpFetch<{ exists: boolean; is_admin?: boolean; client_id?: number; admin_id?: number }>(`/check_email.php?email=${encodeURIComponent(email)}`);
     }
 
     if (!supabase) {
       return { error: 'Supabase client not initialized' };
     }
 
-    const { data, error } = await supabase
+    const { data: clientData, error: clientError } = await supabase
       .from('clients')
       .select('id')
       .eq('email', email)
       .maybeSingle();
 
-    if (error) {
-      return { error: error.message };
+    if (clientError) {
+      return { error: clientError.message };
     }
 
-    return { data: { exists: !!data } };
+    const { data: adminData, error: adminError } = await supabase
+      .from('admin_users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (adminError) {
+      return { error: adminError.message };
+    }
+
+    const exists = !!clientData || !!adminData;
+    const result: { exists: boolean; is_admin?: boolean; client_id?: number; admin_id?: number } = {
+      exists,
+      is_admin: !!adminData
+    };
+
+    if (clientData) {
+      result.client_id = clientData.id;
+    }
+
+    if (adminData) {
+      result.admin_id = adminData.id;
+    }
+
+    return { data: result };
   },
 };
