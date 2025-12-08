@@ -69,6 +69,7 @@ try {
                 $description = $scenarioData['description'] ?? null;
                 $game_data = $scenarioData['gameData'] ?? null;
                 $game_type = $scenarioData['game_type'] ?? null;
+                $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // Look up client by email
                 if ($userEmail) {
@@ -84,6 +85,7 @@ try {
                 $description = $_POST['description'] ?? null;
                 $game_data = $_POST['game_data'] ?? null;
                 $game_type = $_POST['game_type'] ?? null;
+                $uniqid = $_POST['uniqid'] ?? null;
             }
 
             // Convert game_data to JSON string if it's an array
@@ -92,17 +94,18 @@ try {
             }
 
             // Validate required fields
-            if (!$title || !$description) {
-                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Missing title or description'], 400);
-                jsonResponse(['error' => 'Missing required fields: title, description'], 400);
+            if (!$title || !$description || !$uniqid) {
+                Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Missing required fields'], 400);
+                jsonResponse(['error' => 'Missing required fields: title, description, uniqid'], 400);
             }
 
             $title = trim($title);
             $description = trim($description);
+            $uniqid = trim($uniqid);
 
-            if (empty($title) || empty($description)) {
+            if (empty($title) || empty($description) || empty($uniqid)) {
                 Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Empty fields'], 400);
-                jsonResponse(['error' => 'Title and description cannot be empty'], 400);
+                jsonResponse(['error' => 'Title, description, and uniqid cannot be empty'], 400);
             }
 
             // Verify client exists if client_id provided (client_id is optional)
@@ -116,9 +119,6 @@ try {
 
             // Skip file upload for now - will be handled in a separate request
             $media_path = null;
-
-            // Generate unique ID
-            $uniqid = uniqid('scenario_', true);
 
             // Insert scenario into database
             $created_by = $_SESSION['user_id'] ?? null;
