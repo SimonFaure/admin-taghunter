@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
     // Verify user
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
+
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
 
     // Parse multipart form data
     const formData = await req.formData();
-    
+
     // Get scenario data from form
     const uniqid = formData.get("uniqid") as string;
     const title = formData.get("title") as string;
@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
     const slug = formData.get("slug") as string;
     const description = formData.get("description") as string || "";
     const status = formData.get("status") as string || "draft";
-    const dataStr = formData.get("data") as string;
+    const gameDataStr = formData.get("gameData") as string;
     const zipFile = formData.get("media_zip") as File;
 
     // Validate required fields
@@ -71,13 +71,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    let data = {};
-    if (dataStr) {
+    let gameData = {};
+    if (gameDataStr) {
       try {
-        data = JSON.parse(dataStr);
+        gameData = JSON.parse(gameDataStr);
       } catch (e) {
         return new Response(
-          JSON.stringify({ error: "Invalid JSON in data field" }),
+          JSON.stringify({ error: "Invalid JSON in gameData field" }),
           {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -114,7 +114,7 @@ Deno.serve(async (req: Request) => {
       const { data: urlData } = supabase.storage
         .from("scenario-media")
         .getPublicUrl(filePath);
-      
+
       mediaUrl = urlData.publicUrl;
     }
 
@@ -137,7 +137,7 @@ Deno.serve(async (req: Request) => {
         slug,
         description,
         status,
-        data,
+        gameData,
         updated_at: new Date().toISOString(),
       };
 
@@ -175,7 +175,7 @@ Deno.serve(async (req: Request) => {
           slug,
           description,
           status,
-          data,
+          gameData,
           media_url: mediaUrl,
           created_by: user.id,
         })
