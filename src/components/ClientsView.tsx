@@ -161,7 +161,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
               {filteredClients.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                    {searchTerm ? 'No clients found matching your search.' : 'No clients yet. Create your first client!'}
+                    no client
                   </td>
                 </tr>
               ) : (
