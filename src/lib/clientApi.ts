@@ -39,6 +39,10 @@ export const clientApi = {
   },
 
   async createClient(clientData: CreateClientData): Promise<ApiResponse<Client>> {
+    if (!supabase) {
+      return { error: 'Supabase client not initialized' };
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
