@@ -1,25 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Shield } from 'lucide-react';
-import { adminManagementApi, AdminProfile } from '../lib/adminManagement';
+import { adminUsersApi, AdminUser, CreateAdminData } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-
-interface FormData {
-  email: string;
-  password: string;
-  full_name: string;
-}
 
 export function AdminUsersView() {
   const { user } = useAuth();
-  const [admins, setAdmins] = useState<AdminProfile[]>([]);
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingAdmin, setEditingAdmin] = useState<AdminProfile | null>(null);
-  const [formData, setFormData] = useState<FormData>({
+  const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [formData, setFormData] = useState<CreateAdminData>({
     email: '',
     password: '',
-    full_name: '',
+    name: '',
   });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -31,7 +25,7 @@ export function AdminUsersView() {
   const loadAdmins = async () => {
     setLoading(true);
     setError('');
-    const { data, error } = await adminManagementApi.listAdmins();
+    const { data, error } = await adminUsersApi.getAdminUsers();
     if (error) {
       setError(error);
     } else if (data) {
@@ -47,47 +41,32 @@ export function AdminUsersView() {
 
     try {
       if (editingAdmin) {
-        const { data, error } = await adminManagementApi.updateAdmin(
-          editingAdmin.id,
-          formData.email !== editingAdmin.email ? formData.email : undefined,
-          formData.password || undefined,
-          formData.full_name !== editingAdmin.full_name ? formData.full_name : undefined
-        );
+        const updateData: any = {
+          id: editingAdmin.id,
+          email: formData.email,
+          name: formData.name,
+        };
 
+        if (formData.password) {
+          updateData.password = formData.password;
+        }
+
+        const { data, error } = await adminUsersApi.updateAdminUser(updateData);
         if (error) {
           setError(error);
           setSubmitting(false);
           return;
         }
-
         if (data) {
           setAdmins(admins.map(a => a.id === data.admin.id ? data.admin : a));
         }
       } else {
-        if (!formData.email || !formData.password) {
-          setError('Email and password are required');
-          setSubmitting(false);
-          return;
-        }
-
-        if (formData.password.length < 8) {
-          setError('Password must be at least 8 characters');
-          setSubmitting(false);
-          return;
-        }
-
-        const { data, error } = await adminManagementApi.createAdmin(
-          formData.email,
-          formData.password,
-          formData.full_name || undefined
-        );
-
+        const { data, error } = await adminUsersApi.createAdminUser(formData);
         if (error) {
           setError(error);
           setSubmitting(false);
           return;
         }
-
         if (data) {
           setAdmins([data.admin, ...admins]);
         }
@@ -108,7 +87,7 @@ export function AdminUsersView() {
     if (!confirm('Are you sure you want to delete this admin user?')) return;
 
     setError('');
-    const { error } = await adminManagementApi.deleteAdmin(id);
+    const { error } = await adminUsersApi.deleteAdminUser(id);
     if (error) {
       setError(error);
     } else {
@@ -116,11 +95,11 @@ export function AdminUsersView() {
     }
   };
 
-  const handleEdit = (admin: AdminProfile) => {
+  const handleEdit = (admin: AdminUser) => {
     setEditingAdmin(admin);
     setFormData({
       email: admin.email,
-      full_name: admin.full_name || '',
+      name: admin.name || '',
       password: '',
     });
     setShowModal(true);
@@ -132,7 +111,7 @@ export function AdminUsersView() {
     setFormData({
       email: '',
       password: '',
-      full_name: '',
+      name: '',
     });
     setError('');
     setSubmitting(false);
@@ -140,7 +119,7 @@ export function AdminUsersView() {
 
   const filteredAdmins = admins.filter(admin =>
     admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    admin.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -211,7 +190,7 @@ export function AdminUsersView() {
                             <Shield className="w-5 h-5 text-slate-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-slate-900">{admin.full_name || 'N/A'}</p>
+                            <p className="font-medium text-slate-900">{admin.name || 'N/A'}</p>
                           </div>
                         </div>
                       </td>
@@ -288,12 +267,12 @@ export function AdminUsersView() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Full Name
+                  Name
                 </label>
                 <input
                   type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                   placeholder="John Doe"
                 />
