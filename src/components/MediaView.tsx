@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers } from 'lucide-react';
-import { mediaApi, MediaFile, Scenario } from '../lib/api';
+import { mediaApi, MediaFile, Scenario, scenariosApi, ScenarioData } from '../lib/api';
 
 type ViewMode = 'grid' | 'list';
 type GroupMode = 'all' | 'scenario';
@@ -14,9 +14,11 @@ export function MediaView() {
   const [loadingScenarios, setLoadingScenarios] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [groupMode, setGroupMode] = useState<GroupMode>('all');
+  const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
 
   useEffect(() => {
     fetchMediaFiles();
+    fetchScenarios();
   }, []);
 
   useEffect(() => {
@@ -39,6 +41,20 @@ export function MediaView() {
       setError('Failed to load media files');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchScenarios = async () => {
+    try {
+      const response = await scenariosApi.listScenarios();
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      setScenarios(response.data?.scenarios || []);
+    } catch (err) {
+      console.error('Error fetching scenarios:', err);
     }
   };
 
@@ -77,15 +93,23 @@ export function MediaView() {
     return mimeType.startsWith('video/');
   };
 
+  const getScenarioName = (uniqid: string): string => {
+    const scenario = scenarios.find(s => s.uniqid === uniqid);
+    return scenario ? scenario.title : uniqid;
+  };
+
   const groupMediaByScenario = () => {
-    const grouped: Record<string, MediaFile[]> = {};
+    const grouped: Record<string, { name: string; files: MediaFile[] }> = {};
 
     mediaFiles.forEach(media => {
       const key = media.scenario_uniqid || 'Unassigned';
       if (!grouped[key]) {
-        grouped[key] = [];
+        grouped[key] = {
+          name: key === 'Unassigned' ? 'Unassigned Media' : getScenarioName(key),
+          files: []
+        };
       }
-      grouped[key].push(media);
+      grouped[key].files.push(media);
     });
 
     return grouped;
@@ -298,15 +322,15 @@ export function MediaView() {
               <div className="flex items-center space-x-2">
                 <Layers className="w-5 h-5 text-slate-600" />
                 <h3 className="text-lg font-semibold text-slate-900">
-                  {scenarioId === 'Unassigned' ? 'Unassigned Media' : `Scenario: ${scenarioId}`}
+                  {grouped[scenarioId].name}
                 </h3>
-                <span className="text-sm text-slate-500">({grouped[scenarioId].length})</span>
+                <span className="text-sm text-slate-500">({grouped[scenarioId].files.length})</span>
               </div>
               <div className={viewMode === 'grid'
                 ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
                 : 'space-y-3'
               }>
-                {grouped[scenarioId].map(renderMediaCard)}
+                {grouped[scenarioId].files.map(renderMediaCard)}
               </div>
             </div>
           ))}
