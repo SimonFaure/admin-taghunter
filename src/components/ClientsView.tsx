@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, X, Eye } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Eye, User } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, CreateClientData } from '../types/client';
 
@@ -147,10 +147,10 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                   Company
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Phone
+                  License Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Created
+                  Billing Status
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Actions
@@ -168,19 +168,44 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                 filteredClients.map((client) => (
                   <tr key={client.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium text-slate-900">{client.name || 'N/A'}</div>
-                        <div className="text-sm text-slate-500">{client.email}</div>
+                      <div className="flex items-center space-x-3">
+                        {client.avatar_url ? (
+                          <img
+                            src={client.avatar_url}
+                            alt={client.name || 'Client avatar'}
+                            className="w-10 h-10 rounded-full object-cover border-2 border-slate-100"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border-2 border-slate-100">
+                            <User className="w-5 h-5 text-slate-400" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="font-medium text-slate-900">{client.name || 'N/A'}</div>
+                          <div className="text-sm text-slate-500">{client.email}</div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-900">
                       {client.company || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-900">
-                      {client.phone || 'N/A'}
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                        client.license_type === 'premium'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-slate-100 text-slate-800'
+                      }`}>
+                        {client.license_type === 'premium' ? 'Premium' : 'Access'}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-slate-500">
-                      {client.created_at ? new Date(client.created_at).toLocaleDateString() : 'N/A'}
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                        client.billing_up_to_date
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {client.billing_up_to_date ? 'Current' : 'Overdue'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end space-x-2">
