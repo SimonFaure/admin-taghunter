@@ -85,6 +85,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const handleAddScenario = async (scenarioId: string) => {
     setAddingScenario(true);
     try {
+      console.log('Adding scenario:', { client_id: clientId, scenario_id: scenarioId });
       const response = await fetch('https://admin.taghunter.fr/backend/api/client_scenarios.php?action=add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,7 +93,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         body: JSON.stringify({ client_id: clientId, scenario_id: scenarioId }),
       });
 
+      console.log('Response status:', response.status, response.statusText);
       const result = await response.json();
+      console.log('Response data:', result);
 
       if (response.ok) {
         setSuccess('Scenario added successfully');
@@ -100,10 +103,12 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         await loadScenarios();
         setShowAddScenarioModal(false);
       } else {
+        console.error('Server error:', result.error);
         setError(result.error || 'Failed to add scenario');
       }
     } catch (err) {
-      setError('Failed to add scenario');
+      console.error('Failed to add scenario:', err);
+      setError(`Failed to add scenario: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setAddingScenario(false);
     }
