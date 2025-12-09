@@ -391,9 +391,10 @@ try {
 
             // Verify scenario exists and belongs to userEmail
             $scenario = $db->fetch(
-                'SELECT s.id, s.uniqid, c.email as client_email
+                'SELECT s.id, s.uniqid, c.email as client_email, a.email as admin_email
                  FROM scenarios s
                  LEFT JOIN clients c ON s.client_id = c.id
+                 LEFT JOIN admin_users a ON s.created_by = a.id
                  WHERE s.uniqid = ?',
                 [$uniqid]
             );
@@ -403,8 +404,18 @@ try {
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
-            // Verify ownership
-            if ($scenario['client_email'] !== $userEmail) {
+            // Verify ownership - check if email matches either client or admin
+            $isClientOwner = $scenario['client_email'] === $userEmail;
+            $isAdminOwner = $scenario['admin_email'] === $userEmail;
+
+            // Also check if the email exists in admin_users table (for any admin)
+            $isAdmin = false;
+            if (!$isClientOwner && !$isAdminOwner) {
+                $adminCheck = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$userEmail]);
+                $isAdmin = ($adminCheck !== false);
+            }
+
+            if (!$isClientOwner && !$isAdminOwner && !$isAdmin) {
                 Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'userEmail' => $userEmail], ['error' => 'Unauthorized - email mismatch'], 403);
                 jsonResponse(['error' => 'Unauthorized - scenario does not belong to this user'], 403);
             }
