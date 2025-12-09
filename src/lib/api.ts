@@ -186,3 +186,38 @@ export const scenariosApi = {
     });
   },
 };
+
+export interface DashboardStats {
+  clients: number;
+  scenarios: number;
+  storage: {
+    bytes: number;
+    formatted: string;
+  };
+  api_requests: {
+    total: number;
+    percent_change: number;
+  };
+}
+
+export interface DashboardActivity {
+  type: string;
+  icon: string;
+  title: string;
+  detail: string;
+  time: string;
+}
+
+export const dashboardApi = {
+  async getStats(): Promise<ApiResponse<DashboardStats>> {
+    return apiRequest('/dashboard.php?action=stats', {
+      method: 'GET',
+    });
+  },
+
+  async getRecentActivity(limit: number = 10): Promise<ApiResponse<{ activities: DashboardActivity[] }>> {
+    return apiRequest(`/dashboard.php?action=recent-activity&limit=${limit}`, {
+      method: 'GET',
+    });
+  },
+};

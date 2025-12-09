@@ -1,6 +1,6 @@
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Zap } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
 import LogsView from './LogsView';
@@ -11,15 +11,60 @@ import { StatisticsView } from './StatisticsView';
 import { SettingsView } from './SettingsView';
 import { MediaView } from './MediaView';
 import { AdminUsersView } from './AdminUsersView';
+import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('home');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [activities, setActivities] = useState<DashboardActivity[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const handleNotificationClick = (clientId: string) => {
     setSelectedClientId(clientId);
     setActiveTab('clients');
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      try {
+        const [statsResponse, activitiesResponse] = await Promise.all([
+          dashboardApi.getStats(),
+          dashboardApi.getRecentActivity(4),
+        ]);
+
+        if (statsResponse.data) {
+          setStats(statsResponse.data);
+        }
+
+        if (activitiesResponse.data) {
+          setActivities(activitiesResponse.data.activities);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (activeTab === 'home') {
+      fetchDashboardData();
+    }
+  }, [activeTab]);
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
   };
 
   const menuItems = [
@@ -133,6 +178,12 @@ export function Dashboard() {
 
           {activeTab === 'home' && (
           <>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+            </div>
+          ) : (
+            <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
               <div className="flex items-center justify-between mb-4">
@@ -143,7 +194,7 @@ export function Dashboard() {
                   Active
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-1">24</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-1">{stats?.clients || 0}</h3>
               <p className="text-sm text-slate-600">Total Clients</p>
             </div>
 
@@ -156,7 +207,7 @@ export function Dashboard() {
                   Live
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-1">156</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-1">{stats?.scenarios || 0}</h3>
               <p className="text-sm text-slate-600">Scenarios</p>
             </div>
 
@@ -169,7 +220,7 @@ export function Dashboard() {
                   Storage
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-1">2.4GB</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-1">{stats?.storage.formatted || '0B'}</h3>
               <p className="text-sm text-slate-600">Media Files</p>
             </div>
 
@@ -178,11 +229,15 @@ export function Dashboard() {
                 <div className="p-3 bg-rose-100 rounded-lg">
                   <Activity className="w-6 h-6 text-rose-600" />
                 </div>
-                <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                  +18.2%
-                </span>
+                {stats?.api_requests.percent_change !== undefined && (
+                  <span className={`text-xs font-semibold ${
+                    stats.api_requests.percent_change >= 0 ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
+                  } px-2 py-1 rounded-full`}>
+                    {stats.api_requests.percent_change >= 0 ? '+' : ''}{stats.api_requests.percent_change}%
+                  </span>
+                )}
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mb-1">12,847</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-1">{stats?.api_requests.total.toLocaleString() || 0}</h3>
               <p className="text-sm text-slate-600">API Requests</p>
             </div>
           </div>
@@ -191,25 +246,30 @@ export function Dashboard() {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
               <h3 className="text-lg font-bold text-slate-900 mb-4">Recent Activity</h3>
               <div className="space-y-4">
-                {[
-                  { icon: Users, title: 'New client registered', detail: 'Client: Acme Corp', time: '2h ago' },
-                  { icon: Film, title: 'Scenario created', detail: 'Beach Adventure scenario', time: '4h ago' },
-                  { icon: Image, title: 'Media uploaded', detail: '5 new images added', time: '6h ago' },
-                  { icon: Activity, title: 'API activity spike', detail: '2,547 requests logged', time: '8h ago' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center space-x-4 pb-4 border-b border-slate-100 last:border-0">
-                    <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
-                      <item.icon className="w-5 h-5 text-slate-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-slate-500">{item.detail}</p>
-                    </div>
-                    <span className="text-xs text-slate-500">{item.time}</span>
-                  </div>
-                ))}
+                {activities.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
+                ) : (
+                  activities.map((item, i) => {
+                    const IconComponent = item.icon === 'Users' ? Users :
+                                        item.icon === 'Film' ? Film :
+                                        item.icon === 'Image' ? Image :
+                                        Activity;
+                    return (
+                      <div key={i} className="flex items-center space-x-4 pb-4 border-b border-slate-100 last:border-0">
+                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center">
+                          <IconComponent className="w-5 h-5 text-slate-600" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-900">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-slate-500">{item.detail}</p>
+                        </div>
+                        <span className="text-xs text-slate-500">{formatTimeAgo(item.time)}</span>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
@@ -251,6 +311,8 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+          </>
+          )}
           </>
           )}
         </div>
