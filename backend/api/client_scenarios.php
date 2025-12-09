@@ -42,43 +42,44 @@ switch ($action) {
             jsonResponse(['error' => 'client_id and scenario_id are required'], 400);
         }
 
-        $clientExists = $db->fetch('SELECT id FROM clients WHERE id = ?', [$clientId]);
-        if (!$clientExists) {
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Client not found'], 404);
-            jsonResponse(['error' => 'Client not found'], 404);
-        }
+        try {
+            $clientExists = $db->fetch('SELECT id FROM clients WHERE id = ?', [$clientId]);
+            if (!$clientExists) {
+                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Client not found'], 404);
+                jsonResponse(['error' => 'Client not found'], 404);
+            }
 
-        $scenarioExists = $db->fetch('SELECT id FROM scenarios WHERE id = ? AND scenario_type = "product"', [$scenarioId]);
-        if (!$scenarioExists) {
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Product scenario not found'], 404);
-            jsonResponse(['error' => 'Product scenario not found'], 404);
-        }
+            $scenarioExists = $db->fetch('SELECT id FROM scenarios WHERE id = ? AND scenario_type = "product"', [$scenarioId]);
+            if (!$scenarioExists) {
+                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Product scenario not found'], 404);
+                jsonResponse(['error' => 'Product scenario not found'], 404);
+            }
 
-        $exists = $db->fetch(
-            'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-            [$clientId, $scenarioId]
-        );
+            $exists = $db->fetch(
+                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
+                [$clientId, $scenarioId]
+            );
 
-        if ($exists) {
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Already added'], 400);
-            jsonResponse(['error' => 'Scenario already added to this client'], 400);
-        }
+            if ($exists) {
+                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Already added'], 400);
+                jsonResponse(['error' => 'Scenario already added to this client'], 400);
+            }
 
-        $result = $db->execute(
-            'INSERT INTO client_scenarios (client_id, scenario_id, granted_by) VALUES (?, ?, ?)',
-            [$clientId, $scenarioId, $_SESSION['user_id']]
-        );
+            $result = $db->execute(
+                'INSERT INTO client_scenarios (client_id, scenario_id, granted_by) VALUES (?, ?, ?)',
+                [$clientId, $scenarioId, $_SESSION['user_id']]
+            );
 
-        if ($result) {
             $responseData = [
                 'success' => true,
                 'message' => 'Scenario added to client successfully'
             ];
             Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, $responseData, 200);
             jsonResponse($responseData);
-        } else {
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Failed to add scenario'], 500);
-            jsonResponse(['error' => 'Failed to add scenario to client'], 500);
+        } catch (Exception $e) {
+            $errorMsg = 'Database error: ' . $e->getMessage();
+            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
+            jsonResponse(['error' => $errorMsg], 500);
         }
         break;
 
