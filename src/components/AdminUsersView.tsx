@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, X, Shield } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Shield, Eye, EyeOff } from 'lucide-react';
 import { adminUsersApi, AdminUser, CreateAdminData } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -17,6 +17,7 @@ export function AdminUsersView() {
   });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     loadAdmins();
@@ -115,6 +116,7 @@ export function AdminUsersView() {
     });
     setError('');
     setSubmitting(false);
+    setShowPassword(false);
   };
 
   const filteredAdmins = admins.filter(admin =>
@@ -283,15 +285,24 @@ export function AdminUsersView() {
                   Password {!editingAdmin && '*'}
                   {editingAdmin && <span className="text-slate-500 font-normal ml-1">(leave blank to keep current)</span>}
                 </label>
-                <input
-                  type="password"
-                  required={!editingAdmin}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
-                  placeholder="Min. 8 characters"
-                  minLength={8}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required={!editingAdmin}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
+                    placeholder="Min. 8 characters"
+                    minLength={8}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
               <div className="flex space-x-3 pt-4">
