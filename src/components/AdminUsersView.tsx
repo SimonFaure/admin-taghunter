@@ -1,19 +1,28 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Shield } from 'lucide-react';
-import { adminUsersApi, AdminUser, CreateAdminData } from '../lib/api';
+import { adminManagementApi, AdminProfile } from '../lib/adminManagement';
+import { useAuth } from '../contexts/AuthContext';
+
+interface FormData {
+  email: string;
+  password: string;
+  full_name: string;
+}
 
 export function AdminUsersView() {
-  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const { user } = useAuth();
+  const [admins, setAdmins] = useState<AdminProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
-  const [formData, setFormData] = useState<CreateAdminData>({
+  const [editingAdmin, setEditingAdmin] = useState<AdminProfile | null>(null);
+  const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
-    name: '',
+    full_name: '',
   });
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadAdmins();
@@ -21,7 +30,8 @@ export function AdminUsersView() {
 
   const loadAdmins = async () => {
     setLoading(true);
-    const { data, error } = await adminUsersApi.getAdminUsers();
+    setError('');
+    const { data, error } = await adminManagementApi.listAdmins();
     if (error) {
       setError(error);
     } else if (data) {
@@ -33,44 +43,72 @@ export function AdminUsersView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
 
-    if (editingAdmin) {
-      const updateData: any = {
-        id: editingAdmin.id,
-        email: formData.email,
-        name: formData.name,
-      };
+    try {
+      if (editingAdmin) {
+        const { data, error } = await adminManagementApi.updateAdmin(
+          editingAdmin.id,
+          formData.email !== editingAdmin.email ? formData.email : undefined,
+          formData.password || undefined,
+          formData.full_name !== editingAdmin.full_name ? formData.full_name : undefined
+        );
 
-      if (formData.password) {
-        updateData.password = formData.password;
+        if (error) {
+          setError(error);
+          setSubmitting(false);
+          return;
+        }
+
+        if (data) {
+          setAdmins(admins.map(a => a.id === data.admin.id ? data.admin : a));
+        }
+      } else {
+        if (!formData.email || !formData.password) {
+          setError('Email and password are required');
+          setSubmitting(false);
+          return;
+        }
+
+        if (formData.password.length < 8) {
+          setError('Password must be at least 8 characters');
+          setSubmitting(false);
+          return;
+        }
+
+        const { data, error } = await adminManagementApi.createAdmin(
+          formData.email,
+          formData.password,
+          formData.full_name || undefined
+        );
+
+        if (error) {
+          setError(error);
+          setSubmitting(false);
+          return;
+        }
+
+        if (data) {
+          setAdmins([data.admin, ...admins]);
+        }
       }
 
-      const { data, error } = await adminUsersApi.updateAdminUser(updateData);
-      if (error) {
-        setError(error);
-        return;
-      }
-      if (data) {
-        setAdmins(admins.map(a => a.id === data.admin.id ? data.admin : a));
-      }
-    } else {
-      const { data, error } = await adminUsersApi.createAdminUser(formData);
-      if (error) {
-        setError(error);
-        return;
-      }
-      if (data) {
-        setAdmins([data.admin, ...admins]);
-      }
+      handleCloseModal();
+    } finally {
+      setSubmitting(false);
     }
-
-    handleCloseModal();
   };
 
   const handleDelete = async (id: string) => {
+    if (user && id === String(user.id)) {
+      setError('Cannot delete your own account');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this admin user?')) return;
 
-    const { error } = await adminUsersApi.deleteAdminUser(id);
+    setError('');
+    const { error } = await adminManagementApi.deleteAdmin(id);
     if (error) {
       setError(error);
     } else {
@@ -78,11 +116,11 @@ export function AdminUsersView() {
     }
   };
 
-  const handleEdit = (admin: AdminUser) => {
+  const handleEdit = (admin: AdminProfile) => {
     setEditingAdmin(admin);
     setFormData({
       email: admin.email,
-      name: admin.name || '',
+      full_name: admin.full_name || '',
       password: '',
     });
     setShowModal(true);
@@ -94,14 +132,15 @@ export function AdminUsersView() {
     setFormData({
       email: '',
       password: '',
-      name: '',
+      full_name: '',
     });
     setError('');
+    setSubmitting(false);
   };
 
   const filteredAdmins = admins.filter(admin =>
     admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    admin.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    admin.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -172,7 +211,7 @@ export function AdminUsersView() {
                             <Shield className="w-5 h-5 text-slate-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-slate-900">{admin.name || 'N/A'}</p>
+                            <p className="font-medium text-slate-900">{admin.full_name || 'N/A'}</p>
                           </div>
                         </div>
                       </td>
@@ -249,12 +288,12 @@ export function AdminUsersView() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Name
+                  Full Name
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.full_name}
+                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                   placeholder="John Doe"
                 />
@@ -286,9 +325,10 @@ export function AdminUsersView() {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
+                  disabled={submitting}
+                  className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {editingAdmin ? 'Update' : 'Create'}
+                  {submitting ? 'Saving...' : (editingAdmin ? 'Update' : 'Create')}
                 </button>
               </div>
             </form>
