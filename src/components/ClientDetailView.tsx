@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package } from 'lucide-react';
+import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { scenariosApi, ScenarioData } from '../lib/api';
@@ -17,7 +17,12 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
+  const [boughtScenarios, setBoughtScenarios] = useState<ScenarioData[]>([]);
   const [loadingScenarios, setLoadingScenarios] = useState(true);
+  const [showAddScenarioModal, setShowAddScenarioModal] = useState(false);
+  const [availableScenarios, setAvailableScenarios] = useState<ScenarioData[]>([]);
+  const [loadingAvailable, setLoadingAvailable] = useState(false);
+  const [addingScenario, setAddingScenario] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -43,11 +48,97 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       if (!error && data) {
         setScenarios(data.scenarios);
       }
+
+      const response = await fetch(`https://admin.taghunter.fr/backend/api/client_scenarios.php?action=list&client_id=${clientId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const bought = await response.json();
+        setBoughtScenarios(bought);
+      }
     } catch (err) {
       console.error('Error loading scenarios:', err);
     } finally {
       setLoadingScenarios(false);
     }
+  };
+
+  const loadAvailableScenarios = async () => {
+    setLoadingAvailable(true);
+    try {
+      const response = await fetch('https://admin.taghunter.fr/backend/api/scenarios.php?action=list', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const result = await response.json();
+        const productScenarios = result.scenarios.filter((s: ScenarioData) => s.scenario_type === 'product');
+        const boughtIds = boughtScenarios.map(s => s.id);
+        setAvailableScenarios(productScenarios.filter((s: ScenarioData) => !boughtIds.includes(s.id)));
+      }
+    } catch (err) {
+      console.error('Error loading available scenarios:', err);
+    } finally {
+      setLoadingAvailable(false);
+    }
+  };
+
+  const handleAddScenario = async (scenarioId: string) => {
+    setAddingScenario(true);
+    try {
+      const response = await fetch('https://admin.taghunter.fr/backend/api/client_scenarios.php?action=add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ client_id: clientId, scenario_id: scenarioId }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setSuccess('Scenario added successfully');
+        setTimeout(() => setSuccess(''), 3000);
+        await loadScenarios();
+        setShowAddScenarioModal(false);
+      } else {
+        setError(result.error || 'Failed to add scenario');
+      }
+    } catch (err) {
+      setError('Failed to add scenario');
+    } finally {
+      setAddingScenario(false);
+    }
+  };
+
+  const handleRemoveScenario = async (scenarioId: string) => {
+    if (!confirm('Are you sure you want to remove this scenario from the client?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('https://admin.taghunter.fr/backend/api/client_scenarios.php?action=remove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ client_id: clientId, scenario_id: scenarioId }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setSuccess('Scenario removed successfully');
+        setTimeout(() => setSuccess(''), 3000);
+        await loadScenarios();
+      } else {
+        setError(result.error || 'Failed to remove scenario');
+      }
+    } catch (err) {
+      setError('Failed to remove scenario');
+    }
+  };
+
+  const openAddScenarioModal = () => {
+    setShowAddScenarioModal(true);
+    loadAvailableScenarios();
   };
 
   const loadClient = async () => {
@@ -440,102 +531,266 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               <FileText className="w-6 h-6 text-slate-700" />
               <h3 className="text-xl font-bold text-slate-900">Scenarios</h3>
             </div>
-            <span className="text-sm text-slate-600">
-              {scenarios.length} {scenarios.length === 1 ? 'scenario' : 'scenarios'}
-            </span>
+            <div className="flex items-center gap-3">
+              {client?.license_type === 'access' && (
+                <button
+                  onClick={openAddScenarioModal}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Product Scenarios
+                </button>
+              )}
+              <span className="text-sm text-slate-600">
+                {scenarios.length + boughtScenarios.length} total
+              </span>
+            </div>
           </div>
 
           {loadingScenarios ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
             </div>
-          ) : scenarios.length === 0 ? (
+          ) : scenarios.length === 0 && boughtScenarios.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 rounded-lg">
               <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-600">No scenarios yet</p>
               <p className="text-sm text-slate-500 mt-1">
-                Scenarios created by this client will appear here
+                Scenarios created by or granted to this client will appear here
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {scenarios.map((scenario) => (
-                <div
-                  key={scenario.id}
-                  className="border border-slate-200 rounded-lg p-6 hover:border-slate-300 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-slate-900 mb-1">
-                        {scenario.title}
-                      </h4>
-                      {scenario.description && (
-                        <p className="text-slate-600 text-sm leading-relaxed">
-                          {scenario.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-slate-100">
-                    {scenario.game_type && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <GamepadIcon className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-600">
-                          <span className="font-medium text-slate-700">Game Type:</span>{' '}
-                          {scenario.game_type}
-                        </span>
-                      </div>
-                    )}
-                    {scenario.scenario_type && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Package className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-600">
-                          <span className="font-medium text-slate-700">Category:</span>{' '}
-                          {scenario.scenario_type}
-                        </span>
-                      </div>
-                    )}
-                    {scenario.uniqid && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-600">
-                          <span className="font-medium text-slate-700">ID:</span>{' '}
-                          {scenario.uniqid}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-2 text-sm">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-600">
-                        <span className="font-medium text-slate-700">Created:</span>{' '}
-                        {new Date(scenario.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {scenario.media_url && (
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <a
-                        href={scenario.media_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+            <div className="space-y-6">
+              {scenarios.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-700 mb-3">Created Scenarios ({scenarios.length})</h4>
+                  <div className="space-y-4">
+                    {scenarios.map((scenario) => (
+                      <div
+                        key={scenario.id}
+                        className="border border-slate-200 rounded-lg p-6 hover:border-slate-300 transition-colors"
                       >
-                        View media file
-                      </a>
-                    </div>
-                  )}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-slate-900 mb-1">
+                              {scenario.title}
+                            </h4>
+                            {scenario.description && (
+                              <p className="text-slate-600 text-sm leading-relaxed">
+                                {scenario.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-slate-100">
+                          {scenario.game_type && (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <GamepadIcon className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-600">
+                                <span className="font-medium text-slate-700">Game Type:</span>{' '}
+                                {scenario.game_type}
+                              </span>
+                            </div>
+                          )}
+                          {scenario.scenario_type && (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <Package className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-600">
+                                <span className="font-medium text-slate-700">Category:</span>{' '}
+                                {scenario.scenario_type}
+                              </span>
+                            </div>
+                          )}
+                          {scenario.uniqid && (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <FileText className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-600">
+                                <span className="font-medium text-slate-700">ID:</span>{' '}
+                                {scenario.uniqid}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-2 text-sm">
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span className="text-slate-600">
+                              <span className="font-medium text-slate-700">Created:</span>{' '}
+                              {new Date(scenario.created_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+
+                        {scenario.media_url && (
+                          <div className="mt-4 pt-4 border-t border-slate-100">
+                            <a
+                              href={scenario.media_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              View media file
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {boughtScenarios.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4" />
+                    Product Scenarios ({boughtScenarios.length})
+                  </h4>
+                  <div className="space-y-4">
+                    {boughtScenarios.map((scenario) => (
+                      <div
+                        key={scenario.id}
+                        className="border border-amber-200 bg-amber-50/30 rounded-lg p-6 hover:border-amber-300 transition-colors"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="text-lg font-semibold text-slate-900">
+                                {scenario.title}
+                              </h4>
+                              <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
+                                Product
+                              </span>
+                            </div>
+                            {scenario.description && (
+                              <p className="text-slate-600 text-sm leading-relaxed">
+                                {scenario.description}
+                              </p>
+                            )}
+                          </div>
+                          {client?.license_type === 'access' && (
+                            <button
+                              onClick={() => handleRemoveScenario(scenario.id)}
+                              className="ml-4 text-red-600 hover:text-red-700 transition-colors"
+                              title="Remove scenario"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-amber-100">
+                          {scenario.game_type && (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <GamepadIcon className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-600">
+                                <span className="font-medium text-slate-700">Game Type:</span>{' '}
+                                {scenario.game_type}
+                              </span>
+                            </div>
+                          )}
+                          {scenario.uniqid && (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <FileText className="w-4 h-4 text-slate-400" />
+                              <span className="text-slate-600">
+                                <span className="font-medium text-slate-700">ID:</span>{' '}
+                                {scenario.uniqid}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {scenario.media_url && (
+                          <div className="mt-4 pt-4 border-t border-amber-100">
+                            <a
+                              href={scenario.media_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              View media file
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {client?.license_type === 'premium' && (
+                <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <span className="font-semibold">Premium License:</span> This client has access to all product scenarios automatically.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {showAddScenarioModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">Add Product Scenarios</h3>
+              <button
+                onClick={() => setShowAddScenarioModal(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
+              {loadingAvailable ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+                </div>
+              ) : availableScenarios.length === 0 ? (
+                <div className="text-center py-12">
+                  <ShoppingCart className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                  <p className="text-slate-600">No product scenarios available</p>
+                  <p className="text-sm text-slate-500 mt-1">
+                    All product scenarios have been added to this client
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {availableScenarios.map((scenario) => (
+                    <div
+                      key={scenario.id}
+                      className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors flex items-start justify-between"
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-slate-900 mb-1">{scenario.title}</h4>
+                        {scenario.description && (
+                          <p className="text-sm text-slate-600">{scenario.description}</p>
+                        )}
+                        {scenario.game_type && (
+                          <p className="text-xs text-slate-500 mt-2">
+                            Game Type: {scenario.game_type}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleAddScenario(scenario.id)}
+                        disabled={addingScenario}
+                        className="ml-4 px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {addingScenario ? 'Adding...' : 'Add'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

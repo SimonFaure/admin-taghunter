@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -236,6 +236,77 @@ export default function ApiDocsView() {
           auth: true,
           body: [{ name: 'id', type: 'integer', description: 'Scenario ID' }],
           response: '{ "success": true, "message": "Scenario deleted successfully" }',
+        },
+      ],
+    },
+    {
+      title: 'Client Scenarios',
+      icon: <ShoppingCart className="w-5 h-5" />,
+      color: 'bg-amber-500',
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/backend/api/client_scenarios.php?action=add',
+          description: 'Add a product scenario to a client',
+          auth: true,
+          body: [
+            { name: 'client_id', type: 'integer', description: 'Client ID (required)' },
+            { name: 'scenario_id', type: 'integer', description: 'Product scenario ID (required)' },
+          ],
+          response: '{ "success": true, "message": "Scenario added to client successfully" }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/client_scenarios.php?action=remove',
+          description: 'Remove a product scenario from a client',
+          auth: true,
+          body: [
+            { name: 'client_id', type: 'integer', description: 'Client ID (required)' },
+            { name: 'scenario_id', type: 'integer', description: 'Product scenario ID (required)' },
+          ],
+          response: '{ "success": true, "message": "Scenario removed from client successfully" }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/client_scenarios.php?action=list&client_id={id}',
+          description: 'Get all product scenarios assigned to a client',
+          auth: true,
+          params: [{ name: 'client_id', type: 'integer', description: 'Client ID' }],
+          response: '[{ "id": 1, "client_id": 1, "scenario_id": 5, "granted_at": "2024-01-15T10:30:00Z", "granted_by": 1, "granted_by_email": "admin@example.com", "title": "Product Scenario", "description": "...", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6" }]',
+        },
+      ],
+    },
+    {
+      title: 'TagHunter Playground API',
+      icon: <Smartphone className="w-5 h-5" />,
+      color: 'bg-cyan-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_user_scenarios&email={email}',
+          description: 'Get all scenarios available to a user based on their license type',
+          auth: false,
+          params: [{ name: 'email', type: 'string', description: 'Client email address' }],
+          response: '{ "client": { "id": 1, "email": "client@example.com", "licence_type": "premium", "company_name": "Acme Corp" }, "scenarios": [{ "id": 1, "title": "Scenario Title", "description": "Description", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6" }] }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_available_scenarios&email={email}',
+          description: 'Get product scenarios that the user has not yet purchased (access license only)',
+          auth: false,
+          params: [{ name: 'email', type: 'string', description: 'Client email address' }],
+          response: '{ "scenarios": [{ "id": 5, "title": "Product Scenario", "description": "Available for purchase", "game_type": "puzzle", "scenario_type": "product", "uniqid": "scenario_674fb123a45e6" }] }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_media&uniqid={uniqid}&filename={filename}',
+          description: 'Get media file for a scenario',
+          auth: false,
+          params: [
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
+            { name: 'filename', type: 'string', description: 'Media filename' },
+          ],
+          response: '(Binary file content with appropriate Content-Type header)',
         },
       ],
     },
