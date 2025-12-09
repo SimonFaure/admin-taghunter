@@ -17,15 +17,20 @@ function jsonResponse($data, $status = 200) {
     exit;
 }
 
-$db = Database::getInstance();
+try {
+    $db = Database::getInstance();
+} catch (Exception $e) {
+    error_log("Database connection failed: " . $e->getMessage());
+    jsonResponse(['error' => 'Database connection failed'], 500);
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
-$testLogResult = Logger::log('client_scenarios', $method, $action ?: 'init', null, [], ['test' => 'debug entry'], 200);
-error_log("Logger test result: " . ($testLogResult ? 'SUCCESS' : 'FAILED'));
-error_log("Logger last error: " . (Logger::getLastError() ?: 'none'));
+error_log("client_scenarios called: method=$method, action=$action");
 
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'admin') {
+    error_log("Authorization failed - user_id: " . ($_SESSION['user_id'] ?? 'not set') . ", user_type: " . ($_SESSION['user_type'] ?? 'not set'));
     Logger::log('client_scenarios', $method, $action, null, [], ['error' => 'Unauthorized'], 401);
     jsonResponse(['error' => 'Unauthorized'], 401);
 }
