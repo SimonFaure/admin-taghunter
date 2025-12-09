@@ -81,6 +81,7 @@ switch ($action) {
                 $errorMsg = 'Scenario already added to this client';
                 Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 400);
                 jsonResponse(['error' => $errorMsg], 400);
+                return;
             }
             $errorMsg = 'Database error: ' . $e->getMessage();
             Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
