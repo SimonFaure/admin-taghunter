@@ -21,6 +21,10 @@ $db = Database::getInstance();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
+$testLogResult = Logger::log('client_scenarios', $method, $action ?: 'init', null, [], ['test' => 'debug entry'], 200);
+error_log("Logger test result: " . ($testLogResult ? 'SUCCESS' : 'FAILED'));
+error_log("Logger last error: " . (Logger::getLastError() ?: 'none'));
+
 if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'admin') {
     Logger::log('client_scenarios', $method, $action, null, [], ['error' => 'Unauthorized'], 401);
     jsonResponse(['error' => 'Unauthorized'], 401);
