@@ -53,8 +53,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         credentials: 'include',
       });
       if (response.ok) {
-        const bought = await response.json();
-        setBoughtScenarios(bought);
+        const result = await response.json();
+        setBoughtScenarios(result.data || []);
       }
     } catch (err) {
       console.error('Error loading scenarios:', err);

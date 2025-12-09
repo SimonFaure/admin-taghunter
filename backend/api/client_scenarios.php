@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
 
@@ -6,170 +7,151 @@ header('Content-Type: application/json');
 session_start();
 
 require_once __DIR__ . '/../database/Database.php';
-require_once __DIR__ . '/../utils/SecurityHeaders.php';
 require_once __DIR__ . '/../utils/Logger.php';
 
-SecurityHeaders::set();
-
-function jsonResponse($data, $status = 200) {
-    http_response_code($status);
+function jsonResponse($data, $statusCode = 200) {
+    http_response_code($statusCode);
     echo json_encode($data);
     exit;
 }
 
+function getRequestData() {
+    return json_decode(file_get_contents('php://input'), true) ?? [];
+}
+
+function requireAuth() {
+    if (!isset($_SESSION['user_id'])) {
+        jsonResponse(['error' => 'Unauthorized'], 401);
+    }
+    return $_SESSION['user_id'];
+}
+
 try {
     $db = Database::getInstance();
-} catch (Exception $e) {
-    error_log("Database connection failed: " . $e->getMessage());
-    jsonResponse(['error' => 'Database connection failed'], 500);
-}
+    $action = $_GET['action'] ?? '';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$action = $_GET['action'] ?? '';
-
-error_log("client_scenarios called: method=$method, action=$action");
-
-if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'admin') {
-    error_log("Authorization failed - user_id: " . ($_SESSION['user_id'] ?? 'not set') . ", user_type: " . ($_SESSION['user_type'] ?? 'not set'));
-    Logger::log('client_scenarios', $method, $action, null, [], ['error' => 'Unauthorized'], 401);
-    jsonResponse(['error' => 'Unauthorized'], 401);
-}
-
-switch ($action) {
+    switch ($action) {
     case 'add':
-        if ($method !== 'POST') {
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], [], ['error' => 'Method not allowed'], 405);
-            jsonResponse(['error' => 'Method not allowed'], 405);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $response = ['error' => 'Method not allowed'];
+            Logger::log('client_scenarios', $_SERVER['REQUEST_METHOD'], 'add', $_SESSION['user_id'] ?? null, [], $response, 405);
+            jsonResponse($response, 405);
         }
 
-        $data = json_decode(file_get_contents('php://input'), true);
+        $userId = requireAuth();
+        $data = getRequestData();
+
         $clientId = $data['client_id'] ?? null;
         $scenarioId = $data['scenario_id'] ?? null;
 
         if (!$clientId || !$scenarioId) {
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Missing required fields'], 400);
-            jsonResponse(['error' => 'client_id and scenario_id are required'], 400);
+            $response = ['error' => 'client_id and scenario_id are required'];
+            Logger::log('client_scenarios', 'POST', 'add', $userId, $data, $response, 400);
+            jsonResponse($response, 400);
         }
 
-        try {
-            $clientExists = $db->fetch('SELECT id FROM clients WHERE id = ?', [$clientId]);
-            if (!$clientExists) {
-                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Client not found'], 404);
-                jsonResponse(['error' => 'Client not found'], 404);
-            }
-
-            $scenarioExists = $db->fetch('SELECT id FROM scenarios WHERE id = ? AND scenario_type = "product"', [$scenarioId]);
-            if (!$scenarioExists) {
-                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Product scenario not found'], 404);
-                jsonResponse(['error' => 'Product scenario not found'], 404);
-            }
-
-            $exists = $db->fetch(
-                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$clientId, $scenarioId]
-            );
-
-            if ($exists) {
-                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => 'Already added'], 400);
-                jsonResponse(['error' => 'Scenario already added to this client'], 400);
-            }
-
-            $result = $db->execute(
-                'INSERT INTO client_scenarios (client_id, scenario_id, granted_by) VALUES (?, ?, ?)',
-                [$clientId, $scenarioId, $_SESSION['user_id']]
-            );
-
-            $responseData = [
-                'success' => true,
-                'message' => 'Scenario added to client successfully'
-            ];
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, $responseData, 200);
-            jsonResponse($responseData);
-        } catch (PDOException $e) {
-            if ($e->getCode() == 23000) {
-                $errorMsg = 'Scenario already added to this client';
-                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 400);
-                jsonResponse(['error' => $errorMsg], 400);
-                return;
-            }
-            $errorMsg = 'Database error: ' . $e->getMessage();
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
-            jsonResponse(['error' => $errorMsg], 500);
-        } catch (Exception $e) {
-            $errorMsg = 'Database error: ' . $e->getMessage();
-            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
-            jsonResponse(['error' => $errorMsg], 500);
+        $clientExists = $db->fetch('SELECT id FROM clients WHERE id = ?', [$clientId]);
+        if (!$clientExists) {
+            $response = ['error' => 'Client not found'];
+            Logger::log('client_scenarios', 'POST', 'add', $userId, $data, $response, 404);
+            jsonResponse($response, 404);
         }
+
+        $scenarioExists = $db->fetch('SELECT id FROM scenarios WHERE id = ? AND scenario_type = "product"', [$scenarioId]);
+        if (!$scenarioExists) {
+            $response = ['error' => 'Product scenario not found'];
+            Logger::log('client_scenarios', 'POST', 'add', $userId, $data, $response, 404);
+            jsonResponse($response, 404);
+        }
+
+        $exists = $db->fetch(
+            'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
+            [$clientId, $scenarioId]
+        );
+
+        if ($exists) {
+            $response = ['error' => 'Scenario already added to this client'];
+            Logger::log('client_scenarios', 'POST', 'add', $userId, $data, $response, 400);
+            jsonResponse($response, 400);
+        }
+
+        $db->execute(
+            'INSERT INTO client_scenarios (client_id, scenario_id, granted_by) VALUES (?, ?, ?)',
+            [$clientId, $scenarioId, $userId]
+        );
+
+        $response = ['message' => 'Scenario added to client successfully'];
+        Logger::log('client_scenarios', 'POST', 'add', $userId, $data, $response, 200);
+        jsonResponse($response);
         break;
 
     case 'remove':
-        if ($method !== 'POST') {
-            Logger::log('client_scenarios', $method, 'remove', $_SESSION['user_id'], [], ['error' => 'Method not allowed'], 405);
-            jsonResponse(['error' => 'Method not allowed'], 405);
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $response = ['error' => 'Method not allowed'];
+            Logger::log('client_scenarios', $_SERVER['REQUEST_METHOD'], 'remove', $_SESSION['user_id'] ?? null, [], $response, 405);
+            jsonResponse($response, 405);
         }
 
-        $data = json_decode(file_get_contents('php://input'), true);
+        $userId = requireAuth();
+        $data = getRequestData();
+
         $clientId = $data['client_id'] ?? null;
         $scenarioId = $data['scenario_id'] ?? null;
 
         if (!$clientId || !$scenarioId) {
-            Logger::log('client_scenarios', $method, 'remove', $_SESSION['user_id'], $data, ['error' => 'Missing required fields'], 400);
-            jsonResponse(['error' => 'client_id and scenario_id are required'], 400);
+            $response = ['error' => 'client_id and scenario_id are required'];
+            Logger::log('client_scenarios', 'POST', 'remove', $userId, $data, $response, 400);
+            jsonResponse($response, 400);
         }
 
-        try {
-            $result = $db->execute(
-                'DELETE FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$clientId, $scenarioId]
-            );
+        $db->execute(
+            'DELETE FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
+            [$clientId, $scenarioId]
+        );
 
-            $responseData = [
-                'success' => true,
-                'message' => 'Scenario removed from client successfully'
-            ];
-            Logger::log('client_scenarios', $method, 'remove', $_SESSION['user_id'], $data, $responseData, 200);
-            jsonResponse($responseData);
-        } catch (Exception $e) {
-            $errorMsg = 'Database error: ' . $e->getMessage();
-            Logger::log('client_scenarios', $method, 'remove', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
-            jsonResponse(['error' => $errorMsg], 500);
-        }
+        $response = ['message' => 'Scenario removed from client successfully'];
+        Logger::log('client_scenarios', 'POST', 'remove', $userId, $data, $response, 200);
+        jsonResponse($response);
         break;
 
     case 'list':
-        if ($method !== 'GET') {
-            Logger::log('client_scenarios', $method, 'list', $_SESSION['user_id'], [], ['error' => 'Method not allowed'], 405);
-            jsonResponse(['error' => 'Method not allowed'], 405);
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            $response = ['error' => 'Method not allowed'];
+            Logger::log('client_scenarios', $_SERVER['REQUEST_METHOD'], 'list', $_SESSION['user_id'] ?? null, [], $response, 405);
+            jsonResponse($response, 405);
         }
 
+        $userId = requireAuth();
         $clientId = $_GET['client_id'] ?? null;
 
         if (!$clientId) {
-            Logger::log('client_scenarios', $method, 'list', $_SESSION['user_id'], [], ['error' => 'Missing client_id'], 400);
-            jsonResponse(['error' => 'client_id is required'], 400);
+            $response = ['error' => 'client_id is required'];
+            Logger::log('client_scenarios', 'GET', 'list', $userId, [], $response, 400);
+            jsonResponse($response, 400);
         }
 
-        try {
-            $scenarios = $db->fetchAll(
-                'SELECT s.*, cs.granted_at, cs.granted_by, a.email as granted_by_email
-                 FROM client_scenarios cs
-                 JOIN scenarios s ON cs.scenario_id = s.id
-                 LEFT JOIN admin_users a ON cs.granted_by = a.id
-                 WHERE cs.client_id = ?
-                 ORDER BY cs.granted_at DESC',
-                [$clientId]
-            );
+        $scenarios = $db->fetchAll(
+            'SELECT s.*, cs.granted_at, cs.granted_by, a.email as granted_by_email
+             FROM client_scenarios cs
+             JOIN scenarios s ON cs.scenario_id = s.id
+             LEFT JOIN admin_users a ON cs.granted_by = a.id
+             WHERE cs.client_id = ?
+             ORDER BY cs.granted_at DESC',
+            [$clientId]
+        );
 
-            Logger::log('client_scenarios', $method, 'list', $_SESSION['user_id'], ['client_id' => $clientId], ['count' => count($scenarios)], 200);
-            jsonResponse($scenarios);
-        } catch (Exception $e) {
-            $errorMsg = 'Database error: ' . $e->getMessage();
-            Logger::log('client_scenarios', $method, 'list', $_SESSION['user_id'], ['client_id' => $clientId], ['error' => $errorMsg], 500);
-            jsonResponse(['error' => $errorMsg], 500);
-        }
+        $response = ['data' => $scenarios];
+        Logger::log('client_scenarios', 'GET', 'list', $userId, ['client_id' => $clientId], $response, 200);
+        jsonResponse($response);
         break;
 
     default:
-        Logger::log('client_scenarios', $method, $action ?: 'none', $_SESSION['user_id'], [], ['error' => 'Invalid action'], 400);
-        jsonResponse(['error' => 'Invalid action'], 400);
+        $response = ['error' => 'Invalid action'];
+        Logger::log('client_scenarios', $_SERVER['REQUEST_METHOD'], $action, $_SESSION['user_id'] ?? null, [], $response, 400);
+        jsonResponse($response, 400);
+    }
+} catch (Exception $e) {
+    $response = ['error' => 'Server error: ' . $e->getMessage()];
+    Logger::log('client_scenarios', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], $response, 500);
+    jsonResponse($response, 500);
 }
