@@ -76,6 +76,15 @@ switch ($action) {
             ];
             Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, $responseData, 200);
             jsonResponse($responseData);
+        } catch (PDOException $e) {
+            if ($e->getCode() == 23000) {
+                $errorMsg = 'Scenario already added to this client';
+                Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 400);
+                jsonResponse(['error' => $errorMsg], 400);
+            }
+            $errorMsg = 'Database error: ' . $e->getMessage();
+            Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
+            jsonResponse(['error' => $errorMsg], 500);
         } catch (Exception $e) {
             $errorMsg = 'Database error: ' . $e->getMessage();
             Logger::log('client_scenarios', $method, 'add', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
