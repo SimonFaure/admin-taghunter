@@ -41,11 +41,13 @@ try {
         'add_roles_migration.sql',
         'add_uniqid_migration.sql',
         'launched_games_migration.sql',
+        'client_scenarios_migration.sql',
         'api_logs.sql',
         'add_game_fields_migration.sql',
         'secure_auth_migration.sql',
         'add_user_type_to_auth_tokens.sql',
-        'add_scenario_type_migration.sql'
+        'add_scenario_type_migration.sql',
+        'add_app_versions_migration.sql'
     ];
 
     $results = [];

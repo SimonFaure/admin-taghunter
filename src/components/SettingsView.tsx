@@ -67,8 +67,10 @@ export function SettingsView() {
             <li>Core tables (admin_users, clients, scenarios)</li>
             <li>Roles and permissions</li>
             <li>Launched games tracking</li>
+            <li>Client scenarios (purchased products)</li>
             <li>API logging system</li>
             <li>Game data fields (game_data, game_type)</li>
+            <li>App versions tracking</li>
           </ul>
         </div>
 
