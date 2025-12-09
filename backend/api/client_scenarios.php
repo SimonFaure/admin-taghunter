@@ -98,17 +98,23 @@ switch ($action) {
             jsonResponse(['error' => 'client_id and scenario_id are required'], 400);
         }
 
-        $result = $db->execute(
-            'DELETE FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-            [$clientId, $scenarioId]
-        );
+        try {
+            $result = $db->execute(
+                'DELETE FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
+                [$clientId, $scenarioId]
+            );
 
-        $responseData = [
-            'success' => true,
-            'message' => 'Scenario removed from client successfully'
-        ];
-        Logger::log('client_scenarios', $method, 'remove', $_SESSION['user_id'], $data, $responseData, 200);
-        jsonResponse($responseData);
+            $responseData = [
+                'success' => true,
+                'message' => 'Scenario removed from client successfully'
+            ];
+            Logger::log('client_scenarios', $method, 'remove', $_SESSION['user_id'], $data, $responseData, 200);
+            jsonResponse($responseData);
+        } catch (Exception $e) {
+            $errorMsg = 'Database error: ' . $e->getMessage();
+            Logger::log('client_scenarios', $method, 'remove', $_SESSION['user_id'], $data, ['error' => $errorMsg], 500);
+            jsonResponse(['error' => $errorMsg], 500);
+        }
         break;
 
     case 'list':
@@ -124,18 +130,24 @@ switch ($action) {
             jsonResponse(['error' => 'client_id is required'], 400);
         }
 
-        $scenarios = $db->fetchAll(
-            'SELECT s.*, cs.granted_at, cs.granted_by, a.email as granted_by_email
-             FROM client_scenarios cs
-             JOIN scenarios s ON cs.scenario_id = s.id
-             LEFT JOIN admin_users a ON cs.granted_by = a.id
-             WHERE cs.client_id = ?
-             ORDER BY cs.granted_at DESC',
-            [$clientId]
-        );
+        try {
+            $scenarios = $db->fetchAll(
+                'SELECT s.*, cs.granted_at, cs.granted_by, a.email as granted_by_email
+                 FROM client_scenarios cs
+                 JOIN scenarios s ON cs.scenario_id = s.id
+                 LEFT JOIN admin_users a ON cs.granted_by = a.id
+                 WHERE cs.client_id = ?
+                 ORDER BY cs.granted_at DESC',
+                [$clientId]
+            );
 
-        Logger::log('client_scenarios', $method, 'list', $_SESSION['user_id'], ['client_id' => $clientId], ['count' => count($scenarios)], 200);
-        jsonResponse($scenarios);
+            Logger::log('client_scenarios', $method, 'list', $_SESSION['user_id'], ['client_id' => $clientId], ['count' => count($scenarios)], 200);
+            jsonResponse($scenarios);
+        } catch (Exception $e) {
+            $errorMsg = 'Database error: ' . $e->getMessage();
+            Logger::log('client_scenarios', $method, 'list', $_SESSION['user_id'], ['client_id' => $clientId], ['error' => $errorMsg], 500);
+            jsonResponse(['error' => $errorMsg], 500);
+        }
         break;
 
     default:
