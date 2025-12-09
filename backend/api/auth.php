@@ -60,6 +60,7 @@ try {
 
             unset($user['password']);
             $_SESSION['user_id'] = $user['id'];
+            $_SESSION['user_type'] = 'admin';
             $_SESSION['user'] = $user;
 
             $response = [
