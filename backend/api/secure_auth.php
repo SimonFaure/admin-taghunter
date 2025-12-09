@@ -43,6 +43,8 @@ try {
             $data = getRequestData();
             $email = $data['email'] ?? '';
             $type = $data['type'] ?? 'otp';
+            $appOrigin = $data['app_origin'] ?? null;
+            $appVersion = $data['app_version'] ?? null;
 
             if (empty($email) || !SecurityHeaders::validateEmail($email)) {
                 Logger::log('secure_auth', 'POST', 'request-code', null, ['email' => $email], ['error' => 'Invalid email'], 400);
@@ -77,6 +79,22 @@ try {
                 jsonResponse(['error' => 'Email not registered'], 404);
             }
 
+            if ($client && $appOrigin && $appVersion) {
+                $versionField = null;
+                if ($appOrigin === 'creator') {
+                    $versionField = 'creator_version';
+                } elseif ($appOrigin === 'playground') {
+                    $versionField = 'playground_version';
+                }
+
+                if ($versionField) {
+                    $db->execute(
+                        "UPDATE clients SET {$versionField} = ? WHERE id = ?",
+                        [$appVersion, $client['id']]
+                    );
+                }
+            }
+
             $codeData = OTPManager::createCode($db, $email, $ipAddress, $type);
 
             $emailSent = OTPManager::sendCodeEmail($email, $codeData['code'], $type);
@@ -92,7 +110,7 @@ try {
                 'expires_in' => 900
             ];
 
-            Logger::log('secure_auth', 'POST', 'request-code', null, ['email' => $email], $response, 200);
+            Logger::log('secure_auth', 'POST', 'request-code', null, ['email' => $email, 'app_origin' => $appOrigin, 'app_version' => $appVersion], $response, 200);
             jsonResponse($response);
             break;
 

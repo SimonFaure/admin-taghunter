@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, User, CheckCircle, FileText, Calendar, GamepadIcon, Package } from 'lucide-react';
+import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
-import { supabase } from '../lib/supabase';
+import { scenariosApi, ScenarioData } from '../lib/api';
 
 interface ClientDetailViewProps {
   clientId: string;
@@ -16,9 +16,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [pendingInstallation, setPendingInstallation] = useState<any>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [scenarios, setScenarios] = useState<any[]>([]);
+  const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
   const [loadingScenarios, setLoadingScenarios] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -35,65 +33,20 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
   useEffect(() => {
     loadClient();
-    checkPendingInstallation();
     loadScenarios();
   }, [clientId]);
-
-  const checkPendingInstallation = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('client_id', clientId)
-        .eq('type', 'app_installation_request')
-        .eq('is_read', false)
-        .maybeSingle();
-
-      if (!error && data) {
-        setPendingInstallation(data);
-      }
-    } catch (err) {
-      console.error('Error checking pending installation:', err);
-    }
-  };
 
   const loadScenarios = async () => {
     setLoadingScenarios(true);
     try {
-      const { data, error } = await supabase
-        .from('scenarios')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('created_at', { ascending: false });
-
+      const { data, error } = await scenariosApi.listScenarios(clientId);
       if (!error && data) {
-        setScenarios(data);
+        setScenarios(data.scenarios);
       }
     } catch (err) {
       console.error('Error loading scenarios:', err);
     } finally {
       setLoadingScenarios(false);
-    }
-  };
-
-  const handleConfirmInstallation = async () => {
-    if (!pendingInstallation) return;
-
-    setConfirming(true);
-    try {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', pendingInstallation.id);
-
-      setSuccess('Taghunter Creator app installation confirmed');
-      setPendingInstallation(null);
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError('Failed to confirm installation');
-      setTimeout(() => setError(''), 3000);
-    } finally {
-      setConfirming(false);
     }
   };
 
@@ -136,41 +89,25 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     setUploading(true);
     setError('');
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${clientId}-${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
-
     try {
-      if (!supabase) {
-        throw new Error('Supabase is not configured');
-      }
+      const formData = new FormData();
+      formData.append('avatar', file);
+      formData.append('client_id', clientId);
 
-      if (client?.avatar_url) {
-        const oldPath = client.avatar_url.split('/').pop();
-        if (oldPath) {
-          await supabase.storage.from('avatars').remove([oldPath]);
-        }
-      }
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const { data: updatedClient, error: updateError } = await clientApi.updateClient({
-        id: clientId,
-        avatar_url: publicUrl,
+      const response = await fetch('https://admin.taghunter.fr/backend/api/clients.php?action=upload_avatar', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
       });
 
-      if (updateError) throw new Error(updateError);
+      const result = await response.json();
 
-      if (updatedClient) {
-        setClient(updatedClient);
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to upload avatar');
+      }
+
+      if (result.data) {
+        setClient(result.data);
         setSuccess('Avatar uploaded successfully');
         setTimeout(() => setSuccess(''), 3000);
       }
@@ -310,30 +247,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               </div>
             </div>
           </div>
-
-          {pendingInstallation && (
-            <div className="mb-6 p-6 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                    App Installation Request
-                  </h3>
-                  <p className="text-blue-700 mb-4">
-                    This client is requesting to install the Taghunter Creator app.
-                    Please confirm the installation to proceed.
-                  </p>
-                </div>
-                <button
-                  onClick={handleConfirmInstallation}
-                  disabled={confirming}
-                  className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <CheckCircle className="w-5 h-5" />
-                  <span>{confirming ? 'Confirming...' : 'Confirm Installation'}</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           {(error || success) && (
             <div className={`mb-6 p-3 rounded-lg text-sm ${

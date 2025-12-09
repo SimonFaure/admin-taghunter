@@ -187,7 +187,7 @@ try {
             $updates = [];
             $values = [];
 
-            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date'];
+            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'playground_version', 'creator_version'];
             foreach ($allowedFields as $field) {
                 if (array_key_exists($field, $data)) {
                     $updates[] = "$field = ?";
@@ -255,6 +255,100 @@ try {
 
             $response = ['message' => 'Client deleted successfully'];
             Logger::log('clients', 'DELETE', 'delete', $userId, ['id' => $id], $response, 200);
+            jsonResponse($response);
+            break;
+
+        case 'upload_avatar':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'upload_avatar', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
+            }
+
+            $userId = requireAuth();
+
+            $clientId = $_POST['client_id'] ?? '';
+            if (empty($clientId)) {
+                $response = ['error' => 'Client ID is required'];
+                Logger::log('clients', 'POST', 'upload_avatar', $userId, [], $response, 400);
+                jsonResponse($response, 400);
+            }
+
+            $existingClient = $db->fetch(
+                'SELECT id, avatar_url FROM clients WHERE id = ?',
+                [$clientId]
+            );
+
+            if (!$existingClient) {
+                $response = ['error' => 'Client not found'];
+                Logger::log('clients', 'POST', 'upload_avatar', $userId, ['client_id' => $clientId], $response, 404);
+                jsonResponse($response, 404);
+            }
+
+            if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
+                $errorMsg = isset($_FILES['avatar']) ? 'Upload error: ' . $_FILES['avatar']['error'] : 'No file uploaded';
+                $response = ['error' => $errorMsg];
+                Logger::log('clients', 'POST', 'upload_avatar', $userId, ['client_id' => $clientId], $response, 400);
+                jsonResponse($response, 400);
+            }
+
+            $file = $_FILES['avatar'];
+
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!in_array($mimeType, $allowedTypes)) {
+                $response = ['error' => 'Only image files are allowed (JPEG, PNG, GIF, WebP)'];
+                Logger::log('clients', 'POST', 'upload_avatar', $userId, ['client_id' => $clientId], $response, 400);
+                jsonResponse($response, 400);
+            }
+
+            if ($file['size'] > 2 * 1024 * 1024) {
+                $response = ['error' => 'Image must be smaller than 2MB'];
+                Logger::log('clients', 'POST', 'upload_avatar', $userId, ['client_id' => $clientId], $response, 400);
+                jsonResponse($response, 400);
+            }
+
+            $uploadDir = __DIR__ . '/../../media/avatars/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            if ($existingClient['avatar_url']) {
+                $oldPath = __DIR__ . '/../../' . ltrim(parse_url($existingClient['avatar_url'], PHP_URL_PATH), '/');
+                if (file_exists($oldPath) && is_file($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $uniqueName = 'client_' . $clientId . '_' . uniqid() . '.' . $fileExtension;
+            $uploadPath = $uploadDir . $uniqueName;
+
+            if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
+                $response = ['error' => 'Failed to upload file'];
+                Logger::log('clients', 'POST', 'upload_avatar', $userId, ['client_id' => $clientId], $response, 500);
+                jsonResponse($response, 500);
+            }
+
+            $avatarUrl = 'https://admin.taghunter.fr/media/avatars/' . $uniqueName;
+
+            $db->execute(
+                'UPDATE clients SET avatar_url = ? WHERE id = ?',
+                [$avatarUrl, $clientId]
+            );
+
+            $client = $db->fetch(
+                'SELECT * FROM clients WHERE id = ?',
+                [$clientId]
+            );
+
+            $client = formatClientData($client);
+
+            $response = ['data' => $client];
+            Logger::log('clients', 'POST', 'upload_avatar', $userId, ['client_id' => $clientId], $response, 200);
             jsonResponse($response);
             break;
 

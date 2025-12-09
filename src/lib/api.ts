@@ -146,3 +146,43 @@ export const adminUsersApi = {
     });
   },
 };
+
+export interface ScenarioData {
+  id: string;
+  client_id?: number;
+  title: string;
+  description: string;
+  media_url?: string;
+  game_data?: string;
+  game_type?: string;
+  uniqid: string;
+  created_at: string;
+  updated_at?: string;
+  creator_name?: string;
+  client_name?: string;
+  client_email?: string;
+}
+
+export const scenariosApi = {
+  async listScenarios(clientId?: string): Promise<ApiResponse<{ scenarios: ScenarioData[] }>> {
+    const url = clientId
+      ? `/scenarios.php?action=list&client_id=${encodeURIComponent(clientId)}`
+      : '/scenarios.php?action=list';
+    return apiRequest(url, {
+      method: 'GET',
+    });
+  },
+
+  async getScenario(id: string): Promise<ApiResponse<{ scenario: ScenarioData }>> {
+    return apiRequest(`/scenarios.php?action=get&id=${encodeURIComponent(id)}`, {
+      method: 'GET',
+    });
+  },
+
+  async deleteScenario(id: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return apiRequest('/scenarios.php?action=delete', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    });
+  },
+};
