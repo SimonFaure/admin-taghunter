@@ -65,8 +65,13 @@ try {
             }
 
             $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+            $admin = null;
 
             if (!$client) {
+                $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
+            }
+
+            if (!$client && !$admin) {
                 RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Email not found');
                 Logger::log('secure_auth', 'POST', 'request-code', null, ['email' => $email], ['error' => 'Email not found'], 404);
                 jsonResponse(['error' => 'Email not registered'], 404);
@@ -128,14 +133,30 @@ try {
             }
 
             $client = $db->fetch('SELECT id, email, name FROM clients WHERE email = ?', [$email]);
+            $admin = null;
+            $userType = 'client';
+            $userId = null;
+            $userName = null;
 
             if (!$client) {
-                RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Client not found');
-                Logger::log('secure_auth', 'POST', 'verify-code', null, ['email' => $email], ['error' => 'Client not found'], 404);
-                jsonResponse(['error' => 'Client not found'], 404);
+                $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
+                if ($admin) {
+                    $userType = 'admin';
+                    $userId = $admin['id'];
+                    $userName = $admin['name'];
+                }
+            } else {
+                $userId = $client['id'];
+                $userName = $client['name'];
             }
 
-            $tokenData = TokenManager::createToken($db, $client['id'], $ipAddress, $userAgent);
+            if (!$client && !$admin) {
+                RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'User not found');
+                Logger::log('secure_auth', 'POST', 'verify-code', null, ['email' => $email], ['error' => 'User not found'], 404);
+                jsonResponse(['error' => 'User not found'], 404);
+            }
+
+            $tokenData = TokenManager::createToken($db, $userId, $ipAddress, $userAgent, $userType);
 
             RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
 
@@ -144,13 +165,14 @@ try {
                 'data' => [
                     'token' => $tokenData['token'],
                     'expires_at' => $tokenData['expires_at'],
-                    'client_id' => $client['id'],
-                    'email' => $client['email'],
-                    'name' => $client['name']
+                    'user_id' => $userId,
+                    'user_type' => $userType,
+                    'email' => $email,
+                    'name' => $userName
                 ]
             ];
 
-            Logger::log('secure_auth', 'POST', 'verify-code', $client['id'], ['email' => $email], ['success' => true], 200);
+            Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);
             jsonResponse($response);
             break;
 
@@ -177,13 +199,14 @@ try {
 
             $response = [
                 'valid' => true,
-                'client_id' => $tokenData['client_id'],
+                'user_id' => $tokenData['user_id'],
+                'user_type' => $tokenData['user_type'],
                 'email' => $tokenData['email'],
                 'name' => $tokenData['name'],
                 'expires_at' => $tokenData['expires_at']
             ];
 
-            Logger::log('secure_auth', 'POST', 'validate', $tokenData['client_id'], [], $response, 200);
+            Logger::log('secure_auth', 'POST', 'validate', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], $response, 200);
             jsonResponse($response);
             break;
 
@@ -203,7 +226,7 @@ try {
 
             if ($tokenData) {
                 TokenManager::revokeToken($db, $token);
-                Logger::log('secure_auth', 'POST', 'logout', $tokenData['client_id'], [], ['success' => true], 200);
+                Logger::log('secure_auth', 'POST', 'logout', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], ['success' => true], 200);
             }
 
             jsonResponse([

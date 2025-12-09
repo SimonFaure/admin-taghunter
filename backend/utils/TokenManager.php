@@ -18,18 +18,19 @@ class TokenManager {
 
     public static function createToken(
         object $db,
-        string $clientId,
+        string $userId,
         string $ipAddress,
-        string $userAgent
+        string $userAgent,
+        string $userType = 'client'
     ): array {
         $token = self::generateSecureToken();
         $hashedToken = self::hashToken($token);
         $expiresAt = self::getExpiryTime();
 
         $db->execute(
-            'INSERT INTO auth_tokens (client_id, token, expires_at, ip_address, user_agent)
-             VALUES (?, ?, ?, ?, ?)',
-            [$clientId, $hashedToken, $expiresAt, $ipAddress, $userAgent]
+            'INSERT INTO auth_tokens (user_id, user_type, token, expires_at, ip_address, user_agent)
+             VALUES (?, ?, ?, ?, ?, ?)',
+            [$userId, $userType, $hashedToken, $expiresAt, $ipAddress, $userAgent]
         );
 
         return [
@@ -41,17 +42,39 @@ class TokenManager {
     public static function validateToken(object $db, string $token): ?array {
         $hashedToken = self::hashToken($token);
 
-        $result = $db->fetch(
-            'SELECT at.*, c.email, c.name
+        $tokenData = $db->fetch(
+            'SELECT at.*
              FROM auth_tokens at
-             JOIN clients c ON at.client_id = c.id
              WHERE at.token = ?
              AND at.expires_at > NOW()
              AND at.revoked = false',
             [$hashedToken]
         );
 
-        return $result ?: null;
+        if (!$tokenData) {
+            return null;
+        }
+
+        if ($tokenData['user_type'] === 'admin') {
+            $user = $db->fetch(
+                'SELECT id, email, name FROM admin_users WHERE id = ?',
+                [$tokenData['user_id']]
+            );
+        } else {
+            $user = $db->fetch(
+                'SELECT id, email, name FROM clients WHERE id = ?',
+                [$tokenData['user_id']]
+            );
+        }
+
+        if (!$user) {
+            return null;
+        }
+
+        return array_merge($tokenData, [
+            'email' => $user['email'],
+            'name' => $user['name']
+        ]);
     }
 
     public static function revokeToken(object $db, string $token): bool {
@@ -65,13 +88,17 @@ class TokenManager {
         return $result !== false;
     }
 
-    public static function revokeAllClientTokens(object $db, string $clientId): bool {
+    public static function revokeAllUserTokens(object $db, string $userId, string $userType = 'client'): bool {
         $result = $db->execute(
-            'UPDATE auth_tokens SET revoked = true WHERE client_id = ?',
-            [$clientId]
+            'UPDATE auth_tokens SET revoked = true WHERE user_id = ? AND user_type = ?',
+            [$userId, $userType]
         );
 
         return $result !== false;
+    }
+
+    public static function revokeAllClientTokens(object $db, string $clientId): bool {
+        return self::revokeAllUserTokens($db, $clientId, 'client');
     }
 
     public static function cleanupExpiredTokens(object $db): void {
@@ -92,6 +119,6 @@ class TokenManager {
 
         self::revokeToken($db, $oldToken);
 
-        return self::createToken($db, $tokenData['client_id'], $ipAddress, $userAgent);
+        return self::createToken($db, $tokenData['user_id'], $ipAddress, $userAgent, $tokenData['user_type']);
     }
 }
