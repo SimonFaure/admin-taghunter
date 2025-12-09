@@ -50,4 +50,12 @@ class Database {
         $this->query($sql, $params);
         return $this->connection->lastInsertId();
     }
+
+    public function prepare($sql) {
+        return $this->connection->prepare($sql);
+    }
+
+    public function lastInsertId() {
+        return $this->connection->lastInsertId();
+    }
 }
