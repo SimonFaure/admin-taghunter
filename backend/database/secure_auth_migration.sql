@@ -2,10 +2,11 @@
 -- Creates tables required for secure authentication with OTP codes, tokens, and rate limiting
 
 -- Auth Tokens Table
--- Stores authentication tokens for client sessions
+-- Stores authentication tokens for both client and admin sessions
 CREATE TABLE IF NOT EXISTS auth_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    client_id INT NOT NULL,
+    user_id INT NOT NULL,
+    user_type VARCHAR(20) DEFAULT 'client',
     token VARCHAR(255) NOT NULL,
     expires_at DATETIME NOT NULL,
     ip_address VARCHAR(45),
@@ -13,9 +14,9 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     revoked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_token (token),
-    INDEX idx_client_id (client_id),
-    INDEX idx_expires_at (expires_at),
-    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    INDEX idx_user_id (user_id),
+    INDEX idx_user_type (user_type),
+    INDEX idx_expires_at (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Login Attempts Table

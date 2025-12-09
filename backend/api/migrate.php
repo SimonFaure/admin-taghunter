@@ -43,7 +43,8 @@ try {
         'launched_games_migration.sql',
         'api_logs.sql',
         'add_game_fields_migration.sql',
-        'secure_auth_migration.sql'
+        'secure_auth_migration.sql',
+        'add_user_type_to_auth_tokens.sql'
     ];
 
     $results = [];
@@ -85,7 +86,10 @@ try {
             }
 
             try {
-                $conn->exec($statement);
+                $stmt = $conn->query($statement);
+                if ($stmt) {
+                    $stmt->closeCursor();
+                }
                 $results[] = "Executed: " . substr($statement, 0, 60) . "...";
             } catch (PDOException $e) {
                 // Check if error is about table/column already existing
