@@ -1,25 +1,30 @@
 -- Migration to add user_type support to auth_tokens table
 -- This allows authentication for both clients and admin users
 
--- Add user_type column if it doesn't exist
 SET @dbname = DATABASE();
 SET @tablename = 'auth_tokens';
-SET @columnname = 'user_type';
-SET @preparedStatement = (SELECT IF(
-    (
-        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_SCHEMA = @dbname
-        AND TABLE_NAME = @tablename
-        AND COLUMN_NAME = @columnname
-    ) > 0,
-    'SELECT 1',
-    CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname, ' VARCHAR(20) DEFAULT ''client'' AFTER user_id')
-));
-PREPARE alterIfNotExists FROM @preparedStatement;
-EXECUTE alterIfNotExists;
-DEALLOCATE PREPARE alterIfNotExists;
 
--- Rename client_id to user_id if needed
+-- Step 1: Drop foreign key constraint if it exists (must be done before renaming)
+SET @constraintname = (
+    SELECT CONSTRAINT_NAME
+    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA = @dbname
+    AND TABLE_NAME = @tablename
+    AND COLUMN_NAME = 'client_id'
+    AND REFERENCED_TABLE_NAME = 'clients'
+    LIMIT 1
+);
+
+SET @preparedStatement = (SELECT IF(
+    @constraintname IS NOT NULL,
+    CONCAT('ALTER TABLE ', @tablename, ' DROP FOREIGN KEY ', @constraintname),
+    'SELECT 1'
+));
+PREPARE dropFKIfExists FROM @preparedStatement;
+EXECUTE dropFKIfExists;
+DEALLOCATE PREPARE dropFKIfExists;
+
+-- Step 2: Rename client_id to user_id if needed
 SET @columnname = 'client_id';
 SET @preparedStatement = (SELECT IF(
     (
@@ -35,27 +40,23 @@ PREPARE renameIfExists FROM @preparedStatement;
 EXECUTE renameIfExists;
 DEALLOCATE PREPARE renameIfExists;
 
--- Drop foreign key constraint if it exists
-SET @constraintname = (
-    SELECT CONSTRAINT_NAME
-    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-    WHERE TABLE_SCHEMA = @dbname
-    AND TABLE_NAME = @tablename
-    AND COLUMN_NAME IN ('client_id', 'user_id')
-    AND REFERENCED_TABLE_NAME = 'clients'
-    LIMIT 1
-);
-
+-- Step 3: Add user_type column if it doesn't exist
+SET @columnname = 'user_type';
 SET @preparedStatement = (SELECT IF(
-    @constraintname IS NOT NULL,
-    CONCAT('ALTER TABLE ', @tablename, ' DROP FOREIGN KEY ', @constraintname),
-    'SELECT 1'
+    (
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = @dbname
+        AND TABLE_NAME = @tablename
+        AND COLUMN_NAME = @columnname
+    ) > 0,
+    'SELECT 1',
+    CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname, ' VARCHAR(20) DEFAULT ''client'' AFTER user_id')
 ));
-PREPARE dropFKIfExists FROM @preparedStatement;
-EXECUTE dropFKIfExists;
-DEALLOCATE PREPARE dropFKIfExists;
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
 
--- Drop old index on client_id if it exists
+-- Step 4: Drop old index on client_id if it exists
 SET @indexname = 'idx_client_id';
 SET @preparedStatement = (SELECT IF(
     (
@@ -71,7 +72,7 @@ PREPARE dropIndexIfExists FROM @preparedStatement;
 EXECUTE dropIndexIfExists;
 DEALLOCATE PREPARE dropIndexIfExists;
 
--- Create index on user_id if it doesn't exist
+-- Step 5: Create index on user_id if it doesn't exist
 SET @indexname = 'idx_user_id';
 SET @preparedStatement = (SELECT IF(
     (
@@ -87,10 +88,15 @@ PREPARE createIndexIfNotExists FROM @preparedStatement;
 EXECUTE createIndexIfNotExists;
 DEALLOCATE PREPARE createIndexIfNotExists;
 
--- Create index on user_type if it doesn't exist
+-- Step 6: Create index on user_type if it doesn't exist
 SET @indexname = 'idx_user_type';
 SET @preparedStatement = (SELECT IF(
     (
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = @dbname
+        AND TABLE_NAME = @tablename
+        AND COLUMN_NAME = 'user_type'
+    ) > 0 AND (
         SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
         WHERE TABLE_SCHEMA = @dbname
         AND TABLE_NAME = @tablename
