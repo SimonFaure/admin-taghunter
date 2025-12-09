@@ -62,6 +62,7 @@ try {
             $description = null;
             $game_data = null;
             $game_type = null;
+            $scenario_type = null;
 
             if ($scenarioData) {
                 // Client app format
@@ -69,6 +70,7 @@ try {
                 $description = $scenarioData['description'] ?? null;
                 $game_data = $scenarioData['gameData'] ?? null;
                 $game_type = $scenarioData['game_type'] ?? null;
+                $scenario_type = $scenarioData['scenario_type'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // Look up client by email
@@ -85,6 +87,7 @@ try {
                 $description = $_POST['description'] ?? null;
                 $game_data = $_POST['game_data'] ?? null;
                 $game_type = $_POST['game_type'] ?? null;
+                $scenario_type = $_POST['scenario_type'] ?? null;
                 $uniqid = $_POST['uniqid'] ?? null;
             }
 
@@ -134,12 +137,12 @@ try {
                 $created_at = $existingScenario['created_at'];
                 $isUpdate = true;
 
-                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, game_data = ?, game_type = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
-                $db->query($sql, [$client_id, $title, $description, $game_data, $game_type, $uniqid]);
+                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, game_data = ?, game_type = ?, scenario_type = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
+                $db->query($sql, [$client_id, $title, $description, $game_data, $game_type, $scenario_type, $uniqid]);
             } else {
                 // Insert new scenario
-                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, game_data, game_type, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-                $db->query($sql, [$client_id, $title, $description, $media_path, $game_data, $game_type, $uniqid, $created_by]);
+                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, game_data, game_type, scenario_type, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                $db->query($sql, [$client_id, $title, $description, $media_path, $game_data, $game_type, $scenario_type, $uniqid, $created_by]);
                 $scenario_id = $db->getConnection()->lastInsertId();
                 $created_at = date('Y-m-d H:i:s');
             }
@@ -154,6 +157,7 @@ try {
                     'media_url' => $media_path,
                     'game_data' => $game_data,
                     'game_type' => $game_type,
+                    'scenario_type' => $scenario_type,
                     'uniqid' => $uniqid,
                     'created_at' => $created_at
                 ],
@@ -253,6 +257,7 @@ try {
             $media_path = $scenario['media_url'];
             $game_data = isset($_POST['game_data']) ? $_POST['game_data'] : $scenario['game_data'];
             $game_type = isset($_POST['game_type']) ? $_POST['game_type'] : $scenario['game_type'];
+            $scenario_type = isset($_POST['scenario_type']) ? $_POST['scenario_type'] : $scenario['scenario_type'];
 
             // Convert game_data to JSON string if it's an array
             if (is_array($game_data)) {
@@ -303,8 +308,8 @@ try {
             }
 
             // Update scenario
-            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, game_data = ?, game_type = ?, updated_at = NOW() WHERE id = ?';
-            $db->query($sql, [$title, $description, $media_path, $game_data, $game_type, $id]);
+            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, game_data = ?, game_type = ?, scenario_type = ?, updated_at = NOW() WHERE id = ?';
+            $db->query($sql, [$title, $description, $media_path, $game_data, $game_type, $scenario_type, $id]);
 
             jsonResponse([
                 'success' => true,
@@ -314,7 +319,8 @@ try {
                     'description' => $description,
                     'media_url' => $media_path,
                     'game_data' => $game_data,
-                    'game_type' => $game_type
+                    'game_type' => $game_type,
+                    'scenario_type' => $scenario_type
                 ],
                 'message' => 'Scenario updated successfully'
             ]);

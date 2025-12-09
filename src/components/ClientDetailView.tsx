@@ -482,8 +482,17 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       <div className="flex items-center space-x-2 text-sm">
                         <GamepadIcon className="w-4 h-4 text-slate-400" />
                         <span className="text-slate-600">
-                          <span className="font-medium text-slate-700">Type:</span>{' '}
+                          <span className="font-medium text-slate-700">Game Type:</span>{' '}
                           {scenario.game_type}
+                        </span>
+                      </div>
+                    )}
+                    {scenario.scenario_type && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Package className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600">
+                          <span className="font-medium text-slate-700">Category:</span>{' '}
+                          {scenario.scenario_type}
                         </span>
                       </div>
                     )}

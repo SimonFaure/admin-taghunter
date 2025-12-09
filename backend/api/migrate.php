@@ -44,7 +44,8 @@ try {
         'api_logs.sql',
         'add_game_fields_migration.sql',
         'secure_auth_migration.sql',
-        'add_user_type_to_auth_tokens.sql'
+        'add_user_type_to_auth_tokens.sql',
+        'add_scenario_type_migration.sql'
     ];
 
     $results = [];

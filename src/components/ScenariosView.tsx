@@ -6,6 +6,7 @@ interface Scenario {
   title: string;
   description: string;
   game_type: string;
+  scenario_type: string | null;
   client_id: number | null;
   client_name: string | null;
   client_email: string | null;
@@ -194,11 +195,18 @@ export function ScenariosView() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-6 border-b border-slate-200">
             <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedScenario.title}</h3>
-            <div className="flex items-center space-x-6 text-sm text-slate-600">
+            <div className="flex items-center flex-wrap gap-6 text-sm text-slate-600">
               <div className="flex items-center space-x-2">
                 <Film className="w-4 h-4" />
                 <span className="font-medium">{selectedScenario.game_type}</span>
               </div>
+              {selectedScenario.scenario_type && (
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-1 bg-slate-100 rounded text-xs font-semibold text-slate-700">
+                    {selectedScenario.scenario_type}
+                  </span>
+                </div>
+              )}
               {selectedScenario.creator_name && (
                 <div className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
@@ -272,6 +280,64 @@ export function ScenariosView() {
     );
   }
 
+  const groupedScenarios = scenarios.reduce((acc, scenario) => {
+    const type = scenario.scenario_type || 'Uncategorized';
+    if (!acc[type]) {
+      acc[type] = [];
+    }
+    acc[type].push(scenario);
+    return acc;
+  }, {} as Record<string, Scenario[]>);
+
+  const scenarioTypes = Object.keys(groupedScenarios).sort();
+
+  const renderScenarioCard = (scenario: Scenario) => (
+    <div
+      key={scenario.id}
+      className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
+    >
+      <div className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">{scenario.title}</h3>
+            <p className="text-sm text-slate-600 line-clamp-2">{scenario.description}</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <div className="flex items-center space-x-2 text-sm text-slate-600">
+            <Film className="w-4 h-4" />
+            <span className="font-medium">{scenario.game_type}</span>
+          </div>
+          {scenario.creator_name && (
+            <div className="flex items-center space-x-2 text-sm text-slate-600">
+              <User className="w-4 h-4" />
+              <span className="truncate">{scenario.creator_name}</span>
+            </div>
+          )}
+          <div className="flex items-center space-x-2 text-sm text-slate-600">
+            <Calendar className="w-4 h-4" />
+            <span>{new Date(scenario.created_at).toLocaleDateString()}</span>
+          </div>
+          {scenario.client_name && (
+            <div className="flex items-center space-x-2 text-sm text-slate-600">
+              <User className="w-4 h-4" />
+              <span className="truncate">Client: {scenario.client_name}</span>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={() => setSelectedScenario(scenario)}
+          className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all inline-flex items-center justify-center space-x-2"
+        >
+          <Eye className="w-4 h-4" />
+          <span>View Details</span>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -289,50 +355,18 @@ export function ScenariosView() {
           <p className="text-slate-600">Scenarios will appear here once they are created.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {scenarios.map((scenario) => (
-            <div
-              key={scenario.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">{scenario.title}</h3>
-                    <p className="text-sm text-slate-600 line-clamp-2">{scenario.description}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center space-x-2 text-sm text-slate-600">
-                    <Film className="w-4 h-4" />
-                    <span className="font-medium">{scenario.game_type}</span>
-                  </div>
-                  {scenario.creator_name && (
-                    <div className="flex items-center space-x-2 text-sm text-slate-600">
-                      <User className="w-4 h-4" />
-                      <span className="truncate">{scenario.creator_name}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center space-x-2 text-sm text-slate-600">
-                    <Calendar className="w-4 h-4" />
-                    <span>{new Date(scenario.created_at).toLocaleDateString()}</span>
-                  </div>
-                  {scenario.client_name && (
-                    <div className="flex items-center space-x-2 text-sm text-slate-600">
-                      <User className="w-4 h-4" />
-                      <span className="truncate">Client: {scenario.client_name}</span>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => setSelectedScenario(scenario)}
-                  className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all inline-flex items-center justify-center space-x-2"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>View Details</span>
-                </button>
+        <div className="space-y-8">
+          {scenarioTypes.map((type) => (
+            <div key={type} className="space-y-4">
+              <div className="flex items-center space-x-3">
+                <div className="h-px flex-1 bg-slate-200"></div>
+                <h3 className="text-lg font-bold text-slate-900 px-4 py-2 bg-slate-100 rounded-lg">
+                  {type}
+                </h3>
+                <div className="h-px flex-1 bg-slate-200"></div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {groupedScenarios[type].map((scenario) => renderScenarioCard(scenario))}
               </div>
             </div>
           ))}

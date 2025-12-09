@@ -155,6 +155,7 @@ export interface ScenarioData {
   media_url?: string;
   game_data?: string;
   game_type?: string;
+  scenario_type?: string;
   uniqid: string;
   created_at: string;
   updated_at?: string;
