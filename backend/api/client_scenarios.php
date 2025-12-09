@@ -1,15 +1,15 @@
 <?php
-require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/cors.php';
+setCorsHeaders();
+
+header('Content-Type: application/json');
+session_start();
+
+require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/SecurityHeaders.php';
 require_once __DIR__ . '/../utils/Logger.php';
 
 SecurityHeaders::set();
-handleCors();
-
-header('Content-Type: application/json');
-
-session_start();
 
 function jsonResponse($data, $status = 200) {
     http_response_code($status);
