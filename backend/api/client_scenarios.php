@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/SecurityHeaders.php';
 require_once __DIR__ . '/../utils/Logger.php';
@@ -17,7 +17,7 @@ function jsonResponse($data, $status = 200) {
     exit;
 }
 
-$db = new Database();
+$db = Database::getInstance();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
