@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe } from 'lucide-react';
 
 interface Scenario {
   id: number;
@@ -26,6 +26,8 @@ export function ScenariosView() {
   const [imageLabel, setImageLabel] = useState<string>('');
   const [imageError, setImageError] = useState(false);
   const [fallbackAttempted, setFallbackAttempted] = useState(false);
+  const [detectedLanguages, setDetectedLanguages] = useState<string[]>([]);
+  const [parsedGameData, setParsedGameData] = useState<any>(null);
 
   useEffect(() => {
     fetchScenarios();
@@ -34,8 +36,69 @@ export function ScenariosView() {
   useEffect(() => {
     if (selectedScenario?.uniqid) {
       findImages(selectedScenario);
+      detectLanguages(selectedScenario);
     }
   }, [selectedScenario]);
+
+  const detectLanguages = (scenario: Scenario) => {
+    setDetectedLanguages([]);
+    setParsedGameData(null);
+
+    if (!scenario.game_data) {
+      return;
+    }
+
+    try {
+      const gameData = JSON.parse(scenario.game_data);
+      setParsedGameData(gameData);
+
+      const languages = new Set<string>();
+
+      if (gameData.available_languages && Array.isArray(gameData.available_languages)) {
+        gameData.available_languages.forEach((lang: string) => {
+          languages.add(lang.toUpperCase());
+        });
+      }
+
+      if (gameData.translations && typeof gameData.translations === 'object') {
+        Object.keys(gameData.translations).forEach(lang => {
+          languages.add(lang.toUpperCase());
+        });
+      }
+
+      if (gameData.default_language && typeof gameData.default_language === 'string') {
+        languages.add(gameData.default_language.toUpperCase());
+      }
+
+      if (languages.size === 0) {
+        const commonLanguageCodes = ['en', 'fr', 'es', 'de', 'it', 'pt', 'nl', 'ru', 'ja', 'zh', 'ar', 'ko'];
+
+        const detectInObject = (obj: any) => {
+          if (!obj || typeof obj !== 'object') return;
+
+          Object.keys(obj).forEach(key => {
+            const lowerKey = key.toLowerCase();
+
+            commonLanguageCodes.forEach(langCode => {
+              if (lowerKey.endsWith(`_${langCode}`) || lowerKey === langCode) {
+                languages.add(langCode.toUpperCase());
+              }
+            });
+
+            if (typeof obj[key] === 'object' && obj[key] !== null) {
+              detectInObject(obj[key]);
+            }
+          });
+        };
+
+        detectInObject(gameData);
+      }
+
+      setDetectedLanguages(Array.from(languages).sort());
+    } catch (e) {
+      console.error('Failed to detect languages in game_data', e);
+    }
+  };
 
   const findImages = (scenario: Scenario) => {
     setImageError(false);
@@ -60,11 +123,20 @@ export function ScenariosView() {
         const gameData = JSON.parse(scenario.game_data);
         console.log('Parsed game_data:', gameData);
 
-        if (gameData.game_visual) {
+        if (gameData.game_meta?.game_visual) {
+          gameVisualUrl = gameData.game_meta.game_visual.startsWith('http')
+            ? gameData.game_meta.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.game_visual}`;
+          console.log('Found game_visual:', gameVisualUrl);
+        } else if (gameData.game_visual) {
           gameVisualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
           console.log('Found game_visual:', gameVisualUrl);
         }
-        if (gameData.backgroundImage) {
+
+        if (gameData.game_meta?.background_image) {
+          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.background_image}`;
+          console.log('Found background_image:', backgroundUrl);
+        } else if (gameData.backgroundImage) {
           backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
           console.log('Found backgroundImage:', backgroundUrl);
         }
@@ -94,13 +166,16 @@ export function ScenariosView() {
     if (!fallbackAttempted && selectedScenario?.uniqid && selectedScenario.game_data) {
       try {
         const gameData = JSON.parse(selectedScenario.game_data);
-        if (imageLabel === 'Game Visual' && gameData.backgroundImage) {
-          console.log('Trying fallback to backgroundImage');
-          setFallbackAttempted(true);
-          setDisplayImage(`https://admin.taghunter.fr/media/${selectedScenario.uniqid}/${gameData.backgroundImage}`);
-          setImageLabel('Background Image');
-          setImageError(false);
-          return;
+        if (imageLabel === 'Game Visual') {
+          const backgroundUrl = gameData.game_meta?.background_image || gameData.backgroundImage;
+          if (backgroundUrl) {
+            console.log('Trying fallback to backgroundImage');
+            setFallbackAttempted(true);
+            setDisplayImage(`https://admin.taghunter.fr/media/${selectedScenario.uniqid}/${backgroundUrl}`);
+            setImageLabel('Background Image');
+            setImageError(false);
+            return;
+          }
         }
       } catch (e) {
         console.error('Failed to parse game_data for fallback', e);
@@ -155,6 +230,8 @@ export function ScenariosView() {
       setImageLabel('');
       setImageError(false);
       setFallbackAttempted(false);
+      setDetectedLanguages([]);
+      setParsedGameData(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete scenario');
     }
@@ -186,6 +263,8 @@ export function ScenariosView() {
             setImageLabel('');
             setImageError(false);
             setFallbackAttempted(false);
+            setDetectedLanguages([]);
+            setParsedGameData(null);
           }}
           className="text-slate-600 hover:text-slate-900 font-medium"
         >
@@ -225,6 +304,39 @@ export function ScenariosView() {
               <h4 className="text-sm font-semibold text-slate-700 mb-2">Description</h4>
               <p className="text-slate-600 whitespace-pre-wrap">{selectedScenario.description}</p>
             </div>
+
+            {detectedLanguages.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
+                  <Globe className="w-4 h-4" />
+                  <span>Available Languages</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {detectedLanguages.map((lang) => (
+                    <span
+                      key={lang}
+                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold"
+                    >
+                      {lang}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {parsedGameData && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
+                  <FileJson className="w-4 h-4" />
+                  <span>Game Data (JSON)</span>
+                </h4>
+                <div className="bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap break-words">
+                    {JSON.stringify(parsedGameData, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
 
             {displayImage && !imageError && (
               <div className="mb-6">
