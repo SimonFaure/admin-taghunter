@@ -258,7 +258,7 @@ export function ScenariosView() {
     if (selectedScenario.game_data) {
       try {
         const gameData = JSON.parse(selectedScenario.game_data);
-        if (gameData.game_public) {
+        if (gameData.game_public !== undefined) {
           gamePublic = gameData.game_public;
         }
       } catch (e) {
@@ -284,32 +284,10 @@ export function ScenariosView() {
         </button>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {displayImage && !imageError && (
-            <div className="w-full bg-slate-50 border-b border-slate-200">
-              <img
-                src={displayImage}
-                alt={imageLabel}
-                className="w-full h-auto max-h-[500px] object-contain"
-                onError={handleImageError}
-                loading="lazy"
-              />
-            </div>
-          )}
-
           <div className="p-6 border-b border-slate-200">
             <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedScenario.title}</h3>
 
-            {gamePublic !== null && (
-              <div className="mb-4">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                  gamePublic ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                }`}>
-                  {gamePublic ? 'Public Game' : 'Private Game'}
-                </span>
-              </div>
-            )}
-
-            <div className="flex items-center flex-wrap gap-6 text-sm text-slate-600">
+            <div className="flex items-center flex-wrap gap-6 text-sm text-slate-600 mb-4">
               <div className="flex items-center space-x-2">
                 <Film className="w-4 h-4" />
                 <span className="font-medium">{selectedScenario.game_type}</span>
@@ -327,6 +305,15 @@ export function ScenariosView() {
                   <span>Published by {selectedScenario.creator_name}</span>
                 </div>
               )}
+              {gamePublic !== null && (
+                <div className="flex items-center space-x-2">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                    gamePublic ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}>
+                    {gamePublic ? 'Public' : 'Private'}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center space-x-2">
                 <Calendar className="w-4 h-4" />
                 <span>{new Date(selectedScenario.created_at).toLocaleDateString()}</span>
@@ -335,9 +322,28 @@ export function ScenariosView() {
           </div>
 
           <div className="p-6">
-            <div className="mb-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-2">Description</h4>
-              <p className="text-slate-600 whitespace-pre-wrap">{selectedScenario.description}</p>
+            <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Description</h4>
+                <p className="text-slate-600 whitespace-pre-wrap">{selectedScenario.description}</p>
+              </div>
+              {displayImage && !imageError && (
+                <div className="lg:col-span-1">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
+                    <ImageIcon className="w-4 h-4" />
+                    <span>{imageLabel}</span>
+                  </h4>
+                  <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                    <img
+                      src={displayImage}
+                      alt={imageLabel}
+                      className="w-full h-auto object-contain"
+                      onError={handleImageError}
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {detectedLanguages.length > 0 && (
