@@ -545,7 +545,13 @@ export default function ApiDocsView() {
                             Success Response (200)
                           </h4>
                           <pre className="bg-gray-900 text-green-100 p-4 rounded text-xs font-mono overflow-x-auto border-2 border-green-600">
-                            {JSON.stringify(JSON.parse(endpoint.response), null, 2)}
+                            {(() => {
+                              try {
+                                return JSON.stringify(JSON.parse(endpoint.response), null, 2);
+                              } catch {
+                                return endpoint.response;
+                              }
+                            })()}
                           </pre>
                         </div>
                       )}

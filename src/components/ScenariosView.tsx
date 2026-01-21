@@ -254,6 +254,18 @@ export function ScenariosView() {
   }
 
   if (selectedScenario) {
+    let gamePublic = null;
+    if (selectedScenario.game_data) {
+      try {
+        const gameData = JSON.parse(selectedScenario.game_data);
+        if (gameData.game_public) {
+          gamePublic = gameData.game_public;
+        }
+      } catch (e) {
+        console.error('Failed to parse game_data for game_public', e);
+      }
+    }
+
     return (
       <div className="space-y-6">
         <button
@@ -272,8 +284,31 @@ export function ScenariosView() {
         </button>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          {displayImage && !imageError && (
+            <div className="w-full bg-slate-50 border-b border-slate-200">
+              <img
+                src={displayImage}
+                alt={imageLabel}
+                className="w-full h-auto max-h-[500px] object-contain"
+                onError={handleImageError}
+                loading="lazy"
+              />
+            </div>
+          )}
+
           <div className="p-6 border-b border-slate-200">
             <h3 className="text-2xl font-bold text-slate-900 mb-2">{selectedScenario.title}</h3>
+
+            {gamePublic !== null && (
+              <div className="mb-4">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                  gamePublic ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {gamePublic ? 'Public Game' : 'Private Game'}
+                </span>
+              </div>
+            )}
+
             <div className="flex items-center flex-wrap gap-6 text-sm text-slate-600">
               <div className="flex items-center space-x-2">
                 <Film className="w-4 h-4" />
@@ -334,24 +369,6 @@ export function ScenariosView() {
                   <pre className="text-xs font-mono whitespace-pre-wrap break-words">
                     {JSON.stringify(parsedGameData, null, 2)}
                   </pre>
-                </div>
-              </div>
-            )}
-
-            {displayImage && !imageError && (
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
-                  <ImageIcon className="w-4 h-4" />
-                  <span>{imageLabel}</span>
-                </h4>
-                <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-                  <img
-                    src={displayImage}
-                    alt={imageLabel}
-                    className="w-full h-auto max-h-96 object-contain"
-                    onError={handleImageError}
-                    loading="lazy"
-                  />
                 </div>
               </div>
             )}
