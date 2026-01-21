@@ -258,8 +258,8 @@ export function ScenariosView() {
     if (selectedScenario.game_data) {
       try {
         const gameData = JSON.parse(selectedScenario.game_data);
-        if (gameData.game_public !== undefined) {
-          gamePublic = gameData.game_public;
+        if (gameData.game_meta?.game_public !== undefined) {
+          gamePublic = gameData.game_meta.game_public;
         }
       } catch (e) {
         console.error('Failed to parse game_data for game_public', e);
