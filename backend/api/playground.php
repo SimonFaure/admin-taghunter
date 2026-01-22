@@ -59,6 +59,33 @@ switch ($action) {
             );
         }
 
+        foreach ($scenarios as &$scenario) {
+            $fileCount = 0;
+            $totalSize = 0;
+
+            if (!empty($scenario['uniqid'])) {
+                $mediaDir = __DIR__ . '/../../media/' . $scenario['uniqid'];
+
+                if (is_dir($mediaDir)) {
+                    $files = scandir($mediaDir);
+
+                    foreach ($files as $file) {
+                        if ($file !== '.' && $file !== '..') {
+                            $filePath = $mediaDir . '/' . $file;
+
+                            if (is_file($filePath)) {
+                                $fileCount++;
+                                $totalSize += filesize($filePath);
+                            }
+                        }
+                    }
+                }
+            }
+
+            $scenario['file_count'] = $fileCount;
+            $scenario['total_size'] = $totalSize;
+        }
+
         $responseData = [
             'client' => [
                 'id' => $client['id'],
