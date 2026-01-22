@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -51,6 +51,55 @@ export default function ApiDocsView() {
           description: 'Check current authentication status',
           auth: false,
           response: '{ "user": { "id": 1, "email": "admin@example.com", "name": "Admin" } }',
+        },
+      ],
+    },
+    {
+      title: 'Admin Users',
+      icon: <Users className="w-5 h-5" />,
+      color: 'bg-slate-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/admin_users.php?action=list',
+          description: 'Get all admin users',
+          auth: true,
+          response: '{ "admins": [{ "id": 1, "email": "admin@example.com", "name": "Admin Name", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" }] }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/admin_users.php?action=create',
+          description: 'Create new admin user',
+          auth: true,
+          body: [
+            { name: 'email', type: 'string', description: 'Admin email (required, must be valid email)' },
+            { name: 'password', type: 'string', description: 'Admin password (required, minimum 8 characters)' },
+            { name: 'name', type: 'string', description: 'Admin name (optional)' },
+          ],
+          response: '{ "admin": { "id": 1, "email": "admin@example.com", "name": "Admin Name", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/admin_users.php?action=update',
+          description: 'Update existing admin user',
+          auth: true,
+          body: [
+            { name: 'id', type: 'integer', description: 'Admin ID (required)' },
+            { name: 'email', type: 'string', description: 'Admin email (optional, must be valid email)' },
+            { name: 'password', type: 'string', description: 'Admin password (optional, minimum 8 characters)' },
+            { name: 'name', type: 'string', description: 'Admin name (optional)' },
+          ],
+          response: '{ "admin": { "id": 1, "email": "updated@example.com", "name": "Updated Name", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T11:00:00" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/admin_users.php?action=delete',
+          description: 'Delete admin user (cannot delete own account)',
+          auth: true,
+          body: [
+            { name: 'id', type: 'integer', description: 'Admin ID (required)' },
+          ],
+          response: '{ "success": true }',
         },
       ],
     },
@@ -240,6 +289,52 @@ export default function ApiDocsView() {
       ],
     },
     {
+      title: 'Media',
+      icon: <Image className="w-5 h-5" />,
+      color: 'bg-violet-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/media.php?action=list',
+          description: 'Get all media files from all scenarios',
+          auth: true,
+          response: '{ "media": [{ "id": "md5hash", "name": "video.mp4", "scenario_uniqid": "scenario_674fb123a45e6", "path": "/media/scenario_674fb123a45e6/video.mp4", "url": "https://admin.taghunter.fr/media/scenario_674fb123a45e6/video.mp4", "size": 1048576, "mime_type": "video/mp4", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" }] }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/media.php?action=get&uniqid={uniqid}&filename={filename}',
+          description: 'Get a single media file by scenario uniqid and filename',
+          auth: true,
+          params: [
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
+            { name: 'filename', type: 'string', description: 'Media filename' },
+          ],
+          response: '{ "media": { "id": "md5hash", "name": "video.mp4", "scenario_uniqid": "scenario_674fb123a45e6", "path": "/media/scenario_674fb123a45e6/video.mp4", "url": "https://admin.taghunter.fr/media/scenario_674fb123a45e6/video.mp4", "size": 1048576, "mime_type": "video/mp4", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" } }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/media.php?action=scenarios&uniqid={uniqid}',
+          description: 'Get scenarios that use media files from a specific scenario uniqid',
+          auth: true,
+          params: [
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
+          ],
+          response: '{ "scenarios": [{ "id": 1, "title": "Scenario Title", "description": "Description", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/media.php?action=delete',
+          description: 'Delete a media file (supports bulk delete by calling multiple times)',
+          auth: true,
+          body: [
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier (required)' },
+            { name: 'filename', type: 'string', description: 'Media filename (required)' },
+          ],
+          response: '{ "success": true, "message": "Media file deleted successfully" }',
+        },
+      ],
+    },
+    {
       title: 'Client Scenarios',
       icon: <ShoppingCart className="w-5 h-5" />,
       color: 'bg-amber-500',
@@ -307,6 +402,20 @@ export default function ApiDocsView() {
             { name: 'filename', type: 'string', description: 'Media filename' },
           ],
           response: '(Binary file content with appropriate Content-Type header)',
+        },
+      ],
+    },
+    {
+      title: 'Dashboard',
+      icon: <Activity className="w-5 h-5" />,
+      color: 'bg-emerald-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/dashboard.php?action=stats',
+          description: 'Get dashboard statistics including clients, scenarios, media storage, and API requests',
+          auth: true,
+          response: '{ "clients": { "total": 25, "change": "+12%" }, "scenarios": { "total": 150, "change": "+8%" }, "storage": { "total": "2.5 GB", "change": "+15%" }, "apiRequests": { "total": 5000, "change": "+23%" } }',
         },
       ],
     },
