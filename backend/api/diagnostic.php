@@ -92,4 +92,25 @@ foreach ($files_to_test as $name => $path) {
     }
 }
 
+// Check if api_logs table exists
+if ($diagnostics['database']['connection'] === 'success') {
+    try {
+        $stmt = $pdo->query("SHOW TABLES LIKE 'api_logs'");
+        $table_exists = $stmt->rowCount() > 0;
+        $diagnostics['database']['api_logs_table_exists'] = $table_exists;
+
+        if ($table_exists) {
+            // Get table structure
+            $stmt = $pdo->query("DESCRIBE api_logs");
+            $diagnostics['database']['api_logs_structure'] = $stmt->fetchAll();
+        }
+
+        // List all tables
+        $stmt = $pdo->query("SHOW TABLES");
+        $diagnostics['database']['all_tables'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {
+        $diagnostics['database']['table_check_error'] = $e->getMessage();
+    }
+}
+
 echo json_encode($diagnostics, JSON_PRETTY_PRINT);

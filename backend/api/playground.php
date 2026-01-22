@@ -199,7 +199,11 @@ try {
         'trace' => $e->getTraceAsString()
     ];
 
-    Logger::log('playground', $_SERVER['REQUEST_METHOD'], $_GET['action'] ?? 'unknown', null, $_GET, $errorDetails, 500);
+    try {
+        Logger::log('playground', $_SERVER['REQUEST_METHOD'], $_GET['action'] ?? 'unknown', null, $_GET, $errorDetails, 500);
+    } catch (Exception $logError) {
+        error_log("Failed to log error: " . $logError->getMessage());
+    }
 
     jsonResponse([
         'error' => 'Internal server error',
