@@ -92,8 +92,16 @@ try {
             }
 
             // Convert game_data to JSON string if it's an array
+            // Or validate it's valid JSON if it's a string
             if (is_array($game_data)) {
                 $game_data = json_encode($game_data);
+            } elseif (is_string($game_data) && !empty($game_data)) {
+                // Validate it's valid JSON
+                json_decode($game_data);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, ['game_data' => $game_data], ['error' => 'Invalid JSON in game_data'], 400);
+                    jsonResponse(['error' => 'game_data must be valid JSON string or object'], 400);
+                }
             }
 
             // Validate required fields
@@ -260,8 +268,15 @@ try {
             $scenario_type = isset($_POST['scenario_type']) ? $_POST['scenario_type'] : $scenario['scenario_type'];
 
             // Convert game_data to JSON string if it's an array
+            // Or validate it's valid JSON if it's a string
             if (is_array($game_data)) {
                 $game_data = json_encode($game_data);
+            } elseif (is_string($game_data) && !empty($game_data)) {
+                // Validate it's valid JSON
+                json_decode($game_data);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    jsonResponse(['error' => 'game_data must be valid JSON string or object'], 400);
+                }
             }
 
             // Handle new zip file upload
