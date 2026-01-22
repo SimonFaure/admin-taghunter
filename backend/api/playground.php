@@ -21,6 +21,15 @@ try {
     $action = $_GET['action'] ?? '';
 
     switch ($action) {
+    case 'test':
+        // Simple test endpoint to verify API is working
+        jsonResponse([
+            'status' => 'ok',
+            'timestamp' => time(),
+            'database' => 'connected'
+        ]);
+        break;
+
     case 'get_user_scenarios':
         if ($method !== 'GET') {
             Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Method not allowed'], 405);
@@ -183,6 +192,18 @@ try {
         jsonResponse(['error' => 'Invalid action'], 400);
     }
 } catch (Exception $e) {
-    Logger::log('playground', $_SERVER['REQUEST_METHOD'], $_GET['action'] ?? 'unknown', null, $_GET, ['error' => $e->getMessage()], 500);
-    jsonResponse(['error' => 'Internal server error', 'message' => $e->getMessage()], 500);
+    $errorDetails = [
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+    ];
+
+    Logger::log('playground', $_SERVER['REQUEST_METHOD'], $_GET['action'] ?? 'unknown', null, $_GET, $errorDetails, 500);
+
+    jsonResponse([
+        'error' => 'Internal server error',
+        'message' => $e->getMessage(),
+        'details' => $errorDetails
+    ], 500);
 }
