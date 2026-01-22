@@ -1,7 +1,7 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/SecurityHeaders.php';
+require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 
 SecurityHeaders::set();
@@ -15,11 +15,12 @@ function jsonResponse($data, $status = 200) {
     exit;
 }
 
-$db = Database::getInstance();
-$method = $_SERVER['REQUEST_METHOD'];
-$action = $_GET['action'] ?? '';
+try {
+    $db = Database::getInstance();
+    $method = $_SERVER['REQUEST_METHOD'];
+    $action = $_GET['action'] ?? '';
 
-switch ($action) {
+    switch ($action) {
     case 'get_user_scenarios':
         if ($method !== 'GET') {
             Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Method not allowed'], 405);
@@ -180,4 +181,8 @@ switch ($action) {
     default:
         Logger::log('playground', $method, $action ?: 'none', null, [], ['error' => 'Invalid action'], 400);
         jsonResponse(['error' => 'Invalid action'], 400);
+    }
+} catch (Exception $e) {
+    Logger::log('playground', $_SERVER['REQUEST_METHOD'], $_GET['action'] ?? 'unknown', null, $_GET, ['error' => $e->getMessage()], 500);
+    jsonResponse(['error' => 'Internal server error', 'message' => $e->getMessage()], 500);
 }
