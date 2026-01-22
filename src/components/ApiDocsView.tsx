@@ -394,6 +394,17 @@ export default function ApiDocsView() {
         },
         {
           method: 'GET',
+          path: '/backend/api/playground.php?action=get_scenario_game_data&email={email}&uniqid={uniqid}',
+          description: 'Get game data for a specific scenario (client must have access)',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
+          ],
+          response: '{ "scenario": { "id": 1, "title": "Scenario Title", "description": "Description", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6", "game_data": "{\\"key\\": \\"value\\"}" }, "client": { "id": 1, "email": "client@example.com", "name": "Client Name" } }',
+        },
+        {
+          method: 'GET',
           path: '/backend/api/playground.php?action=get_media&uniqid={uniqid}&filename={filename}',
           description: 'Get media file for a scenario',
           auth: false,
