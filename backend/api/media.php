@@ -162,9 +162,51 @@ try {
             jsonResponse(['scenarios' => [$scenario]]);
             break;
 
+        case 'delete':
+            requireAuth();
+
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'DELETE') {
+                Logger::log('media', $method, 'delete', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $data = json_decode(file_get_contents('php://input'), true) ?? [];
+            $uniqid = $data['uniqid'] ?? $_POST['uniqid'] ?? $_GET['uniqid'] ?? null;
+            $filename = $data['filename'] ?? $_POST['filename'] ?? $_GET['filename'] ?? null;
+
+            if (!$uniqid || !$filename) {
+                Logger::log('media', $method, 'delete', $_SESSION['user_id'], [], ['error' => 'Missing parameters'], 400);
+                jsonResponse(['error' => 'uniqid and filename are required'], 400);
+            }
+
+            $filePath = __DIR__ . '/../../media/' . $uniqid . '/' . $filename;
+
+            if (!file_exists($filePath) || !is_file($filePath)) {
+                Logger::log('media', $method, 'delete', $_SESSION['user_id'], ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'File not found'], 404);
+                jsonResponse(['error' => 'File not found'], 404);
+            }
+
+            if (!unlink($filePath)) {
+                Logger::log('media', $method, 'delete', $_SESSION['user_id'], ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Failed to delete'], 500);
+                jsonResponse(['error' => 'Failed to delete file'], 500);
+            }
+
+            $dirPath = __DIR__ . '/../../media/' . $uniqid;
+            $remainingFiles = array_diff(scandir($dirPath), ['.', '..']);
+            if (empty($remainingFiles)) {
+                rmdir($dirPath);
+            }
+
+            Logger::log('media', $method, 'delete', $_SESSION['user_id'], ['uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200);
+            jsonResponse([
+                'success' => true,
+                'message' => 'Media file deleted successfully'
+            ]);
+            break;
+
         default:
             Logger::log('media', $method, $action ?: 'none', $_SESSION['user_id'] ?? null, [], ['error' => 'Invalid action'], 400);
-            jsonResponse(['error' => 'Invalid action. Available actions: list, get, scenarios'], 400);
+            jsonResponse(['error' => 'Invalid action. Available actions: list, get, scenarios, delete'], 400);
     }
 } catch (Exception $e) {
     Logger::log('media', $method, $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], ['error' => $e->getMessage()], 500);

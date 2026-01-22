@@ -95,6 +95,13 @@ export const mediaApi = {
       method: 'GET',
     });
   },
+
+  async deleteMedia(uniqid: string, filename: string): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return apiRequest('/media.php?action=delete', {
+      method: 'POST',
+      body: JSON.stringify({ uniqid, filename }),
+    });
+  },
 };
 
 export interface AdminUser {

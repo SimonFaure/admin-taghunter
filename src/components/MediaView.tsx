@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers } from 'lucide-react';
+import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers, Trash2 } from 'lucide-react';
 import { mediaApi, MediaFile, Scenario, scenariosApi, ScenarioData } from '../lib/api';
 
 type ViewMode = 'grid' | 'list';
@@ -15,6 +15,8 @@ export function MediaView() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [groupMode, setGroupMode] = useState<GroupMode>('all');
   const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchMediaFiles();
@@ -73,6 +75,31 @@ export function MediaView() {
       setRelatedScenarios([]);
     } finally {
       setLoadingScenarios(false);
+    }
+  };
+
+  const handleDeleteMedia = async () => {
+    if (!selectedMedia) return;
+
+    setDeleting(true);
+    try {
+      const response = await mediaApi.deleteMedia(
+        selectedMedia.scenario_uniqid,
+        selectedMedia.name
+      );
+
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      setMediaFiles(mediaFiles.filter(m => m.id !== selectedMedia.id));
+      setShowDeleteConfirm(false);
+      setSelectedMedia(null);
+    } catch (err) {
+      console.error('Error deleting media:', err);
+      alert('Failed to delete media file');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -158,12 +185,21 @@ export function MediaView() {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setSelectedMedia(null)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-all"
-              >
-                <X className="w-5 h-5 text-slate-600" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-2 hover:bg-red-50 rounded-lg transition-all text-red-600"
+                  title="Delete media"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-all"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -246,6 +282,76 @@ export function MediaView() {
             </div>
           </div>
         </div>
+
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+              <div className="p-6">
+                <div className="flex items-start space-x-4 mb-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Delete Media File</h3>
+                    <p className="text-sm text-slate-600 mb-4">
+                      Are you sure you want to delete <span className="font-semibold">{selectedMedia.name}</span>?
+                    </p>
+
+                    {loadingScenarios ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-900"></div>
+                      </div>
+                    ) : relatedScenarios.length > 0 ? (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm font-semibold text-yellow-800 mb-2">
+                          This media is used in the following scenario:
+                        </p>
+                        <ul className="text-sm text-yellow-700 space-y-1">
+                          {relatedScenarios.map(scenario => (
+                            <li key={scenario.id} className="font-medium">• {scenario.title}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
+                        <p className="text-sm text-slate-600">
+                          This media is not used in any scenarios.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 px-6 py-4 flex items-center justify-end space-x-3 rounded-b-xl">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteMedia}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

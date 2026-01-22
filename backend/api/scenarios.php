@@ -342,16 +342,31 @@ try {
                 jsonResponse(['error' => 'Scenario ID is required'], 400);
             }
 
-            // Get scenario to delete associated file
-            $scenario = $db->fetch('SELECT media_url FROM scenarios WHERE id = ?', [(int)$id]);
+            // Get scenario to delete associated files
+            $scenario = $db->fetch('SELECT media_url, uniqid FROM scenarios WHERE id = ?', [(int)$id]);
             if (!$scenario) {
                 Logger::log('scenarios', $method, 'delete', $_SESSION['user_id'], ['id' => $id], ['error' => 'Not found'], 404);
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
-            // Delete file if exists
+            // Delete zip file if exists
             if ($scenario['media_url'] && file_exists(__DIR__ . '/../../' . $scenario['media_url'])) {
                 unlink(__DIR__ . '/../../' . $scenario['media_url']);
+            }
+
+            // Delete media directory if exists
+            if ($scenario['uniqid']) {
+                $mediaDir = __DIR__ . '/../../media/' . $scenario['uniqid'];
+                if (is_dir($mediaDir)) {
+                    $files = array_diff(scandir($mediaDir), ['.', '..']);
+                    foreach ($files as $file) {
+                        $filePath = $mediaDir . '/' . $file;
+                        if (is_file($filePath)) {
+                            unlink($filePath);
+                        }
+                    }
+                    rmdir($mediaDir);
+                }
             }
 
             // Delete scenario from database
