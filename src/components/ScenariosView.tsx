@@ -54,20 +54,22 @@ export function ScenariosView() {
 
       const languages = new Set<string>();
 
-      if (gameData.available_languages && Array.isArray(gameData.available_languages)) {
-        gameData.available_languages.forEach((lang: string) => {
+      const dataObj = gameData.data || gameData;
+
+      if (dataObj.available_languages && Array.isArray(dataObj.available_languages)) {
+        dataObj.available_languages.forEach((lang: string) => {
           languages.add(lang.toUpperCase());
         });
       }
 
-      if (gameData.translations && typeof gameData.translations === 'object') {
-        Object.keys(gameData.translations).forEach(lang => {
+      if (dataObj.translations && typeof dataObj.translations === 'object') {
+        Object.keys(dataObj.translations).forEach(lang => {
           languages.add(lang.toUpperCase());
         });
       }
 
-      if (gameData.default_language && typeof gameData.default_language === 'string') {
-        languages.add(gameData.default_language.toUpperCase());
+      if (dataObj.default_language && typeof dataObj.default_language === 'string') {
+        languages.add(dataObj.default_language.toUpperCase());
       }
 
       if (languages.size === 0) {
@@ -91,7 +93,7 @@ export function ScenariosView() {
           });
         };
 
-        detectInObject(gameData);
+        detectInObject(dataObj);
       }
 
       setDetectedLanguages(Array.from(languages).sort());
@@ -123,22 +125,38 @@ export function ScenariosView() {
         const gameData = JSON.parse(scenario.game_data);
         console.log('Parsed game_data:', gameData);
 
-        if (gameData.game_meta?.game_visual) {
+        if (gameData.media?.images?.game_visual) {
+          gameVisualUrl = gameData.media.images.game_visual.startsWith('http')
+            ? gameData.media.images.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.media.images.game_visual}`;
+          console.log('Found game_visual (new structure):', gameVisualUrl);
+        } else if (gameData.data?.game_meta?.game_visual) {
+          gameVisualUrl = gameData.data.game_meta.game_visual.startsWith('http')
+            ? gameData.data.game_meta.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.data.game_meta.game_visual}`;
+          console.log('Found game_visual (new data structure):', gameVisualUrl);
+        } else if (gameData.game_meta?.game_visual) {
           gameVisualUrl = gameData.game_meta.game_visual.startsWith('http')
             ? gameData.game_meta.game_visual
             : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.game_visual}`;
-          console.log('Found game_visual:', gameVisualUrl);
+          console.log('Found game_visual (old structure):', gameVisualUrl);
         } else if (gameData.game_visual) {
           gameVisualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
-          console.log('Found game_visual:', gameVisualUrl);
+          console.log('Found game_visual (legacy):', gameVisualUrl);
         }
 
-        if (gameData.game_meta?.background_image) {
+        if (gameData.media?.images?.background_image) {
+          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.media.images.background_image}`;
+          console.log('Found background_image (new structure):', backgroundUrl);
+        } else if (gameData.data?.game_meta?.background_image) {
+          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.data.game_meta.background_image}`;
+          console.log('Found background_image (new data structure):', backgroundUrl);
+        } else if (gameData.game_meta?.background_image) {
           backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.background_image}`;
-          console.log('Found background_image:', backgroundUrl);
+          console.log('Found background_image (old structure):', backgroundUrl);
         } else if (gameData.backgroundImage) {
           backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
-          console.log('Found backgroundImage:', backgroundUrl);
+          console.log('Found backgroundImage (legacy):', backgroundUrl);
         }
       } catch (e) {
         console.error('Failed to parse game_data', e);
@@ -167,7 +185,10 @@ export function ScenariosView() {
       try {
         const gameData = JSON.parse(selectedScenario.game_data);
         if (imageLabel === 'Game Visual') {
-          const backgroundUrl = gameData.game_meta?.background_image || gameData.backgroundImage;
+          const backgroundUrl = gameData.media?.images?.background_image ||
+                               gameData.data?.game_meta?.background_image ||
+                               gameData.game_meta?.background_image ||
+                               gameData.backgroundImage;
           if (backgroundUrl) {
             console.log('Trying fallback to backgroundImage');
             setFallbackAttempted(true);
@@ -258,7 +279,9 @@ export function ScenariosView() {
     if (selectedScenario.game_data) {
       try {
         const gameData = JSON.parse(selectedScenario.game_data);
-        if (gameData.game_meta?.game_public !== undefined) {
+        if (gameData.data?.game_meta?.game_public !== undefined) {
+          gamePublic = gameData.data.game_meta.game_public;
+        } else if (gameData.game_meta?.game_public !== undefined) {
           gamePublic = gameData.game_meta.game_public;
         }
       } catch (e) {
