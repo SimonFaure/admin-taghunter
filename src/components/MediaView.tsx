@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers, Trash2, CheckSquare, Square } from 'lucide-react';
+import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers, Trash2, CheckSquare, Square, Music, Video, PlayCircle } from 'lucide-react';
 import { mediaApi, MediaFile, Scenario, scenariosApi, ScenarioData } from '../lib/api';
 
 type ViewMode = 'grid' | 'list';
@@ -165,6 +165,11 @@ export function MediaView() {
     return mimeType.startsWith('video/');
   };
 
+  const isAudioFile = (mimeType: string | null): boolean => {
+    if (!mimeType) return false;
+    return mimeType.startsWith('audio/');
+  };
+
   const getScenarioName = (uniqid: string): string => {
     const scenario = scenarios.find(s => s.uniqid === uniqid);
     return scenario ? scenario.title : uniqid;
@@ -249,6 +254,46 @@ export function MediaView() {
           </div>
 
           <div className="p-6">
+            {(isVideoFile(selectedMedia.mime_type) || isAudioFile(selectedMedia.mime_type) || isImageFile(selectedMedia.mime_type)) && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Preview</h4>
+                <div className="bg-slate-900 rounded-lg overflow-hidden">
+                  {isVideoFile(selectedMedia.mime_type) && (
+                    <video
+                      src={selectedMedia.url}
+                      controls
+                      className="w-full max-h-[500px]"
+                      preload="metadata"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
+                  {isAudioFile(selectedMedia.mime_type) && (
+                    <div className="p-8 flex flex-col items-center justify-center space-y-4">
+                      <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center">
+                        <Music className="w-12 h-12 text-slate-400" />
+                      </div>
+                      <audio
+                        src={selectedMedia.url}
+                        controls
+                        className="w-full max-w-md"
+                        preload="metadata"
+                      >
+                        Your browser does not support the audio tag.
+                      </audio>
+                    </div>
+                  )}
+                  {isImageFile(selectedMedia.mime_type) && (
+                    <img
+                      src={selectedMedia.url}
+                      alt={selectedMedia.name}
+                      className="w-full max-h-[500px] object-contain"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="mb-6">
               <h4 className="text-sm font-semibold text-slate-700 mb-2">File Details</h4>
               <div className="bg-slate-50 rounded-lg p-4 space-y-2">
@@ -455,16 +500,48 @@ export function MediaView() {
               }}
             />
           ) : isVideoFile(media.mime_type) ? (
-            <video
-              src={media.url}
-              className="w-full h-full object-cover"
-              muted
-              playsInline
-            />
+            <>
+              <video
+                src={media.url}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 pointer-events-none">
+                <div className="bg-white bg-opacity-90 rounded-full p-3">
+                  <PlayCircle className="w-10 h-10 text-slate-900" />
+                </div>
+              </div>
+            </>
+          ) : isAudioFile(media.mime_type) ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600">
+              <div className="text-center">
+                <Music className="w-16 h-16 text-white mx-auto mb-2" />
+                <span className="text-white text-xs font-medium">Audio File</span>
+              </div>
+            </div>
           ) : null}
           <div className="hidden absolute inset-0 flex items-center justify-center bg-slate-100">
             <Film className="w-12 h-12 text-slate-400" />
           </div>
+
+          {(isVideoFile(media.mime_type) || isAudioFile(media.mime_type)) && (
+            <div className="absolute bottom-2 right-2">
+              <div className="flex items-center space-x-1 bg-black bg-opacity-70 text-white text-xs font-medium px-2 py-1 rounded">
+                {isVideoFile(media.mime_type) ? (
+                  <>
+                    <Video className="w-3 h-3" />
+                    <span>Video</span>
+                  </>
+                ) : (
+                  <>
+                    <Music className="w-3 h-3" />
+                    <span>Audio</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-4 flex-1">
