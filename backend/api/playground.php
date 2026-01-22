@@ -4,8 +4,8 @@ require_once __DIR__ . '/../utils/SecurityHeaders.php';
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 
-SecurityHeaders::set();
-handleCors();
+SecurityHeaders::setHeaders();
+setCorsHeaders();
 
 header('Content-Type: application/json');
 
