@@ -159,8 +159,8 @@ try {
         $uniqid = $_GET['uniqid'] ?? null;
 
         if (!$email || !$uniqid) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, [], ['error' => 'Missing parameters'], 400);
-            jsonResponse(['error' => 'email and uniqid are required'], 400);
+            Logger::log('playground', $method, 'get_scenario_game_data', null, $_GET, ['error' => 'Missing parameters', 'email' => $email, 'uniqid' => $uniqid], 400);
+            jsonResponse(['error' => 'email and uniqid are required', 'received' => ['email' => $email, 'uniqid' => $uniqid, 'all_params' => $_GET]], 400);
         }
 
         $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
