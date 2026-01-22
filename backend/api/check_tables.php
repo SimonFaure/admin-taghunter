@@ -53,6 +53,15 @@ try {
     $adminTable = $db->fetchAll("SHOW TABLES LIKE 'admin_users'");
     $response['admin_users_exists'] = !empty($adminTable);
 
+    // Check api_logs table (required by Logger)
+    $apiLogsTable = $db->fetchAll("SHOW TABLES LIKE 'api_logs'");
+    $response['api_logs_exists'] = !empty($apiLogsTable);
+
+    if (!empty($apiLogsTable)) {
+        $apiLogsCount = $db->fetch("SELECT COUNT(*) as count FROM api_logs");
+        $response['api_logs_count'] = $apiLogsCount['count'];
+    }
+
     error_log("Table check results: " . json_encode($response));
 
     http_response_code(200);
