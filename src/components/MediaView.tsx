@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers, Trash2, CheckSquare, Square, Music, Video, PlayCircle } from 'lucide-react';
+import { Image, Calendar, HardDrive, Film, X, AlertCircle, Grid3x3, List, Layers, Trash2, CheckSquare, Square, Music, Video, PlayCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { mediaApi, MediaFile, Scenario, scenariosApi, ScenarioData } from '../lib/api';
 
 type ViewMode = 'grid' | 'list';
@@ -19,6 +19,7 @@ export function MediaView() {
   const [deleting, setDeleting] = useState(false);
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
+  const [collapsedScenarios, setCollapsedScenarios] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchMediaFiles();
@@ -146,6 +147,16 @@ export function MediaView() {
     if (selectedMediaIds.size === 0) return;
     setBulkDeleteMode(true);
     setShowDeleteConfirm(true);
+  };
+
+  const toggleScenarioCollapse = (scenarioId: string) => {
+    const newCollapsed = new Set(collapsedScenarios);
+    if (newCollapsed.has(scenarioId)) {
+      newCollapsed.delete(scenarioId);
+    } else {
+      newCollapsed.add(scenarioId);
+    }
+    setCollapsedScenarios(newCollapsed);
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -576,23 +587,36 @@ export function MediaView() {
 
       return (
         <div className="space-y-6">
-          {scenarioIds.map(scenarioId => (
-            <div key={scenarioId} className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Layers className="w-5 h-5 text-slate-600" />
-                <h3 className="text-lg font-semibold text-slate-900">
-                  {grouped[scenarioId].name}
-                </h3>
-                <span className="text-sm text-slate-500">({grouped[scenarioId].files.length})</span>
+          {scenarioIds.map(scenarioId => {
+            const isCollapsed = collapsedScenarios.has(scenarioId);
+            return (
+              <div key={scenarioId} className="space-y-3">
+                <button
+                  onClick={() => toggleScenarioCollapse(scenarioId)}
+                  className="flex items-center space-x-2 w-full text-left hover:bg-slate-50 rounded-lg p-2 -ml-2 transition-all group"
+                >
+                  {isCollapsed ? (
+                    <ChevronRight className="w-5 h-5 text-slate-600 group-hover:text-slate-900" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-600 group-hover:text-slate-900" />
+                  )}
+                  <Layers className="w-5 h-5 text-slate-600 group-hover:text-slate-900" />
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    {grouped[scenarioId].name}
+                  </h3>
+                  <span className="text-sm text-slate-500">({grouped[scenarioId].files.length})</span>
+                </button>
+                {!isCollapsed && (
+                  <div className={viewMode === 'grid'
+                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
+                    : 'space-y-3'
+                  }>
+                    {grouped[scenarioId].files.map(renderMediaCard)}
+                  </div>
+                )}
               </div>
-              <div className={viewMode === 'grid'
-                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-                : 'space-y-3'
-              }>
-                {grouped[scenarioId].files.map(renderMediaCard)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       );
     }
