@@ -15,7 +15,7 @@ function jsonResponse($data, $status = 200) {
     exit;
 }
 
-$db = new Database();
+$db = Database::getInstance();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
