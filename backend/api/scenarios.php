@@ -37,6 +37,19 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
+            // Log incoming request data for debugging
+            Logger::log('scenarios', $method, 'create_incoming', $_SESSION['user_id'] ?? null, [
+                'POST' => $_POST,
+                'FILES' => isset($_FILES) ? array_map(function($file) {
+                    return [
+                        'name' => $file['name'] ?? null,
+                        'size' => $file['size'] ?? null,
+                        'error' => $file['error'] ?? null
+                    ];
+                }, $_FILES) : [],
+                'content_type' => $_SERVER['CONTENT_TYPE'] ?? null
+            ], ['message' => 'Incoming create request'], 200);
+
             // Check if this is an admin request (with session) or client request (with email)
             $isAdminRequest = isset($_SESSION['user_id']);
             $userEmail = $_POST['userEmail'] ?? null;
@@ -54,6 +67,13 @@ try {
                     Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Invalid JSON in scenarioData'], 400);
                     jsonResponse(['error' => 'Invalid JSON in scenarioData'], 400);
                 }
+
+                // Log parsed scenario data
+                Logger::log('scenarios', $method, 'create_parsed', $_SESSION['user_id'] ?? null, [
+                    'scenarioData' => $scenarioData,
+                    'has_data_field' => isset($scenarioData['data']),
+                    'data_value' => $scenarioData['data'] ?? 'NOT_SET'
+                ], ['message' => 'Parsed scenarioData'], 200);
             }
 
             // Get fields from either direct POST or scenarioData
@@ -165,6 +185,19 @@ try {
             $isUpdate = false;
             $scenario_id = null;
             $created_at = null;
+
+            // Log final values before database operation
+            Logger::log('scenarios', $method, 'create_pre_db', $_SESSION['user_id'] ?? null, [
+                'client_id' => $client_id,
+                'title' => $title,
+                'description' => substr($description, 0, 100),
+                'game_data' => $game_data === '{}' ? 'EMPTY_OBJECT' : (is_string($game_data) ? substr($game_data, 0, 100) : 'ARRAY'),
+                'game_meta' => $game_meta === '{}' ? 'EMPTY_OBJECT' : (is_string($game_meta) ? substr($game_meta, 0, 100) : 'ARRAY'),
+                'game_type' => $game_type,
+                'scenario_type' => $scenario_type,
+                'uniqid' => $uniqid,
+                'is_update' => $existingScenario ? true : false
+            ], ['message' => 'Values before DB operation'], 200);
 
             if ($existingScenario) {
                 // Update existing scenario
