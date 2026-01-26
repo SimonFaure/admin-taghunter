@@ -47,7 +47,8 @@ try {
         'secure_auth_migration.sql',
         'add_user_type_to_auth_tokens.sql',
         'add_scenario_type_migration.sql',
-        'add_app_versions_migration.sql'
+        'add_app_versions_migration.sql',
+        'add_game_meta_migration.sql'
     ];
 
     $results = [];
