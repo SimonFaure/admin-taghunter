@@ -65,16 +65,14 @@ try {
             $scenario_type = null;
 
             if ($scenarioData) {
-                // Client app format
+                // Client app format - store the entire JSON in game_data
                 $title = $scenarioData['title'] ?? null;
                 $description = $scenarioData['description'] ?? null;
-                // Support both 'data' (new format) and 'gameData' (legacy format)
-                $game_data = $scenarioData['data'] ?? $scenarioData['gameData'] ?? null;
+                // Store the ENTIRE scenarioData JSON in game_data column
+                $game_data = $scenarioData;
                 $game_type = $scenarioData['game_type'] ?? null;
                 $scenario_type = $scenarioData['scenario_type'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
-                // Extract media data (for reference, though media files are uploaded separately)
-                $media = $scenarioData['media'] ?? null;
 
                 // Look up client by email or clientId
                 if ($userEmail) {
