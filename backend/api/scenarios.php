@@ -61,15 +61,18 @@ try {
             $title = null;
             $description = null;
             $game_data = null;
+            $game_meta = null;
             $game_type = null;
             $scenario_type = null;
 
             if ($scenarioData) {
-                // Client app format - store the entire JSON in game_data
+                // Client app format
+                // Store entire payload in game_meta
+                $game_meta = $scenarioData;
+                // Store only the 'data' field in game_data
+                $game_data = $scenarioData['data'] ?? null;
                 $title = $scenarioData['title'] ?? null;
                 $description = $scenarioData['description'] ?? null;
-                // Store the ENTIRE scenarioData JSON in game_data column
-                $game_data = $scenarioData;
                 $game_type = $scenarioData['game_type'] ?? null;
                 $scenario_type = $scenarioData['scenario_type'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
@@ -89,6 +92,7 @@ try {
                 $title = $_POST['title'] ?? null;
                 $description = $_POST['description'] ?? null;
                 $game_data = $_POST['game_data'] ?? null;
+                $game_meta = $_POST['game_meta'] ?? null;
                 $game_type = $_POST['game_type'] ?? null;
                 $scenario_type = $_POST['scenario_type'] ?? null;
                 $uniqid = $_POST['uniqid'] ?? null;
@@ -104,6 +108,18 @@ try {
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, ['game_data' => $game_data], ['error' => 'Invalid JSON in game_data'], 400);
                     jsonResponse(['error' => 'game_data must be valid JSON string or object'], 400);
+                }
+            }
+
+            // Convert game_meta to JSON string if it's an array
+            if (is_array($game_meta)) {
+                $game_meta = json_encode($game_meta);
+            } elseif (is_string($game_meta) && !empty($game_meta)) {
+                // Validate it's valid JSON
+                json_decode($game_meta);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, ['game_meta' => $game_meta], ['error' => 'Invalid JSON in game_meta'], 400);
+                    jsonResponse(['error' => 'game_meta must be valid JSON string or object'], 400);
                 }
             }
 
@@ -148,12 +164,12 @@ try {
                 $created_at = $existingScenario['created_at'];
                 $isUpdate = true;
 
-                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, game_data = ?, game_type = ?, scenario_type = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
-                $db->query($sql, [$client_id, $title, $description, $game_data, $game_type, $scenario_type, $uniqid]);
+                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, game_data = ?, game_meta = ?, game_type = ?, scenario_type = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
+                $db->query($sql, [$client_id, $title, $description, $game_data, $game_meta, $game_type, $scenario_type, $uniqid]);
             } else {
                 // Insert new scenario
-                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, game_data, game_type, scenario_type, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                $db->query($sql, [$client_id, $title, $description, $media_path, $game_data, $game_type, $scenario_type, $uniqid, $created_by]);
+                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, game_data, game_meta, game_type, scenario_type, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                $db->query($sql, [$client_id, $title, $description, $media_path, $game_data, $game_meta, $game_type, $scenario_type, $uniqid, $created_by]);
                 $scenario_id = $db->getConnection()->lastInsertId();
                 $created_at = date('Y-m-d H:i:s');
             }
@@ -167,6 +183,7 @@ try {
                     'description' => $description,
                     'media_url' => $media_path,
                     'game_data' => $game_data,
+                    'game_meta' => $game_meta,
                     'game_type' => $game_type,
                     'scenario_type' => $scenario_type,
                     'uniqid' => $uniqid,
@@ -267,6 +284,7 @@ try {
             $description = isset($_POST['description']) ? trim($_POST['description']) : $scenario['description'];
             $media_path = $scenario['media_url'];
             $game_data = isset($_POST['game_data']) ? $_POST['game_data'] : $scenario['game_data'];
+            $game_meta = isset($_POST['game_meta']) ? $_POST['game_meta'] : $scenario['game_meta'];
             $game_type = isset($_POST['game_type']) ? $_POST['game_type'] : $scenario['game_type'];
             $scenario_type = isset($_POST['scenario_type']) ? $_POST['scenario_type'] : $scenario['scenario_type'];
 
@@ -279,6 +297,17 @@ try {
                 json_decode($game_data);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     jsonResponse(['error' => 'game_data must be valid JSON string or object'], 400);
+                }
+            }
+
+            // Convert game_meta to JSON string if it's an array
+            if (is_array($game_meta)) {
+                $game_meta = json_encode($game_meta);
+            } elseif (is_string($game_meta) && !empty($game_meta)) {
+                // Validate it's valid JSON
+                json_decode($game_meta);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    jsonResponse(['error' => 'game_meta must be valid JSON string or object'], 400);
                 }
             }
 
@@ -326,8 +355,8 @@ try {
             }
 
             // Update scenario
-            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, game_data = ?, game_type = ?, scenario_type = ?, updated_at = NOW() WHERE id = ?';
-            $db->query($sql, [$title, $description, $media_path, $game_data, $game_type, $scenario_type, $id]);
+            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, game_data = ?, game_meta = ?, game_type = ?, scenario_type = ?, updated_at = NOW() WHERE id = ?';
+            $db->query($sql, [$title, $description, $media_path, $game_data, $game_meta, $game_type, $scenario_type, $id]);
 
             jsonResponse([
                 'success' => true,
@@ -337,6 +366,7 @@ try {
                     'description' => $description,
                     'media_url' => $media_path,
                     'game_data' => $game_data,
+                    'game_meta' => $game_meta,
                     'game_type' => $game_type,
                     'scenario_type' => $scenario_type
                 ],
