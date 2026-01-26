@@ -68,17 +68,22 @@ try {
                 // Client app format
                 $title = $scenarioData['title'] ?? null;
                 $description = $scenarioData['description'] ?? null;
-                $game_data = $scenarioData['gameData'] ?? null;
+                // Support both 'data' (new format) and 'gameData' (legacy format)
+                $game_data = $scenarioData['data'] ?? $scenarioData['gameData'] ?? null;
                 $game_type = $scenarioData['game_type'] ?? null;
                 $scenario_type = $scenarioData['scenario_type'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
+                // Extract media data (for reference, though media files are uploaded separately)
+                $media = $scenarioData['media'] ?? null;
 
-                // Look up client by email
+                // Look up client by email or clientId
                 if ($userEmail) {
                     $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$userEmail]);
                     if ($client) {
                         $client_id = (int)$client['id'];
                     }
+                } elseif (isset($scenarioData['clientId'])) {
+                    $client_id = (int)$scenarioData['clientId'];
                 }
             } else {
                 // Admin format
