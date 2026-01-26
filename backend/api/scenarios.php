@@ -69,8 +69,8 @@ try {
                 // Client app format
                 // Store entire payload in game_meta
                 $game_meta = $scenarioData;
-                // Store only the 'data' field in game_data
-                $game_data = $scenarioData['data'] ?? null;
+                // Store only the 'data' field in game_data (default to empty object if not present)
+                $game_data = $scenarioData['data'] ?? [];
                 $title = $scenarioData['title'] ?? null;
                 $description = $scenarioData['description'] ?? null;
                 $game_type = $scenarioData['game_type'] ?? null;
@@ -121,6 +121,14 @@ try {
                     Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, ['game_meta' => $game_meta], ['error' => 'Invalid JSON in game_meta'], 400);
                     jsonResponse(['error' => 'game_meta must be valid JSON string or object'], 400);
                 }
+            }
+
+            // Ensure game_data and game_meta are never null - use empty JSON object if needed
+            if ($game_data === null || $game_data === '') {
+                $game_data = '{}';
+            }
+            if ($game_meta === null || $game_meta === '') {
+                $game_meta = '{}';
             }
 
             // Validate required fields
@@ -309,6 +317,14 @@ try {
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     jsonResponse(['error' => 'game_meta must be valid JSON string or object'], 400);
                 }
+            }
+
+            // Ensure game_data and game_meta are never null - use empty JSON object if needed
+            if ($game_data === null || $game_data === '') {
+                $game_data = '{}';
+            }
+            if ($game_meta === null || $game_meta === '') {
+                $game_meta = '{}';
             }
 
             // Handle new zip file upload
