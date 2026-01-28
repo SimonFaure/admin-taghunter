@@ -200,8 +200,13 @@ try {
         }
 
         $gameData = null;
-        if (!empty($scenario['game_data'])) {
-            $gameData = json_decode($scenario['game_data'], true);
+        if (!empty($scenario['data'])) {
+            $gameData = json_decode($scenario['data'], true);
+        }
+
+        $medias = null;
+        if (!empty($scenario['medias'])) {
+            $medias = json_decode($scenario['medias'], true);
         }
 
         $responseData = [
@@ -211,7 +216,8 @@ try {
                 'uniqid' => $scenario['uniqid'],
                 'scenario_type' => $scenario['scenario_type']
             ],
-            'game_data' => $gameData
+            'game_data' => $gameData,
+            'medias' => $medias
         ];
 
         Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200);
