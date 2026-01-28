@@ -292,6 +292,75 @@ try {
         readfile($mediaPath);
         exit;
 
+    case 'get_available_scenario_data':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_available_scenario_data', null, [], ['error' => 'Method not allowed'], 405);
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+        $uniqid = $_GET['uniqid'] ?? null;
+
+        if (!$email || !$uniqid) {
+            Logger::log('playground', $method, 'get_available_scenario_data', null, $_GET, ['error' => 'Missing parameters'], 400);
+            jsonResponse(['error' => 'email and uniqid are required'], 400);
+        }
+
+        $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+
+        if (!$client) {
+            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            jsonResponse(['error' => 'Client not found'], 404);
+        }
+
+        $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
+
+        if (!$scenario) {
+            Logger::log('playground', $method, 'get_available_scenario_data', null, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404);
+            jsonResponse(['error' => 'Scenario not found'], 404);
+        }
+
+        $hasAccess = false;
+
+        if ($scenario['client_id'] == $client['id']) {
+            $hasAccess = true;
+        } elseif ($client['licence_type'] === 'premium' && $scenario['scenario_type'] === 'product') {
+            $hasAccess = true;
+        } else {
+            $grantedScenario = $db->fetch(
+                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
+                [$client['id'], $scenario['id']]
+            );
+
+            if ($grantedScenario) {
+                $hasAccess = true;
+            }
+        }
+
+        if (!$hasAccess) {
+            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403);
+            jsonResponse(['error' => 'Access denied to this scenario'], 403);
+        }
+
+        $medias = null;
+        if (!empty($scenario['medias'])) {
+            $medias = json_decode($scenario['medias'], true);
+        }
+
+        $responseData = [
+            'scenario' => [
+                'id' => $scenario['id'],
+                'name' => $scenario['name'],
+                'uniqid' => $scenario['uniqid'],
+                'scenario_type' => $scenario['scenario_type']
+            ],
+            'medias' => $medias
+        ];
+
+        Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200);
+        jsonResponse($responseData);
+        break;
+
     default:
         Logger::log('playground', $method, $action ?: 'none', null, [], ['error' => 'Invalid action'], 400);
         jsonResponse(['error' => 'Invalid action'], 400);

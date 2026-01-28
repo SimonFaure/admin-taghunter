@@ -405,10 +405,22 @@ export default function ApiDocsView() {
         },
         {
           method: 'GET',
-          path: '/backend/api/playground.php?action=get_media&uniqid={uniqid}&filename={filename}',
-          description: 'Get media file for a scenario',
+          path: '/backend/api/playground.php?action=get_available_scenario_data&email={email}&uniqid={uniqid}',
+          description: 'Get scenario metadata and media information without full game data (lightweight)',
           auth: false,
           params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
+          ],
+          response: '{ "scenario": { "id": 1, "name": "Scenario Title", "uniqid": "scenario_674fb123a45e6", "scenario_type": "custom" }, "medias": { "images": { "game_visual": "game_visual.png" }, "levels": {}, "sounds": {}, "videos": {}, "enigmas": [] } }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_media&email={email}&uniqid={uniqid}&filename={filename}',
+          description: 'Get media file for a scenario (client must have access)',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
             { name: 'filename', type: 'string', description: 'Media filename' },
           ],
