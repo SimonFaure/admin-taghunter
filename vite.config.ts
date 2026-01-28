@@ -11,11 +11,20 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       exclude: ['lucide-react'],
     },
+    server: {
+      proxy: {
+        '/backend': {
+          target: 'https://admin.taghunter.fr',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
     build: {
       minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: true,
+          drop_console: false,
         },
       },
       rollupOptions: {
@@ -30,6 +39,10 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_AUTH_MODE': JSON.stringify(env.VITE_AUTH_MODE || 'php'),
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || ''),
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || '/backend/api'),
+      'import.meta.env.VITE_DEV_AUTO_LOGIN': JSON.stringify(env.VITE_DEV_AUTO_LOGIN || 'false'),
+      'import.meta.env.VITE_DEV_ADMIN_EMAIL': JSON.stringify(env.VITE_DEV_ADMIN_EMAIL || ''),
+      'import.meta.env.VITE_DEV_ADMIN_PASSWORD': JSON.stringify(env.VITE_DEV_ADMIN_PASSWORD || ''),
     },
   };
 });

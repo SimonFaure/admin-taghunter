@@ -33,27 +33,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const checkAuthStatus = async () => {
+    console.log('[Auth] Checking auth status...');
     const { data, error } = await authApi.checkAuth();
-    if (!error && data) {
+
+    if (!error && data && data.user) {
+      console.log('[Auth] User already authenticated:', data.user.email);
       setUser(data.user);
       setLoading(false);
       return;
     }
 
+    console.log('[Auth] No existing session found');
+
     // Auto-login in development mode if enabled
     const autoLogin = import.meta.env.VITE_DEV_AUTO_LOGIN === 'true';
     const isDev = import.meta.env.DEV;
+
+    console.log('[Auth] Development mode:', isDev);
+    console.log('[Auth] Auto-login enabled:', autoLogin);
 
     if (isDev && autoLogin) {
       const email = import.meta.env.VITE_DEV_ADMIN_EMAIL;
       const password = import.meta.env.VITE_DEV_ADMIN_PASSWORD;
 
+      console.log('[Auth] Auto-login credentials found:', !!email && !!password);
+
       if (email && password) {
-        console.log('Auto-logging in as admin...');
+        console.log('[Auth] Attempting auto-login as:', email);
         const { data: loginData, error: loginError } = await authApi.login(email, password);
-        if (!loginError && loginData) {
+
+        if (loginError) {
+          console.error('[Auth] Auto-login failed:', loginError);
+        } else if (loginData) {
+          console.log('[Auth] Auto-login successful:', loginData.user.email);
           setUser(loginData.user);
         }
+      } else {
+        console.warn('[Auth] Auto-login credentials not configured');
       }
     }
 
