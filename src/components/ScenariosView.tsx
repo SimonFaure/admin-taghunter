@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, Layout, X } from 'lucide-react';
 
 interface Scenario {
   id: number;
@@ -18,6 +18,17 @@ interface Scenario {
   medias: string | null;
   game_data?: string | null;
   game_meta?: string | null;
+  scenario_layout?: string | null;
+}
+
+interface LayoutElement {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label?: string;
 }
 
 function getGameVersion(scenario: Scenario): string | null {
@@ -43,6 +54,8 @@ export function ScenariosView() {
   const [fallbackAttempted, setFallbackAttempted] = useState(false);
   const [detectedLanguages, setDetectedLanguages] = useState<string[]>([]);
   const [parsedGameData, setParsedGameData] = useState<any>(null);
+  const [showLayoutModal, setShowLayoutModal] = useState(false);
+  const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
 
   useEffect(() => {
     fetchScenarios();
@@ -54,6 +67,26 @@ export function ScenariosView() {
       detectLanguages(selectedScenario);
     }
   }, [selectedScenario]);
+
+  const handleShowLayout = () => {
+    if (!selectedScenario?.scenario_layout) {
+      alert('No layout data available for this scenario');
+      return;
+    }
+
+    try {
+      const layout = JSON.parse(selectedScenario.scenario_layout);
+      if (Array.isArray(layout)) {
+        setLayoutElements(layout);
+        setShowLayoutModal(true);
+      } else {
+        alert('Invalid layout data format');
+      }
+    } catch (e) {
+      console.error('Failed to parse scenario_layout', e);
+      alert('Failed to parse layout data');
+    }
+  };
 
   const detectLanguages = (scenario: Scenario) => {
     setDetectedLanguages([]);
@@ -485,15 +518,94 @@ export function ScenariosView() {
               </div>
             )}
 
-            <button
-              onClick={() => handleDelete(selectedScenario.id)}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all inline-flex items-center space-x-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Delete Scenario</span>
-            </button>
+            <div className="flex flex-wrap gap-3">
+              {selectedScenario.scenario_layout && (
+                <button
+                  onClick={handleShowLayout}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center space-x-2"
+                >
+                  <Layout className="w-4 h-4" />
+                  <span>Show Layout</span>
+                </button>
+              )}
+              <button
+                onClick={() => handleDelete(selectedScenario.id)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all inline-flex items-center space-x-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete Scenario</span>
+              </button>
+            </div>
           </div>
         </div>
+
+        {showLayoutModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={() => setShowLayoutModal(false)}>
+            <div className="relative max-w-6xl w-full max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
+                  <Layout className="w-5 h-5" />
+                  <span>Scenario Layout - {selectedScenario.title}</span>
+                </h3>
+                <button
+                  onClick={() => setShowLayoutModal(false)}
+                  className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
+
+              <div className="overflow-auto max-h-[calc(90vh-4rem)]">
+                <div className="relative inline-block min-w-full">
+                  {displayImage && !imageError ? (
+                    <>
+                      <img
+                        src={displayImage}
+                        alt="Background"
+                        className="w-full h-auto"
+                        style={{ display: 'block' }}
+                      />
+                      {layoutElements.map((element) => (
+                        <div
+                          key={element.id}
+                          className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-20"
+                          style={{
+                            left: `${element.x}%`,
+                            top: `${element.y}%`,
+                            width: `${element.width}%`,
+                            height: `${element.height}%`,
+                          }}
+                          title={element.label || `${element.type} (${element.id})`}
+                        >
+                          {element.label && (
+                            <div className="absolute top-0 left-0 bg-blue-600 text-white text-xs px-2 py-1 rounded-br font-semibold whitespace-nowrap">
+                              {element.label}
+                            </div>
+                          )}
+                          <div className="absolute bottom-0 right-0 bg-slate-900 bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl">
+                            {element.type}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="p-12 text-center text-slate-600">
+                      <ImageIcon className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                      <p>No background image available for this scenario</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-200 bg-slate-50">
+                <div className="flex items-center justify-between text-sm text-slate-600">
+                  <span className="font-semibold">{layoutElements.length} layout element(s)</span>
+                  <span className="text-xs">Positions and sizes are relative to the background image</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

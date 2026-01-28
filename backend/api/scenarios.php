@@ -106,6 +106,7 @@ try {
             $game_meta = null;
             $game_type = null;
             $scenario_type = null;
+            $scenario_layout = null;
 
             if ($scenarioData) {
                 // Client app format
@@ -119,6 +120,7 @@ try {
                 $description = $scenarioData['description'] ?? null;
                 $game_type = $scenarioData['game_type'] ?? null;
                 $scenario_type = $scenarioData['scenario_type'] ?? null;
+                $scenario_layout = $scenarioData['scenario_layout'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // Look up client by email or clientId
@@ -140,6 +142,7 @@ try {
                 $game_meta = $_POST['game_meta'] ?? null;
                 $game_type = $_POST['game_type'] ?? null;
                 $scenario_type = $_POST['scenario_type'] ?? null;
+                $scenario_layout = $_POST['scenario_layout'] ?? null;
                 $uniqid = $_POST['uniqid'] ?? null;
             }
 
@@ -189,6 +192,18 @@ try {
                 }
             }
 
+            // Convert scenario_layout to JSON string if it's an array
+            if (is_array($scenario_layout)) {
+                $scenario_layout = json_encode($scenario_layout);
+            } elseif (is_string($scenario_layout) && !empty($scenario_layout)) {
+                // Validate it's valid JSON
+                json_decode($scenario_layout);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, ['scenario_layout' => $scenario_layout], ['error' => 'Invalid JSON in scenario_layout'], 400);
+                    jsonResponse(['error' => 'scenario_layout must be valid JSON string or array'], 400);
+                }
+            }
+
             // Ensure data, medias, and game_meta are never null - use empty JSON object if needed
             if ($data === null || $data === '') {
                 $data = '{}';
@@ -198,6 +213,9 @@ try {
             }
             if ($game_meta === null || $game_meta === '') {
                 $game_meta = '{}';
+            }
+            if ($scenario_layout === null || $scenario_layout === '') {
+                $scenario_layout = '[]';
             }
 
             // Validate required fields
@@ -256,12 +274,12 @@ try {
                 $created_at = $existingScenario['created_at'];
                 $isUpdate = true;
 
-                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
-                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $uniqid]);
+                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
+                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid]);
             } else {
                 // Insert new scenario
-                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, data, medias, game_meta, game_type, scenario_type, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                $db->query($sql, [$client_id, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $uniqid, $created_by]);
+                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                $db->query($sql, [$client_id, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid, $created_by]);
                 $scenario_id = $db->getConnection()->lastInsertId();
                 $created_at = date('Y-m-d H:i:s');
             }
