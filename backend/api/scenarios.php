@@ -131,17 +131,27 @@ try {
                     $client_id = (int)$scenarioData['clientId'];
                 }
             } else {
-                // Admin format
+                // Admin format - check for both 'media' and 'medias' field names
                 $client_id = isset($_POST['client_id']) ? (int)$_POST['client_id'] : null;
                 $title = $_POST['title'] ?? null;
                 $description = $_POST['description'] ?? null;
                 $data = $_POST['data'] ?? null;
-                $medias = $_POST['medias'] ?? null;
+                $medias = $_POST['medias'] ?? $_POST['media'] ?? null; // Check both singular and plural
                 $game_meta = $_POST['game_meta'] ?? null;
                 $game_type = $_POST['game_type'] ?? null;
                 $scenario_type = $_POST['scenario_type'] ?? null;
                 $uniqid = $_POST['uniqid'] ?? null;
             }
+
+            // Log extracted fields before processing
+            Logger::log('scenarios', $method, 'create_extracted', $_SESSION['user_id'] ?? null, [
+                'medias_raw' => $medias,
+                'medias_type' => gettype($medias),
+                'medias_length' => is_string($medias) ? strlen($medias) : 'N/A',
+                'medias_first_100' => is_string($medias) ? substr($medias, 0, 100) : $medias,
+                'has_POST_media' => isset($_POST['media']),
+                'has_POST_medias' => isset($_POST['medias'])
+            ], ['message' => 'Extracted fields from POST'], 200);
 
             // Convert data to JSON string if it's an array
             if (is_array($data)) {
