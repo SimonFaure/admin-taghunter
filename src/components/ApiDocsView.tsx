@@ -412,7 +412,7 @@ export default function ApiDocsView() {
             { name: 'email', type: 'string', description: 'Client email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
           ],
-          response: '{ "scenario": { "id": 1, "name": "Scenario Title", "uniqid": "scenario_674fb123a45e6", "scenario_type": "custom" }, "medias": { "images": { "game_visual": "game_visual.png" }, "levels": {}, "sounds": {}, "videos": {}, "enigmas": [] } }',
+          response: '{ "scenario": { "id": 1, "name": "Scenario Title", "uniqid": "scenario_674fb123a45e6", "scenario_type": "custom", "available_for_purchase": false }, "medias": { "images": { "game_visual": "game_visual.png" }, "levels": {}, "sounds": {}, "videos": {}, "enigmas": [] } }',
         },
         {
           method: 'GET',

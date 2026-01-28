@@ -352,7 +352,8 @@ try {
                 'id' => $scenario['id'],
                 'name' => $scenario['name'],
                 'uniqid' => $scenario['uniqid'],
-                'scenario_type' => $scenario['scenario_type']
+                'scenario_type' => $scenario['scenario_type'],
+                'available_for_purchase' => $scenario['scenario_type'] === 'product'
             ],
             'medias' => $medias
         ];
