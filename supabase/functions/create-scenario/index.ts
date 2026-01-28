@@ -72,24 +72,35 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Look up client_id from email
-    const { data: client, error: clientError } = await supabase
-      .from("clients")
+    // Check if user is an admin
+    const { data: adminProfile } = await supabase
+      .from("admin_profiles")
       .select("id")
       .eq("email", userEmail)
       .maybeSingle();
 
-    if (clientError || !client) {
-      return new Response(
-        JSON.stringify({ error: `Client not found for email: ${userEmail}` }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    let clientId = null;
 
-    const clientId = client.id;
+    // If not an admin, look up client_id from email
+    if (!adminProfile) {
+      const { data: client, error: clientError } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("email", userEmail)
+        .maybeSingle();
+
+      if (clientError || !client) {
+        return new Response(
+          JSON.stringify({ error: `User not found for email: ${userEmail}. Must be either an admin or a client.` }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      clientId = client.id;
+    }
 
     let gameData = {};
     if (gameDataStr) {
