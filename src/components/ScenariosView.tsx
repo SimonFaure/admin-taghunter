@@ -488,52 +488,129 @@ export function ScenariosView() {
 
   const scenarioTypes = Object.keys(groupedScenarios).sort();
 
-  const renderScenarioCard = (scenario: Scenario) => (
-    <div
-      key={scenario.id}
-      className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
-    >
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">{scenario.title}</h3>
-            <p className="text-sm text-slate-600 line-clamp-2">{scenario.description}</p>
-          </div>
-        </div>
+  const getScenarioThumbnail = (scenario: Scenario): string | null => {
+    if (!scenario.uniqid) return null;
 
-        <div className="space-y-2 mb-4">
-          <div className="flex items-center space-x-2 text-sm text-slate-600">
-            <Film className="w-4 h-4" />
-            <span className="font-medium">{scenario.game_type}</span>
-          </div>
-          {scenario.creator_name && (
-            <div className="flex items-center space-x-2 text-sm text-slate-600">
-              <User className="w-4 h-4" />
-              <span className="truncate">{scenario.creator_name}</span>
-            </div>
-          )}
-          <div className="flex items-center space-x-2 text-sm text-slate-600">
-            <Calendar className="w-4 h-4" />
-            <span>{new Date(scenario.created_at).toLocaleDateString()}</span>
-          </div>
-          {scenario.client_name && (
-            <div className="flex items-center space-x-2 text-sm text-slate-600">
-              <User className="w-4 h-4" />
-              <span className="truncate">Client: {scenario.client_name}</span>
-            </div>
-          )}
-        </div>
+    let gameVisualUrl: string | null = null;
+    let backgroundUrl: string | null = null;
 
-        <button
-          onClick={() => setSelectedScenario(scenario)}
-          className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all inline-flex items-center justify-center space-x-2"
-        >
-          <Eye className="w-4 h-4" />
-          <span>View Details</span>
-        </button>
+    if (scenario.medias) {
+      try {
+        const medias = JSON.parse(scenario.medias);
+        if (medias.images?.game_visual) {
+          gameVisualUrl = medias.images.game_visual.startsWith('http')
+            ? medias.images.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.game_visual}`;
+        }
+        if (medias.images?.background_image) {
+          backgroundUrl = medias.images.background_image.startsWith('http')
+            ? medias.images.background_image
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.background_image}`;
+        }
+      } catch (e) {
+        console.error('Failed to parse medias', e);
+      }
+    }
+
+    if (!gameVisualUrl && !backgroundUrl && scenario.data) {
+      try {
+        const gameData = JSON.parse(scenario.data);
+        if (gameData.media?.images?.game_visual) {
+          gameVisualUrl = gameData.media.images.game_visual.startsWith('http')
+            ? gameData.media.images.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.media.images.game_visual}`;
+        } else if (gameData.data?.game_meta?.game_visual) {
+          gameVisualUrl = gameData.data.game_meta.game_visual.startsWith('http')
+            ? gameData.data.game_meta.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.data.game_meta.game_visual}`;
+        } else if (gameData.game_meta?.game_visual) {
+          gameVisualUrl = gameData.game_meta.game_visual.startsWith('http')
+            ? gameData.game_meta.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.game_visual}`;
+        } else if (gameData.game_visual) {
+          gameVisualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
+        }
+
+        if (!backgroundUrl && (gameData.media?.images?.background_image || gameData.data?.game_meta?.background_image || gameData.game_meta?.background_image || gameData.backgroundImage)) {
+          backgroundUrl = gameData.media?.images?.background_image ||
+                         gameData.data?.game_meta?.background_image ||
+                         gameData.game_meta?.background_image ||
+                         gameData.backgroundImage;
+          if (backgroundUrl && !backgroundUrl.startsWith('http')) {
+            backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${backgroundUrl}`;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse data', e);
+      }
+    }
+
+    return gameVisualUrl || backgroundUrl;
+  };
+
+  const renderScenarioCard = (scenario: Scenario) => {
+    const thumbnailUrl = getScenarioThumbnail(scenario);
+
+    return (
+      <div
+        key={scenario.id}
+        className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
+      >
+        {thumbnailUrl && (
+          <div className="relative w-full h-48 bg-slate-100">
+            <img
+              src={thumbnailUrl}
+              alt={scenario.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+              loading="lazy"
+            />
+          </div>
+        )}
+        <div className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-slate-900 mb-2">{scenario.title}</h3>
+              <p className="text-sm text-slate-600 line-clamp-2">{scenario.description}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center space-x-2 text-sm text-slate-600">
+              <Film className="w-4 h-4" />
+              <span className="font-medium">{scenario.game_type}</span>
+            </div>
+            {scenario.creator_name && (
+              <div className="flex items-center space-x-2 text-sm text-slate-600">
+                <User className="w-4 h-4" />
+                <span className="truncate">{scenario.creator_name}</span>
+              </div>
+            )}
+            <div className="flex items-center space-x-2 text-sm text-slate-600">
+              <Calendar className="w-4 h-4" />
+              <span>{new Date(scenario.created_at).toLocaleDateString()}</span>
+            </div>
+            {scenario.client_name && (
+              <div className="flex items-center space-x-2 text-sm text-slate-600">
+                <User className="w-4 h-4" />
+                <span className="truncate">Client: {scenario.client_name}</span>
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setSelectedScenario(scenario)}
+            className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all inline-flex items-center justify-center space-x-2"
+          >
+            <Eye className="w-4 h-4" />
+            <span>View Details</span>
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="space-y-6">
