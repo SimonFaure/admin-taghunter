@@ -14,7 +14,9 @@ interface Scenario {
   media_url: string | null;
   created_at: string;
   uniqid: string | null;
-  game_data: string | null;
+  data: string | null;
+  medias: string | null;
+  game_data?: string | null;
 }
 
 export function ScenariosView() {
@@ -44,17 +46,16 @@ export function ScenariosView() {
     setDetectedLanguages([]);
     setParsedGameData(null);
 
-    if (!scenario.game_data) {
+    const dataSource = scenario.data || scenario.game_data;
+    if (!dataSource) {
       return;
     }
 
     try {
-      const gameData = JSON.parse(scenario.game_data);
-      setParsedGameData(gameData);
+      const dataObj = JSON.parse(dataSource);
+      setParsedGameData(dataObj);
 
       const languages = new Set<string>();
-
-      const dataObj = gameData.data || gameData;
 
       if (dataObj.available_languages && Array.isArray(dataObj.available_languages)) {
         dataObj.available_languages.forEach((lang: string) => {
@@ -98,7 +99,7 @@ export function ScenariosView() {
 
       setDetectedLanguages(Array.from(languages).sort());
     } catch (e) {
-      console.error('Failed to detect languages in game_data', e);
+      console.error('Failed to detect languages in data', e);
     }
   };
 
@@ -110,7 +111,8 @@ export function ScenariosView() {
 
     console.log('Finding images for scenario:', scenario.title);
     console.log('Scenario uniqid:', scenario.uniqid);
-    console.log('Scenario game_data:', scenario.game_data);
+    console.log('Scenario medias:', scenario.medias);
+    console.log('Scenario data:', scenario.data);
 
     if (!scenario.uniqid) {
       console.log('No uniqid found');
@@ -120,10 +122,33 @@ export function ScenariosView() {
     let gameVisualUrl: string | null = null;
     let backgroundUrl: string | null = null;
 
-    if (scenario.game_data) {
+    if (scenario.medias) {
+      try {
+        const medias = JSON.parse(scenario.medias);
+        console.log('Parsed medias:', medias);
+
+        if (medias.images?.game_visual) {
+          gameVisualUrl = medias.images.game_visual.startsWith('http')
+            ? medias.images.game_visual
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.game_visual}`;
+          console.log('Found game_visual from medias.images.game_visual:', gameVisualUrl);
+        }
+
+        if (medias.images?.background_image) {
+          backgroundUrl = medias.images.background_image.startsWith('http')
+            ? medias.images.background_image
+            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.background_image}`;
+          console.log('Found background_image from medias.images.background_image:', backgroundUrl);
+        }
+      } catch (e) {
+        console.error('Failed to parse medias', e);
+      }
+    }
+
+    if (!gameVisualUrl && !backgroundUrl && scenario.game_data) {
       try {
         const gameData = JSON.parse(scenario.game_data);
-        console.log('Parsed game_data:', gameData);
+        console.log('Parsed game_data (fallback):', gameData);
 
         if (gameData.media?.images?.game_visual) {
           gameVisualUrl = gameData.media.images.game_visual.startsWith('http')
@@ -181,25 +206,40 @@ export function ScenariosView() {
     console.log('Current label:', imageLabel);
     console.log('Fallback attempted:', fallbackAttempted);
 
-    if (!fallbackAttempted && selectedScenario?.uniqid && selectedScenario.game_data) {
+    if (!fallbackAttempted && selectedScenario?.uniqid) {
       try {
-        const gameData = JSON.parse(selectedScenario.game_data);
-        if (imageLabel === 'Game Visual') {
-          const backgroundUrl = gameData.media?.images?.background_image ||
-                               gameData.data?.game_meta?.background_image ||
-                               gameData.game_meta?.background_image ||
-                               gameData.backgroundImage;
-          if (backgroundUrl) {
-            console.log('Trying fallback to backgroundImage');
-            setFallbackAttempted(true);
-            setDisplayImage(`https://admin.taghunter.fr/media/${selectedScenario.uniqid}/${backgroundUrl}`);
-            setImageLabel('Background Image');
-            setImageError(false);
-            return;
+        let backgroundUrl: string | null = null;
+
+        if (selectedScenario.medias) {
+          const medias = JSON.parse(selectedScenario.medias);
+          if (imageLabel === 'Game Visual' && medias.images?.background_image) {
+            backgroundUrl = medias.images.background_image;
           }
         }
+
+        if (!backgroundUrl && selectedScenario.game_data) {
+          const gameData = JSON.parse(selectedScenario.game_data);
+          if (imageLabel === 'Game Visual') {
+            backgroundUrl = gameData.media?.images?.background_image ||
+                           gameData.data?.game_meta?.background_image ||
+                           gameData.game_meta?.background_image ||
+                           gameData.backgroundImage;
+          }
+        }
+
+        if (backgroundUrl) {
+          console.log('Trying fallback to backgroundImage');
+          setFallbackAttempted(true);
+          const fullUrl = backgroundUrl.startsWith('http')
+            ? backgroundUrl
+            : `https://admin.taghunter.fr/media/${selectedScenario.uniqid}/${backgroundUrl}`;
+          setDisplayImage(fullUrl);
+          setImageLabel('Background Image');
+          setImageError(false);
+          return;
+        }
       } catch (e) {
-        console.error('Failed to parse game_data for fallback', e);
+        console.error('Failed to parse data for fallback', e);
       }
     }
     console.log('No fallback available, marking as error');
@@ -276,16 +316,17 @@ export function ScenariosView() {
 
   if (selectedScenario) {
     let gamePublic = null;
-    if (selectedScenario.game_data) {
+    const dataSource = selectedScenario.data || selectedScenario.game_data;
+    if (dataSource) {
       try {
-        const gameData = JSON.parse(selectedScenario.game_data);
-        if (gameData.data?.game_meta?.game_public !== undefined) {
-          gamePublic = gameData.data.game_meta.game_public;
-        } else if (gameData.game_meta?.game_public !== undefined) {
-          gamePublic = gameData.game_meta.game_public;
+        const dataObj = JSON.parse(dataSource);
+        if (dataObj.game_meta?.game_public !== undefined) {
+          gamePublic = dataObj.game_meta.game_public;
+        } else if (dataObj.data?.game_meta?.game_public !== undefined) {
+          gamePublic = dataObj.data.game_meta.game_public;
         }
       } catch (e) {
-        console.error('Failed to parse game_data for game_public', e);
+        console.error('Failed to parse data for game_public', e);
       }
     }
 
