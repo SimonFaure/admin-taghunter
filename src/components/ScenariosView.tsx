@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag } from 'lucide-react';
 
 interface Scenario {
   id: number;
@@ -17,6 +17,7 @@ interface Scenario {
   data: string | null;
   medias: string | null;
   game_data?: string | null;
+  version?: string | null;
 }
 
 export function ScenariosView() {
@@ -356,6 +357,14 @@ export function ScenariosView() {
                 <Film className="w-4 h-4" />
                 <span className="font-medium">{selectedScenario.game_type}</span>
               </div>
+              {selectedScenario.version && (
+                <div className="flex items-center space-x-2">
+                  <Tag className="w-4 h-4" />
+                  <span className="px-2 py-1 bg-emerald-100 rounded text-xs font-semibold text-emerald-700">
+                    Version {selectedScenario.version}
+                  </span>
+                </div>
+              )}
               {selectedScenario.scenario_type && (
                 <div className="flex items-center space-x-2">
                   <span className="px-2 py-1 bg-slate-100 rounded text-xs font-semibold text-slate-700">
@@ -578,9 +587,17 @@ export function ScenariosView() {
           </div>
 
           <div className="space-y-2 mb-4">
-            <div className="flex items-center space-x-2 text-sm text-slate-600">
-              <Film className="w-4 h-4" />
-              <span className="font-medium">{scenario.game_type}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-sm text-slate-600">
+                <Film className="w-4 h-4" />
+                <span className="font-medium">{scenario.game_type}</span>
+              </div>
+              {scenario.version && (
+                <div className="flex items-center space-x-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                  <Tag className="w-3 h-3" />
+                  <span>v{scenario.version}</span>
+                </div>
+              )}
             </div>
             {scenario.creator_name && (
               <div className="flex items-center space-x-2 text-sm text-slate-600">
