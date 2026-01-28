@@ -230,19 +230,49 @@ try {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
+        $email = $_GET['email'] ?? null;
         $uniqid = $_GET['uniqid'] ?? null;
         $filename = $_GET['filename'] ?? null;
 
-        if (!$uniqid || !$filename) {
-            Logger::log('playground', $method, 'get_media', null, [], ['error' => 'Missing parameters'], 400);
-            jsonResponse(['error' => 'uniqid and filename are required'], 400);
+        if (!$email || !$uniqid || !$filename) {
+            Logger::log('playground', $method, 'get_media', null, $_GET, ['error' => 'Missing parameters'], 400);
+            jsonResponse(['error' => 'email, uniqid and filename are required'], 400);
         }
 
-        $scenario = $db->fetch('SELECT id FROM scenarios WHERE uniqid = ?', [$uniqid]);
+        $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+
+        if (!$client) {
+            Logger::log('playground', $method, 'get_media', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            jsonResponse(['error' => 'Client not found'], 404);
+        }
+
+        $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
             Logger::log('playground', $method, 'get_media', null, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404);
             jsonResponse(['error' => 'Scenario not found'], 404);
+        }
+
+        $hasAccess = false;
+
+        if ($scenario['client_id'] == $client['id']) {
+            $hasAccess = true;
+        } elseif ($client['licence_type'] === 'premium' && $scenario['scenario_type'] === 'product') {
+            $hasAccess = true;
+        } else {
+            $grantedScenario = $db->fetch(
+                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
+                [$client['id'], $scenario['id']]
+            );
+
+            if ($grantedScenario) {
+                $hasAccess = true;
+            }
+        }
+
+        if (!$hasAccess) {
+            Logger::log('playground', $method, 'get_media', null, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Access denied'], 403);
+            jsonResponse(['error' => 'Access denied to this scenario media'], 403);
         }
 
         $mediaPath = __DIR__ . '/../../media/' . $uniqid . '/' . $filename;
@@ -257,7 +287,7 @@ try {
         header('Content-Length: ' . filesize($mediaPath));
         header('Content-Disposition: inline; filename="' . basename($filename) . '"');
 
-        Logger::log('playground', $method, 'get_media', null, ['uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200);
+        Logger::log('playground', $method, 'get_media', null, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200);
 
         readfile($mediaPath);
         exit;
