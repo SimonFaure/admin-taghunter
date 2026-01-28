@@ -72,7 +72,10 @@ try {
                 Logger::log('scenarios', $method, 'create_parsed', $_SESSION['user_id'] ?? null, [
                     'scenarioData' => $scenarioData,
                     'has_data_field' => isset($scenarioData['data']),
-                    'data_value' => $scenarioData['data'] ?? 'NOT_SET'
+                    'data_value' => $scenarioData['data'] ?? 'NOT_SET',
+                    'has_media_field' => isset($scenarioData['media']),
+                    'media_value' => $scenarioData['media'] ?? 'NOT_SET',
+                    'all_keys' => array_keys($scenarioData)
                 ], ['message' => 'Parsed scenarioData'], 200);
             }
 
@@ -209,8 +212,9 @@ try {
                 'client_id' => $client_id,
                 'title' => $title,
                 'description' => substr($description, 0, 100),
-                'data' => $data === '{}' ? 'EMPTY_OBJECT' : (is_string($data) ? substr($data, 0, 100) : 'ARRAY'),
-                'medias' => $medias === '{}' ? 'EMPTY_OBJECT' : (is_string($medias) ? substr($medias, 0, 100) : 'ARRAY'),
+                'data' => $data === '{}' ? 'EMPTY_OBJECT' : (is_string($data) ? substr($data, 0, 200) : 'ARRAY'),
+                'medias' => $medias === '{}' ? 'EMPTY_OBJECT' : (is_string($medias) ? substr($medias, 0, 200) : 'ARRAY'),
+                'medias_full' => $medias,
                 'game_meta' => $game_meta === '{}' ? 'EMPTY_OBJECT' : (is_string($game_meta) ? substr($game_meta, 0, 100) : 'ARRAY'),
                 'game_type' => $game_type,
                 'scenario_type' => $scenario_type,
