@@ -36,7 +36,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await authApi.checkAuth();
     if (!error && data) {
       setUser(data.user);
+      setLoading(false);
+      return;
     }
+
+    // Auto-login in development mode if enabled
+    const autoLogin = import.meta.env.VITE_DEV_AUTO_LOGIN === 'true';
+    const isDev = import.meta.env.DEV;
+
+    if (isDev && autoLogin) {
+      const email = import.meta.env.VITE_DEV_ADMIN_EMAIL;
+      const password = import.meta.env.VITE_DEV_ADMIN_PASSWORD;
+
+      if (email && password) {
+        console.log('Auto-logging in as admin...');
+        const { data: loginData, error: loginError } = await authApi.login(email, password);
+        if (!loginError && loginData) {
+          setUser(loginData.user);
+        }
+      }
+    }
+
     setLoading(false);
   };
 
