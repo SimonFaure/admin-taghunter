@@ -17,7 +17,19 @@ interface Scenario {
   data: string | null;
   medias: string | null;
   game_data?: string | null;
-  version?: string | null;
+  game_meta?: string | null;
+}
+
+function getGameVersion(scenario: Scenario): string | null {
+  if (scenario.game_meta) {
+    try {
+      const gameMeta = JSON.parse(scenario.game_meta);
+      return gameMeta.game_version || null;
+    } catch (e) {
+      console.error('Failed to parse game_meta for version', e);
+    }
+  }
+  return null;
 }
 
 export function ScenariosView() {
@@ -357,11 +369,11 @@ export function ScenariosView() {
                 <Film className="w-4 h-4" />
                 <span className="font-medium">{selectedScenario.game_type}</span>
               </div>
-              {selectedScenario.version && (
+              {getGameVersion(selectedScenario) && (
                 <div className="flex items-center space-x-2">
                   <Tag className="w-4 h-4" />
                   <span className="px-2 py-1 bg-emerald-100 rounded text-xs font-semibold text-emerald-700">
-                    Version {selectedScenario.version}
+                    Version {getGameVersion(selectedScenario)}
                   </span>
                 </div>
               )}
@@ -592,10 +604,10 @@ export function ScenariosView() {
                 <Film className="w-4 h-4" />
                 <span className="font-medium">{scenario.game_type}</span>
               </div>
-              {scenario.version && (
+              {getGameVersion(scenario) && (
                 <div className="flex items-center space-x-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
                   <Tag className="w-3 h-3" />
-                  <span>v{scenario.version}</span>
+                  <span>v{getGameVersion(scenario)}</span>
                 </div>
               )}
             </div>
