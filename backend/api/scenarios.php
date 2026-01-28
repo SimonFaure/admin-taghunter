@@ -37,9 +37,15 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
+            // Get raw input to check if it's JSON
+            $rawInput = file_get_contents('php://input');
+            $jsonInput = json_decode($rawInput, true);
+
             // Log incoming request data for debugging
             Logger::log('scenarios', $method, 'create_incoming', $_SESSION['user_id'] ?? null, [
                 'POST' => $_POST,
+                'raw_input' => $rawInput ? substr($rawInput, 0, 500) : 'EMPTY',
+                'json_input' => $jsonInput,
                 'FILES' => isset($_FILES) ? array_map(function($file) {
                     return [
                         'name' => $file['name'] ?? null,
@@ -52,23 +58,35 @@ try {
 
             // Check if this is an admin request (with session) or client request (with email)
             $isAdminRequest = isset($_SESSION['user_id']);
-            $userEmail = $_POST['userEmail'] ?? null;
+            $userEmail = $_POST['userEmail'] ?? ($jsonInput['userEmail'] ?? null);
 
             if (!$isAdminRequest && !$userEmail) {
                 Logger::log('scenarios', $method, 'create', null, $_POST, ['error' => 'Unauthorized - no session or email'], 401);
                 jsonResponse(['error' => 'Unauthorized'], 401);
             }
 
-            // Parse scenario data if it's JSON string
+            // Parse scenario data - check both form data and raw JSON
             $scenarioData = null;
+
+            // Case 1: Form data with scenarioData as JSON string
             if (isset($_POST['scenarioData'])) {
                 $scenarioData = json_decode($_POST['scenarioData'], true);
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, $_POST, ['error' => 'Invalid JSON in scenarioData'], 400);
                     jsonResponse(['error' => 'Invalid JSON in scenarioData'], 400);
                 }
+            }
+            // Case 2: Raw JSON body with scenarioData field
+            elseif (isset($jsonInput['scenarioData'])) {
+                $scenarioData = $jsonInput['scenarioData'];
+            }
+            // Case 3: Raw JSON body IS the scenario data
+            elseif ($jsonInput && !empty($jsonInput)) {
+                $scenarioData = $jsonInput;
+            }
 
-                // Log parsed scenario data
+            // Log parsed scenario data if we have it
+            if ($scenarioData) {
                 Logger::log('scenarios', $method, 'create_parsed', $_SESSION['user_id'] ?? null, [
                     'scenarioData' => $scenarioData,
                     'has_data_field' => isset($scenarioData['data']),
