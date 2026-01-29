@@ -714,7 +714,7 @@ export function ScenariosView() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 text-sm text-slate-600">
                 <Film className="w-4 h-4" />
-                <span className="font-medium">{scenario.game_type}</span>
+                <span className="font-medium capitalize">{scenario.game_type}</span>
               </div>
               {getGameVersion(scenario) && (
                 <div className="flex items-center space-x-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
@@ -775,7 +775,7 @@ export function ScenariosView() {
             <div key={type} className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="h-px flex-1 bg-slate-200"></div>
-                <h3 className="text-lg font-bold text-slate-900 px-4 py-2 bg-slate-100 rounded-lg">
+                <h3 className="text-lg font-bold text-slate-900 px-4 py-2 bg-slate-100 rounded-lg capitalize">
                   {type}
                 </h3>
                 <div className="h-px flex-1 bg-slate-200"></div>
