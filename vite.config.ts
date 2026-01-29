@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       minify: 'terser',
+      chunkSizeWarningLimit: 1000,
       terserOptions: {
         compress: {
           drop_console: false,
@@ -29,8 +30,19 @@ export default defineConfig(({ mode }) => {
       },
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom'],
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) {
+                return 'vendor';
+              }
+              if (id.includes('lucide-react')) {
+                return 'icons';
+              }
+              if (id.includes('@supabase')) {
+                return 'supabase';
+              }
+              return 'vendor-libs';
+            }
           },
         },
       },
