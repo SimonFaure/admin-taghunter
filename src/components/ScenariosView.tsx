@@ -435,6 +435,25 @@ export function ScenariosView() {
                 <span>{new Date(selectedScenario.created_at).toLocaleDateString()}</span>
               </div>
             </div>
+
+            {detectedLanguages.length > 0 && (
+              <div className="mt-4 flex items-start space-x-2">
+                <Globe className="w-4 h-4 text-slate-600 mt-0.5" />
+                <div>
+                  <span className="text-sm font-semibold text-slate-700 block mb-2">Available Languages</span>
+                  <div className="flex flex-wrap gap-2">
+                    {detectedLanguages.map((lang) => (
+                      <span
+                        key={lang}
+                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold"
+                      >
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-6">
@@ -461,25 +480,6 @@ export function ScenariosView() {
                 </div>
               )}
             </div>
-
-            {detectedLanguages.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
-                  <Globe className="w-4 h-4" />
-                  <span>Available Languages</span>
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {detectedLanguages.map((lang) => (
-                    <span
-                      key={lang}
-                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold"
-                    >
-                      {lang}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {parsedGameData && (
               <div className="mb-6">
