@@ -689,7 +689,6 @@ export function ScenariosView() {
                         }
                       }}
                       className="hidden"
-                      required
                     />
                   </div>
                 </div>
