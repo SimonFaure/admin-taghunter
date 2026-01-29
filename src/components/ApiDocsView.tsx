@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -285,6 +285,52 @@ export default function ApiDocsView() {
           auth: true,
           body: [{ name: 'id', type: 'integer', description: 'Scenario ID' }],
           response: '{ "success": true, "message": "Scenario deleted successfully" }',
+        },
+      ],
+    },
+    {
+      title: 'Scenario Files',
+      icon: <File className="w-5 h-5" />,
+      color: 'bg-rose-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/scenario_files.php?action=list&scenario_id={id}',
+          description: 'Get all files associated with a scenario',
+          auth: true,
+          params: [{ name: 'scenario_id', type: 'integer', description: 'Scenario ID' }],
+          response: '{ "files": [{ "id": 1, "scenario_id": 1, "name": "Document", "file_path": "scenario_674fb123a45e6/files/document_1234567890.pdf", "file_size": 524288, "mime_type": "application/pdf", "created_at": "2024-01-15T10:30:00" }] }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/scenario_files.php?action=upload',
+          description: 'Upload a file to a scenario (multipart/form-data)',
+          auth: true,
+          body: [
+            { name: 'scenario_id', type: 'integer', description: 'Scenario ID (required)' },
+            { name: 'name', type: 'string', description: 'Display name for the file (required)' },
+            { name: 'file', type: 'file', description: 'File to upload (required)' },
+          ],
+          response: '{ "success": true, "file": { "id": 1, "scenario_id": 1, "name": "Document", "file_path": "scenario_674fb123a45e6/files/document_1234567890.pdf", "file_size": 524288, "mime_type": "application/pdf", "created_at": "2024-01-15T10:30:00" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/scenario_files.php?action=delete',
+          description: 'Delete a scenario file',
+          auth: true,
+          body: [{ name: 'id', type: 'integer', description: 'File ID (required)' }],
+          response: '{ "success": true }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/scenario_files.php?action=download_zip&uniqid={uniqid}&email={email}',
+          description: 'Download all scenario files as a zip archive (for playground/client use)',
+          auth: false,
+          params: [
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
+            { name: 'email', type: 'string', description: 'Client email address (must have access to scenario)' },
+          ],
+          response: '(Binary zip file with all scenario files)',
         },
       ],
     },
