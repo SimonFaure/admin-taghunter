@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, Layout, X } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, Layout, X, Upload, File, Download } from 'lucide-react';
 
 interface Scenario {
   id: number;
@@ -56,6 +56,10 @@ export function ScenariosView() {
   const [parsedGameData, setParsedGameData] = useState<any>(null);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
+  const [scenarioFiles, setScenarioFiles] = useState<any[]>([]);
+  const [uploadFileName, setUploadFileName] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
@@ -65,6 +69,7 @@ export function ScenariosView() {
     if (selectedScenario?.uniqid) {
       findImages(selectedScenario);
       detectLanguages(selectedScenario);
+      fetchScenarioFiles(selectedScenario.id);
     }
   }, [selectedScenario]);
 
@@ -312,6 +317,98 @@ export function ScenariosView() {
     }
   };
 
+  const fetchScenarioFiles = async (scenarioId: number) => {
+    try {
+      const response = await fetch(`https://admin.taghunter.fr/backend/api/scenario_files.php?action=list&scenario_id=${scenarioId}`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch files');
+      }
+
+      const data = await response.json();
+      setScenarioFiles(data.files || []);
+    } catch (err) {
+      console.error('Failed to fetch scenario files:', err);
+    }
+  };
+
+  const handleFileUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!uploadFile || !uploadFileName || !selectedScenario) {
+      alert('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setUploadLoading(true);
+
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('name', uploadFileName);
+      formData.append('scenario_id', selectedScenario.id.toString());
+
+      const response = await fetch('https://admin.taghunter.fr/backend/api/scenario_files.php?action=upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      const data = await response.json();
+      setScenarioFiles([data.file, ...scenarioFiles]);
+      setUploadFileName('');
+      setUploadFile(null);
+
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to upload file');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDeleteFile = async (fileId: number) => {
+    if (!confirm('Are you sure you want to delete this file?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch('https://admin.taghunter.fr/backend/api/scenario_files.php?action=delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ id: fileId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete file');
+      }
+
+      setScenarioFiles(scenarioFiles.filter(f => f.id !== fileId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete file');
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this scenario?')) {
       return;
@@ -339,6 +436,9 @@ export function ScenariosView() {
       setFallbackAttempted(false);
       setDetectedLanguages([]);
       setParsedGameData(null);
+      setScenarioFiles([]);
+      setUploadFileName('');
+      setUploadFile(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete scenario');
     }
@@ -387,6 +487,9 @@ export function ScenariosView() {
             setFallbackAttempted(false);
             setDetectedLanguages([]);
             setParsedGameData(null);
+            setScenarioFiles([]);
+            setUploadFileName('');
+            setUploadFile(null);
           }}
           className="text-slate-600 hover:text-slate-900 font-medium"
         >
@@ -517,6 +620,81 @@ export function ScenariosView() {
                 </a>
               </div>
             )}
+
+            <div className="mb-6 border-t border-slate-200 pt-6">
+              <h4 className="text-sm font-semibold text-slate-700 mb-4 flex items-center space-x-2">
+                <File className="w-4 h-4" />
+                <span>Scenario Files</span>
+              </h4>
+
+              <form onSubmit={handleFileUpload} className="mb-6 bg-slate-50 p-4 rounded-lg">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      File Name
+                    </label>
+                    <input
+                      type="text"
+                      value={uploadFileName}
+                      onChange={(e) => setUploadFileName(e.target.value)}
+                      placeholder="Enter file name"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Choose File
+                    </label>
+                    <input
+                      id="file-upload"
+                      type="file"
+                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={uploadLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>{uploadLoading ? 'Uploading...' : 'Upload File'}</span>
+                </button>
+              </form>
+
+              {scenarioFiles.length > 0 ? (
+                <div className="space-y-2">
+                  {scenarioFiles.map((file) => (
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-center space-x-3 flex-1">
+                        <File className="w-5 h-5 text-slate-400" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-900">{file.name}</p>
+                          <p className="text-xs text-slate-500">
+                            {formatFileSize(file.file_size)} • {new Date(file.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteFile(file.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        title="Delete file"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No files uploaded yet</p>
+              )}
+            </div>
 
             <div className="flex flex-wrap gap-3">
               {selectedScenario.scenario_layout && (
