@@ -412,7 +412,7 @@ export function ScenariosView() {
               )}
               {selectedScenario.scenario_type && (
                 <div className="flex items-center space-x-2">
-                  <span className="px-2 py-1 bg-slate-100 rounded text-xs font-semibold text-slate-700">
+                  <span className="px-2 py-1 bg-slate-100 rounded text-xs font-semibold text-slate-700 capitalize">
                     {selectedScenario.scenario_type}
                   </span>
                 </div>
