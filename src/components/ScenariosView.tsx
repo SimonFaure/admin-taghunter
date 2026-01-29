@@ -60,6 +60,7 @@ export function ScenariosView() {
   const [uploadFileName, setUploadFileName] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
@@ -334,6 +335,32 @@ export function ScenariosView() {
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      setUploadFile(files[0]);
+      if (!uploadFileName) {
+        setUploadFileName(files[0].name.replace(/\.[^/.]+$/, ''));
+      }
+    }
+  };
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -357,7 +384,8 @@ export function ScenariosView() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload file');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to upload file');
       }
 
       const data = await response.json();
@@ -628,37 +656,62 @@ export function ScenariosView() {
               </h4>
 
               <form onSubmit={handleFileUpload} className="mb-6 bg-slate-50 p-4 rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      File Name
-                    </label>
-                    <input
-                      type="text"
-                      value={uploadFileName}
-                      onChange={(e) => setUploadFileName(e.target.value)}
-                      placeholder="Enter file name"
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Choose File
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 mb-4 transition-all ${
+                    isDragging
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-300 bg-white hover:border-slate-400'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <div className="text-center">
+                    <Upload className={`w-12 h-12 mx-auto mb-3 ${isDragging ? 'text-blue-500' : 'text-slate-400'}`} />
+                    <p className="text-sm font-medium text-slate-700 mb-1">
+                      {uploadFile ? uploadFile.name : 'Drag and drop your file here'}
+                    </p>
+                    <p className="text-xs text-slate-500 mb-3">or</p>
+                    <label
+                      htmlFor="file-upload"
+                      className="inline-block px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer transition-all"
+                    >
+                      Browse Files
                     </label>
                     <input
                       id="file-upload"
                       type="file"
-                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        setUploadFile(file);
+                        if (file && !uploadFileName) {
+                          setUploadFileName(file.name.replace(/\.[^/.]+$/, ''));
+                        }
+                      }}
+                      className="hidden"
                       required
                     />
                   </div>
                 </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    File Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={uploadFileName}
+                    onChange={(e) => setUploadFileName(e.target.value)}
+                    placeholder="Enter a name for this file"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+
                 <button
                   type="submit"
-                  disabled={uploadLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={uploadLoading || !uploadFile}
+                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="w-4 h-4" />
                   <span>{uploadLoading ? 'Uploading...' : 'Upload File'}</span>
