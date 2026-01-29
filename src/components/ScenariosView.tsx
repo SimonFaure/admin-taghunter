@@ -400,7 +400,7 @@ export function ScenariosView() {
             <div className="flex items-center flex-wrap gap-6 text-sm text-slate-600 mb-4">
               <div className="flex items-center space-x-2">
                 <Film className="w-4 h-4" />
-                <span className="font-medium">{selectedScenario.game_type}</span>
+                <span className="font-medium capitalize">{selectedScenario.game_type}</span>
               </div>
               {getGameVersion(selectedScenario) && (
                 <div className="flex items-center space-x-2">
