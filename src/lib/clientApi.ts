@@ -214,4 +214,30 @@ export const clientApi = {
 
     return { data: result };
   },
+
+  async changePassword(clientId: string, newPassword: string): Promise<ApiResponse<void>> {
+    if (authMode === 'php') {
+      return phpFetch<void>('/clients.php?action=change_password', {
+        method: 'POST',
+        body: JSON.stringify({ client_id: clientId, new_password: newPassword }),
+      });
+    }
+
+    if (!supabase) {
+      return { error: 'Supabase client not initialized' };
+    }
+
+    const { data, error } = await supabase
+      .from('clients')
+      .update({ password_hash: newPassword })
+      .eq('id', clientId)
+      .select()
+      .single();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    return { data: undefined };
+  },
 };

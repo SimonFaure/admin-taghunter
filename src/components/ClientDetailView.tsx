@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart, Key } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { scenariosApi, ScenarioData } from '../lib/api';
@@ -23,6 +23,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [availableScenarios, setAvailableScenarios] = useState<ScenarioData[]>([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [addingScenario, setAddingScenario] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -234,6 +237,37 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
 
     setSaving(false);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    setChangingPassword(true);
+    setError('');
+    setSuccess('');
+
+    const { error } = await clientApi.changePassword(clientId, newPassword);
+
+    if (error) {
+      setError(error);
+    } else {
+      setSuccess('Password changed successfully');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setSuccess(''), 3000);
+    }
+
+    setChangingPassword(false);
   };
 
   if (loading) {
@@ -525,6 +559,56 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
+          </form>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+        <div className="p-8">
+          <div className="flex items-center space-x-3 mb-6">
+            <Key className="w-6 h-6 text-slate-700" />
+            <h3 className="text-xl font-bold text-slate-900">Change Password</h3>
+          </div>
+
+          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                placeholder="Enter new password"
+                minLength={8}
+                required
+              />
+              <p className="text-xs text-slate-500 mt-1">Minimum 8 characters</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                placeholder="Confirm new password"
+                minLength={8}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={changingPassword || !newPassword || !confirmPassword}
+              className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {changingPassword ? 'Changing...' : 'Change Password'}
+            </button>
           </form>
         </div>
       </div>

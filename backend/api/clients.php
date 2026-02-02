@@ -352,6 +352,60 @@ try {
             jsonResponse($response);
             break;
 
+        case 'change_password':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'change_password', $_SESSION['user_id'] ?? null, [], $response, 405);
+                jsonResponse($response, 405);
+            }
+
+            $userId = requireAuth();
+            $data = getRequestData();
+
+            $clientId = $data['client_id'] ?? '';
+            $newPassword = $data['new_password'] ?? '';
+
+            if (empty($clientId)) {
+                $response = ['error' => 'Client ID is required'];
+                Logger::log('clients', 'POST', 'change_password', $userId, ['client_id' => ''], $response, 400);
+                jsonResponse($response, 400);
+            }
+
+            if (empty($newPassword)) {
+                $response = ['error' => 'New password is required'];
+                Logger::log('clients', 'POST', 'change_password', $userId, ['client_id' => $clientId], $response, 400);
+                jsonResponse($response, 400);
+            }
+
+            if (strlen($newPassword) < 8) {
+                $response = ['error' => 'Password must be at least 8 characters long'];
+                Logger::log('clients', 'POST', 'change_password', $userId, ['client_id' => $clientId], $response, 400);
+                jsonResponse($response, 400);
+            }
+
+            $existingClient = $db->fetch(
+                'SELECT id FROM clients WHERE id = ?',
+                [$clientId]
+            );
+
+            if (!$existingClient) {
+                $response = ['error' => 'Client not found'];
+                Logger::log('clients', 'POST', 'change_password', $userId, ['client_id' => $clientId], $response, 404);
+                jsonResponse($response, 404);
+            }
+
+            $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+
+            $db->execute(
+                'UPDATE clients SET password_hash = ? WHERE id = ?',
+                [$passwordHash, $clientId]
+            );
+
+            $response = ['message' => 'Password changed successfully'];
+            Logger::log('clients', 'POST', 'change_password', $userId, ['client_id' => $clientId], $response, 200);
+            jsonResponse($response);
+            break;
+
         default:
             $response = ['error' => 'Invalid action'];
             Logger::log('clients', $_SERVER['REQUEST_METHOD'], $action, $_SESSION['user_id'] ?? null, [], $response, 400);
