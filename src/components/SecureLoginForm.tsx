@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Mail, Lock, ArrowRight, Shield } from 'lucide-react';
-import { secureAuth } from '../lib/secureAuth';
+import { useSecureAuth } from '../contexts/SecureAuthContext';
 
 interface SecureLoginFormProps {
-  onSuccess: (data: { client_id: string; email: string; name?: string; token: string }) => void;
+  onSwitchToAdmin?: () => void;
 }
 
-export default function SecureLoginForm({ onSuccess }: SecureLoginFormProps) {
+export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
+  const { login } = useSecureAuth();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -21,6 +22,7 @@ export default function SecureLoginForm({ onSuccess }: SecureLoginFormProps) {
     setLoading(true);
 
     try {
+      const { secureAuth } = await import('../lib/secureAuth');
       const result = await secureAuth.requestCode(email, 'otp');
 
       if (result.error) {
@@ -42,17 +44,10 @@ export default function SecureLoginForm({ onSuccess }: SecureLoginFormProps) {
     setLoading(true);
 
     try {
-      const result = await secureAuth.verifyCode(email, code);
+      const result = await login(email, code);
 
-      if (result.error) {
-        setError(result.error);
-      } else if (result.data) {
-        onSuccess({
-          client_id: result.data.client_id,
-          email: result.data.email,
-          name: result.data.name,
-          token: result.data.token,
-        });
+      if (!result.success) {
+        setError(result.error || 'Failed to verify code');
       }
     } catch (err) {
       setError('Failed to verify code. Please try again.');
@@ -201,8 +196,20 @@ export default function SecureLoginForm({ onSuccess }: SecureLoginFormProps) {
           )}
         </div>
 
-        <div className="text-center text-sm text-slate-400">
-          <p>Secured with token-based authentication and rate limiting</p>
+        <div className="text-center">
+          <p className="text-sm text-slate-400 mb-4">
+            Secured with token-based authentication and rate limiting
+          </p>
+          {onSwitchToAdmin && step === 'email' && (
+            <button
+              type="button"
+              onClick={onSwitchToAdmin}
+              className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              <Shield className="w-4 h-4 inline mr-1" />
+              Admin Login
+            </button>
+          )}
         </div>
       </div>
     </div>
