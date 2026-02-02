@@ -41,25 +41,13 @@ try {
                 jsonResponse($response, 400);
             }
 
-            // Try to find admin user first
             $user = $db->fetch(
                 'SELECT id, email, password, name FROM admin_users WHERE email = ?',
                 [$email]
             );
 
-            $userType = 'admin';
-
-            // If not found in admin_users, try clients table
             if (!$user) {
-                $user = $db->fetch(
-                    'SELECT id, email, password, name, company, phone, license_type FROM clients WHERE email = ?',
-                    [$email]
-                );
-                $userType = 'client';
-            }
-
-            if (!$user) {
-                $response = ['error' => 'Invalid email or password'];
+                $response = ['error' => 'User not found. Please run the database migration or create_admin.php script.'];
                 Logger::log('auth', 'POST', 'login', null, ['email' => $email], $response, 401);
                 jsonResponse($response, 401);
             }
@@ -72,14 +60,14 @@ try {
 
             unset($user['password']);
             $_SESSION['user_id'] = $user['id'];
-            $_SESSION['user_type'] = $userType;
+            $_SESSION['user_type'] = 'admin';
             $_SESSION['user'] = $user;
 
             $response = [
-                'user' => array_merge($user, ['user_type' => $userType]),
+                'user' => $user,
                 'message' => 'Login successful'
             ];
-            Logger::log('auth', 'POST', 'login', $user['id'], ['email' => $email, 'user_type' => $userType], $response, 200);
+            Logger::log('auth', 'POST', 'login', $user['id'], ['email' => $email], $response, 200);
             jsonResponse($response);
             break;
 
@@ -104,25 +92,16 @@ try {
                 jsonResponse($response, 405);
             }
 
-            if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type'])) {
+            if (!isset($_SESSION['user_id'])) {
                 $response = ['user' => null];
                 Logger::log('auth', 'GET', 'check', null, [], $response, 200);
                 jsonResponse($response);
             }
 
-            $userType = $_SESSION['user_type'];
-
-            if ($userType === 'admin') {
-                $user = $db->fetch(
-                    'SELECT id, email, name FROM admin_users WHERE id = ?',
-                    [$_SESSION['user_id']]
-                );
-            } else {
-                $user = $db->fetch(
-                    'SELECT id, email, name, company, phone, license_type FROM clients WHERE id = ?',
-                    [$_SESSION['user_id']]
-                );
-            }
+            $user = $db->fetch(
+                'SELECT id, email, name FROM admin_users WHERE id = ?',
+                [$_SESSION['user_id']]
+            );
 
             if (!$user) {
                 session_destroy();
@@ -131,8 +110,8 @@ try {
                 jsonResponse($response);
             }
 
-            $response = ['user' => array_merge($user, ['user_type' => $userType])];
-            Logger::log('auth', 'GET', 'check', $user['id'], ['user_type' => $userType], $response, 200);
+            $response = ['user' => $user];
+            Logger::log('auth', 'GET', 'check', $user['id'], [], $response, 200);
             jsonResponse($response);
             break;
 
