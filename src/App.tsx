@@ -1,6 +1,7 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
+import { ClientDashboard } from './components/ClientDashboard';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -13,7 +14,11 @@ function AppContent() {
     );
   }
 
-  return user ? <Dashboard /> : <LoginForm />;
+  if (!user) {
+    return <LoginForm />;
+  }
+
+  return user.user_type === 'client' ? <ClientDashboard /> : <Dashboard />;
 }
 
 function App() {

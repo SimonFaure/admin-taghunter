@@ -9,6 +9,10 @@ export interface User {
   id: number;
   email: string;
   name?: string;
+  user_type?: 'admin' | 'client';
+  company?: string;
+  phone?: string;
+  license_type?: string;
 }
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
