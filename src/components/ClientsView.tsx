@@ -15,6 +15,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [formData, setFormData] = useState<CreateClientData>({
     email: '',
+    password: '',
     name: '',
     company: '',
     phone: '',
@@ -82,6 +83,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
     setEditingClient(client);
     setFormData({
       email: client.email,
+      password: '',
       name: client.name || '',
       company: client.company || '',
       phone: client.phone || '',
@@ -95,6 +97,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
     setEditingClient(null);
     setFormData({
       email: '',
+      password: '',
       name: '',
       company: '',
       phone: '',
@@ -277,6 +280,24 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                   placeholder="client@example.com"
                 />
               </div>
+
+              {!editingClient && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Password {!editingClient && '*'}
+                  </label>
+                  <input
+                    type="password"
+                    required={!editingClient}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    placeholder="Enter password"
+                    minLength={8}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Minimum 8 characters</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">

@@ -49,7 +49,8 @@ try {
         'add_scenario_type_migration.sql',
         'add_app_versions_migration.sql',
         'add_game_meta_migration.sql',
-        'scenario_files_migration.sql'
+        'scenario_files_migration.sql',
+        'add_password_hash_migration.sql'
     ];
 
     $results = [];

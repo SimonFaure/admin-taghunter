@@ -19,6 +19,7 @@ export interface Client {
 
 export interface CreateClientData {
   email: string;
+  password?: string;
   name?: string;
   company?: string;
   phone?: string;

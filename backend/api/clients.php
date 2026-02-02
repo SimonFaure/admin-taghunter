@@ -137,6 +137,11 @@ try {
                 'created_by' => $userId,
             ];
 
+            // Hash password if provided
+            if (!empty($data['password'])) {
+                $fields['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
+            }
+
             $placeholders = array_fill(0, count($fields), '?');
             $columns = implode(', ', array_keys($fields));
             $values = array_values($fields);
