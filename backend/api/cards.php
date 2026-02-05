@@ -544,6 +544,49 @@ try {
             jsonResponse(['success' => true]);
             break;
 
+        case 'check_filesystem':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $adminId = requireAdminAuth($db);
+            $clientId = isset($_GET['client_id']) ? (int)$_GET['client_id'] : null;
+
+            if (!$clientId) {
+                jsonResponse(['error' => 'client_id is required'], 400);
+            }
+
+            $baseDir = __DIR__ . '/../../cards';
+            $clientDir = $baseDir . '/' . $clientId;
+
+            $info = [
+                'client_id' => $clientId,
+                'base_dir' => $baseDir,
+                'client_dir' => $clientDir,
+                'base_dir_exists' => is_dir($baseDir),
+                'client_dir_exists' => is_dir($clientDir),
+                'files' => []
+            ];
+
+            if (is_dir($clientDir)) {
+                $files = scandir($clientDir);
+                foreach ($files as $file) {
+                    if ($file !== '.' && $file !== '..') {
+                        $filePath = $clientDir . '/' . $file;
+                        $info['files'][] = [
+                            'name' => $file,
+                            'path' => $filePath,
+                            'is_file' => is_file($filePath),
+                            'is_readable' => is_readable($filePath),
+                            'size' => is_file($filePath) ? filesize($filePath) : 0
+                        ];
+                    }
+                }
+            }
+
+            jsonResponse($info);
+            break;
+
         case 'debug_metadata':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
@@ -569,12 +612,39 @@ try {
                 $tableStructure = $db->query("DESCRIBE client_cards_metadata");
             }
 
+            // Check actual files on disk
+            $baseDir = __DIR__ . '/../../cards';
+            $diskInfo = [
+                'base_dir' => $baseDir,
+                'base_dir_exists' => is_dir($baseDir),
+                'base_dir_readable' => is_readable($baseDir),
+                'clients' => []
+            ];
+
+            if (is_dir($baseDir)) {
+                $dirs = scandir($baseDir);
+                foreach ($dirs as $dir) {
+                    if ($dir !== '.' && $dir !== '..' && is_dir($baseDir . '/' . $dir)) {
+                        $clientDir = $baseDir . '/' . $dir;
+                        $files = scandir($clientDir);
+                        $csvFiles = array_filter($files, function($f) use ($clientDir) {
+                            return !in_array($f, ['.', '..']) && is_file($clientDir . '/' . $f);
+                        });
+                        $diskInfo['clients'][$dir] = [
+                            'path' => $clientDir,
+                            'files' => array_values($csvFiles)
+                        ];
+                    }
+                }
+            }
+
             jsonResponse([
                 'table_exists' => !empty($tableExists),
                 'table_structure' => $tableStructure,
                 'metadata_records' => $allMetadata,
                 'record_count' => count($allMetadata),
-                'query_client_id' => $clientId
+                'query_client_id' => $clientId,
+                'disk_info' => $diskInfo
             ]);
             break;
 
