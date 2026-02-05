@@ -45,9 +45,13 @@ function requireClientAuth($db) {
 }
 
 function requireAdminAuth($db) {
+    if (!isset($_SESSION['user_id'])) {
+        jsonResponse(['error' => 'Unauthorized - Admin login required'], 401);
+    }
+
     $adminUser = $db->fetch(
         'SELECT id, email FROM admin_users WHERE id = ?',
-        [$_SESSION['admin_id'] ?? null]
+        [$_SESSION['user_id']]
     );
 
     if (!$adminUser) {
@@ -407,7 +411,7 @@ try {
                 fclose($handle);
             }
 
-            Logger::log('cards', 'GET', 'admin_get_data', $_SESSION['admin_id'], ['client_id' => $clientId], ['success' => true, 'count' => count($cards)], 200);
+            Logger::log('cards', 'GET', 'admin_get_data', $_SESSION['user_id'] ?? null, ['client_id' => $clientId], ['success' => true, 'count' => count($cards)], 200);
             jsonResponse(['success' => true, 'data' => $cards, 'headers' => $headers, 'count' => count($cards)]);
             break;
 
