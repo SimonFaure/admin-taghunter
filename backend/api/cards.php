@@ -69,15 +69,27 @@ try {
             }
 
             $clientId = requireClientAuth($db);
+            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+            $fileExists = file_exists($cardsFile);
 
             $metadata = $db->fetch(
                 'SELECT * FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
             );
 
+            if ($fileExists && !$metadata) {
+                $db->query(
+                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
+                    [$clientId, 1]
+                );
+                $metadata = $db->fetch(
+                    'SELECT * FROM client_cards_metadata WHERE client_id = ?',
+                    [$clientId]
+                );
+            }
+
             if ($metadata) {
-                $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
-                $metadata['has_file'] = file_exists($cardsFile);
+                $metadata['has_file'] = $fileExists;
             }
 
             jsonResponse(['data' => $metadata]);
