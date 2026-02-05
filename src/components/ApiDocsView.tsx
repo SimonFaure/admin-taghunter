@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -550,6 +550,44 @@ export default function ApiDocsView() {
           auth: false,
           params: [{ name: 'email', type: 'string', description: 'Email address to check' }],
           response: '{ "exists": true, "client_id": 1 }',
+        },
+      ],
+    },
+    {
+      title: 'Default Configuration',
+      icon: <Settings className="w-5 h-5" />,
+      color: 'bg-gray-500',
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/backend/api/default_config.php?action=create',
+          description: 'Create or update a default configuration (admin only)',
+          auth: true,
+          body: [
+            { name: 'user_email', type: 'string', description: 'Admin email for verification (required)' },
+            { name: 'meta', type: 'string', description: 'Configuration metadata name (required, unique)' },
+            { name: 'version', type: 'integer', description: 'Configuration version number (required)' },
+            { name: 'value', type: 'JSON', description: 'Configuration value as JSON object or array (required)' },
+          ],
+          response: '{ "success": true, "meta": "app_config", "version": 1, "action": "created" }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/default_config.php?action=get&meta={meta}',
+          description: 'Get a specific configuration by meta name, or all configurations if meta is omitted (admin only)',
+          auth: true,
+          params: [{ name: 'meta', type: 'string', description: 'Configuration metadata name (optional)' }],
+          response: '{ "success": true, "config": { "id": "uuid", "meta": "app_config", "value": { "key": "value" }, "version": 1, "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+        },
+        {
+          method: 'DELETE',
+          path: '/backend/api/default_config.php?action=delete',
+          description: 'Delete a default configuration by meta name (admin only)',
+          auth: true,
+          body: [
+            { name: 'meta', type: 'string', description: 'Configuration metadata name (required)' },
+          ],
+          response: '{ "success": true, "message": "Configuration deleted" }',
         },
       ],
     },

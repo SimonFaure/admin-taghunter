@@ -118,6 +118,7 @@ try {
                     $config['value'] = json_decode($config['value'], true);
                 }
 
+                Logger::log('default_config', 'GET', 'get', $adminId, [], ['success' => true, 'count' => count($configs)], 200);
                 jsonResponse(['success' => true, 'configs' => $configs]);
             } else {
                 $config = $db->fetch(
@@ -126,10 +127,12 @@ try {
                 );
 
                 if (!$config) {
+                    Logger::log('default_config', 'GET', 'get', $adminId, ['meta' => $meta], ['error' => 'Configuration not found'], 404);
                     jsonResponse(['error' => 'Configuration not found'], 404);
                 }
 
                 $config['value'] = json_decode($config['value'], true);
+                Logger::log('default_config', 'GET', 'get', $adminId, ['meta' => $meta], ['success' => true], 200);
                 jsonResponse(['success' => true, 'config' => $config]);
             }
             break;
