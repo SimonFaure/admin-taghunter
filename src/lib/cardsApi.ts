@@ -4,7 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 export interface CardsMetadata {
   id: number;
-  client_id: string;
+  client_id: number;
   version: number;
   created_at: string;
   updated_at: string;
