@@ -52,7 +52,9 @@ try {
         'scenario_files_migration.sql',
         'add_password_hash_migration.sql',
         'add_long_lived_tokens_migration.sql',
-        'cards_and_devices_migration.sql'
+        'cards_and_devices_migration.sql',
+        'client_cards_migration.sql',
+        'default_config_migration.sql'
     ];
 
     $results = [];
