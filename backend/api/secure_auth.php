@@ -43,6 +43,7 @@ try {
             $data = getRequestData();
             $email = $data['email'] ?? '';
             $type = $data['type'] ?? 'otp';
+            $password = $data['password'] ?? '';
             $appOrigin = $data['app_origin'] ?? null;
             $appVersion = $data['app_version'] ?? null;
 
@@ -66,7 +67,7 @@ try {
                 jsonResponse(['error' => $codeCheck['reason']], 429);
             }
 
-            $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, password_hash FROM clients WHERE email = ?', [$email]);
             $admin = null;
 
             if (!$client) {
@@ -77,6 +78,26 @@ try {
                 RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Email not found');
                 Logger::log('secure_auth', 'POST', 'request-code', null, ['email' => $email], ['error' => 'Email not found'], 404);
                 jsonResponse(['error' => 'Email not registered'], 404);
+            }
+
+            if ($client && !empty($password)) {
+                if (empty($client['password_hash'])) {
+                    RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Password not set');
+                    Logger::log('secure_auth', 'POST', 'request-code', $client['id'], ['email' => $email], ['error' => 'Password not configured'], 400);
+                    jsonResponse(['error' => 'Password authentication not configured for this account'], 400);
+                }
+
+                if (!password_verify($password, $client['password_hash'])) {
+                    RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Invalid password');
+                    Logger::log('secure_auth', 'POST', 'request-code', $client['id'], ['email' => $email], ['error' => 'Invalid password'], 401);
+                    jsonResponse(['error' => 'Invalid password'], 401);
+                }
+            }
+
+            if ($client && empty($password) && !empty($client['password_hash'])) {
+                RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Password required');
+                Logger::log('secure_auth', 'POST', 'request-code', $client['id'], ['email' => $email], ['error' => 'Password required'], 400);
+                jsonResponse(['error' => 'Password is required'], 400);
             }
 
             if ($client && $appOrigin && $appVersion) {

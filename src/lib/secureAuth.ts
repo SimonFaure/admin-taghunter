@@ -67,10 +67,10 @@ async function secureFetch<T>(
 }
 
 export const secureAuth = {
-  async requestCode(email: string, type: 'otp' | 'magic_link' = 'otp'): Promise<ApiResponse<{ expires_in: number }>> {
+  async requestCode(email: string, type: 'otp' | 'magic_link' = 'otp', password?: string): Promise<ApiResponse<{ expires_in: number }>> {
     return secureFetch<{ expires_in: number }>('/secure_auth.php?action=request-code', {
       method: 'POST',
-      body: JSON.stringify({ email, type }),
+      body: JSON.stringify({ email, type, password }),
     });
   },
 

@@ -10,21 +10,22 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
   const { login } = useSecureAuth();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const handleRequestCode = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRequestCode = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
     setError('');
     setSuccessMessage('');
     setLoading(true);
 
     try {
       const { secureAuth } = await import('../lib/secureAuth');
-      const result = await secureAuth.requestCode(email, 'otp');
+      const result = await secureAuth.requestCode(email, 'otp', password);
 
       if (result.error) {
         setError(result.error);
@@ -60,6 +61,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
   const handleBackToEmail = () => {
     setStep('email');
     setCode('');
+    setPassword('');
     setError('');
     setSuccessMessage('');
   };
@@ -78,7 +80,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
           <h2 className="text-3xl font-bold text-white">Secure Login</h2>
           <p className="mt-2 text-slate-400">
             {step === 'email'
-              ? 'Enter your email to receive a login code'
+              ? 'Enter your credentials to receive a login code'
               : 'Enter the code sent to your email'}
           </p>
         </div>
@@ -106,6 +108,26 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                 </div>
               </div>
 
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter your password"
+                  />
+                </div>
+              </div>
+
               {error && (
                 <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
                   <p className="text-sm text-red-400">{error}</p>
@@ -118,7 +140,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  'Sending...'
+                  'Verifying...'
                 ) : (
                   <>
                     Send Code
