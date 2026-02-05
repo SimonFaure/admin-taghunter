@@ -25,18 +25,29 @@ function getAuthHeaders(): HeadersInit {
 }
 
 export async function getCardsMetadata(): Promise<CardsMetadata | null> {
-  const response = await fetch(`${API_BASE_URL}/cards.php?action=get_metadata`, {
+  const url = `${API_BASE_URL}/cards.php?action=get_metadata`;
+  const headers = getAuthHeaders();
+
+  console.log('[cardsApi] getCardsMetadata - URL:', url);
+  console.log('[cardsApi] getCardsMetadata - Headers:', headers);
+
+  const response = await fetch(url, {
     method: 'GET',
     credentials: 'include',
-    headers: getAuthHeaders(),
+    headers,
   });
+
+  console.log('[cardsApi] getCardsMetadata - Response status:', response.status, response.statusText);
+  console.log('[cardsApi] getCardsMetadata - Response headers:', Object.fromEntries(response.headers.entries()));
 
   if (!response.ok) {
     const error = await response.json();
+    console.error('[cardsApi] getCardsMetadata - Error:', error);
     throw new Error(error.error || 'Failed to fetch cards metadata');
   }
 
   const result = await response.json();
+  console.log('[cardsApi] getCardsMetadata - Result:', result);
   return result.data;
 }
 
@@ -127,19 +138,32 @@ export interface CardsDataResponse {
 }
 
 export async function getCardsData(): Promise<CardsDataResponse | null> {
-  const response = await fetch(`${API_BASE_URL}/cards.php?action=get_data`, {
+  const url = `${API_BASE_URL}/cards.php?action=get_data`;
+  const headers = getAuthHeaders();
+
+  console.log('[cardsApi] getCardsData - URL:', url);
+  console.log('[cardsApi] getCardsData - Headers:', headers);
+
+  const response = await fetch(url, {
     method: 'GET',
     credentials: 'include',
-    headers: getAuthHeaders(),
+    headers,
   });
+
+  console.log('[cardsApi] getCardsData - Response status:', response.status, response.statusText);
+  console.log('[cardsApi] getCardsData - Response headers:', Object.fromEntries(response.headers.entries()));
 
   if (!response.ok) {
     if (response.status === 404) {
+      console.log('[cardsApi] getCardsData - No file found (404)');
       return null;
     }
     const error = await response.json();
+    console.error('[cardsApi] getCardsData - Error:', error);
     throw new Error(error.error || 'Failed to fetch cards data');
   }
 
-  return response.json();
+  const result = await response.json();
+  console.log('[cardsApi] getCardsData - Result:', result);
+  return result;
 }

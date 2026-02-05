@@ -56,20 +56,33 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadCardsMetadata = async () => {
     setLoadingCards(true);
     try {
-      console.log('Loading cards metadata for client:', clientId);
+      console.log('========== LOADING CARDS METADATA ==========');
+      console.log('Client ID:', clientId, 'Type:', typeof clientId);
+
+      const metadataUrl = `https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_metadata&client_id=${clientId}`;
+      const dataUrl = `https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_data&client_id=${clientId}`;
+
+      console.log('Metadata URL:', metadataUrl);
+      console.log('Data URL:', dataUrl);
+
       const [metadataResponse, dataResponse] = await Promise.all([
-        fetch(`https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_metadata&client_id=${clientId}`, {
+        fetch(metadataUrl, {
           credentials: 'include',
         }),
-        fetch(`https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_data&client_id=${clientId}`, {
+        fetch(dataUrl, {
           credentials: 'include',
-        }).catch(() => null)
+        }).catch((err) => {
+          console.error('Data fetch error:', err);
+          return null;
+        })
       ]);
 
-      console.log('Metadata response status:', metadataResponse.status);
+      console.log('Metadata response status:', metadataResponse.status, metadataResponse.statusText);
+      console.log('Metadata response headers:', Object.fromEntries(metadataResponse.headers.entries()));
+
       if (metadataResponse.ok) {
         const result = await metadataResponse.json();
-        console.log('Metadata result:', result);
+        console.log('Metadata result:', JSON.stringify(result, null, 2));
         setCardsMetadata(result.data || null);
       } else {
         const errorText = await metadataResponse.text();
@@ -79,10 +92,19 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       if (dataResponse && dataResponse.ok) {
         const dataResult = await dataResponse.json();
         console.log('Cards data result:', dataResult);
+        console.log('Cards count:', dataResult.data?.length || 0);
         setCardsData(dataResult.data || []);
       } else {
+        console.warn('No data response or not OK');
+        if (dataResponse) {
+          console.log('Data response status:', dataResponse.status);
+          const errorText = await dataResponse.text();
+          console.error('Data error response:', errorText);
+        }
         setCardsData([]);
       }
+
+      console.log('========== END LOADING CARDS METADATA ==========');
     } catch (err) {
       console.error('Error loading cards metadata:', err);
     } finally {

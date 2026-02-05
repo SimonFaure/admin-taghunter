@@ -81,17 +81,49 @@ function getCardsFilePath($clientId, $version) {
 }
 
 function getCurrentCardsFile($db, $clientId) {
+    $clientIdInt = (int)$clientId;
+
+    Logger::log('cards', 'GET', 'getCurrentCardsFile', null, [
+        'client_id' => $clientIdInt,
+        'query' => 'SELECT version FROM client_cards_metadata WHERE client_id = ?'
+    ], ['step' => 'starting'], 200);
+
     $metadata = $db->fetch(
         'SELECT version FROM client_cards_metadata WHERE client_id = ?',
-        [(int)$clientId]
+        [$clientIdInt]
     );
 
+    Logger::log('cards', 'GET', 'getCurrentCardsFile', null, [
+        'client_id' => $clientIdInt
+    ], [
+        'step' => 'metadata_fetched',
+        'metadata' => $metadata,
+        'found' => !empty($metadata)
+    ], 200);
+
     if (!$metadata) {
+        Logger::log('cards', 'GET', 'getCurrentCardsFile', null, [
+            'client_id' => $clientIdInt
+        ], [
+            'step' => 'no_metadata_found',
+            'error' => 'No metadata found in client_cards_metadata table'
+        ], 404);
         return null;
     }
 
     $filePath = getCardsFilePath($clientId, $metadata['version']);
-    return file_exists($filePath) ? $filePath : null;
+    $fileExists = file_exists($filePath);
+
+    Logger::log('cards', 'GET', 'getCurrentCardsFile', null, [
+        'client_id' => $clientIdInt,
+        'version' => $metadata['version']
+    ], [
+        'step' => 'file_path_check',
+        'file_path' => $filePath,
+        'file_exists' => $fileExists
+    ], 200);
+
+    return $fileExists ? $filePath : null;
 }
 
 try {
@@ -106,16 +138,38 @@ try {
 
             $clientId = requireClientAuth($db);
 
+            Logger::log('cards', 'GET', 'get_metadata', $clientId, [
+                'client_id' => $clientId,
+                'query' => 'SELECT * FROM client_cards_metadata WHERE client_id = ?'
+            ], ['step' => 'starting'], 200);
+
             $metadata = $db->fetch(
                 'SELECT * FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
             );
+
+            Logger::log('cards', 'GET', 'get_metadata', $clientId, [
+                'client_id' => $clientId
+            ], [
+                'step' => 'metadata_fetched',
+                'metadata' => $metadata,
+                'found' => !empty($metadata)
+            ], 200);
 
             $fileExists = false;
             if ($metadata) {
                 $cardsFile = getCardsFilePath($clientId, $metadata['version']);
                 $fileExists = file_exists($cardsFile);
                 $metadata['has_file'] = $fileExists;
+
+                Logger::log('cards', 'GET', 'get_metadata', $clientId, [
+                    'client_id' => $clientId,
+                    'version' => $metadata['version']
+                ], [
+                    'step' => 'file_check',
+                    'file_path' => $cardsFile,
+                    'file_exists' => $fileExists
+                ], 200);
             }
 
             jsonResponse(['data' => $metadata]);
@@ -126,7 +180,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            requireAdminAuth($db);
+            $adminId = requireAdminAuth($db);
 
             if (!isset($_GET['client_id'])) {
                 jsonResponse(['error' => 'Client ID is required'], 400);
@@ -134,10 +188,22 @@ try {
 
             $clientId = (int)$_GET['client_id'];
 
+            Logger::log('cards', 'GET', 'admin_get_metadata', $adminId, [
+                'client_id' => $clientId,
+                'admin_id' => $adminId
+            ], ['step' => 'starting'], 200);
+
             $client = $db->fetch(
                 'SELECT id FROM clients WHERE id = ?',
                 [$clientId]
             );
+
+            Logger::log('cards', 'GET', 'admin_get_metadata', $adminId, [
+                'client_id' => $clientId
+            ], [
+                'step' => 'client_lookup',
+                'client_found' => !empty($client)
+            ], 200);
 
             if (!$client) {
                 jsonResponse(['error' => 'Client not found'], 404);
@@ -148,11 +214,35 @@ try {
                 [$clientId]
             );
 
+            Logger::log('cards', 'GET', 'admin_get_metadata', $adminId, [
+                'client_id' => $clientId
+            ], [
+                'step' => 'metadata_fetched',
+                'metadata' => $metadata,
+                'found' => !empty($metadata)
+            ], 200);
+
             $fileExists = false;
             if ($metadata) {
                 $cardsFile = getCardsFilePath($clientId, $metadata['version']);
                 $fileExists = file_exists($cardsFile);
                 $metadata['has_file'] = $fileExists;
+
+                Logger::log('cards', 'GET', 'admin_get_metadata', $adminId, [
+                    'client_id' => $clientId,
+                    'version' => $metadata['version']
+                ], [
+                    'step' => 'file_check',
+                    'file_path' => $cardsFile,
+                    'file_exists' => $fileExists
+                ], 200);
+            } else {
+                Logger::log('cards', 'GET', 'admin_get_metadata', $adminId, [
+                    'client_id' => $clientId
+                ], [
+                    'step' => 'no_metadata',
+                    'message' => 'No metadata found in client_cards_metadata table'
+                ], 200);
             }
 
             jsonResponse(['data' => $metadata]);
@@ -308,9 +398,25 @@ try {
             }
 
             $clientId = requireClientAuth($db);
+
+            Logger::log('cards', 'GET', 'get_data', $clientId, [
+                'client_id' => $clientId
+            ], ['step' => 'starting'], 200);
+
             $cardsFile = getCurrentCardsFile($db, $clientId);
 
+            Logger::log('cards', 'GET', 'get_data', $clientId, [
+                'client_id' => $clientId
+            ], [
+                'step' => 'file_retrieved',
+                'file_path' => $cardsFile,
+                'found' => !empty($cardsFile)
+            ], 200);
+
             if (!$cardsFile) {
+                Logger::log('cards', 'GET', 'get_data', $clientId, [
+                    'client_id' => $clientId
+                ], ['error' => 'No cards file found'], 404);
                 jsonResponse(['error' => 'No cards file found'], 404);
             }
 
@@ -352,16 +458,32 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            requireAdminAuth($db);
+            $adminId = requireAdminAuth($db);
             $clientId = (int)($_GET['client_id'] ?? 0);
 
             if (empty($clientId)) {
                 jsonResponse(['error' => 'client_id is required'], 400);
             }
 
+            Logger::log('cards', 'GET', 'admin_get_data', $adminId, [
+                'client_id' => $clientId,
+                'admin_id' => $adminId
+            ], ['step' => 'starting'], 200);
+
             $cardsFile = getCurrentCardsFile($db, $clientId);
 
+            Logger::log('cards', 'GET', 'admin_get_data', $adminId, [
+                'client_id' => $clientId
+            ], [
+                'step' => 'file_retrieved',
+                'file_path' => $cardsFile,
+                'found' => !empty($cardsFile)
+            ], 200);
+
             if (!$cardsFile) {
+                Logger::log('cards', 'GET', 'admin_get_data', $adminId, [
+                    'client_id' => $clientId
+                ], ['error' => 'No cards file found'], 404);
                 jsonResponse(['error' => 'No cards file found'], 404);
             }
 
@@ -420,6 +542,40 @@ try {
 
             Logger::log('cards', 'DELETE', 'delete', $clientId, [], ['success' => true], 200);
             jsonResponse(['success' => true]);
+            break;
+
+        case 'debug_metadata':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $adminId = requireAdminAuth($db);
+            $clientId = isset($_GET['client_id']) ? (int)$_GET['client_id'] : null;
+
+            // Get all metadata records or just for specific client
+            if ($clientId) {
+                $allMetadata = $db->query(
+                    'SELECT * FROM client_cards_metadata WHERE client_id = ?',
+                    [$clientId]
+                );
+            } else {
+                $allMetadata = $db->query('SELECT * FROM client_cards_metadata');
+            }
+
+            // Also check if the table exists and its structure
+            $tableExists = $db->fetch("SHOW TABLES LIKE 'client_cards_metadata'");
+            $tableStructure = [];
+            if ($tableExists) {
+                $tableStructure = $db->query("DESCRIBE client_cards_metadata");
+            }
+
+            jsonResponse([
+                'table_exists' => !empty($tableExists),
+                'table_structure' => $tableStructure,
+                'metadata_records' => $allMetadata,
+                'record_count' => count($allMetadata),
+                'query_client_id' => $clientId
+            ]);
             break;
 
         default:

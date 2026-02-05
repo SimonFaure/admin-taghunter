@@ -35,14 +35,34 @@ export function MyCardsView() {
   const loadData = async () => {
     try {
       setLoading(true);
+      console.log('========== CLIENT: LOADING CARDS DATA ==========');
+      console.log('User:', user);
+
+      console.log('Fetching metadata...');
+      const metadataPromise = getCardsMetadata();
+
+      console.log('Fetching cards data...');
+      const cardsDataPromise = getCardsData().catch((err) => {
+        console.error('Error fetching cards data:', err);
+        return null;
+      });
+
       const [metadata, cardsDataResult] = await Promise.all([
-        getCardsMetadata(),
-        getCardsData().catch(() => null)
+        metadataPromise,
+        cardsDataPromise
       ]);
+
+      console.log('Metadata received:', metadata);
+      console.log('Cards data received:', cardsDataResult);
+
       setCardsMetadata(metadata);
       setCardsData(cardsDataResult?.data || []);
+
+      console.log('========== END CLIENT: LOADING CARDS DATA ==========');
     } catch (error) {
       console.error('Failed to load data:', error);
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     } finally {
       setLoading(false);
     }
