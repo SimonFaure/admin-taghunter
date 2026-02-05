@@ -9,7 +9,7 @@ import { useState } from 'react';
 function AppContent() {
   const { user: adminUser, loading: adminLoading } = useAuth();
   const { user: clientUser, loading: clientLoading } = useSecureAuth();
-  const [loginMode, setLoginMode] = useState<'admin' | 'client'>('admin');
+  const [loginMode, setLoginMode] = useState<'admin' | 'client'>('client');
 
   if (adminLoading || clientLoading) {
     return (
