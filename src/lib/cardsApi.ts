@@ -1,3 +1,5 @@
+import { secureAuth } from './secureAuth';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 export interface CardsMetadata {
@@ -9,13 +11,24 @@ export interface CardsMetadata {
   has_file: boolean;
 }
 
+function getAuthHeaders(): HeadersInit {
+  const token = secureAuth.getStoredToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['X-Auth-Token'] = token;
+  }
+
+  return headers;
+}
+
 export async function getCardsMetadata(): Promise<CardsMetadata | null> {
   const response = await fetch(`${API_BASE_URL}/cards.php?action=get_metadata`, {
     method: 'GET',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -35,9 +48,17 @@ export async function uploadCardsFile(file: File): Promise<{ version: number }> 
   const formData = new FormData();
   formData.append('file', file);
 
+  const token = secureAuth.getStoredToken();
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers['X-Auth-Token'] = token;
+  }
+
   const response = await fetch(`${API_BASE_URL}/cards.php?action=upload`, {
     method: 'POST',
     credentials: 'include',
+    headers,
     body: formData,
   });
 
@@ -51,9 +72,17 @@ export async function uploadCardsFile(file: File): Promise<{ version: number }> 
 }
 
 export async function downloadCardsFile(): Promise<Blob> {
+  const token = secureAuth.getStoredToken();
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers['X-Auth-Token'] = token;
+  }
+
   const response = await fetch(`${API_BASE_URL}/cards.php?action=download`, {
     method: 'GET',
     credentials: 'include',
+    headers,
   });
 
   if (!response.ok) {
@@ -65,12 +94,19 @@ export async function downloadCardsFile(): Promise<Blob> {
 }
 
 export async function deleteCardsFile(): Promise<void> {
+  const token = secureAuth.getStoredToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['X-Auth-Token'] = token;
+  }
+
   const response = await fetch(`${API_BASE_URL}/cards.php?action=delete`, {
     method: 'DELETE',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
   });
 
   if (!response.ok) {

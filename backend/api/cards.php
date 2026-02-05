@@ -4,10 +4,10 @@ require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
 
 header('Content-Type: application/json');
-session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -19,11 +19,28 @@ function getRequestData() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
-function requireClientAuth() {
-    if (!isset($_SESSION['client_id'])) {
-        jsonResponse(['error' => 'Unauthorized - Client login required'], 401);
+function requireClientAuth($db) {
+    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+    if (strpos($token, 'Bearer ') === 0) {
+        $token = substr($token, 7);
     }
-    return $_SESSION['client_id'];
+
+    if (empty($token)) {
+        jsonResponse(['error' => 'Unauthorized - Token required'], 401);
+    }
+
+    $tokenData = TokenManager::validateToken($db, $token);
+
+    if (!$tokenData) {
+        jsonResponse(['error' => 'Unauthorized - Invalid or expired token'], 401);
+    }
+
+    if ($tokenData['user_type'] !== 'client') {
+        jsonResponse(['error' => 'Unauthorized - Client login required'], 403);
+    }
+
+    return $tokenData['user_id'];
 }
 
 function getCardsDirectory($clientId) {
@@ -51,7 +68,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
 
             $metadata = $db->fetch(
                 'SELECT * FROM client_cards_metadata WHERE client_id = ?',
@@ -71,7 +88,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
 
             if (!isset($_FILES['file'])) {
                 jsonResponse(['error' => 'No file uploaded'], 400);
@@ -124,7 +141,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
             $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
 
             if (!file_exists($cardsFile)) {
@@ -142,7 +159,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
             $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
 
             if (file_exists($cardsFile)) {
@@ -163,6 +180,6 @@ try {
     }
 
 } catch (Exception $e) {
-    Logger::log('cards', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', $_SESSION['client_id'] ?? null, [], ['error' => $e->getMessage()], 500);
+    Logger::log('cards', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', null, [], ['error' => $e->getMessage()], 500);
     jsonResponse(['error' => $e->getMessage()], 500);
 }
