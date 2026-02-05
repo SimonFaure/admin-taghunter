@@ -6,6 +6,8 @@ interface AuthUser {
   email: string;
   name?: string;
   token: string;
+  license_type?: 'access' | 'premium';
+  billing_up_to_date?: boolean;
 }
 
 interface SecureAuthContextType {
@@ -44,6 +46,8 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
           email: result.email || '',
           name: result.name,
           token,
+          license_type: result.license_type,
+          billing_up_to_date: result.billing_up_to_date,
         });
       } else {
         secureAuth.clearToken();
@@ -71,6 +75,8 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
           email: result.data.email,
           name: result.data.name,
           token: result.data.token,
+          license_type: result.data.license_type,
+          billing_up_to_date: result.data.billing_up_to_date,
         });
         return { success: true };
       }

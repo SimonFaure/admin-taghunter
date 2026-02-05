@@ -151,11 +151,13 @@ try {
                 jsonResponse(['error' => $codeValidation['reason']], 401);
             }
 
-            $client = $db->fetch('SELECT id, email, name FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
             $userId = null;
             $userName = null;
+            $licenseType = null;
+            $billingUpToDate = null;
 
             if (!$client) {
                 $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
@@ -167,6 +169,8 @@ try {
             } else {
                 $userId = $client['id'];
                 $userName = $client['name'];
+                $licenseType = $client['license_type'];
+                $billingUpToDate = $client['billing_up_to_date'];
             }
 
             if (!$client && !$admin) {
@@ -191,6 +195,11 @@ try {
                     'name' => $userName
                 ]
             ];
+
+            if ($userType === 'client') {
+                $response['data']['license_type'] = $licenseType;
+                $response['data']['billing_up_to_date'] = $billingUpToDate;
+            }
 
             Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);
             jsonResponse($response);
@@ -225,6 +234,12 @@ try {
                 'name' => $tokenData['name'],
                 'expires_at' => $tokenData['expires_at']
             ];
+
+            if ($tokenData['user_type'] === 'client') {
+                $response['client_id'] = $tokenData['user_id'];
+                $response['license_type'] = $tokenData['license_type'] ?? 'access';
+                $response['billing_up_to_date'] = $tokenData['billing_up_to_date'] ?? false;
+            }
 
             Logger::log('secure_auth', 'POST', 'validate', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], $response, 200);
             jsonResponse($response);

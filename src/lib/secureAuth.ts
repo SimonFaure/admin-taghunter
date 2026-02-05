@@ -11,6 +11,8 @@ interface TokenData {
   client_id: string;
   email: string;
   name?: string;
+  license_type?: 'access' | 'premium';
+  billing_up_to_date?: boolean;
 }
 
 interface ValidationData {
@@ -20,6 +22,8 @@ interface ValidationData {
   name?: string;
   expires_at?: string;
   error?: string;
+  license_type?: 'access' | 'premium';
+  billing_up_to_date?: boolean;
 }
 
 const API_BASE_URL = '/backend/api';

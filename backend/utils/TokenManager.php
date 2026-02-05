@@ -69,7 +69,7 @@ class TokenManager {
             );
         } else {
             $user = $db->fetch(
-                'SELECT id, email, name FROM clients WHERE id = ?',
+                'SELECT id, email, name, license_type, billing_up_to_date FROM clients WHERE id = ?',
                 [$tokenData['user_id']]
             );
         }
@@ -78,10 +78,17 @@ class TokenManager {
             return null;
         }
 
-        return array_merge($tokenData, [
+        $result = array_merge($tokenData, [
             'email' => $user['email'],
             'name' => $user['name']
         ]);
+
+        if ($tokenData['user_type'] === 'client') {
+            $result['license_type'] = $user['license_type'];
+            $result['billing_up_to_date'] = $user['billing_up_to_date'];
+        }
+
+        return $result;
     }
 
     public static function revokeToken(object $db, string $token): bool {
