@@ -28,13 +28,40 @@ export async function getClientCards(clientId: string): Promise<ClientCard[]> {
   return data || [];
 }
 
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current.trim());
+  return result;
+}
+
 export async function importCardsFromCSV(clientId: string, csvData: string): Promise<void> {
-  const lines = csvData.trim().split('\n');
+  const lines = csvData.trim().split('\n').filter(line => line.trim());
   if (lines.length < 2) {
     throw new Error('CSV file must have at least a header row and one data row');
   }
 
-  const headers = lines[0].split(',').map(h => h.trim());
+  const headers = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
   const batchId = crypto.randomUUID();
 
   await supabase
@@ -44,7 +71,7 @@ export async function importCardsFromCSV(clientId: string, csvData: string): Pro
 
   const cards = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
+    const values = parseCSVLine(lines[i]).map(v => v.replace(/^"|"$/g, '').trim());
     if (values.length === 0 || values.every(v => !v)) continue;
 
     const cardData: any = {

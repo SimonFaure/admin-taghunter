@@ -15,7 +15,7 @@ export function MyToolsView() {
   const { user } = useSecureAuth();
   const [cards, setCards] = useState<ClientCard[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [cardsLoading, setCardsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [dragActive, setDragActive] = useState(false);
@@ -29,13 +29,13 @@ export function MyToolsView() {
     if (!user?.id) return;
 
     try {
-      setLoading(true);
+      setCardsLoading(true);
       const data = await getClientCards(user.id);
       setCards(data);
     } catch (error) {
       console.error('Failed to load cards:', error);
     } finally {
-      setLoading(false);
+      setCardsLoading(false);
     }
   };
 
@@ -66,18 +66,31 @@ export function MyToolsView() {
   };
 
   const handleFile = async (file: File) => {
+    console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+
     if (!file.name.endsWith('.csv')) {
       alert('Please upload a CSV file');
       return;
     }
 
-    if (!user?.id) return;
+    if (!user?.id) {
+      alert('User not authenticated');
+      return;
+    }
 
     try {
       setUploading(true);
+      console.log('Reading file...');
       const text = await file.text();
+      console.log('File content length:', text.length);
+      console.log('First 200 characters:', text.substring(0, 200));
+
+      console.log('Importing cards...');
       await importCardsFromCSV(user.id, text);
+
+      console.log('Reloading cards...');
       await loadCards();
+
       alert('Cards imported successfully!');
     } catch (error) {
       console.error('Failed to import cards:', error);
@@ -92,7 +105,7 @@ export function MyToolsView() {
     if (!confirm('Are you sure you want to delete all cards? This action cannot be undone.')) return;
 
     try {
-      setLoading(true);
+      setCardsLoading(true);
       await deleteAllClientCards(user.id);
       setCards([]);
       alert('All cards deleted successfully');
@@ -100,7 +113,7 @@ export function MyToolsView() {
       console.error('Failed to delete cards:', error);
       alert('Failed to delete cards');
     } finally {
-      setLoading(false);
+      setCardsLoading(false);
     }
   };
 
@@ -127,7 +140,7 @@ export function MyToolsView() {
             {cards.length > 0 && (
               <button
                 onClick={handleDeleteAll}
-                disabled={loading}
+                disabled={cardsLoading}
                 className="flex items-center space-x-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-all disabled:opacity-50"
               >
                 <Trash2 className="w-4 h-4" />
@@ -138,10 +151,10 @@ export function MyToolsView() {
         </div>
 
         <div
-          className={`mb-6 border-2 border-dashed rounded-xl p-8 text-center transition-all ${
+          className={`mb-6 border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
             dragActive
               ? 'border-slate-900 bg-slate-50'
-              : 'border-slate-300 hover:border-slate-400'
+              : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
           } ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -154,11 +167,15 @@ export function MyToolsView() {
             {uploading ? 'Importing Cards...' : 'Import Cards from CSV'}
           </h3>
           <p className="text-slate-600 mb-2">
-            Drag and drop your CSV file here, or click to browse
+            {uploading ? 'Please wait while we process your file...' : 'Drag and drop your CSV file here, or click to browse'}
           </p>
-          <p className="text-sm text-slate-500">
-            CSV format: card name, type, rarity, power, description
-          </p>
+          {!uploading && (
+            <div className="text-sm text-slate-500 space-y-1">
+              <p className="font-medium">Expected CSV columns (any order):</p>
+              <p>Name, Type, Rarity, Power, Description</p>
+              <p className="text-xs mt-2">Note: This will replace all existing cards</p>
+            </div>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -188,19 +205,15 @@ export function MyToolsView() {
           </div>
         )}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
-          </div>
-        ) : cards.length === 0 ? (
+        {!cardsLoading && cards.length === 0 ? (
           <div className="bg-slate-50 p-12 rounded-xl border border-slate-200 text-center">
             <CreditCard className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Cards Imported</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Cards Found</h3>
             <p className="text-slate-600">
               Upload a CSV file to import your cards collection
             </p>
           </div>
-        ) : (
+        ) : cards.length > 0 ? (
           <div className="overflow-x-auto border border-slate-200 rounded-lg">
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
@@ -245,7 +258,7 @@ export function MyToolsView() {
               </tbody>
             </table>
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -264,14 +277,10 @@ export function MyToolsView() {
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
-          </div>
-        ) : devices.length === 0 ? (
+        {devices.length === 0 ? (
           <div className="bg-slate-50 p-12 rounded-xl border border-slate-200 text-center">
             <Smartphone className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Devices Connected</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Devices Found</h3>
             <p className="text-slate-600 mb-4">
               Connect your devices to start playing and tracking your game progress.
             </p>
