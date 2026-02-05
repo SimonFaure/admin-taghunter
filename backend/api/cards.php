@@ -83,7 +83,7 @@ function getCardsFilePath($clientId, $version) {
 function getCurrentCardsFile($db, $clientId) {
     $metadata = $db->fetch(
         'SELECT version FROM client_cards_metadata WHERE client_id = ?',
-        [$clientId]
+        [(int)$clientId]
     );
 
     if (!$metadata) {
@@ -132,9 +132,7 @@ try {
                 jsonResponse(['error' => 'Client ID is required'], 400);
             }
 
-            $clientId = $_GET['client_id'];
-
-            error_log("Admin getting metadata for client: " . $clientId);
+            $clientId = (int)$_GET['client_id'];
 
             $client = $db->fetch(
                 'SELECT id FROM clients WHERE id = ?',
@@ -142,7 +140,6 @@ try {
             );
 
             if (!$client) {
-                error_log("Client not found: " . $clientId);
                 jsonResponse(['error' => 'Client not found'], 404);
             }
 
@@ -151,17 +148,13 @@ try {
                 [$clientId]
             );
 
-            error_log("Metadata from DB: " . json_encode($metadata));
-
             $fileExists = false;
             if ($metadata) {
                 $cardsFile = getCardsFilePath($clientId, $metadata['version']);
                 $fileExists = file_exists($cardsFile);
-                error_log("Cards file exists: " . ($fileExists ? 'yes' : 'no') . " at " . $cardsFile);
                 $metadata['has_file'] = $fileExists;
             }
 
-            error_log("Final metadata: " . json_encode($metadata));
             jsonResponse(['data' => $metadata]);
             break;
 
@@ -222,19 +215,13 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            error_log("Admin upload request received");
-            error_log("POST data: " . json_encode($_POST));
-            error_log("FILES data: " . json_encode($_FILES));
-
             requireAdminAuth($db);
 
             if (!isset($_POST['client_id'])) {
-                error_log("Client ID not provided in POST");
                 jsonResponse(['error' => 'Client ID is required'], 400);
             }
 
-            $clientId = $_POST['client_id'];
-            error_log("Client ID: " . $clientId);
+            $clientId = (int)$_POST['client_id'];
 
             $client = $db->fetch(
                 'SELECT id FROM clients WHERE id = ?',
@@ -242,17 +229,14 @@ try {
             );
 
             if (!$client) {
-                error_log("Client not found: " . $clientId);
                 jsonResponse(['error' => 'Client not found'], 404);
             }
 
             if (!isset($_FILES['file'])) {
-                error_log("No file uploaded");
                 jsonResponse(['error' => 'No file uploaded'], 400);
             }
 
             $file = $_FILES['file'];
-            error_log("File uploaded: " . $file['name']);
 
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             if ($ext !== 'csv') {
@@ -284,7 +268,6 @@ try {
             }
 
             $targetFile = getCardsFilePath($clientId, $newVersion);
-            error_log("Saving file to: " . $targetFile);
 
             if (!move_uploaded_file($file['tmp_name'], $targetFile)) {
                 jsonResponse(['error' => 'Failed to save file'], 500);
@@ -370,7 +353,7 @@ try {
             }
 
             requireAdminAuth($db);
-            $clientId = $_GET['client_id'] ?? '';
+            $clientId = (int)($_GET['client_id'] ?? 0);
 
             if (empty($clientId)) {
                 jsonResponse(['error' => 'client_id is required'], 400);
