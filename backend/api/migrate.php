@@ -50,7 +50,8 @@ try {
         'add_app_versions_migration.sql',
         'add_game_meta_migration.sql',
         'scenario_files_migration.sql',
-        'add_password_hash_migration.sql'
+        'add_password_hash_migration.sql',
+        'add_long_lived_tokens_migration.sql'
     ];
 
     $results = [];
