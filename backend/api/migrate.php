@@ -51,7 +51,8 @@ try {
         'add_game_meta_migration.sql',
         'scenario_files_migration.sql',
         'add_password_hash_migration.sql',
-        'add_long_lived_tokens_migration.sql'
+        'add_long_lived_tokens_migration.sql',
+        'cards_and_devices_migration.sql'
     ];
 
     $results = [];

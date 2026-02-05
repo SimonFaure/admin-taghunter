@@ -71,6 +71,7 @@ export function SettingsView() {
             <li>API logging system</li>
             <li>Game data fields (game_data, game_type)</li>
             <li>App versions tracking</li>
+            <li>Cards and devices management</li>
           </ul>
         </div>
 
