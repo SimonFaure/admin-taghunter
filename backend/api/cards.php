@@ -154,6 +154,40 @@ try {
             readfile($cardsFile);
             exit;
 
+        case 'get_data':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $clientId = requireClientAuth($db);
+            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+
+            if (!file_exists($cardsFile)) {
+                jsonResponse(['error' => 'No cards file found'], 404);
+            }
+
+            $cards = [];
+            $headers = [];
+
+            if (($handle = fopen($cardsFile, 'r')) !== false) {
+                $rowIndex = 0;
+                while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+                    if ($rowIndex === 0) {
+                        $headers = $data;
+                    } else {
+                        if (count($data) === count($headers)) {
+                            $cards[] = array_combine($headers, $data);
+                        }
+                    }
+                    $rowIndex++;
+                }
+                fclose($handle);
+            }
+
+            Logger::log('cards', 'GET', 'get_data', $clientId, [], ['success' => true, 'count' => count($cards)], 200);
+            jsonResponse(['success' => true, 'data' => $cards, 'headers' => $headers, 'count' => count($cards)]);
+            break;
+
         case 'delete':
             if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
                 jsonResponse(['error' => 'Method not allowed'], 405);

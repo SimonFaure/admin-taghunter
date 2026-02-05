@@ -418,6 +418,65 @@ export default function ApiDocsView() {
       ],
     },
     {
+      title: 'Client Cards',
+      icon: <CreditCard className="w-5 h-5" />,
+      color: 'bg-slate-600',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/cards.php?action=get_metadata',
+          description: 'Get cards file metadata for authenticated client',
+          auth: true,
+          response: '{ "data": { "id": 1, "client_id": "uuid", "version": 1, "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z", "has_file": true } }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/cards.php?action=get_data',
+          description: 'Get parsed cards data from CSV file (client only)',
+          auth: true,
+          response: '{ "success": true, "data": [{ "card_id": "001", "name": "Card Name", "type": "example" }], "headers": ["card_id", "name", "type"], "count": 1 }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/cards.php?action=upload',
+          description: 'Upload a CSV cards file (client only)',
+          auth: true,
+          body: [
+            { name: 'file', type: 'file', description: 'CSV file to upload (required)' },
+          ],
+          response: '{ "success": true, "version": 2 }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/cards.php?action=download',
+          description: 'Download the cards CSV file (client only)',
+          auth: true,
+          response: '(Binary CSV file with Content-Type: text/csv)',
+        },
+        {
+          method: 'DELETE',
+          path: '/backend/api/cards.php?action=delete',
+          description: 'Delete the cards file and metadata (client only)',
+          auth: true,
+          response: '{ "success": true }',
+        },
+      ],
+    },
+    {
+      title: 'Client Devices',
+      icon: <Smartphone className="w-5 h-5" />,
+      color: 'bg-stone-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/devices.php?action=list',
+          description: 'Get all devices for authenticated client',
+          auth: true,
+          response: '{ "devices": [{ "id": 1, "client_id": "uuid", "device_uniq": "device-123", "playground_version": "1.0.0", "cards_file_version": 1, "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
+        },
+      ],
+    },
+    {
       title: 'TagHunter Playground API',
       icon: <Smartphone className="w-5 h-5" />,
       color: 'bg-cyan-500',

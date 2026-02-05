@@ -114,3 +114,32 @@ export async function deleteCardsFile(): Promise<void> {
     throw new Error(error.error || 'Failed to delete cards file');
   }
 }
+
+export interface CardData {
+  [key: string]: string;
+}
+
+export interface CardsDataResponse {
+  success: boolean;
+  data: CardData[];
+  headers: string[];
+  count: number;
+}
+
+export async function getCardsData(): Promise<CardsDataResponse | null> {
+  const response = await fetch(`${API_BASE_URL}/cards.php?action=get_data`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch cards data');
+  }
+
+  return response.json();
+}
