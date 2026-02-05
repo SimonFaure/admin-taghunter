@@ -1,3 +1,5 @@
+import { secureAuth } from './secureAuth';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 export interface Device {
@@ -10,13 +12,24 @@ export interface Device {
   updated_at: string;
 }
 
+function getAuthHeaders(): HeadersInit {
+  const token = secureAuth.getStoredToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (token) {
+    headers['X-Auth-Token'] = token;
+  }
+
+  return headers;
+}
+
 export async function getDevices(): Promise<Device[]> {
   const response = await fetch(`${API_BASE_URL}/devices.php?action=list`, {
     method: 'GET',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
@@ -36,9 +49,7 @@ export async function registerDevice(data: {
   const response = await fetch(`${API_BASE_URL}/devices.php?action=register`, {
     method: 'POST',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -59,9 +70,7 @@ export async function updateDevice(data: {
   const response = await fetch(`${API_BASE_URL}/devices.php?action=update`, {
     method: 'PUT',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
 
@@ -75,9 +84,7 @@ export async function deleteDevice(deviceUniq: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/devices.php?action=delete&device_uniq=${encodeURIComponent(deviceUniq)}`, {
     method: 'DELETE',
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
   });
 
   if (!response.ok) {

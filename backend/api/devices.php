@@ -1,13 +1,14 @@
 <?php
+session_start();
 
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
 
 header('Content-Type: application/json');
-session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -19,11 +20,28 @@ function getRequestData() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
-function requireClientAuth() {
-    if (!isset($_SESSION['client_id'])) {
-        jsonResponse(['error' => 'Unauthorized - Client login required'], 401);
+function requireClientAuth($db) {
+    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+    if (strpos($token, 'Bearer ') === 0) {
+        $token = substr($token, 7);
     }
-    return $_SESSION['client_id'];
+
+    if (empty($token)) {
+        jsonResponse(['error' => 'Unauthorized - Token required'], 401);
+    }
+
+    $tokenData = TokenManager::validateToken($db, $token);
+
+    if (!$tokenData) {
+        jsonResponse(['error' => 'Unauthorized - Invalid or expired token'], 401);
+    }
+
+    if ($tokenData['user_type'] !== 'client') {
+        jsonResponse(['error' => 'Unauthorized - Client login required'], 403);
+    }
+
+    return $tokenData['user_id'];
 }
 
 try {
@@ -36,7 +54,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
 
             $devices = $db->fetchAll(
                 'SELECT * FROM devices WHERE client_id = ? ORDER BY created_at DESC',
@@ -51,7 +69,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
             $data = getRequestData();
 
             if (empty($data['device_uniq'])) {
@@ -94,7 +112,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
             $data = getRequestData();
 
             if (empty($data['device_uniq'])) {
@@ -144,7 +162,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $clientId = requireClientAuth();
+            $clientId = requireClientAuth($db);
             $deviceUniq = $_GET['device_uniq'] ?? '';
 
             if (empty($deviceUniq)) {
