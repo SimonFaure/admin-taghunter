@@ -357,6 +357,57 @@ try {
             jsonResponse(['success' => true, 'data' => $cards, 'headers' => $headers, 'count' => count($cards)]);
             break;
 
+        case 'admin_get_data':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            requireAdminAuth($db);
+            $clientId = $_GET['client_id'] ?? '';
+
+            if (empty($clientId)) {
+                jsonResponse(['error' => 'client_id is required'], 400);
+            }
+
+            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+
+            if (!file_exists($cardsFile)) {
+                jsonResponse(['error' => 'No cards file found'], 404);
+            }
+
+            $cards = [];
+            $headers = [];
+            $expectedHeaders = ['key_name', 'color', 'key_number', 'id'];
+
+            if (($handle = fopen($cardsFile, 'r')) !== false) {
+                $rowIndex = 0;
+                while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+                    if ($rowIndex === 0) {
+                        $headers = array_map('trim', $data);
+
+                        $missingHeaders = array_diff($expectedHeaders, $headers);
+                        if (!empty($missingHeaders)) {
+                            fclose($handle);
+                            jsonResponse([
+                                'error' => 'Invalid CSV format. Missing required headers: ' . implode(', ', $missingHeaders),
+                                'expected_headers' => $expectedHeaders,
+                                'found_headers' => $headers
+                            ], 400);
+                        }
+                    } else {
+                        if (count($data) === count($headers)) {
+                            $cards[] = array_combine($headers, array_map('trim', $data));
+                        }
+                    }
+                    $rowIndex++;
+                }
+                fclose($handle);
+            }
+
+            Logger::log('cards', 'GET', 'admin_get_data', $_SESSION['admin_id'], ['client_id' => $clientId], ['success' => true, 'count' => count($cards)], 200);
+            jsonResponse(['success' => true, 'data' => $cards, 'headers' => $headers, 'count' => count($cards)]);
+            break;
+
         case 'delete':
             if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
                 jsonResponse(['error' => 'Method not allowed'], 405);

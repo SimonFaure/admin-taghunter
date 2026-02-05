@@ -1,9 +1,10 @@
 import { useSecureAuth } from '../contexts/SecureAuthContext';
-import { LogOut, Home, User, Film, Wrench, Settings, TrendingUp } from 'lucide-react';
+import { LogOut, Home, User, Film, CreditCard, Settings, TrendingUp, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 import { MyAccountView } from './client/MyAccountView';
 import { MyScenariosView } from './client/MyScenariosView';
-import { MyToolsView } from './client/MyToolsView';
+import { MyCardsView } from './client/MyCardsView';
+import { MyDevicesView } from './client/MyDevicesView';
 import { GameConfigView } from './client/GameConfigView';
 import { ClientStatisticsView } from './client/ClientStatisticsView';
 import { ClientHomeView } from './client/ClientHomeView';
@@ -16,7 +17,8 @@ export function ClientDashboard() {
     { id: 'home', label: 'Home', icon: Home },
     { id: 'account', label: 'My Account', icon: User },
     { id: 'scenarios', label: 'My Scenarios', icon: Film },
-    { id: 'tools', label: 'My Tools', icon: Wrench },
+    { id: 'cards', label: 'My Cards', icon: CreditCard },
+    { id: 'devices', label: 'My Devices', icon: Smartphone },
     { id: 'config', label: 'Game Config', icon: Settings },
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
   ];
@@ -90,7 +92,8 @@ export function ClientDashboard() {
           {activeTab === 'home' && <ClientHomeView />}
           {activeTab === 'account' && <MyAccountView />}
           {activeTab === 'scenarios' && <MyScenariosView />}
-          {activeTab === 'tools' && <MyToolsView />}
+          {activeTab === 'cards' && <MyCardsView />}
+          {activeTab === 'devices' && <MyDevicesView />}
           {activeTab === 'config' && <GameConfigView />}
           {activeTab === 'statistics' && <ClientStatisticsView />}
         </div>

@@ -9,7 +9,7 @@ interface Toast {
   message: string;
 }
 
-export function MyToolsView() {
+export function MyCardsView() {
   const { user } = useSecureAuth();
   const [cardsMetadata, setCardsMetadata] = useState<CardsMetadata | null>(null);
   const [cardsData, setCardsData] = useState<CardData[]>([]);

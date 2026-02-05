@@ -29,6 +29,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [cardsMetadata, setCardsMetadata] = useState<any>(null);
+  const [cardsData, setCardsData] = useState<any[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
   const [uploadingCards, setUploadingCards] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -56,17 +57,31 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     setLoadingCards(true);
     try {
       console.log('Loading cards metadata for client:', clientId);
-      const response = await fetch(`https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_metadata&client_id=${clientId}`, {
-        credentials: 'include',
-      });
-      console.log('Metadata response status:', response.status);
-      if (response.ok) {
-        const result = await response.json();
+      const [metadataResponse, dataResponse] = await Promise.all([
+        fetch(`https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_metadata&client_id=${clientId}`, {
+          credentials: 'include',
+        }),
+        fetch(`https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_data&client_id=${clientId}`, {
+          credentials: 'include',
+        }).catch(() => null)
+      ]);
+
+      console.log('Metadata response status:', metadataResponse.status);
+      if (metadataResponse.ok) {
+        const result = await metadataResponse.json();
         console.log('Metadata result:', result);
         setCardsMetadata(result.data || null);
       } else {
-        const errorText = await response.text();
+        const errorText = await metadataResponse.text();
         console.error('Metadata error response:', errorText);
+      }
+
+      if (dataResponse && dataResponse.ok) {
+        const dataResult = await dataResponse.json();
+        console.log('Cards data result:', dataResult);
+        setCardsData(dataResult.data || []);
+      } else {
+        setCardsData([]);
       }
     } catch (err) {
       console.error('Error loading cards metadata:', err);
@@ -805,6 +820,44 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               <p className="text-sm text-slate-500">
                 Upload a CSV file containing the card data for this client. The file will be versioned and can be accessed by the client's devices.
               </p>
+            </div>
+          )}
+
+          {cardsMetadata?.has_file && cardsData.length > 0 && (
+            <div className="mt-6 bg-white rounded-xl border border-slate-200">
+              <div className="p-4 border-b border-slate-200">
+                <h3 className="text-lg font-semibold text-slate-900">Cards Data Preview</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  {cardsData.length} cards in file
+                </p>
+              </div>
+              <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50 sticky top-0">
+                    <tr>
+                      {Object.keys(cardsData[0]).map((header) => (
+                        <th
+                          key={header}
+                          className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider"
+                        >
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-200">
+                    {cardsData.map((card, index) => (
+                      <tr key={index} className="hover:bg-slate-50 transition-colors">
+                        {Object.values(card).map((value, idx) => (
+                          <td key={idx} className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                            {String(value)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
