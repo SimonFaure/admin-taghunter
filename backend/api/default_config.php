@@ -47,6 +47,12 @@ try {
     $db = Database::getInstance();
     $action = $_GET['action'] ?? '';
 
+    Logger::log('default_config', $_SERVER['REQUEST_METHOD'], 'file_accessed', null, [
+        'action' => $action,
+        'get_params' => $_GET,
+        'headers' => getallheaders()
+    ], ['message' => 'default_config.php accessed'], 200);
+
     switch ($action) {
         case 'create':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
