@@ -70,10 +70,10 @@ export const secureAuth = {
     });
   },
 
-  async verifyCode(email: string, code: string): Promise<ApiResponse<TokenData>> {
+  async verifyCode(email: string, code: string, rememberMe: boolean = false): Promise<ApiResponse<TokenData>> {
     const result = await secureFetch<TokenData>('/secure_auth.php?action=verify-code', {
       method: 'POST',
-      body: JSON.stringify({ email, code }),
+      body: JSON.stringify({ email, code, remember_me: rememberMe }),
     });
 
     if (result.success && result.data) {

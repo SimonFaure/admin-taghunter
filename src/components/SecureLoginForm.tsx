@@ -11,6 +11,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -44,7 +45,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
     setLoading(true);
 
     try {
-      const result = await login(email, code);
+      const result = await login(email, code, rememberMe);
 
       if (!result.success) {
         setError(result.error || 'Failed to verify code');
@@ -150,6 +151,19 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                 <p className="mt-2 text-sm text-slate-400">
                   Code sent to: <span className="text-white font-medium">{email}</span>
                 </p>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500"
+                />
+                <label htmlFor="rememberMe" className="ml-2 text-sm text-slate-300">
+                  Don't ask for a code for 30 days
+                </label>
               </div>
 
               {successMessage && (

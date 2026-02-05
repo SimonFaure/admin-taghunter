@@ -3,6 +3,7 @@
 class TokenManager {
     private const TOKEN_LENGTH = 64;
     private const TOKEN_EXPIRY_HOURS = 24;
+    private const LONG_LIVED_TOKEN_EXPIRY_DAYS = 30;
 
     public static function generateSecureToken(): string {
         return bin2hex(random_bytes(self::TOKEN_LENGTH));
@@ -16,26 +17,32 @@ class TokenManager {
         return date('Y-m-d H:i:s', strtotime("+{$hours} hours"));
     }
 
+    public static function getLongLivedExpiryTime(): string {
+        return date('Y-m-d H:i:s', strtotime("+" . self::LONG_LIVED_TOKEN_EXPIRY_DAYS . " days"));
+    }
+
     public static function createToken(
         object $db,
         string $userId,
         string $ipAddress,
         string $userAgent,
-        string $userType = 'client'
+        string $userType = 'client',
+        bool $longLived = false
     ): array {
         $token = self::generateSecureToken();
         $hashedToken = self::hashToken($token);
-        $expiresAt = self::getExpiryTime();
+        $expiresAt = $longLived ? self::getLongLivedExpiryTime() : self::getExpiryTime();
 
         $db->execute(
-            'INSERT INTO auth_tokens (user_id, user_type, token, expires_at, ip_address, user_agent)
-             VALUES (?, ?, ?, ?, ?, ?)',
-            [$userId, $userType, $hashedToken, $expiresAt, $ipAddress, $userAgent]
+            'INSERT INTO auth_tokens (user_id, user_type, token, expires_at, ip_address, user_agent, long_lived)
+             VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [$userId, $userType, $hashedToken, $expiresAt, $ipAddress, $userAgent, $longLived ? 1 : 0]
         );
 
         return [
             'token' => $token,
-            'expires_at' => $expiresAt
+            'expires_at' => $expiresAt,
+            'long_lived' => $longLived
         ];
     }
 

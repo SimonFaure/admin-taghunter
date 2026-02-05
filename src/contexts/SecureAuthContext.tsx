@@ -11,7 +11,7 @@ interface AuthUser {
 interface SecureAuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, code: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
   isAuthenticated: boolean;
@@ -57,9 +57,9 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, code: string) => {
+  const login = async (email: string, code: string, rememberMe: boolean = false) => {
     try {
-      const result = await secureAuth.verifyCode(email, code);
+      const result = await secureAuth.verifyCode(email, code, rememberMe);
 
       if (result.error) {
         return { success: false, error: result.error };

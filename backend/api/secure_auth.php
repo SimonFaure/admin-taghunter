@@ -122,6 +122,7 @@ try {
             $data = getRequestData();
             $email = $data['email'] ?? '';
             $code = $data['code'] ?? '';
+            $rememberMe = $data['remember_me'] ?? false;
 
             if (empty($email) || empty($code)) {
                 Logger::log('secure_auth', 'POST', 'verify-code', null, ['email' => $email], ['error' => 'Missing fields'], 400);
@@ -174,7 +175,7 @@ try {
                 jsonResponse(['error' => 'User not found'], 404);
             }
 
-            $tokenData = TokenManager::createToken($db, $userId, $ipAddress, $userAgent, $userType);
+            $tokenData = TokenManager::createToken($db, $userId, $ipAddress, $userAgent, $userType, $rememberMe);
 
             RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
 
@@ -183,6 +184,7 @@ try {
                 'data' => [
                     'token' => $tokenData['token'],
                     'expires_at' => $tokenData['expires_at'],
+                    'long_lived' => $tokenData['long_lived'] ?? false,
                     'user_id' => $userId,
                     'user_type' => $userType,
                     'email' => $email,
