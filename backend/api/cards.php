@@ -26,88 +26,136 @@ function requireClientAuth() {
     return $_SESSION['client_id'];
 }
 
+function getCardsDirectory($clientId) {
+    $baseDir = __DIR__ . '/../../cards';
+    $clientDir = $baseDir . '/' . $clientId;
+
+    if (!is_dir($baseDir)) {
+        mkdir($baseDir, 0755, true);
+    }
+
+    if (!is_dir($clientDir)) {
+        mkdir($clientDir, 0755, true);
+    }
+
+    return $clientDir;
+}
+
 try {
     $db = Database::getInstance();
     $action = $_GET['action'] ?? '';
 
     switch ($action) {
-        case 'list':
+        case 'get_metadata':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
             $clientId = requireClientAuth();
 
-            $cards = $db->fetchAll(
-                'SELECT * FROM client_cards WHERE client_id = ? ORDER BY created_at DESC',
+            $metadata = $db->fetch(
+                'SELECT * FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
             );
 
-            foreach ($cards as &$card) {
-                if (!empty($card['additional_data'])) {
-                    $card['additional_data'] = json_decode($card['additional_data'], true);
-                }
+            if ($metadata) {
+                $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+                $metadata['has_file'] = file_exists($cardsFile);
             }
 
-            jsonResponse(['data' => $cards]);
+            jsonResponse(['data' => $metadata]);
             break;
 
-        case 'import':
+        case 'upload':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
             $clientId = requireClientAuth();
-            $data = getRequestData();
 
-            if (!isset($data['cards']) || !is_array($data['cards'])) {
-                jsonResponse(['error' => 'Invalid cards data'], 400);
+            if (!isset($_FILES['file'])) {
+                jsonResponse(['error' => 'No file uploaded'], 400);
             }
 
-            $db->query('DELETE FROM client_cards WHERE client_id = ?', [$clientId]);
+            $file = $_FILES['file'];
 
-            $stmt = $db->prepare(
-                'INSERT INTO client_cards (client_id, card_name, card_type, card_rarity, card_power, card_description, additional_data, import_batch)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if ($ext !== 'csv') {
+                jsonResponse(['error' => 'Only CSV files are allowed'], 400);
+            }
+
+            $mimeType = mime_content_type($file['tmp_name']);
+            if (!in_array($mimeType, ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'])) {
+                jsonResponse(['error' => 'Invalid file type. Only CSV files are allowed.'], 400);
+            }
+
+            $cardsDir = getCardsDirectory($clientId);
+            $targetFile = $cardsDir . '/cards.csv';
+
+            if (!move_uploaded_file($file['tmp_name'], $targetFile)) {
+                jsonResponse(['error' => 'Failed to save file'], 500);
+            }
+
+            $currentMetadata = $db->fetch(
+                'SELECT version FROM client_cards_metadata WHERE client_id = ?',
+                [$clientId]
             );
 
-            $batchId = $data['batchId'] ?? uniqid('batch_', true);
-            $insertedCount = 0;
-
-            foreach ($data['cards'] as $card) {
-                $additionalData = isset($card['additional_data']) && !empty($card['additional_data'])
-                    ? json_encode($card['additional_data'])
-                    : null;
-
-                $stmt->execute([
-                    $clientId,
-                    $card['card_name'] ?? '',
-                    $card['card_type'] ?? '',
-                    $card['card_rarity'] ?? '',
-                    $card['card_power'] ?? '',
-                    $card['card_description'] ?? '',
-                    $additionalData,
-                    $batchId
-                ]);
-                $insertedCount++;
+            if ($currentMetadata) {
+                $newVersion = (int)$currentMetadata['version'] + 1;
+                $db->query(
+                    'UPDATE client_cards_metadata SET version = ?, updated_at = NOW() WHERE client_id = ?',
+                    [$newVersion, $clientId]
+                );
+            } else {
+                $newVersion = 1;
+                $db->query(
+                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
+                    [$clientId, $newVersion]
+                );
             }
 
-            Logger::log('cards', 'POST', 'import', $clientId, ['count' => $insertedCount], ['success' => true, 'count' => $insertedCount], 200);
-            jsonResponse(['success' => true, 'imported' => $insertedCount]);
+            Logger::log('cards', 'POST', 'upload', $clientId, ['filename' => $file['name']], ['success' => true, 'version' => $newVersion], 200);
+            jsonResponse(['success' => true, 'version' => $newVersion]);
             break;
 
-        case 'delete_all':
+        case 'download':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $clientId = requireClientAuth();
+            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+
+            if (!file_exists($cardsFile)) {
+                jsonResponse(['error' => 'No cards file found'], 404);
+            }
+
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="cards.csv"');
+            header('Content-Length: ' . filesize($cardsFile));
+            readfile($cardsFile);
+            exit;
+
+        case 'delete':
             if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
             $clientId = requireClientAuth();
+            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
 
-            $result = $db->query('DELETE FROM client_cards WHERE client_id = ?', [$clientId]);
-            $deletedCount = $result->rowCount();
+            if (file_exists($cardsFile)) {
+                unlink($cardsFile);
+            }
 
-            Logger::log('cards', 'DELETE', 'delete_all', $clientId, [], ['success' => true, 'count' => $deletedCount], 200);
-            jsonResponse(['success' => true, 'deleted' => $deletedCount]);
+            $db->query(
+                'DELETE FROM client_cards_metadata WHERE client_id = ?',
+                [$clientId]
+            );
+
+            Logger::log('cards', 'DELETE', 'delete', $clientId, [], ['success' => true], 200);
+            jsonResponse(['success' => true]);
             break;
 
         default:
