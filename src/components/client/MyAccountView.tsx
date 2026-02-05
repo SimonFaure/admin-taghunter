@@ -1,6 +1,43 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { Mail, User, Building, Calendar, Crown, CheckCircle, XCircle } from 'lucide-react';
 
+function formatMemberSince(dateString?: string): string {
+  if (!dateString) return 'N/A';
+
+  const createdDate = new Date(dateString);
+  const now = new Date();
+
+  const diffMs = now.getTime() - createdDate.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  const years = Math.floor(diffDays / 365);
+  const months = Math.floor((diffDays % 365) / 30);
+  const days = Math.floor((diffDays % 365) % 30);
+
+  let duration = '';
+  if (years > 0) {
+    duration = `${years} year${years > 1 ? 's' : ''}`;
+    if (months > 0) {
+      duration += `, ${months} month${months > 1 ? 's' : ''}`;
+    }
+  } else if (months > 0) {
+    duration = `${months} month${months > 1 ? 's' : ''}`;
+    if (days > 0) {
+      duration += `, ${days} day${days > 1 ? 's' : ''}`;
+    }
+  } else {
+    duration = `${days} day${days > 1 ? 's' : ''}`;
+  }
+
+  const formattedDate = createdDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
+  return `${formattedDate} (${duration})`;
+}
+
 export function MyAccountView() {
   const { user } = useSecureAuth();
 
@@ -74,7 +111,7 @@ export function MyAccountView() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-600">Member Since</p>
-              <p className="text-base text-slate-900">Active</p>
+              <p className="text-base text-slate-900">{formatMemberSince(user?.created_at)}</p>
             </div>
           </div>
         </div>

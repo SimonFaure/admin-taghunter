@@ -60,7 +60,7 @@ try {
                 ], 429);
             }
 
-            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date, created_at FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
 
@@ -135,6 +135,7 @@ try {
                 if ($userType === 'client') {
                     $response['data']['license_type'] = $client['license_type'];
                     $response['data']['billing_up_to_date'] = $client['billing_up_to_date'];
+                    $response['data']['created_at'] = $client['created_at'];
                 }
 
                 RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
@@ -304,13 +305,14 @@ try {
                 jsonResponse(['error' => $codeValidation['reason']], 401);
             }
 
-            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date, created_at FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
             $userId = null;
             $userName = null;
             $licenseType = null;
             $billingUpToDate = null;
+            $createdAt = null;
 
             if (!$client) {
                 $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
@@ -324,6 +326,7 @@ try {
                 $userName = $client['name'];
                 $licenseType = $client['license_type'];
                 $billingUpToDate = $client['billing_up_to_date'];
+                $createdAt = $client['created_at'];
             }
 
             if (!$client && !$admin) {
@@ -352,6 +355,7 @@ try {
             if ($userType === 'client') {
                 $response['data']['license_type'] = $licenseType;
                 $response['data']['billing_up_to_date'] = $billingUpToDate;
+                $response['data']['created_at'] = $createdAt;
             }
 
             Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);

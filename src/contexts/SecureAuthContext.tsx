@@ -8,6 +8,7 @@ interface AuthUser {
   token: string;
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
+  created_at?: string;
 }
 
 interface SecureAuthContextType {
@@ -48,6 +49,7 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
           token,
           license_type: result.license_type,
           billing_up_to_date: result.billing_up_to_date,
+          created_at: result.created_at,
         });
       } else {
         secureAuth.clearToken();
@@ -88,6 +90,7 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
         token: userData.token || secureAuth.getStoredToken() || '',
         license_type: userData.license_type,
         billing_up_to_date: userData.billing_up_to_date,
+        created_at: userData.created_at,
       });
 
       return { success: true };
