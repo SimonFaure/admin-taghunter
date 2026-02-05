@@ -72,6 +72,24 @@ function getCardsDirectory($clientId) {
     return $clientDir;
 }
 
+function getCardsFilePath($clientId, $version) {
+    return getCardsDirectory($clientId) . '/cards_v' . $version . '.csv';
+}
+
+function getCurrentCardsFile($db, $clientId) {
+    $metadata = $db->fetch(
+        'SELECT version FROM client_cards_metadata WHERE client_id = ?',
+        [$clientId]
+    );
+
+    if (!$metadata) {
+        return null;
+    }
+
+    $filePath = getCardsFilePath($clientId, $metadata['version']);
+    return file_exists($filePath) ? $filePath : null;
+}
+
 try {
     $db = Database::getInstance();
     $action = $_GET['action'] ?? '';
@@ -83,26 +101,16 @@ try {
             }
 
             $clientId = requireClientAuth($db);
-            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
-            $fileExists = file_exists($cardsFile);
 
             $metadata = $db->fetch(
                 'SELECT * FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
             );
 
-            if ($fileExists && !$metadata) {
-                $db->query(
-                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
-                    [$clientId, 1]
-                );
-                $metadata = $db->fetch(
-                    'SELECT * FROM client_cards_metadata WHERE client_id = ?',
-                    [$clientId]
-                );
-            }
-
+            $fileExists = false;
             if ($metadata) {
+                $cardsFile = getCardsFilePath($clientId, $metadata['version']);
+                $fileExists = file_exists($cardsFile);
                 $metadata['has_file'] = $fileExists;
             }
 
@@ -134,10 +142,6 @@ try {
                 jsonResponse(['error' => 'Client not found'], 404);
             }
 
-            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
-            $fileExists = file_exists($cardsFile);
-            error_log("Cards file exists: " . ($fileExists ? 'yes' : 'no') . " at " . $cardsFile);
-
             $metadata = $db->fetch(
                 'SELECT * FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
@@ -145,18 +149,11 @@ try {
 
             error_log("Metadata from DB: " . json_encode($metadata));
 
-            if ($fileExists && !$metadata) {
-                $db->query(
-                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
-                    [$clientId, 1]
-                );
-                $metadata = $db->fetch(
-                    'SELECT * FROM client_cards_metadata WHERE client_id = ?',
-                    [$clientId]
-                );
-            }
-
+            $fileExists = false;
             if ($metadata) {
+                $cardsFile = getCardsFilePath($clientId, $metadata['version']);
+                $fileExists = file_exists($cardsFile);
+                error_log("Cards file exists: " . ($fileExists ? 'yes' : 'no') . " at " . $cardsFile);
                 $metadata['has_file'] = $fileExists;
             }
 
@@ -187,13 +184,6 @@ try {
                 jsonResponse(['error' => 'Invalid file type. Only CSV files are allowed.'], 400);
             }
 
-            $cardsDir = getCardsDirectory($clientId);
-            $targetFile = $cardsDir . '/cards.csv';
-
-            if (!move_uploaded_file($file['tmp_name'], $targetFile)) {
-                jsonResponse(['error' => 'Failed to save file'], 500);
-            }
-
             $currentMetadata = $db->fetch(
                 'SELECT version FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
@@ -211,6 +201,12 @@ try {
                     'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
                     [$clientId, $newVersion]
                 );
+            }
+
+            $targetFile = getCardsFilePath($clientId, $newVersion);
+
+            if (!move_uploaded_file($file['tmp_name'], $targetFile)) {
+                jsonResponse(['error' => 'Failed to save file'], 500);
             }
 
             Logger::log('cards', 'POST', 'upload', $clientId, ['filename' => $file['name']], ['success' => true, 'version' => $newVersion], 200);
@@ -264,13 +260,6 @@ try {
                 jsonResponse(['error' => 'Invalid file type. Only CSV files are allowed.'], 400);
             }
 
-            $cardsDir = getCardsDirectory($clientId);
-            $targetFile = $cardsDir . '/cards.csv';
-
-            if (!move_uploaded_file($file['tmp_name'], $targetFile)) {
-                jsonResponse(['error' => 'Failed to save file'], 500);
-            }
-
             $currentMetadata = $db->fetch(
                 'SELECT version FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
@@ -290,6 +279,13 @@ try {
                 );
             }
 
+            $targetFile = getCardsFilePath($clientId, $newVersion);
+            error_log("Saving file to: " . $targetFile);
+
+            if (!move_uploaded_file($file['tmp_name'], $targetFile)) {
+                jsonResponse(['error' => 'Failed to save file'], 500);
+            }
+
             Logger::log('cards', 'POST', 'admin_upload', $clientId, ['filename' => $file['name']], ['success' => true, 'version' => $newVersion], 200);
             jsonResponse(['success' => true, 'version' => $newVersion]);
             break;
@@ -300,14 +296,21 @@ try {
             }
 
             $clientId = requireClientAuth($db);
-            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+            $cardsFile = getCurrentCardsFile($db, $clientId);
 
-            if (!file_exists($cardsFile)) {
+            if (!$cardsFile) {
                 jsonResponse(['error' => 'No cards file found'], 404);
             }
 
+            $metadata = $db->fetch(
+                'SELECT version FROM client_cards_metadata WHERE client_id = ?',
+                [$clientId]
+            );
+
+            $filename = 'cards_v' . ($metadata['version'] ?? '1') . '.csv';
+
             header('Content-Type: text/csv');
-            header('Content-Disposition: attachment; filename="cards.csv"');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
             header('Content-Length: ' . filesize($cardsFile));
             readfile($cardsFile);
             exit;
@@ -318,9 +321,9 @@ try {
             }
 
             $clientId = requireClientAuth($db);
-            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+            $cardsFile = getCurrentCardsFile($db, $clientId);
 
-            if (!file_exists($cardsFile)) {
+            if (!$cardsFile) {
                 jsonResponse(['error' => 'No cards file found'], 404);
             }
 
@@ -369,9 +372,9 @@ try {
                 jsonResponse(['error' => 'client_id is required'], 400);
             }
 
-            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+            $cardsFile = getCurrentCardsFile($db, $clientId);
 
-            if (!file_exists($cardsFile)) {
+            if (!$cardsFile) {
                 jsonResponse(['error' => 'No cards file found'], 404);
             }
 
@@ -414,10 +417,13 @@ try {
             }
 
             $clientId = requireClientAuth($db);
-            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+            $cardsDir = getCardsDirectory($clientId);
 
-            if (file_exists($cardsFile)) {
-                unlink($cardsFile);
+            $files = glob($cardsDir . '/cards_v*.csv');
+            foreach ($files as $file) {
+                if (file_exists($file)) {
+                    unlink($file);
+                }
             }
 
             $db->query(
