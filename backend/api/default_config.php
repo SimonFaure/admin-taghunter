@@ -3,11 +3,12 @@
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
 
+session_start();
+
 header('Content-Type: application/json');
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
-require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -19,28 +20,10 @@ function getRequestData() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
-function requireAdminAuth($db) {
-    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
-
-    if (strpos($token, 'Bearer ') === 0) {
-        $token = substr($token, 7);
+function requireAuth() {
+    if (!isset($_SESSION['user_id'])) {
+        jsonResponse(['error' => 'Unauthorized'], 401);
     }
-
-    if (empty($token)) {
-        jsonResponse(['error' => 'Unauthorized - Token required'], 401);
-    }
-
-    $tokenData = TokenManager::validateToken($db, $token);
-
-    if (!$tokenData) {
-        jsonResponse(['error' => 'Unauthorized - Invalid or expired token'], 401);
-    }
-
-    if ($tokenData['user_type'] !== 'admin') {
-        jsonResponse(['error' => 'Unauthorized - Admin access required'], 403);
-    }
-
-    return $tokenData['user_id'];
 }
 
 try {
@@ -59,7 +42,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $adminId = requireAdminAuth($db);
+            requireAuth();
             $data = getRequestData();
 
             if (!isset($data['user_email']) || !isset($data['meta']) || !isset($data['version']) || !isset($data['value'])) {
@@ -96,7 +79,7 @@ try {
                     [json_encode($value), $newVersion, $meta]
                 );
 
-                Logger::log('default_config', 'POST', 'create', $adminId, ['meta' => $meta, 'version' => $newVersion], ['success' => true, 'action' => 'updated'], 200);
+                Logger::log('default_config', 'POST', 'create', $_SESSION['user_id'], ['meta' => $meta, 'version' => $newVersion], ['success' => true, 'action' => 'updated'], 200);
                 jsonResponse(['success' => true, 'meta' => $meta, 'version' => $newVersion, 'action' => 'updated']);
             } else {
                 $db->query(
@@ -104,7 +87,7 @@ try {
                     [$meta, json_encode($value), $version]
                 );
 
-                Logger::log('default_config', 'POST', 'create', $adminId, ['meta' => $meta, 'version' => $version], ['success' => true, 'action' => 'created'], 201);
+                Logger::log('default_config', 'POST', 'create', $_SESSION['user_id'], ['meta' => $meta, 'version' => $version], ['success' => true, 'action' => 'created'], 201);
                 jsonResponse(['success' => true, 'meta' => $meta, 'version' => $version, 'action' => 'created'], 201);
             }
             break;
@@ -114,7 +97,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $adminId = requireAdminAuth($db);
+            requireAuth();
             $meta = $_GET['meta'] ?? '';
 
             if (empty($meta)) {
@@ -124,7 +107,7 @@ try {
                     $config['value'] = json_decode($config['value'], true);
                 }
 
-                Logger::log('default_config', 'GET', 'get', $adminId, [], ['success' => true, 'count' => count($configs)], 200);
+                Logger::log('default_config', 'GET', 'get', $_SESSION['user_id'], [], ['success' => true, 'count' => count($configs)], 200);
                 jsonResponse(['success' => true, 'configs' => $configs]);
             } else {
                 $config = $db->fetch(
@@ -133,12 +116,12 @@ try {
                 );
 
                 if (!$config) {
-                    Logger::log('default_config', 'GET', 'get', $adminId, ['meta' => $meta], ['error' => 'Configuration not found'], 404);
+                    Logger::log('default_config', 'GET', 'get', $_SESSION['user_id'], ['meta' => $meta], ['error' => 'Configuration not found'], 404);
                     jsonResponse(['error' => 'Configuration not found'], 404);
                 }
 
                 $config['value'] = json_decode($config['value'], true);
-                Logger::log('default_config', 'GET', 'get', $adminId, ['meta' => $meta], ['success' => true], 200);
+                Logger::log('default_config', 'GET', 'get', $_SESSION['user_id'], ['meta' => $meta], ['success' => true], 200);
                 jsonResponse(['success' => true, 'config' => $config]);
             }
             break;
@@ -148,7 +131,7 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
-            $adminId = requireAdminAuth($db);
+            requireAuth();
             $data = getRequestData();
 
             if (!isset($data['meta'])) {
@@ -171,7 +154,7 @@ try {
                 [$meta]
             );
 
-            Logger::log('default_config', 'DELETE', 'delete', $adminId, ['meta' => $meta], ['success' => true], 200);
+            Logger::log('default_config', 'DELETE', 'delete', $_SESSION['user_id'], ['meta' => $meta], ['success' => true], 200);
             jsonResponse(['success' => true, 'message' => 'Configuration deleted']);
             break;
 
