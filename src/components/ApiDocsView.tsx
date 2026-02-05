@@ -432,17 +432,17 @@ export default function ApiDocsView() {
         {
           method: 'GET',
           path: '/backend/api/cards.php?action=get_data',
-          description: 'Get parsed cards data from CSV file (client only)',
+          description: 'Get parsed cards data from CSV file (client only). CSV must have headers: key_name, color, key_number, id',
           auth: true,
-          response: '{ "success": true, "data": [{ "card_id": "001", "name": "Card Name", "type": "example" }], "headers": ["card_id", "name", "type"], "count": 1 }',
+          response: '{ "success": true, "data": [{ "key_name": "Key 1", "color": "red", "key_number": "001", "id": "uuid-here" }], "headers": ["key_name", "color", "key_number", "id"], "count": 1 }',
         },
         {
           method: 'POST',
           path: '/backend/api/cards.php?action=upload',
-          description: 'Upload a CSV cards file (client only)',
+          description: 'Upload a CSV cards file (client only). File must have headers: key_name, color, key_number, id',
           auth: true,
           body: [
-            { name: 'file', type: 'file', description: 'CSV file to upload (required)' },
+            { name: 'file', type: 'file', description: 'CSV file with headers: key_name, color, key_number, id (required)' },
           ],
           response: '{ "success": true, "version": 2 }',
         },

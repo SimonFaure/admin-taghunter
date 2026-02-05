@@ -326,15 +326,26 @@ try {
 
             $cards = [];
             $headers = [];
+            $expectedHeaders = ['key_name', 'color', 'key_number', 'id'];
 
             if (($handle = fopen($cardsFile, 'r')) !== false) {
                 $rowIndex = 0;
                 while (($data = fgetcsv($handle, 1000, ',')) !== false) {
                     if ($rowIndex === 0) {
-                        $headers = $data;
+                        $headers = array_map('trim', $data);
+
+                        $missingHeaders = array_diff($expectedHeaders, $headers);
+                        if (!empty($missingHeaders)) {
+                            fclose($handle);
+                            jsonResponse([
+                                'error' => 'Invalid CSV format. Missing required headers: ' . implode(', ', $missingHeaders),
+                                'expected_headers' => $expectedHeaders,
+                                'found_headers' => $headers
+                            ], 400);
+                        }
                     } else {
                         if (count($data) === count($headers)) {
-                            $cards[] = array_combine($headers, $data);
+                            $cards[] = array_combine($headers, array_map('trim', $data));
                         }
                     }
                     $rowIndex++;

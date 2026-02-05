@@ -159,6 +159,9 @@ export function MyToolsView() {
             <p className="text-slate-600 mt-1">
               Upload and manage your game cards CSV file
             </p>
+            <div className="mt-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded px-3 py-2 inline-block">
+              <strong>Expected format:</strong> CSV with headers: <code className="bg-slate-200 px-1 rounded">key_name</code>, <code className="bg-slate-200 px-1 rounded">color</code>, <code className="bg-slate-200 px-1 rounded">key_number</code>, <code className="bg-slate-200 px-1 rounded">id</code>
+            </div>
           </div>
           <div className="flex items-center space-x-3">
             {cardsMetadata?.has_file && (
@@ -205,7 +208,8 @@ export function MyToolsView() {
           {!uploading && (
             <div className="text-sm text-slate-500 space-y-1">
               <p className="font-medium">Only CSV files are accepted</p>
-              <p className="text-xs mt-2">Note: This will replace any existing cards file</p>
+              <p className="text-xs mt-2">Required headers: key_name, color, key_number, id</p>
+              <p className="text-xs">Note: This will replace any existing cards file</p>
             </div>
           )}
           <input
