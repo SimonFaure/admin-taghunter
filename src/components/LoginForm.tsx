@@ -34,7 +34,7 @@ export function LoginForm({ onSwitchToClient }: LoginFormProps) {
           <img
             src="/logo_tag_hunter.png"
             alt="Tag Hunter"
-            className="h-24 w-auto"
+            className="h-24 w-auto object-contain max-w-full"
           />
         </div>
 

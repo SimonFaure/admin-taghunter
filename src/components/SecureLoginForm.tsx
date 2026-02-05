@@ -74,7 +74,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
             <img
               src="/logo_tag_hunter.png"
               alt="Tag Hunter"
-              className="h-24 w-auto"
+              className="h-24 w-auto object-contain max-w-full"
             />
           </div>
           <h2 className="text-3xl font-bold text-white">Secure Login</h2>

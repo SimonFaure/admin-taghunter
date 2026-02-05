@@ -29,7 +29,7 @@ export function ClientDashboard() {
             <img
               src="/logo_tag_hunter.png"
               alt="Tag Hunter"
-              className="h-12 w-auto"
+              className="h-12 w-auto object-contain max-w-full"
             />
             <h1 className="text-lg font-bold">Client Portal</h1>
           </div>

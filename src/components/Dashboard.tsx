@@ -88,7 +88,7 @@ export function Dashboard() {
               <img
                 src="/logo_tag_hunter.png"
                 alt="Tag Hunter"
-                className="h-12 w-auto"
+                className="h-12 w-auto object-contain max-w-full"
               />
               <NotificationsList onNotificationClick={handleNotificationClick} />
             </div>
