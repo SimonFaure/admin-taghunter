@@ -13,7 +13,7 @@ interface AuthUser {
 interface SecureAuthContextType {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, code: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, code: string, rememberMe?: boolean, directData?: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
   isAuthenticated: boolean;
@@ -61,27 +61,36 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, code: string, rememberMe: boolean = false) => {
+  const login = async (email: string, code: string, rememberMe: boolean = false, directData?: any) => {
     try {
-      const result = await secureAuth.verifyCode(email, code, rememberMe);
+      let userData;
 
-      if (result.error) {
-        return { success: false, error: result.error };
+      if (directData) {
+        userData = directData;
+      } else {
+        const result = await secureAuth.verifyCode(email, code, rememberMe);
+
+        if (result.error) {
+          return { success: false, error: result.error };
+        }
+
+        if (!result.data) {
+          return { success: false, error: 'Invalid response from server' };
+        }
+
+        userData = result.data;
       }
 
-      if (result.data) {
-        setUser({
-          client_id: result.data.client_id,
-          email: result.data.email,
-          name: result.data.name,
-          token: result.data.token,
-          license_type: result.data.license_type,
-          billing_up_to_date: result.data.billing_up_to_date,
-        });
-        return { success: true };
-      }
+      setUser({
+        client_id: userData.user_id || userData.client_id,
+        email: userData.email,
+        name: userData.name,
+        token: userData.token || secureAuth.getStoredToken() || '',
+        license_type: userData.license_type,
+        billing_up_to_date: userData.billing_up_to_date,
+      });
 
-      return { success: false, error: 'Invalid response from server' };
+      return { success: true };
     } catch (error) {
       return {
         success: false,

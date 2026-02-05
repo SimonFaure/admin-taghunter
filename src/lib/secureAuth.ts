@@ -67,6 +67,19 @@ async function secureFetch<T>(
 }
 
 export const secureAuth = {
+  async login(email: string, password: string): Promise<ApiResponse<TokenData> & { code_required?: boolean }> {
+    const result = await secureFetch<TokenData>('/secure_auth.php?action=login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (result.success && result['code_required'] === false && result.data && result.data.token) {
+      this.storeToken(result.data.token, result.data.expires_at);
+    }
+
+    return result as ApiResponse<TokenData> & { code_required?: boolean };
+  },
+
   async requestCode(email: string, type: 'otp' | 'magic_link' = 'otp', password?: string): Promise<ApiResponse<{ expires_in: number }>> {
     return secureFetch<{ expires_in: number }>('/secure_auth.php?action=request-code', {
       method: 'POST',

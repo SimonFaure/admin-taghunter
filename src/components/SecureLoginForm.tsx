@@ -17,6 +17,31 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  const handleLogin = async (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    try {
+      const { secureAuth } = await import('../lib/secureAuth');
+      const result = await secureAuth.login(email, password);
+
+      if (result.error) {
+        setError(result.error);
+      } else if (result.code_required) {
+        setSuccessMessage(result.message || 'Code sent! Check your email.');
+        setStep('code');
+      } else if (result.success && result.data) {
+        await login(email, '', false, result.data);
+      }
+    } catch (err) {
+      setError('Failed to login. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRequestCode = async (e?: React.FormEvent | React.MouseEvent) => {
     e?.preventDefault();
     setError('');
@@ -80,14 +105,14 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
           <h2 className="text-3xl font-bold text-white">Secure Login</h2>
           <p className="mt-2 text-slate-400">
             {step === 'email'
-              ? 'Enter your credentials to receive a login code'
+              ? 'Enter your credentials to login'
               : 'Enter the code sent to your email'}
           </p>
         </div>
 
         <div className="bg-slate-800 rounded-2xl shadow-xl p-8 border border-slate-700">
           {step === 'email' ? (
-            <form onSubmit={handleRequestCode} className="space-y-6">
+            <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
                   Email Address
@@ -140,10 +165,10 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  'Verifying...'
+                  'Logging in...'
                 ) : (
                   <>
-                    Send Code
+                    Login
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

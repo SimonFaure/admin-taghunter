@@ -35,6 +35,138 @@ try {
     TokenManager::cleanupExpiredTokens($db);
 
     switch ($action) {
+        case 'login':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $data = getRequestData();
+            $email = $data['email'] ?? '';
+            $password = $data['password'] ?? '';
+            $appOrigin = $data['app_origin'] ?? null;
+            $appVersion = $data['app_version'] ?? null;
+
+            if (empty($email) || !SecurityHeaders::validateEmail($email)) {
+                Logger::log('secure_auth', 'POST', 'login', null, ['email' => $email], ['error' => 'Invalid email'], 400);
+                jsonResponse(['error' => 'Invalid email address'], 400);
+            }
+
+            $rateLimitCheck = RateLimiter::checkRateLimit($db, $email, $ipAddress);
+            if (!$rateLimitCheck['allowed']) {
+                Logger::log('secure_auth', 'POST', 'login', null, ['email' => $email], ['error' => 'Rate limited'], 429);
+                jsonResponse([
+                    'error' => 'Too many attempts. Please try again later.',
+                    'retry_after' => $rateLimitCheck['retry_after']
+                ], 429);
+            }
+
+            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date FROM clients WHERE email = ?', [$email]);
+            $admin = null;
+            $userType = 'client';
+
+            if (!$client) {
+                $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
+                if ($admin) {
+                    $userType = 'admin';
+                }
+            }
+
+            if (!$client && !$admin) {
+                RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Email not found');
+                Logger::log('secure_auth', 'POST', 'login', null, ['email' => $email], ['error' => 'Email not found'], 404);
+                jsonResponse(['error' => 'Email not registered'], 404);
+            }
+
+            if ($client && !empty($password)) {
+                if (empty($client['password_hash'])) {
+                    RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Password not set');
+                    Logger::log('secure_auth', 'POST', 'login', $client['id'], ['email' => $email], ['error' => 'Password not configured'], 400);
+                    jsonResponse(['error' => 'Password authentication not configured for this account'], 400);
+                }
+
+                if (!password_verify($password, $client['password_hash'])) {
+                    RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Invalid password');
+                    Logger::log('secure_auth', 'POST', 'login', $client['id'], ['email' => $email], ['error' => 'Invalid password'], 401);
+                    jsonResponse(['error' => 'Invalid password'], 401);
+                }
+            }
+
+            if ($client && empty($password) && !empty($client['password_hash'])) {
+                RateLimiter::recordAttempt($db, $email, $ipAddress, false, 'Password required');
+                Logger::log('secure_auth', 'POST', 'login', $client['id'], ['email' => $email], ['error' => 'Password required'], 400);
+                jsonResponse(['error' => 'Password is required'], 400);
+            }
+
+            if ($client && $appOrigin && $appVersion) {
+                $versionField = null;
+                if ($appOrigin === 'creator') {
+                    $versionField = 'creator_version';
+                } elseif ($appOrigin === 'playground') {
+                    $versionField = 'playground_version';
+                }
+
+                if ($versionField) {
+                    $db->execute(
+                        "UPDATE clients SET {$versionField} = ? WHERE id = ?",
+                        [$appVersion, $client['id']]
+                    );
+                }
+            }
+
+            $userId = $client ? $client['id'] : $admin['id'];
+            $hashedLongLivedToken = TokenManager::hasValidLongLivedToken($db, $userId, $userType);
+
+            if ($hashedLongLivedToken) {
+                $tokenData = TokenManager::createToken($db, $userId, $ipAddress, $userAgent, $userType, false);
+
+                $response = [
+                    'success' => true,
+                    'code_required' => false,
+                    'data' => [
+                        'token' => $tokenData['token'],
+                        'expires_at' => $tokenData['expires_at'],
+                        'user_id' => $userId,
+                        'user_type' => $userType,
+                        'email' => $email,
+                        'name' => $client ? $client['name'] : $admin['name']
+                    ]
+                ];
+
+                if ($userType === 'client') {
+                    $response['data']['license_type'] = $client['license_type'];
+                    $response['data']['billing_up_to_date'] = $client['billing_up_to_date'];
+                }
+
+                RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
+                Logger::log('secure_auth', 'POST', 'login', $userId, ['email' => $email, 'user_type' => $userType, 'remember_me' => true], ['success' => true], 200);
+                jsonResponse($response);
+            }
+
+            $codeCheck = OTPManager::canRequestCode($db, $email);
+            if (!$codeCheck['allowed']) {
+                Logger::log('secure_auth', 'POST', 'login', $userId, ['email' => $email], ['error' => 'Too many codes'], 429);
+                jsonResponse(['error' => $codeCheck['reason']], 429);
+            }
+
+            $codeData = OTPManager::createCode($db, $email, $ipAddress, 'otp');
+            $emailSent = OTPManager::sendCodeEmail($email, $codeData['code'], 'otp');
+
+            if (!$emailSent) {
+                Logger::log('secure_auth', 'POST', 'login', $userId, ['email' => $email], ['error' => 'Failed to send email'], 500);
+                jsonResponse(['error' => 'Failed to send code. Please try again.'], 500);
+            }
+
+            $response = [
+                'success' => true,
+                'code_required' => true,
+                'message' => 'Code sent to your email',
+                'expires_in' => 900
+            ];
+
+            Logger::log('secure_auth', 'POST', 'login', $userId, ['email' => $email, 'app_origin' => $appOrigin, 'app_version' => $appVersion], $response, 200);
+            jsonResponse($response);
+            break;
+
         case 'request-code':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse(['error' => 'Method not allowed'], 405);

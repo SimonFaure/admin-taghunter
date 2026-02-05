@@ -135,4 +135,20 @@ class TokenManager {
 
         return self::createToken($db, $tokenData['user_id'], $ipAddress, $userAgent, $tokenData['user_type']);
     }
+
+    public static function hasValidLongLivedToken(object $db, string $userId, string $userType = 'client'): ?string {
+        $tokenData = $db->fetch(
+            'SELECT token FROM auth_tokens
+             WHERE user_id = ?
+             AND user_type = ?
+             AND long_lived = true
+             AND expires_at > NOW()
+             AND revoked = false
+             ORDER BY expires_at DESC
+             LIMIT 1',
+            [$userId, $userType]
+        );
+
+        return $tokenData ? $tokenData['token'] : null;
+    }
 }
