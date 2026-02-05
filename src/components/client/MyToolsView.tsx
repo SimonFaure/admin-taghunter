@@ -1,8 +1,7 @@
-import { CreditCard, Smartphone, Upload, Trash2, Download, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { CreditCard, Upload, Trash2, Download, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { getCardsMetadata, uploadCardsFile, deleteCardsFile, downloadCardsFile, CardsMetadata, getCardsData, CardData } from '../../lib/cardsApi';
-import { getDevices, Device } from '../../lib/devicesApi';
 
 interface Toast {
   id: number;
@@ -14,7 +13,6 @@ export function MyToolsView() {
   const { user } = useSecureAuth();
   const [cardsMetadata, setCardsMetadata] = useState<CardsMetadata | null>(null);
   const [cardsData, setCardsData] = useState<CardData[]>([]);
-  const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -37,13 +35,11 @@ export function MyToolsView() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [metadata, devicesData, cardsDataResult] = await Promise.all([
+      const [metadata, cardsDataResult] = await Promise.all([
         getCardsMetadata(),
-        getDevices(),
         getCardsData().catch(() => null)
       ]);
       setCardsMetadata(metadata);
-      setDevices(devicesData);
       setCardsData(cardsDataResult?.data || []);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -290,69 +286,6 @@ export function MyToolsView() {
             <p className="text-slate-600">
               Upload a CSV file to enable cards functionality for your devices
             </p>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
-              <Smartphone className="w-6 h-6" />
-              <span>My Devices</span>
-            </h2>
-            <p className="text-slate-600 mt-1">
-              Connected game devices using your cards
-            </p>
-          </div>
-        </div>
-
-        {devices.length === 0 ? (
-          <div className="bg-slate-50 p-12 rounded-xl border border-slate-200 text-center">
-            <Smartphone className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Devices Found</h3>
-            <p className="text-slate-600">
-              Devices will appear here automatically when they connect using your client ID
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto border border-slate-200 rounded-lg">
-            <table className="min-w-full divide-y divide-slate-200">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                    Device ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                    Playground Version
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                    Cards File Version
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                    Last Connected
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-200">
-                {devices.map((device) => (
-                  <tr key={device.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                      {device.device_uniq}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                      {device.playground_version || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                      {device.cards_file_version}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                      {new Date(device.updated_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
       </div>
