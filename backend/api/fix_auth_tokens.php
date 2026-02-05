@@ -35,8 +35,24 @@ try {
         exit;
     }
 
-    $sql = "ALTER TABLE auth_tokens ADD COLUMN long_lived BOOLEAN DEFAULT FALSE AFTER revoked";
-    $conn->exec($sql);
+    $conn->exec("SET @dbname = DATABASE()");
+    $conn->exec("SET @tablename = 'auth_tokens'");
+    $conn->exec("SET @columnname = 'long_lived'");
+
+    $conn->exec("SET @preparedStatement = (SELECT IF(
+        (
+            SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = @dbname
+            AND TABLE_NAME = @tablename
+            AND COLUMN_NAME = @columnname
+        ) > 0,
+        'SELECT 1',
+        CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname, ' BOOLEAN DEFAULT FALSE AFTER revoked')
+    ))");
+
+    $conn->exec("PREPARE alterIfNotExists FROM @preparedStatement");
+    $conn->exec("EXECUTE alterIfNotExists");
+    $conn->exec("DEALLOCATE PREPARE alterIfNotExists");
 
     echo json_encode([
         'success' => true,

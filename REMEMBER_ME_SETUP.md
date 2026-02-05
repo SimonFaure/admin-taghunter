@@ -12,6 +12,8 @@ The "Remember Me" feature has been added to the client login, but requires a dat
 
 This error occurs because the database is missing the `long_lived` column in the `auth_tokens` table.
 
+**UPDATE:** The SQL syntax error has been fixed. The migration now uses the correct MySQL syntax for conditional column addition.
+
 ## Solution
 
 You need to apply the database migration to add the `long_lived` column. Here are two ways to do it:
@@ -34,11 +36,27 @@ You need to apply the database migration to add the `long_lived` column. Here ar
 
 ### Option 3: Manual Database Update
 
-If you have direct database access, run this SQL:
+If you have direct database access, run these SQL statements:
 
 ```sql
-ALTER TABLE auth_tokens
-ADD COLUMN IF NOT EXISTS long_lived BOOLEAN DEFAULT FALSE AFTER revoked;
+SET @dbname = DATABASE();
+SET @tablename = 'auth_tokens';
+SET @columnname = 'long_lived';
+
+SET @preparedStatement = (SELECT IF(
+    (
+        SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = @dbname
+        AND TABLE_NAME = @tablename
+        AND COLUMN_NAME = @columnname
+    ) > 0,
+    'SELECT 1',
+    CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN ', @columnname, ' BOOLEAN DEFAULT FALSE AFTER revoked')
+));
+
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
 ```
 
 ## Verify the Fix
