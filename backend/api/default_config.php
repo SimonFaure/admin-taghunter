@@ -9,6 +9,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -20,10 +21,32 @@ function getRequestData() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
-function requireAuth() {
-    if (!isset($_SESSION['user_id'])) {
+function requireAuth($db) {
+    if (isset($_SESSION['user_id'])) {
+        return ['type' => 'admin', 'id' => $_SESSION['user_id']];
+    }
+
+    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+    if (strpos($token, 'Bearer ') === 0) {
+        $token = substr($token, 7);
+    }
+
+    if (empty($token)) {
         jsonResponse(['error' => 'Unauthorized'], 401);
     }
+
+    $tokenData = TokenManager::validateToken($db, $token);
+
+    if (!$tokenData) {
+        jsonResponse(['error' => 'Unauthorized - Invalid or expired token'], 401);
+    }
+
+    if ($tokenData['user_type'] === 'client') {
+        return ['type' => 'client', 'id' => $tokenData['user_id']];
+    }
+
+    jsonResponse(['error' => 'Unauthorized'], 401);
 }
 
 try {
@@ -48,13 +71,14 @@ try {
                 'session_user_id' => $_SESSION['user_id'] ?? 'NOT_SET'
             ], ['message' => 'Starting create action'], 200);
 
-            requireAuth();
+            $auth = requireAuth($db);
+            $userId = $auth['id'];
 
-            Logger::log('default_config', 'POST', 'create_after_auth', $_SESSION['user_id'], [], ['message' => 'Auth check passed'], 200);
+            Logger::log('default_config', 'POST', 'create_after_auth', $userId, ['auth_type' => $auth['type']], ['message' => 'Auth check passed'], 200);
 
             $data = getRequestData();
 
-            Logger::log('default_config', 'POST', 'create_received_data', $_SESSION['user_id'], [
+            Logger::log('default_config', 'POST', 'create_received_data', $userId, [
                 'has_user_email' => isset($data['user_email']),
                 'has_meta' => isset($data['meta']),
                 'has_version' => isset($data['version']),
@@ -65,7 +89,7 @@ try {
             ], ['message' => 'Request data parsed'], 200);
 
             if (!isset($data['user_email']) || !isset($data['meta']) || !isset($data['version']) || !isset($data['value'])) {
-                Logger::log('default_config', 'POST', 'create', $_SESSION['user_id'], $data, ['error' => 'Missing required fields'], 400);
+                Logger::log('default_config', 'POST', 'create', $userId, $data, ['error' => 'Missing required fields'], 400);
                 jsonResponse(['error' => 'Missing required fields: user_email, meta, version, value'], 400);
             }
 
@@ -74,7 +98,7 @@ try {
             $version = (int)$data['version'];
             $value = $data['value'];
 
-            Logger::log('default_config', 'POST', 'create_validation', $_SESSION['user_id'], [
+            Logger::log('default_config', 'POST', 'create_validation', $userId, [
                 'user_email' => $userEmail,
                 'meta' => $meta,
                 'version' => $version,
@@ -84,11 +108,11 @@ try {
             ], ['message' => 'Fields extracted and validated'], 200);
 
             if (!is_array($value) && !is_object($value)) {
-                Logger::log('default_config', 'POST', 'create', $_SESSION['user_id'], ['value_type' => gettype($value)], ['error' => 'Value must be JSON object or array'], 400);
+                Logger::log('default_config', 'POST', 'create', $userId, ['value_type' => gettype($value)], ['error' => 'Value must be JSON object or array'], 400);
                 jsonResponse(['error' => 'Value must be a JSON object or array'], 400);
             }
 
-            Logger::log('default_config', 'POST', 'create_checking_admin', $_SESSION['user_id'], [
+            Logger::log('default_config', 'POST', 'create_checking_admin', $userId, [
                 'checking_email' => $userEmail,
                 'table' => 'admin_users'
             ], ['message' => 'Checking if user_email exists in admin_users table'], 200);
@@ -98,21 +122,21 @@ try {
                 [$userEmail]
             );
 
-            Logger::log('default_config', 'POST', 'create_admin_check_result', $_SESSION['user_id'], [
+            Logger::log('default_config', 'POST', 'create_admin_check_result', $userId, [
                 'user_email' => $userEmail,
                 'admin_found' => $admin !== false,
                 'admin_id' => $admin ? $admin['id'] : 'NOT_FOUND'
             ], ['message' => 'Admin user lookup completed'], 200);
 
             if (!$admin) {
-                Logger::log('default_config', 'POST', 'create', $_SESSION['user_id'], [
+                Logger::log('default_config', 'POST', 'create', $userId, [
                     'user_email' => $userEmail,
                     'checked_table' => 'admin_users'
                 ], ['error' => 'User is not an admin - email not found in admin_users table'], 403);
                 jsonResponse(['error' => 'User is not an admin'], 403);
             }
 
-            Logger::log('default_config', 'POST', 'create_admin_verified', $_SESSION['user_id'], [
+            Logger::log('default_config', 'POST', 'create_admin_verified', $userId, [
                 'user_email' => $userEmail,
                 'admin_id' => $admin['id']
             ], ['message' => 'User verified as admin, proceeding with operation'], 200);
@@ -122,7 +146,7 @@ try {
                 [$meta]
             );
 
-            Logger::log('default_config', 'POST', 'create_check_existing', $_SESSION['user_id'], [
+            Logger::log('default_config', 'POST', 'create_check_existing', $userId, [
                 'meta' => $meta,
                 'existing_found' => $existing !== false,
                 'existing_version' => $existing ? $existing['version'] : 'N/A'
@@ -131,7 +155,7 @@ try {
             if ($existing) {
                 $newVersion = (int)$existing['version'] + 1;
 
-                Logger::log('default_config', 'POST', 'create_updating', $_SESSION['user_id'], [
+                Logger::log('default_config', 'POST', 'create_updating', $userId, [
                     'meta' => $meta,
                     'old_version' => $existing['version'],
                     'new_version' => $newVersion,
@@ -144,7 +168,7 @@ try {
                     [json_encode($value), $newVersion, $meta]
                 );
 
-                Logger::log('default_config', 'POST', 'create', $_SESSION['user_id'], [
+                Logger::log('default_config', 'POST', 'create', $userId, [
                     'meta' => $meta,
                     'version' => $newVersion,
                     'user_email' => $userEmail,
@@ -152,7 +176,7 @@ try {
                 ], ['success' => true, 'action' => 'updated'], 200);
                 jsonResponse(['success' => true, 'meta' => $meta, 'version' => $newVersion, 'action' => 'updated']);
             } else {
-                Logger::log('default_config', 'POST', 'create_inserting', $_SESSION['user_id'], [
+                Logger::log('default_config', 'POST', 'create_inserting', $userId, [
                     'meta' => $meta,
                     'version' => $version,
                     'user_email' => $userEmail,
@@ -164,7 +188,7 @@ try {
                     [$meta, json_encode($value), $version]
                 );
 
-                Logger::log('default_config', 'POST', 'create', $_SESSION['user_id'], [
+                Logger::log('default_config', 'POST', 'create', $userId, [
                     'meta' => $meta,
                     'version' => $version,
                     'user_email' => $userEmail,
@@ -185,11 +209,12 @@ try {
                 'meta_param' => $_GET['meta'] ?? 'NOT_SET'
             ], ['message' => 'Starting get action'], 200);
 
-            requireAuth();
+            $auth = requireAuth($db);
+            $userId = $auth['id'];
             $meta = $_GET['meta'] ?? '';
 
             if (empty($meta)) {
-                Logger::log('default_config', 'GET', 'get_all', $_SESSION['user_id'], [], ['message' => 'Fetching all configs'], 200);
+                Logger::log('default_config', 'GET', 'get_all', $userId, [], ['message' => 'Fetching all configs'], 200);
 
                 $configs = $db->fetchAll('SELECT * FROM default_config ORDER BY meta ASC');
 
@@ -197,10 +222,10 @@ try {
                     $config['value'] = json_decode($config['value'], true);
                 }
 
-                Logger::log('default_config', 'GET', 'get', $_SESSION['user_id'], [], ['success' => true, 'count' => count($configs)], 200);
+                Logger::log('default_config', 'GET', 'get', $userId, [], ['success' => true, 'count' => count($configs)], 200);
                 jsonResponse(['success' => true, 'configs' => $configs]);
             } else {
-                Logger::log('default_config', 'GET', 'get_single', $_SESSION['user_id'], ['meta' => $meta], ['message' => 'Fetching single config'], 200);
+                Logger::log('default_config', 'GET', 'get_single', $userId, ['meta' => $meta], ['message' => 'Fetching single config'], 200);
 
                 $config = $db->fetch(
                     'SELECT * FROM default_config WHERE meta = ?',
@@ -208,12 +233,12 @@ try {
                 );
 
                 if (!$config) {
-                    Logger::log('default_config', 'GET', 'get', $_SESSION['user_id'], ['meta' => $meta], ['error' => 'Configuration not found'], 404);
+                    Logger::log('default_config', 'GET', 'get', $userId, ['meta' => $meta], ['error' => 'Configuration not found'], 404);
                     jsonResponse(['error' => 'Configuration not found'], 404);
                 }
 
                 $config['value'] = json_decode($config['value'], true);
-                Logger::log('default_config', 'GET', 'get', $_SESSION['user_id'], ['meta' => $meta, 'version' => $config['version']], ['success' => true], 200);
+                Logger::log('default_config', 'GET', 'get', $userId, ['meta' => $meta, 'version' => $config['version']], ['success' => true], 200);
                 jsonResponse(['success' => true, 'config' => $config]);
             }
             break;
@@ -228,17 +253,18 @@ try {
                 'session_exists' => isset($_SESSION['user_id'])
             ], ['message' => 'Starting delete action'], 200);
 
-            requireAuth();
+            $auth = requireAuth($db);
+            $userId = $auth['id'];
             $data = getRequestData();
 
-            Logger::log('default_config', 'DELETE', 'delete_received_data', $_SESSION['user_id'], [
+            Logger::log('default_config', 'DELETE', 'delete_received_data', $userId, [
                 'has_meta' => isset($data['meta']),
                 'meta' => $data['meta'] ?? 'NOT_SET',
                 'all_keys' => array_keys($data)
             ], ['message' => 'Request data parsed'], 200);
 
             if (!isset($data['meta'])) {
-                Logger::log('default_config', 'DELETE', 'delete', $_SESSION['user_id'], $data, ['error' => 'Missing required field: meta'], 400);
+                Logger::log('default_config', 'DELETE', 'delete', $userId, $data, ['error' => 'Missing required field: meta'], 400);
                 jsonResponse(['error' => 'Missing required field: meta'], 400);
             }
 
@@ -249,17 +275,17 @@ try {
                 [$meta]
             );
 
-            Logger::log('default_config', 'DELETE', 'delete_check_existing', $_SESSION['user_id'], [
+            Logger::log('default_config', 'DELETE', 'delete_check_existing', $userId, [
                 'meta' => $meta,
                 'existing_found' => $existing !== false
             ], ['message' => 'Checked for existing config'], 200);
 
             if (!$existing) {
-                Logger::log('default_config', 'DELETE', 'delete', $_SESSION['user_id'], ['meta' => $meta], ['error' => 'Configuration not found'], 404);
+                Logger::log('default_config', 'DELETE', 'delete', $userId, ['meta' => $meta], ['error' => 'Configuration not found'], 404);
                 jsonResponse(['error' => 'Configuration not found'], 404);
             }
 
-            Logger::log('default_config', 'DELETE', 'delete_executing', $_SESSION['user_id'], [
+            Logger::log('default_config', 'DELETE', 'delete_executing', $userId, [
                 'meta' => $meta,
                 'config_id' => $existing['id']
             ], ['message' => 'Deleting config'], 200);
@@ -269,7 +295,7 @@ try {
                 [$meta]
             );
 
-            Logger::log('default_config', 'DELETE', 'delete', $_SESSION['user_id'], ['meta' => $meta], ['success' => true], 200);
+            Logger::log('default_config', 'DELETE', 'delete', $userId, ['meta' => $meta], ['success' => true], 200);
             jsonResponse(['success' => true, 'message' => 'Configuration deleted']);
             break;
 
