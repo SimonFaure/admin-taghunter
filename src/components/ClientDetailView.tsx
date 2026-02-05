@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, CreditCard } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
@@ -31,6 +31,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [cardsMetadata, setCardsMetadata] = useState<any>(null);
   const [loadingCards, setLoadingCards] = useState(false);
   const [uploadingCards, setUploadingCards] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -53,12 +55,18 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadCardsMetadata = async () => {
     setLoadingCards(true);
     try {
+      console.log('Loading cards metadata for client:', clientId);
       const response = await fetch(`https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_metadata&client_id=${clientId}`, {
         credentials: 'include',
       });
+      console.log('Metadata response status:', response.status);
       if (response.ok) {
         const result = await response.json();
+        console.log('Metadata result:', result);
         setCardsMetadata(result.data || null);
+      } else {
+        const errorText = await response.text();
+        console.error('Metadata error response:', errorText);
       }
     } catch (err) {
       console.error('Error loading cards metadata:', err);
@@ -295,10 +303,34 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     setChangingPassword(false);
   };
 
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await handleFileUpload(e.dataTransfer.files[0]);
+    }
+  };
+
   const handleCardsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    await handleFileUpload(file);
+    e.target.value = '';
+  };
 
+  const handleFileUpload = async (file: File) => {
     if (!file.name.endsWith('.csv')) {
       setError('Please upload a CSV file');
       return;
@@ -313,13 +345,17 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       formData.append('file', file);
       formData.append('client_id', clientId);
 
+      console.log('Uploading file for client:', clientId);
+
       const response = await fetch('https://admin.taghunter.fr/backend/api/cards.php?action=admin_upload', {
         method: 'POST',
         credentials: 'include',
         body: formData,
       });
 
+      console.log('Response status:', response.status);
       const result = await response.json();
+      console.log('Response data:', result);
 
       if (!response.ok || result.error) {
         throw new Error(result.error || 'Failed to upload cards file');
@@ -329,10 +365,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       setTimeout(() => setSuccess(''), 3000);
       await loadCardsMetadata();
     } catch (err) {
+      console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Failed to upload cards file');
     } finally {
       setUploadingCards(false);
-      e.target.value = '';
     }
   };
 
@@ -725,37 +761,46 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <label
-                  htmlFor="cards-upload"
-                  className={`flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all cursor-pointer ${uploadingCards ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {uploadingCards ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4" />
-                      {cardsMetadata?.has_file ? 'Replace Cards File' : 'Upload Cards File'}
-                    </>
-                  )}
-                  <input
-                    id="cards-upload"
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCardsUpload}
-                    className="hidden"
-                    disabled={uploadingCards}
-                  />
-                </label>
-                {cardsMetadata?.has_file && (
-                  <span className="text-sm text-green-600 flex items-center gap-2">
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                  dragActive
+                    ? 'border-slate-900 bg-slate-50'
+                    : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+                } ${uploadingCards ? 'opacity-50 pointer-events-none' : ''}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                  {uploadingCards ? 'Uploading Cards File...' : (cardsMetadata?.has_file ? 'Replace Cards File' : 'Upload Cards File')}
+                </h3>
+                <p className="text-slate-600 mb-2">
+                  {uploadingCards ? 'Please wait while we process your file...' : 'Drag and drop your CSV file here, or click to browse'}
+                </p>
+                {!uploadingCards && cardsMetadata?.has_file && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-green-600 mt-3">
                     <FileText className="w-4 h-4" />
-                    File uploaded
-                  </span>
+                    <span>Current file: Version {cardsMetadata.version}</span>
+                  </div>
                 )}
+                {!uploadingCards && (
+                  <div className="text-sm text-slate-500 space-y-1 mt-4">
+                    <p className="font-medium">Only CSV files are accepted</p>
+                    {cardsMetadata?.has_file && (
+                      <p className="text-xs mt-2">Note: This will replace the existing cards file</p>
+                    )}
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCardsUpload}
+                  className="hidden"
+                />
               </div>
               <p className="text-sm text-slate-500">
                 Upload a CSV file containing the card data for this client. The file will be versioned and can be accessed by the client's devices.

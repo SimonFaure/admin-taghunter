@@ -122,22 +122,28 @@ try {
 
             $clientId = $_GET['client_id'];
 
+            error_log("Admin getting metadata for client: " . $clientId);
+
             $client = $db->fetch(
                 'SELECT id FROM clients WHERE id = ?',
                 [$clientId]
             );
 
             if (!$client) {
+                error_log("Client not found: " . $clientId);
                 jsonResponse(['error' => 'Client not found'], 404);
             }
 
             $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
             $fileExists = file_exists($cardsFile);
+            error_log("Cards file exists: " . ($fileExists ? 'yes' : 'no') . " at " . $cardsFile);
 
             $metadata = $db->fetch(
                 'SELECT * FROM client_cards_metadata WHERE client_id = ?',
                 [$clientId]
             );
+
+            error_log("Metadata from DB: " . json_encode($metadata));
 
             if ($fileExists && !$metadata) {
                 $db->query(
@@ -154,6 +160,7 @@ try {
                 $metadata['has_file'] = $fileExists;
             }
 
+            error_log("Final metadata: " . json_encode($metadata));
             jsonResponse(['data' => $metadata]);
             break;
 
@@ -215,13 +222,19 @@ try {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
 
+            error_log("Admin upload request received");
+            error_log("POST data: " . json_encode($_POST));
+            error_log("FILES data: " . json_encode($_FILES));
+
             requireAdminAuth($db);
 
             if (!isset($_POST['client_id'])) {
+                error_log("Client ID not provided in POST");
                 jsonResponse(['error' => 'Client ID is required'], 400);
             }
 
             $clientId = $_POST['client_id'];
+            error_log("Client ID: " . $clientId);
 
             $client = $db->fetch(
                 'SELECT id FROM clients WHERE id = ?',
@@ -229,14 +242,17 @@ try {
             );
 
             if (!$client) {
+                error_log("Client not found: " . $clientId);
                 jsonResponse(['error' => 'Client not found'], 404);
             }
 
             if (!isset($_FILES['file'])) {
+                error_log("No file uploaded");
                 jsonResponse(['error' => 'No file uploaded'], 400);
             }
 
             $file = $_FILES['file'];
+            error_log("File uploaded: " . $file['name']);
 
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             if ($ext !== 'csv') {
