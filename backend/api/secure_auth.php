@@ -60,7 +60,7 @@ try {
                 ], 429);
             }
 
-            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date, created_at FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date, created_at, avatar_url FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
 
@@ -136,6 +136,7 @@ try {
                     $response['data']['license_type'] = $client['license_type'];
                     $response['data']['billing_up_to_date'] = $client['billing_up_to_date'];
                     $response['data']['created_at'] = $client['created_at'];
+                    $response['data']['avatar_url'] = $client['avatar_url'];
                 }
 
                 RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
@@ -305,7 +306,7 @@ try {
                 jsonResponse(['error' => $codeValidation['reason']], 401);
             }
 
-            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date, created_at FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date, created_at, avatar_url FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
             $userId = null;
@@ -313,6 +314,7 @@ try {
             $licenseType = null;
             $billingUpToDate = null;
             $createdAt = null;
+            $avatarUrl = null;
 
             if (!$client) {
                 $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
@@ -327,6 +329,7 @@ try {
                 $licenseType = $client['license_type'];
                 $billingUpToDate = $client['billing_up_to_date'];
                 $createdAt = $client['created_at'];
+                $avatarUrl = $client['avatar_url'];
             }
 
             if (!$client && !$admin) {
@@ -356,6 +359,7 @@ try {
                 $response['data']['license_type'] = $licenseType;
                 $response['data']['billing_up_to_date'] = $billingUpToDate;
                 $response['data']['created_at'] = $createdAt;
+                $response['data']['avatar_url'] = $avatarUrl;
             }
 
             Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);
@@ -396,6 +400,8 @@ try {
                 $response['client_id'] = $tokenData['user_id'];
                 $response['license_type'] = $tokenData['license_type'] ?? 'access';
                 $response['billing_up_to_date'] = $tokenData['billing_up_to_date'] ?? false;
+                $response['created_at'] = $tokenData['created_at'] ?? null;
+                $response['avatar_url'] = $tokenData['avatar_url'] ?? null;
             }
 
             Logger::log('secure_auth', 'POST', 'validate', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], $response, 200);
@@ -454,6 +460,90 @@ try {
             ];
 
             Logger::log('secure_auth', 'POST', 'refresh', null, [], $response, 200);
+            jsonResponse($response);
+            break;
+
+        case 'upload-avatar':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $authHeader = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+            if (empty($authHeader)) {
+                jsonResponse(['error' => 'Authentication required'], 401);
+            }
+
+            $tokenData = TokenManager::validateToken($db, $authHeader);
+            if (!$tokenData || $tokenData['user_type'] !== 'client') {
+                jsonResponse(['error' => 'Invalid authentication'], 401);
+            }
+
+            $clientId = $tokenData['user_id'];
+
+            if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
+                $errorMsg = isset($_FILES['avatar']) ? 'Upload error: ' . $_FILES['avatar']['error'] : 'No file uploaded';
+                Logger::log('secure_auth', 'POST', 'upload-avatar', $clientId, [], ['error' => $errorMsg], 400);
+                jsonResponse(['error' => $errorMsg], 400);
+            }
+
+            $file = $_FILES['avatar'];
+
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $file['tmp_name']);
+            finfo_close($finfo);
+
+            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!in_array($mimeType, $allowedTypes)) {
+                Logger::log('secure_auth', 'POST', 'upload-avatar', $clientId, [], ['error' => 'Invalid file type'], 400);
+                jsonResponse(['error' => 'Only image files are allowed (JPEG, PNG, GIF, WebP)'], 400);
+            }
+
+            if ($file['size'] > 2 * 1024 * 1024) {
+                Logger::log('secure_auth', 'POST', 'upload-avatar', $clientId, [], ['error' => 'File too large'], 400);
+                jsonResponse(['error' => 'Image must be smaller than 2MB'], 400);
+            }
+
+            $uploadDir = __DIR__ . '/../../media/avatars/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            $existingClient = $db->fetch(
+                'SELECT avatar_url FROM clients WHERE id = ?',
+                [$clientId]
+            );
+
+            if ($existingClient && $existingClient['avatar_url']) {
+                $oldPath = __DIR__ . '/../../' . ltrim(parse_url($existingClient['avatar_url'], PHP_URL_PATH), '/');
+                if (file_exists($oldPath) && is_file($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $uniqueName = 'client_' . $clientId . '_' . uniqid() . '.' . $fileExtension;
+            $uploadPath = $uploadDir . $uniqueName;
+
+            if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
+                Logger::log('secure_auth', 'POST', 'upload-avatar', $clientId, [], ['error' => 'Failed to upload file'], 500);
+                jsonResponse(['error' => 'Failed to upload file'], 500);
+            }
+
+            $avatarUrl = 'https://admin.taghunter.fr/media/avatars/' . $uniqueName;
+
+            $db->execute(
+                'UPDATE clients SET avatar_url = ? WHERE id = ?',
+                [$avatarUrl, $clientId]
+            );
+
+            $response = [
+                'success' => true,
+                'data' => [
+                    'avatar_url' => $avatarUrl
+                ]
+            ];
+
+            Logger::log('secure_auth', 'POST', 'upload-avatar', $clientId, [], $response, 200);
             jsonResponse($response);
             break;
 

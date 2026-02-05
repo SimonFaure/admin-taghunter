@@ -9,6 +9,7 @@ interface AuthUser {
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
   created_at?: string;
+  avatar_url?: string;
 }
 
 interface SecureAuthContextType {
@@ -17,6 +18,7 @@ interface SecureAuthContextType {
   login: (email: string, code: string, rememberMe?: boolean, directData?: any) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
+  updateUserAvatar: (avatarUrl: string) => void;
   isAuthenticated: boolean;
 }
 
@@ -50,6 +52,7 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
           license_type: result.license_type,
           billing_up_to_date: result.billing_up_to_date,
           created_at: result.created_at,
+          avatar_url: result.avatar_url,
         });
       } else {
         secureAuth.clearToken();
@@ -91,6 +94,7 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
         license_type: userData.license_type,
         billing_up_to_date: userData.billing_up_to_date,
         created_at: userData.created_at,
+        avatar_url: userData.avatar_url,
       });
 
       return { success: true };
@@ -126,6 +130,15 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUserAvatar = (avatarUrl: string) => {
+    if (user) {
+      setUser({
+        ...user,
+        avatar_url: avatarUrl,
+      });
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
 
@@ -155,6 +168,7 @@ export function SecureAuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         refreshToken,
+        updateUserAvatar,
         isAuthenticated: !!user,
       }}
     >

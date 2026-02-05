@@ -1,5 +1,6 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
-import { Mail, User, Building, Calendar, Crown, CheckCircle, XCircle } from 'lucide-react';
+import { Mail, User, Building, Calendar, Crown, CheckCircle, XCircle, Upload } from 'lucide-react';
+import { useState } from 'react';
 
 function formatMemberSince(dateString?: string): string {
   if (!dateString) return 'N/A';
@@ -39,12 +40,116 @@ function formatMemberSince(dateString?: string): string {
 }
 
 export function MyAccountView() {
-  const { user } = useSecureAuth();
+  const { user, updateUserAvatar } = useSecureAuth();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please upload an image file');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image must be smaller than 2MB');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await fetch('https://admin.taghunter.fr/backend/api/secure_auth.php?action=upload-avatar', {
+        method: 'POST',
+        headers: {
+          'X-Auth-Token': user?.token || '',
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to upload avatar');
+      }
+
+      if (result.data?.avatar_url) {
+        updateUserAvatar(result.data.avatar_url);
+        setSuccess('Avatar updated successfully');
+        setTimeout(() => setSuccess(''), 3000);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload avatar');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+          {success}
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Account Information</h3>
+        <div className="flex items-start space-x-6 mb-8">
+          <div className="flex-shrink-0">
+            <div className="relative">
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user.name || 'Your avatar'}
+                  className="w-24 h-24 rounded-full object-cover border-4 border-slate-100"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center border-4 border-slate-100">
+                  <User className="w-12 h-12 text-slate-400" />
+                </div>
+              )}
+              <label
+                htmlFor="avatar-upload"
+                className="absolute bottom-0 right-0 p-2 bg-slate-900 text-white rounded-full hover:bg-slate-800 cursor-pointer transition-all shadow-lg"
+              >
+                {uploading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
+            </div>
+            <p className="text-xs text-slate-500 text-center mt-2">
+              Max 2MB
+            </p>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Account Information</h3>
+            <p className="text-sm text-slate-600">Manage your profile and account settings</p>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="flex items-start space-x-4">
