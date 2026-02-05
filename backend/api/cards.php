@@ -1,4 +1,5 @@
 <?php
+session_start();
 
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
@@ -43,6 +44,19 @@ function requireClientAuth($db) {
     return $tokenData['user_id'];
 }
 
+function requireAdminAuth($db) {
+    $adminUser = $db->fetch(
+        'SELECT id, email FROM admin_users WHERE id = ? AND is_active = 1',
+        [$_SESSION['admin_id'] ?? null]
+    );
+
+    if (!$adminUser) {
+        jsonResponse(['error' => 'Unauthorized - Admin login required'], 401);
+    }
+
+    return $adminUser['id'];
+}
+
 function getCardsDirectory($clientId) {
     $baseDir = __DIR__ . '/../../cards';
     $clientDir = $baseDir . '/' . $clientId;
@@ -69,6 +83,54 @@ try {
             }
 
             $clientId = requireClientAuth($db);
+            $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
+            $fileExists = file_exists($cardsFile);
+
+            $metadata = $db->fetch(
+                'SELECT * FROM client_cards_metadata WHERE client_id = ?',
+                [$clientId]
+            );
+
+            if ($fileExists && !$metadata) {
+                $db->query(
+                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
+                    [$clientId, 1]
+                );
+                $metadata = $db->fetch(
+                    'SELECT * FROM client_cards_metadata WHERE client_id = ?',
+                    [$clientId]
+                );
+            }
+
+            if ($metadata) {
+                $metadata['has_file'] = $fileExists;
+            }
+
+            jsonResponse(['data' => $metadata]);
+            break;
+
+        case 'admin_get_metadata':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            requireAdminAuth($db);
+
+            if (!isset($_GET['client_id'])) {
+                jsonResponse(['error' => 'Client ID is required'], 400);
+            }
+
+            $clientId = $_GET['client_id'];
+
+            $client = $db->fetch(
+                'SELECT id FROM clients WHERE id = ?',
+                [$clientId]
+            );
+
+            if (!$client) {
+                jsonResponse(['error' => 'Client not found'], 404);
+            }
+
             $cardsFile = getCardsDirectory($clientId) . '/cards.csv';
             $fileExists = file_exists($cardsFile);
 
@@ -145,6 +207,74 @@ try {
             }
 
             Logger::log('cards', 'POST', 'upload', $clientId, ['filename' => $file['name']], ['success' => true, 'version' => $newVersion], 200);
+            jsonResponse(['success' => true, 'version' => $newVersion]);
+            break;
+
+        case 'admin_upload':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            requireAdminAuth($db);
+
+            if (!isset($_POST['client_id'])) {
+                jsonResponse(['error' => 'Client ID is required'], 400);
+            }
+
+            $clientId = $_POST['client_id'];
+
+            $client = $db->fetch(
+                'SELECT id FROM clients WHERE id = ?',
+                [$clientId]
+            );
+
+            if (!$client) {
+                jsonResponse(['error' => 'Client not found'], 404);
+            }
+
+            if (!isset($_FILES['file'])) {
+                jsonResponse(['error' => 'No file uploaded'], 400);
+            }
+
+            $file = $_FILES['file'];
+
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            if ($ext !== 'csv') {
+                jsonResponse(['error' => 'Only CSV files are allowed'], 400);
+            }
+
+            $mimeType = mime_content_type($file['tmp_name']);
+            if (!in_array($mimeType, ['text/plain', 'text/csv', 'application/csv', 'application/vnd.ms-excel'])) {
+                jsonResponse(['error' => 'Invalid file type. Only CSV files are allowed.'], 400);
+            }
+
+            $cardsDir = getCardsDirectory($clientId);
+            $targetFile = $cardsDir . '/cards.csv';
+
+            if (!move_uploaded_file($file['tmp_name'], $targetFile)) {
+                jsonResponse(['error' => 'Failed to save file'], 500);
+            }
+
+            $currentMetadata = $db->fetch(
+                'SELECT version FROM client_cards_metadata WHERE client_id = ?',
+                [$clientId]
+            );
+
+            if ($currentMetadata) {
+                $newVersion = (int)$currentMetadata['version'] + 1;
+                $db->query(
+                    'UPDATE client_cards_metadata SET version = ?, updated_at = NOW() WHERE client_id = ?',
+                    [$newVersion, $clientId]
+                );
+            } else {
+                $newVersion = 1;
+                $db->query(
+                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
+                    [$clientId, $newVersion]
+                );
+            }
+
+            Logger::log('cards', 'POST', 'admin_upload', $clientId, ['filename' => $file['name']], ['success' => true, 'version' => $newVersion], 200);
             jsonResponse(['success' => true, 'version' => $newVersion]);
             break;
 

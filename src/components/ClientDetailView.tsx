@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, CreditCard } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { scenariosApi, ScenarioData } from '../lib/api';
@@ -28,6 +28,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [changingPassword, setChangingPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [cardsMetadata, setCardsMetadata] = useState<any>(null);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const [uploadingCards, setUploadingCards] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -44,7 +47,25 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   useEffect(() => {
     loadClient();
     loadScenarios();
+    loadCardsMetadata();
   }, [clientId]);
+
+  const loadCardsMetadata = async () => {
+    setLoadingCards(true);
+    try {
+      const response = await fetch(`https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_metadata&client_id=${clientId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setCardsMetadata(result.data || null);
+      }
+    } catch (err) {
+      console.error('Error loading cards metadata:', err);
+    } finally {
+      setLoadingCards(false);
+    }
+  };
 
   const loadScenarios = async () => {
     setLoadingScenarios(true);
@@ -272,6 +293,47 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
 
     setChangingPassword(false);
+  };
+
+  const handleCardsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      setError('Please upload a CSV file');
+      return;
+    }
+
+    setUploadingCards(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('client_id', clientId);
+
+      const response = await fetch('https://admin.taghunter.fr/backend/api/cards.php?action=admin_upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to upload cards file');
+      }
+
+      setSuccess('Cards file uploaded successfully');
+      setTimeout(() => setSuccess(''), 3000);
+      await loadCardsMetadata();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload cards file');
+    } finally {
+      setUploadingCards(false);
+      e.target.value = '';
+    }
   };
 
   if (loading) {
@@ -640,6 +702,66 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               {changingPassword ? 'Changing...' : 'Change Password'}
             </button>
           </form>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <CreditCard className="w-6 h-6 text-slate-700" />
+              <h3 className="text-xl font-bold text-slate-900">Cards File</h3>
+            </div>
+            {cardsMetadata?.has_file && (
+              <span className="text-sm text-slate-600">
+                Version {cardsMetadata.version} • Updated {new Date(cardsMetadata.updated_at).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+
+          {loadingCards ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <label
+                  htmlFor="cards-upload"
+                  className={`flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all cursor-pointer ${uploadingCards ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {uploadingCards ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      {cardsMetadata?.has_file ? 'Replace Cards File' : 'Upload Cards File'}
+                    </>
+                  )}
+                  <input
+                    id="cards-upload"
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCardsUpload}
+                    className="hidden"
+                    disabled={uploadingCards}
+                  />
+                </label>
+                {cardsMetadata?.has_file && (
+                  <span className="text-sm text-green-600 flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    File uploaded
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-slate-500">
+                Upload a CSV file containing the card data for this client. The file will be versioned and can be accessed by the client's devices.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
