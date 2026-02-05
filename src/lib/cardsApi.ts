@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 export interface ClientCard {
   id: string;
@@ -15,17 +15,21 @@ export interface ClientCard {
 }
 
 export async function getClientCards(clientId: string): Promise<ClientCard[]> {
-  const { data, error } = await supabase
-    .from('client_cards')
-    .select('*')
-    .eq('client_id', clientId)
-    .order('created_at', { ascending: false });
+  const response = await fetch(`${API_BASE_URL}/cards.php?action=list`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 
-  if (error) {
-    throw new Error(`Failed to fetch cards: ${error.message}`);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch cards');
   }
 
-  return data || [];
+  const result = await response.json();
+  return result.data || [];
 }
 
 function parseCSVLine(line: string): string[] {
@@ -64,19 +68,12 @@ export async function importCardsFromCSV(clientId: string, csvData: string): Pro
   const headers = parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, '').trim());
   const batchId = crypto.randomUUID();
 
-  await supabase
-    .from('client_cards')
-    .delete()
-    .eq('client_id', clientId);
-
   const cards = [];
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]).map(v => v.replace(/^"|"$/g, '').trim());
     if (values.length === 0 || values.every(v => !v)) continue;
 
     const cardData: any = {
-      client_id: clientId,
-      import_batch: batchId,
       card_name: '',
       card_type: '',
       card_rarity: '',
@@ -111,22 +108,32 @@ export async function importCardsFromCSV(clientId: string, csvData: string): Pro
     throw new Error('No valid card data found in CSV');
   }
 
-  const { error } = await supabase
-    .from('client_cards')
-    .insert(cards);
+  const response = await fetch(`${API_BASE_URL}/cards.php?action=import`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ cards, batchId }),
+  });
 
-  if (error) {
-    throw new Error(`Failed to import cards: ${error.message}`);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to import cards');
   }
 }
 
 export async function deleteAllClientCards(clientId: string): Promise<void> {
-  const { error } = await supabase
-    .from('client_cards')
-    .delete()
-    .eq('client_id', clientId);
+  const response = await fetch(`${API_BASE_URL}/cards.php?action=delete_all`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 
-  if (error) {
-    throw new Error(`Failed to delete cards: ${error.message}`);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to delete cards');
   }
 }
