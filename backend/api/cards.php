@@ -46,7 +46,7 @@ function requireClientAuth($db) {
 
 function requireAdminAuth($db) {
     $adminUser = $db->fetch(
-        'SELECT id, email FROM admin_users WHERE id = ? AND is_active = 1',
+        'SELECT id, email FROM admin_users WHERE id = ?',
         [$_SESSION['admin_id'] ?? null]
     );
 
