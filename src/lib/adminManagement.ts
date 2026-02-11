@@ -14,8 +14,38 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+const authMode = import.meta.env.VITE_AUTH_MODE || 'supabase';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
+async function phpFetch<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return { error: result.error || 'Request failed' };
+    }
+
+    return result;
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Network error' };
+  }
+}
+
 export const adminManagementApi = {
   async listAdmins(): Promise<ApiResponse<{ admins: AdminProfile[] }>> {
+    if (authMode === 'php') {
+      return phpFetch<{ admins: AdminProfile[] }>('/admin_users.php?action=list');
+    }
+
     if (!supabase) {
       return { error: 'Supabase is not configured' };
     }
@@ -37,6 +67,13 @@ export const adminManagementApi = {
   },
 
   async createAdmin(email: string, password: string, fullName?: string): Promise<ApiResponse<{ admin: AdminProfile }>> {
+    if (authMode === 'php') {
+      return phpFetch<{ admin: AdminProfile }>('/admin_users.php?action=create', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name: fullName }),
+      });
+    }
+
     if (!supabase) {
       return { error: 'Supabase is not configured' };
     }
@@ -81,6 +118,13 @@ export const adminManagementApi = {
   },
 
   async updateAdmin(id: string, email?: string, password?: string, fullName?: string): Promise<ApiResponse<{ admin: AdminProfile }>> {
+    if (authMode === 'php') {
+      return phpFetch<{ admin: AdminProfile }>('/admin_users.php?action=update', {
+        method: 'POST',
+        body: JSON.stringify({ id, email, password, name: fullName }),
+      });
+    }
+
     if (!supabase) {
       return { error: 'Supabase is not configured' };
     }
@@ -145,6 +189,13 @@ export const adminManagementApi = {
   },
 
   async deleteAdmin(id: string): Promise<ApiResponse<{ success: boolean }>> {
+    if (authMode === 'php') {
+      return phpFetch<{ success: boolean }>('/admin_users.php?action=delete', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      });
+    }
+
     if (!supabase) {
       return { error: 'Supabase is not configured' };
     }

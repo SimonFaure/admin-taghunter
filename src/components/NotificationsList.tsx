@@ -20,13 +20,18 @@ interface NotificationsListProps {
   onNotificationClick: (clientId: string) => void;
 }
 
+const authMode = import.meta.env.VITE_AUTH_MODE || 'supabase';
+
 export function NotificationsList({ onNotificationClick }: NotificationsListProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (authMode !== 'supabase' || !supabase) {
+      setLoading(false);
+      return;
+    }
 
     fetchNotifications();
 
