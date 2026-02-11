@@ -50,7 +50,7 @@ try {
 }
 
 SecurityHeaders::setHeaders();
-handleCors();
+setCorsHeaders();
 
 function getRequestData() {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
