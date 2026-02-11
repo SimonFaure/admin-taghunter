@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -6,6 +6,7 @@ interface Endpoint {
   path: string;
   description: string;
   auth?: boolean;
+  creator?: boolean;
   params?: { name: string; type: string; description: string }[];
   body?: { name: string; type: string; description: string }[];
   response?: string;
@@ -253,6 +254,7 @@ export default function ApiDocsView() {
           path: '/backend/api/scenarios.php?action=create',
           description: 'Create new scenario from Taghunter Creator (email-based auth)',
           auth: false,
+          creator: true,
           body: [
             { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
             { name: 'scenarioData', type: 'JSON string', description: 'Scenario data object containing title, description, uniqid, game_type, scenario_type, data, media, scenario_layout (required)' },
@@ -285,6 +287,7 @@ export default function ApiDocsView() {
           path: '/backend/api/scenarios.php?action=upload_media',
           description: 'Upload individual media file to scenario (from Creator)',
           auth: false,
+          creator: true,
           body: [
             { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier (required)' },
@@ -312,6 +315,7 @@ export default function ApiDocsView() {
           path: '/backend/api/scenario_files.php?action=upload',
           description: 'Upload a file to a scenario (from Creator - email-based auth)',
           auth: false,
+          creator: true,
           body: [
             { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
             { name: 'scenario_id', type: 'integer', description: 'Scenario ID (required)' },
@@ -325,6 +329,7 @@ export default function ApiDocsView() {
           path: '/backend/api/scenario_files.php?action=delete',
           description: 'Delete a scenario file (from Creator - email-based auth)',
           auth: false,
+          creator: true,
           body: [
             { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
             { name: 'id', type: 'integer', description: 'File ID (required)' }
@@ -617,6 +622,7 @@ export default function ApiDocsView() {
           path: '/backend/api/check_email.php?email={email}',
           description: 'Check if email exists and determine user type (client or admin)',
           auth: false,
+          creator: true,
           params: [{ name: 'email', type: 'string', description: 'Email address to check' }],
           response: '{ "data": { "exists": true, "is_admin": false, "client_id": 123 } }',
         },
@@ -690,6 +696,7 @@ export default function ApiDocsView() {
           path: '/backend/api/patterns.php?action=upload',
           description: 'Upload a pattern from Taghunter Creator (no authentication required)',
           auth: false,
+          creator: true,
           body: [
             { name: 'email', type: 'string', description: 'Email of admin or client (required)' },
             { name: 'name', type: 'string', description: 'Pattern name (required)' },
@@ -776,7 +783,7 @@ export default function ApiDocsView() {
         </p>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <h2 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
           <Lock className="w-4 h-4" />
           Authentication
@@ -784,6 +791,20 @@ export default function ApiDocsView() {
         <p className="text-blue-800 text-sm">
           Endpoints marked with a lock require authentication via session cookie. Include{' '}
           <code className="bg-blue-100 px-2 py-0.5 rounded">credentials: 'include'</code> in fetch requests.
+        </p>
+      </div>
+
+      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-8">
+        <h2 className="font-semibold text-orange-900 mb-2 flex items-center gap-2">
+          <Wrench className="w-4 h-4" />
+          Taghunter Creator Endpoints
+        </h2>
+        <p className="text-orange-800 text-sm">
+          Endpoints marked with the <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300">
+            <Wrench className="w-3 h-3" />
+            Creator
+          </span> badge are specifically designed for use with the Taghunter Creator application.
+          These endpoints use email-based authentication instead of session cookies and return standardized responses with <code className="bg-orange-100 px-2 py-0.5 rounded">success</code>, <code className="bg-orange-100 px-2 py-0.5 rounded">data</code>, and <code className="bg-orange-100 px-2 py-0.5 rounded">message</code> fields.
         </p>
       </div>
 
@@ -817,12 +838,18 @@ export default function ApiDocsView() {
                         {endpoint.method}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <code className="text-sm font-mono text-gray-700 break-all">
                             {endpoint.path}
                           </code>
                           {endpoint.auth && (
                             <Lock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          )}
+                          {endpoint.creator && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300 flex-shrink-0">
+                              <Wrench className="w-3 h-3" />
+                              Creator
+                            </span>
                           )}
                         </div>
                         <p className="text-sm text-gray-600">{endpoint.description}</p>
