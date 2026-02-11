@@ -88,7 +88,7 @@ function requireAuth() {
 }
 
 try {
-    $db = new Database();
+    $db = Database::getInstance();
     error_log('patterns.php: Database instance created');
 
     $action = $_GET['action'] ?? 'list';
