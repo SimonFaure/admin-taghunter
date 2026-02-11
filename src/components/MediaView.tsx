@@ -654,7 +654,7 @@ export function MediaView() {
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>By Scenario</span>
+            <span>By Type</span>
           </button>
         </div>
 
