@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS patterns (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     game_type VARCHAR(100) NOT NULL,
+    version VARCHAR(50) DEFAULT '1.0',
     pattern_data JSON NOT NULL,
     is_default BOOLEAN DEFAULT FALSE,
     owner_type ENUM('admin', 'client', 'system') DEFAULT 'system',

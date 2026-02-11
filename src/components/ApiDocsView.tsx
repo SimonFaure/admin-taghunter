@@ -684,11 +684,11 @@ export default function ApiDocsView() {
             { name: 'email', type: 'string', description: 'Email of admin or client (required)' },
             { name: 'name', type: 'string', description: 'Pattern name (required)' },
             { name: 'game_type', type: 'string', description: 'Game type (required)' },
+            { name: 'version', type: 'string', description: 'Pattern version (required)' },
             { name: 'pattern_data', type: 'JSON', description: 'Pattern JSON data (required)' },
-            { name: 'description', type: 'string', description: 'Pattern description (optional)' },
             { name: 'is_default', type: 'boolean', description: 'Make pattern default/available to all (optional)' },
           ],
-          response: '{ "success": true, "data": { "id": 1, "name": "Pattern Name", "description": "Pattern description", "game_type": "TagHunter", "pattern_data": "{}", "is_default": false, "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+          response: '{ "success": true, "data": { "id": 1, "name": "Pattern Name", "description": null, "game_type": "TagHunter", "version": "1.0", "pattern_data": "{}", "is_default": false, "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
         },
         {
           method: 'POST',

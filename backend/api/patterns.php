@@ -134,7 +134,7 @@ try {
             $email = $data['email'] ?? '';
             $patternData = $data['pattern_data'] ?? null;
             $name = $data['name'] ?? '';
-            $description = $data['description'] ?? '';
+            $version = $data['version'] ?? '1.0';
             $gameType = $data['game_type'] ?? '';
             $isDefault = $data['is_default'] ?? false;
 
@@ -187,9 +187,9 @@ try {
             }
 
             $db->execute(
-                'INSERT INTO patterns (name, description, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email)
+                'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [$name, $description, $gameType, $jsonData, $isDefault ? 1 : 0, $ownerType, $ownerId, $email]
+                [$name, $gameType, $version, $jsonData, $isDefault ? 1 : 0, $ownerType, $ownerId, $email]
             );
 
             $patternId = $db->lastInsertId();
@@ -200,6 +200,7 @@ try {
                 'email' => $email,
                 'name' => $name,
                 'game_type' => $gameType,
+                'version' => $version,
                 'owner_type' => $ownerType,
                 'is_default' => $isDefault
             ], $response, 201);
