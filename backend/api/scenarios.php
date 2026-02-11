@@ -124,11 +124,20 @@ try {
                 $scenario_layout = $scenarioData['scenario_layout'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
-                // Look up client by email or clientId
+                // Determine client_id based on email
+                // If email belongs to an admin, keep client_id as null (Taghunter Product)
+                // Otherwise, look up the client
                 if ($email) {
-                    $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
-                    if ($client) {
-                        $client_id = (int)$client['id'];
+                    $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
+                    if ($admin) {
+                        // Admin email - this is a Taghunter Product scenario
+                        $client_id = null;
+                    } else {
+                        // Not an admin - look up client
+                        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+                        if ($client) {
+                            $client_id = (int)$client['id'];
+                        }
                     }
                 } elseif (isset($scenarioData['clientId'])) {
                     $client_id = (int)$scenarioData['clientId'];
@@ -257,6 +266,8 @@ try {
             // Log final values before database operation
             Logger::log('scenarios', $method, 'create_pre_db', $_SESSION['user_id'] ?? null, [
                 'client_id' => $client_id,
+                'is_taghunter_product' => $client_id === null,
+                'email' => $email,
                 'title' => $title,
                 'description' => substr($description, 0, 100),
                 'data' => $data === '{}' ? 'EMPTY_OBJECT' : (is_string($data) ? substr($data, 0, 200) : 'ARRAY'),
@@ -290,6 +301,7 @@ try {
                 'data' => [
                     'id' => $scenario_id,
                     'client_id' => $client_id,
+                    'is_taghunter_product' => $client_id === null,
                     'title' => $title,
                     'description' => $description,
                     'media_url' => $media_path,
@@ -304,7 +316,13 @@ try {
                 'message' => $isUpdate ? 'Scenario updated successfully' : 'Scenario created successfully'
             ];
 
-            Logger::log('scenarios', $method, $isUpdate ? 'update' : 'create', $_SESSION['user_id'] ?? null, ['client_id' => $client_id, 'title' => $title, 'email' => $email, 'uniqid' => $uniqid], $responseData, $isUpdate ? 200 : 201, $logSource);
+            Logger::log('scenarios', $method, $isUpdate ? 'update' : 'create', $_SESSION['user_id'] ?? null, [
+                'client_id' => $client_id,
+                'is_taghunter_product' => $client_id === null,
+                'title' => $title,
+                'email' => $email,
+                'uniqid' => $uniqid
+            ], $responseData, $isUpdate ? 200 : 201, $logSource);
             jsonResponse($responseData, $isUpdate ? 200 : 201);
             break;
 
