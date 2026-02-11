@@ -243,7 +243,8 @@ try {
 
             $data = getRequestData();
             $name = $data['name'] ?? '';
-            $description = $data['description'] ?? '';
+            $description = $data['description'] ?? null;
+            $version = $data['version'] ?? '';
             $gameType = $data['game_type'] ?? '';
             $patternData = $data['pattern_data'] ?? null;
             $isDefault = $data['is_default'] ?? false;
@@ -256,6 +257,11 @@ try {
             if (empty($name)) {
                 Logger::log('patterns', 'POST', 'create', $userId, [], ['error' => 'Name required'], 400);
                 jsonResponse(['error' => 'Pattern name is required'], 400);
+            }
+
+            if (empty($version)) {
+                Logger::log('patterns', 'POST', 'create', $userId, [], ['error' => 'Version required'], 400);
+                jsonResponse(['error' => 'Version is required'], 400);
             }
 
             if (empty($gameType)) {
@@ -276,9 +282,9 @@ try {
             }
 
             $db->execute(
-                'INSERT INTO patterns (name, description, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [$name, $description, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email]
+                'INSERT INTO patterns (name, description, version, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$name, $description, $version, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email]
             );
 
             $patternId = $db->lastInsertId();
@@ -287,6 +293,7 @@ try {
             $response = ['success' => true, 'data' => $pattern];
             Logger::log('patterns', 'POST', 'create', $userId, [
                 'name' => $name,
+                'version' => $version,
                 'game_type' => $gameType,
                 'is_default' => $isDefault
             ], $response, 201);
