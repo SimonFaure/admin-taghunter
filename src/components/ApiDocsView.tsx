@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -647,6 +647,89 @@ export default function ApiDocsView() {
             { name: 'meta', type: 'string', description: 'Configuration metadata name (required)' },
           ],
           response: '{ "success": true, "message": "Configuration deleted" }',
+        },
+      ],
+    },
+    {
+      title: 'Patterns',
+      icon: <Package className="w-5 h-5" />,
+      color: 'bg-violet-500',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/patterns.php?action=list',
+          description: 'Get all patterns (admins see all, clients see default + own patterns)',
+          auth: true,
+          params: [
+            { name: 'game_type', type: 'string', description: 'Filter by game type (optional)' },
+          ],
+          response: '{ "data": [{ "id": 1, "name": "Pattern Name", "description": "Pattern description", "game_type": "TagHunter", "pattern_data": "{}", "is_default": true, "owner_type": "admin", "owner_id": 1, "created_by_email": "admin@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/patterns.php?action=get&id={id}',
+          description: 'Get a specific pattern by ID',
+          auth: true,
+          params: [
+            { name: 'id', type: 'integer', description: 'Pattern ID (required)' },
+          ],
+          response: '{ "data": { "id": 1, "name": "Pattern Name", "description": "Pattern description", "game_type": "TagHunter", "pattern_data": "{}", "is_default": true, "owner_type": "admin", "owner_id": 1, "created_by_email": "admin@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/patterns.php?action=upload',
+          description: 'Upload a pattern from Taghunter Creator (no authentication required)',
+          auth: false,
+          body: [
+            { name: 'email', type: 'string', description: 'Email of admin or client (required)' },
+            { name: 'name', type: 'string', description: 'Pattern name (required)' },
+            { name: 'game_type', type: 'string', description: 'Game type (required)' },
+            { name: 'pattern_data', type: 'JSON', description: 'Pattern JSON data (required)' },
+            { name: 'description', type: 'string', description: 'Pattern description (optional)' },
+            { name: 'is_default', type: 'boolean', description: 'Make pattern default/available to all (optional)' },
+          ],
+          response: '{ "success": true, "data": { "id": 1, "name": "Pattern Name", "description": "Pattern description", "game_type": "TagHunter", "pattern_data": "{}", "is_default": false, "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/patterns.php?action=create',
+          description: 'Create a new pattern (authenticated users)',
+          auth: true,
+          body: [
+            { name: 'name', type: 'string', description: 'Pattern name (required)' },
+            { name: 'game_type', type: 'string', description: 'Game type (required)' },
+            { name: 'pattern_data', type: 'JSON', description: 'Pattern JSON data (required)' },
+            { name: 'description', type: 'string', description: 'Pattern description (optional)' },
+            { name: 'is_default', type: 'boolean', description: 'Make pattern default (admin only, optional)' },
+          ],
+          response: '{ "success": true, "data": { "id": 1, "name": "Pattern Name", "description": "Pattern description", "game_type": "TagHunter", "pattern_data": "{}", "is_default": false, "owner_type": "admin", "owner_id": 1, "created_by_email": "admin@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+        },
+        {
+          method: 'PUT',
+          path: '/backend/api/patterns.php?action=update&id={id}',
+          description: 'Update an existing pattern (owner or admin only)',
+          auth: true,
+          params: [
+            { name: 'id', type: 'integer', description: 'Pattern ID (required)' },
+          ],
+          body: [
+            { name: 'name', type: 'string', description: 'Pattern name (optional)' },
+            { name: 'game_type', type: 'string', description: 'Game type (optional)' },
+            { name: 'pattern_data', type: 'JSON', description: 'Pattern JSON data (optional)' },
+            { name: 'description', type: 'string', description: 'Pattern description (optional)' },
+            { name: 'is_default', type: 'boolean', description: 'Make pattern default (admin only, optional)' },
+          ],
+          response: '{ "success": true, "data": { "id": 1, "name": "Updated Pattern", "description": "Updated description", "game_type": "TagHunter", "pattern_data": "{}", "is_default": false, "owner_type": "admin", "owner_id": 1, "created_by_email": "admin@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T11:00:00Z" } }',
+        },
+        {
+          method: 'DELETE',
+          path: '/backend/api/patterns.php?action=delete&id={id}',
+          description: 'Delete a pattern (owner or admin only)',
+          auth: true,
+          params: [
+            { name: 'id', type: 'integer', description: 'Pattern ID (required)' },
+          ],
+          response: '{ "success": true, "message": "Pattern deleted successfully" }',
         },
       ],
     },

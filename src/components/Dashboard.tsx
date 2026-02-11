@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Zap } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Zap, Package } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
@@ -11,6 +11,7 @@ import { StatisticsView } from './StatisticsView';
 import { SettingsView } from './SettingsView';
 import { MediaView } from './MediaView';
 import { AdminUsersView } from './AdminUsersView';
+import { PatternsView } from './PatternsView';
 import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 
 export function Dashboard() {
@@ -71,6 +72,7 @@ export function Dashboard() {
     { id: 'home', label: 'Dashboard', icon: Home },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'scenarios', label: 'Scenarios', icon: Film },
+    { id: 'patterns', label: 'Patterns', icon: Package },
     { id: 'media', label: 'Media', icon: Image },
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
     { id: 'admin-users', label: 'Admin Users', icon: Shield },
@@ -163,6 +165,8 @@ export function Dashboard() {
           )}
 
           {activeTab === 'scenarios' && <ScenariosView />}
+
+          {activeTab === 'patterns' && <PatternsView />}
 
           {activeTab === 'media' && <MediaView />}
 

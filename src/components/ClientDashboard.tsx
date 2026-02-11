@@ -1,5 +1,5 @@
 import { useSecureAuth } from '../contexts/SecureAuthContext';
-import { LogOut, Home, User, Film, CreditCard, Settings, TrendingUp, Smartphone } from 'lucide-react';
+import { LogOut, Home, User, Film, CreditCard, Settings, TrendingUp, Smartphone, Package } from 'lucide-react';
 import { useState } from 'react';
 import { MyAccountView } from './client/MyAccountView';
 import { MyScenariosView } from './client/MyScenariosView';
@@ -8,6 +8,7 @@ import { MyDevicesView } from './client/MyDevicesView';
 import { GameConfigView } from './client/GameConfigView';
 import { ClientStatisticsView } from './client/ClientStatisticsView';
 import { ClientHomeView } from './client/ClientHomeView';
+import { MyPatternsView } from './client/MyPatternsView';
 
 export function ClientDashboard() {
   const { user, logout } = useSecureAuth();
@@ -17,6 +18,7 @@ export function ClientDashboard() {
     { id: 'home', label: 'Home', icon: Home },
     { id: 'account', label: 'My Account', icon: User },
     { id: 'scenarios', label: 'My Scenarios', icon: Film },
+    { id: 'patterns', label: 'My Patterns', icon: Package },
     { id: 'cards', label: 'My Cards', icon: CreditCard },
     { id: 'devices', label: 'My Devices', icon: Smartphone },
     { id: 'config', label: 'Game Config', icon: Settings },
@@ -92,6 +94,7 @@ export function ClientDashboard() {
           {activeTab === 'home' && <ClientHomeView />}
           {activeTab === 'account' && <MyAccountView />}
           {activeTab === 'scenarios' && <MyScenariosView />}
+          {activeTab === 'patterns' && <MyPatternsView />}
           {activeTab === 'cards' && <MyCardsView />}
           {activeTab === 'devices' && <MyDevicesView />}
           {activeTab === 'config' && <GameConfigView />}
