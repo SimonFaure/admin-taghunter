@@ -58,9 +58,9 @@ try {
 
             // Check if this is an admin request (with session) or client request (with email)
             $isAdminRequest = isset($_SESSION['user_id']);
-            $userEmail = $_POST['userEmail'] ?? ($jsonInput['userEmail'] ?? null);
+            $email = $_POST['email'] ?? ($jsonInput['email'] ?? null);
 
-            if (!$isAdminRequest && !$userEmail) {
+            if (!$isAdminRequest && !$email) {
                 Logger::log('scenarios', $method, 'create', null, $_POST, ['error' => 'Unauthorized - no session or email'], 401);
                 jsonResponse(['error' => 'Unauthorized'], 401);
             }
@@ -124,8 +124,8 @@ try {
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // Look up client by email or clientId
-                if ($userEmail) {
-                    $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$userEmail]);
+                if ($email) {
+                    $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
                     if ($client) {
                         $client_id = (int)$client['id'];
                     }
@@ -286,7 +286,7 @@ try {
 
             $responseData = [
                 'success' => true,
-                'scenario' => [
+                'data' => [
                     'id' => $scenario_id,
                     'client_id' => $client_id,
                     'title' => $title,
@@ -303,7 +303,7 @@ try {
                 'message' => $isUpdate ? 'Scenario updated successfully' : 'Scenario created successfully'
             ];
 
-            Logger::log('scenarios', $method, $isUpdate ? 'update' : 'create', $_SESSION['user_id'] ?? null, ['client_id' => $client_id, 'title' => $title, 'email' => $userEmail, 'uniqid' => $uniqid], $responseData, $isUpdate ? 200 : 201);
+            Logger::log('scenarios', $method, $isUpdate ? 'update' : 'create', $_SESSION['user_id'] ?? null, ['client_id' => $client_id, 'title' => $title, 'email' => $email, 'uniqid' => $uniqid], $responseData, $isUpdate ? 200 : 201);
             jsonResponse($responseData, $isUpdate ? 200 : 201);
             break;
 
@@ -569,12 +569,12 @@ try {
 
             // Get required fields
             $uniqid = $_POST['uniqid'] ?? null;
-            $userEmail = $_POST['userEmail'] ?? null;
+            $email = $_POST['email'] ?? null;
 
             // Validate required fields
-            if (!$uniqid || !$userEmail) {
+            if (!$uniqid || !$email) {
                 Logger::log('scenarios', $method, 'upload_media', null, $_POST, ['error' => 'Missing required fields'], 400);
-                jsonResponse(['error' => 'uniqid and userEmail are required'], 400);
+                jsonResponse(['error' => 'uniqid and email are required'], 400);
             }
 
             // Validate file upload
@@ -586,7 +586,7 @@ try {
 
             $file = $_FILES['file'];
 
-            // Verify scenario exists and belongs to userEmail
+            // Verify scenario exists and belongs to user
             $scenario = $db->fetch(
                 'SELECT s.id, s.uniqid, c.email as client_email, a.email as admin_email
                  FROM scenarios s
@@ -597,23 +597,23 @@ try {
             );
 
             if (!$scenario) {
-                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'userEmail' => $userEmail], ['error' => 'Scenario not found'], 404);
+                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'email' => $email], ['error' => 'Scenario not found'], 404);
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
             // Verify ownership - check if email matches either client or admin
-            $isClientOwner = $scenario['client_email'] === $userEmail;
-            $isAdminOwner = $scenario['admin_email'] === $userEmail;
+            $isClientOwner = $scenario['client_email'] === $email;
+            $isAdminOwner = $scenario['admin_email'] === $email;
 
             // Also check if the email exists in admin_users table (for any admin)
             $isAdmin = false;
             if (!$isClientOwner && !$isAdminOwner) {
-                $adminCheck = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$userEmail]);
+                $adminCheck = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
                 $isAdmin = ($adminCheck !== false);
             }
 
             if (!$isClientOwner && !$isAdminOwner && !$isAdmin) {
-                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'userEmail' => $userEmail], ['error' => 'Unauthorized - email mismatch'], 403);
+                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'email' => $email], ['error' => 'Unauthorized - email mismatch'], 403);
                 jsonResponse(['error' => 'Unauthorized - scenario does not belong to this user'], 403);
             }
 
@@ -653,14 +653,15 @@ try {
 
             $responseData = [
                 'success' => true,
-                'file' => [
+                'data' => [
                     'name' => $originalFilename,
                     'path' => $relativePath,
                     'url' => $fullUrl
-                ]
+                ],
+                'message' => 'File uploaded successfully'
             ];
 
-            Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'userEmail' => $userEmail, 'filename' => $originalFilename], $responseData, 200);
+            Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'email' => $email, 'filename' => $originalFilename], $responseData, 200);
             jsonResponse($responseData, 200);
             break;
 

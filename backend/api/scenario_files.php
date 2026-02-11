@@ -54,18 +54,20 @@ try {
 function handleUpload($pdo) {
     Logger::log("handleUpload - Starting file upload");
 
-    if (!isset($_FILES['file']) || !isset($_POST['scenario_id']) || !isset($_POST['name'])) {
+    if (!isset($_FILES['file']) || !isset($_POST['scenario_id']) || !isset($_POST['name']) || !isset($_POST['email'])) {
         Logger::log("handleUpload - Missing required fields", 'ERROR');
         Logger::log("handleUpload - FILES isset: " . (isset($_FILES['file']) ? 'yes' : 'no'));
         Logger::log("handleUpload - scenario_id isset: " . (isset($_POST['scenario_id']) ? 'yes' : 'no'));
         Logger::log("handleUpload - name isset: " . (isset($_POST['name']) ? 'yes' : 'no'));
+        Logger::log("handleUpload - email isset: " . (isset($_POST['email']) ? 'yes' : 'no'));
         http_response_code(400);
-        echo json_encode(['error' => 'Missing required fields']);
+        echo json_encode(['error' => 'Missing required fields: file, scenario_id, name, email']);
         return;
     }
 
     $scenarioId = $_POST['scenario_id'];
     $name = $_POST['name'];
+    $email = $_POST['email'];
     $file = $_FILES['file'];
 
     Logger::log("handleUpload - Scenario ID: $scenarioId, Name: $name");
@@ -79,7 +81,13 @@ function handleUpload($pdo) {
     }
 
     Logger::log("handleUpload - Querying scenario with ID: $scenarioId");
-    $stmt = $pdo->prepare("SELECT uniqid FROM scenarios WHERE id = ?");
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.uniqid, c.email as client_email, a.email as admin_email
+        FROM scenarios s
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
+        WHERE s.id = ?
+    ");
     $stmt->execute([$scenarioId]);
     $scenario = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -89,6 +97,28 @@ function handleUpload($pdo) {
         echo json_encode(['error' => 'Scenario not found']);
         return;
     }
+
+    // Verify ownership - check if email matches client, admin creator, or any admin
+    $isClientOwner = $scenario['client_email'] === $email;
+    $isAdminCreator = $scenario['admin_email'] === $email;
+
+    // Check if email belongs to any admin user
+    $isAdmin = false;
+    if (!$isClientOwner && !$isAdminCreator) {
+        $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt->execute([$email]);
+        $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = ($adminCheck !== false);
+    }
+
+    if (!$isClientOwner && !$isAdminCreator && !$isAdmin) {
+        Logger::log("handleUpload - Unauthorized access attempt by: $email", 'ERROR');
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized - scenario does not belong to this user']);
+        return;
+    }
+
+    Logger::log("handleUpload - Access granted for user: $email");
 
     $uniqid = $scenario['uniqid'];
     Logger::log("handleUpload - Found scenario with uniqid: $uniqid");
@@ -146,7 +176,7 @@ function handleUpload($pdo) {
 
     echo json_encode([
         'success' => true,
-        'file' => [
+        'data' => [
             'id' => $fileId,
             'scenario_id' => $scenarioId,
             'name' => $name,
@@ -154,7 +184,8 @@ function handleUpload($pdo) {
             'file_size' => $fileSize,
             'mime_type' => $mimeType,
             'created_at' => date('Y-m-d H:i:s')
-        ]
+        ],
+        'message' => 'File uploaded successfully'
     ]);
 }
 
@@ -183,24 +214,35 @@ function handleList($pdo) {
 
     Logger::log("handleList - Found " . count($files) . " files");
 
-    echo json_encode(['files' => $files]);
+    echo json_encode([
+        'success' => true,
+        'data' => $files
+    ]);
 }
 
 function handleDelete($pdo) {
     Logger::log("handleDelete - Starting");
     $data = json_decode(file_get_contents('php://input'), true);
 
-    if (!isset($data['id'])) {
-        Logger::log("handleDelete - Missing file id", 'ERROR');
+    if (!isset($data['id']) || !isset($data['email'])) {
+        Logger::log("handleDelete - Missing required fields", 'ERROR');
         http_response_code(400);
-        echo json_encode(['error' => 'Missing file id']);
+        echo json_encode(['error' => 'Missing required fields: id, email']);
         return;
     }
 
     $fileId = $data['id'];
-    Logger::log("handleDelete - File ID: $fileId");
+    $email = $data['email'];
+    Logger::log("handleDelete - File ID: $fileId, Email: $email");
 
-    $stmt = $pdo->prepare("SELECT file_path FROM scenario_files WHERE id = ?");
+    $stmt = $pdo->prepare("
+        SELECT sf.file_path, s.id as scenario_id, c.email as client_email, a.email as admin_email
+        FROM scenario_files sf
+        JOIN scenarios s ON sf.scenario_id = s.id
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
+        WHERE sf.id = ?
+    ");
     $stmt->execute([$fileId]);
     $file = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -210,6 +252,28 @@ function handleDelete($pdo) {
         echo json_encode(['error' => 'File not found']);
         return;
     }
+
+    // Verify ownership
+    $isClientOwner = $file['client_email'] === $email;
+    $isAdminCreator = $file['admin_email'] === $email;
+
+    // Check if email belongs to any admin user
+    $isAdmin = false;
+    if (!$isClientOwner && !$isAdminCreator) {
+        $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt->execute([$email]);
+        $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = ($adminCheck !== false);
+    }
+
+    if (!$isClientOwner && !$isAdminCreator && !$isAdmin) {
+        Logger::log("handleDelete - Unauthorized access attempt by: $email", 'ERROR');
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized - file does not belong to this user']);
+        return;
+    }
+
+    Logger::log("handleDelete - Access granted for user: $email");
 
     $fullPath = __DIR__ . '/../../media/' . $file['file_path'];
     Logger::log("handleDelete - Full path: $fullPath");
@@ -226,7 +290,10 @@ function handleDelete($pdo) {
 
     Logger::log("handleDelete - File deleted successfully");
 
-    echo json_encode(['success' => true]);
+    echo json_encode([
+        'success' => true,
+        'message' => 'File deleted successfully'
+    ]);
 }
 
 function handleDownloadZip($pdo) {
