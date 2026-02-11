@@ -23,7 +23,7 @@ function jsonResponse($data, $statusCode = 200) {
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         $response = ['error' => 'Method not allowed'];
-        Logger::log('check_email', $_SERVER['REQUEST_METHOD'], 'check', null, [], $response, 405);
+        Logger::log('check_email', $_SERVER['REQUEST_METHOD'], 'check', null, [], $response, 405, 'creator');
         jsonResponse($response, 405);
     }
 
@@ -31,7 +31,7 @@ try {
 
     if (empty($email)) {
         $response = ['error' => 'Email parameter is required'];
-        Logger::log('check_email', 'GET', 'check', null, ['email' => ''], $response, 400);
+        Logger::log('check_email', 'GET', 'check', null, ['email' => ''], $response, 400, 'creator');
         jsonResponse($response, 400);
     }
 
@@ -62,11 +62,11 @@ try {
     }
 
     $response = ['data' => $responseData];
-    Logger::log('check_email', 'GET', 'check', null, ['email' => $email], $response, 200);
+    Logger::log('check_email', 'GET', 'check', null, ['email' => $email], $response, 200, 'creator');
     jsonResponse($response);
 
 } catch (Exception $e) {
     $response = ['error' => 'Server error: ' . $e->getMessage()];
-    Logger::log('check_email', 'GET', 'check', null, ['email' => $email ?? ''], $response, 500);
+    Logger::log('check_email', 'GET', 'check', null, ['email' => $email ?? ''], $response, 500, 'creator');
     jsonResponse($response, 500);
 }

@@ -5,12 +5,12 @@ require_once __DIR__ . '/../database/Database.php';
 class Logger {
     private static $lastError = null;
 
-    public static function log($endpoint, $method, $action, $userId = null, $data = [], $response = null, $statusCode = 200) {
+    public static function log($endpoint, $method, $action, $userId = null, $data = [], $response = null, $statusCode = 200, $source = 'admin') {
         try {
             $db = Database::getInstance();
 
-            $sql = "INSERT INTO api_logs (endpoint, method, action, user_id, ip, user_agent, request_data, response_data, status_code)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO api_logs (endpoint, method, action, user_id, ip, user_agent, request_data, response_data, status_code, source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
             $params = [
                 $endpoint,
@@ -21,7 +21,8 @@ class Logger {
                 $_SERVER['HTTP_USER_AGENT'] ?? 'unknown',
                 !empty($data) ? json_encode($data) : null,
                 $response ? json_encode($response) : null,
-                $statusCode
+                $statusCode,
+                $source
             ];
 
             $db->execute($sql, $params);
@@ -60,6 +61,7 @@ class Logger {
                         request_data,
                         response_data,
                         status_code,
+                        source,
                         created_at
                     FROM api_logs
                     ORDER BY timestamp DESC
@@ -81,6 +83,7 @@ class Logger {
                     'data' => $log['request_data'] ? json_decode($log['request_data'], true) : null,
                     'response' => $log['response_data'] ? json_decode($log['response_data'], true) : null,
                     'status_code' => $log['status_code'],
+                    'source' => $log['source'] ?? 'admin',
                     'created_at' => $log['created_at']
                 ];
             }, $logs);

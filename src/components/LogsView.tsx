@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, RefreshCw, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, RefreshCw, Trash2, ChevronDown, ChevronUp, Wrench } from 'lucide-react';
 
 interface LogEntry {
   timestamp: string;
@@ -12,6 +12,7 @@ interface LogEntry {
   data: Record<string, any>;
   response: Record<string, any>;
   status_code: number;
+  source?: string;
 }
 
 export default function LogsView() {
@@ -160,6 +161,12 @@ export default function LogsView() {
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${getMethodColor(log.method)}`}>
                       {log.method}
                     </span>
+                    {log.source === 'creator' && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300">
+                        <Wrench className="w-3 h-3" />
+                        Creator
+                      </span>
+                    )}
                     <span className="text-sm font-medium text-gray-900">
                       {log.endpoint} - {log.action}
                     </span>

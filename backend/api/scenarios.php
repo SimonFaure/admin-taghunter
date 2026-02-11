@@ -59,9 +59,10 @@ try {
             // Check if this is an admin request (with session) or client request (with email)
             $isAdminRequest = isset($_SESSION['user_id']);
             $email = $_POST['email'] ?? ($jsonInput['email'] ?? null);
+            $logSource = $isAdminRequest ? 'admin' : 'creator';
 
             if (!$isAdminRequest && !$email) {
-                Logger::log('scenarios', $method, 'create', null, $_POST, ['error' => 'Unauthorized - no session or email'], 401);
+                Logger::log('scenarios', $method, 'create', null, $_POST, ['error' => 'Unauthorized - no session or email'], 401, 'creator');
                 jsonResponse(['error' => 'Unauthorized'], 401);
             }
 
@@ -303,7 +304,7 @@ try {
                 'message' => $isUpdate ? 'Scenario updated successfully' : 'Scenario created successfully'
             ];
 
-            Logger::log('scenarios', $method, $isUpdate ? 'update' : 'create', $_SESSION['user_id'] ?? null, ['client_id' => $client_id, 'title' => $title, 'email' => $email, 'uniqid' => $uniqid], $responseData, $isUpdate ? 200 : 201);
+            Logger::log('scenarios', $method, $isUpdate ? 'update' : 'create', $_SESSION['user_id'] ?? null, ['client_id' => $client_id, 'title' => $title, 'email' => $email, 'uniqid' => $uniqid], $responseData, $isUpdate ? 200 : 201, $logSource);
             jsonResponse($responseData, $isUpdate ? 200 : 201);
             break;
 
@@ -661,7 +662,7 @@ try {
                 'message' => 'File uploaded successfully'
             ];
 
-            Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'email' => $email, 'filename' => $originalFilename], $responseData, 200);
+            Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'email' => $email, 'filename' => $originalFilename], $responseData, 200, 'creator');
             jsonResponse($responseData, 200);
             break;
 

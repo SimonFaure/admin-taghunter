@@ -227,7 +227,7 @@ try {
                 'version' => $version,
                 'owner_type' => $ownerType,
                 'is_default' => $isDefault
-            ], $response, 201);
+            ], $response, 201, 'creator');
             jsonResponse($response, 201);
             break;
 
