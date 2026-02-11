@@ -131,10 +131,18 @@ try {
             }
 
             $data = getRequestData();
+
+            error_log('Pattern upload request received: ' . json_encode([
+                'has_email' => !empty($data['email'] ?? ''),
+                'has_name' => !empty($data['name'] ?? ''),
+                'has_pattern_data' => !empty($data['pattern_data'] ?? null),
+                'game_type' => $data['game_type'] ?? 'not set',
+                'is_default' => $data['is_default'] ?? false
+            ]));
             $email = $data['email'] ?? '';
             $patternData = $data['pattern_data'] ?? null;
             $name = $data['name'] ?? '';
-            $version = $data['version'] ?? '1.0';
+            $version = isset($data['version']) ? (string)$data['version'] : '1.0';
             $gameType = $data['game_type'] ?? '';
             $isDefault = $data['is_default'] ?? false;
 
@@ -182,15 +190,31 @@ try {
             $jsonData = is_string($patternData) ? $patternData : json_encode($patternData);
 
             if (json_decode($jsonData) === null && json_last_error() !== JSON_ERROR_NONE) {
-                Logger::log('patterns', 'POST', 'upload', $ownerId, ['email' => $email], ['error' => 'Invalid JSON data'], 400);
-                jsonResponse(['error' => 'Invalid JSON pattern data'], 400);
+                $jsonError = json_last_error_msg();
+                Logger::log('patterns', 'POST', 'upload', $ownerId, ['email' => $email], ['error' => 'Invalid JSON data: ' . $jsonError], 400);
+                jsonResponse(['error' => 'Invalid JSON pattern data: ' . $jsonError], 400);
             }
+
+            $isDefaultInt = ($isDefault === true || $isDefault === 1 || $isDefault === '1') ? 1 : 0;
+
+            error_log('About to insert pattern: ' . json_encode([
+                'name' => $name,
+                'game_type' => $gameType,
+                'version' => $version,
+                'is_default' => $isDefaultInt,
+                'owner_type' => $ownerType,
+                'owner_id' => $ownerId,
+                'email' => $email,
+                'pattern_data_length' => strlen($jsonData)
+            ]));
 
             $db->execute(
                 'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                [$name, $gameType, $version, $jsonData, $isDefault ? 1 : 0, $ownerType, $ownerId, $email]
+                [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email]
             );
+
+            error_log('Pattern inserted successfully, ID: ' . $db->lastInsertId());
 
             $patternId = $db->lastInsertId();
             $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$patternId]);
@@ -376,6 +400,22 @@ try {
             jsonResponse(['error' => 'Invalid action'], 400);
     }
 } catch (Exception $e) {
-    Logger::log('patterns', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', null, [], ['error' => $e->getMessage()], 500);
-    jsonResponse(['error' => 'Server error: ' . $e->getMessage()], 500);
+    $errorDetails = [
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+    ];
+
+    error_log('Pattern API error: ' . json_encode($errorDetails));
+
+    Logger::log('patterns', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', null, [], $errorDetails, 500);
+
+    jsonResponse([
+        'error' => 'Server error: ' . $e->getMessage(),
+        'details' => [
+            'file' => basename($e->getFile()),
+            'line' => $e->getLine()
+        ]
+    ], 500);
 }
