@@ -339,6 +339,83 @@ const response = await fetch(
 
 ---
 
+### 6. Create/Update Default Configuration
+
+**Endpoint:** `POST /backend/api/default_config.php?action=create`
+
+**Purpose:** Create or update default game configuration (admin only)
+
+**Authentication:** Session-based OR Token-based
+
+**Request:**
+```javascript
+const response = await fetch(
+  'https://admin.taghunter.fr/backend/api/default_config.php?action=create',
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Auth-Token': userToken  // Optional if using session
+    },
+    body: JSON.stringify({
+      user_email: userEmail,
+      meta: 'tag_game_config',
+      version: 1,
+      value: {
+        maxPlayers: 10,
+        minPlayers: 2,
+        roundDuration: 300,
+        settings: {
+          /* configuration object */
+        }
+      }
+    })
+  }
+);
+```
+
+**Response (Create):**
+```json
+{
+  "success": true,
+  "meta": "tag_game_config",
+  "version": 1,
+  "action": "created"
+}
+```
+
+**Response (Update):**
+```json
+{
+  "success": true,
+  "meta": "tag_game_config",
+  "version": 2,
+  "action": "updated"
+}
+```
+
+**Required Fields:**
+- `user_email`: Admin user's email address
+- `meta`: Configuration identifier (unique key)
+- `version`: Version number (integer)
+- `value`: Configuration object (must be JSON object or array)
+
+**Important Notes:**
+- **Admin only**: The `user_email` must belong to an admin user
+- **Auto-versioning**: If a config with the same `meta` exists, it will be updated and version auto-incremented
+- **Value format**: The `value` field must be a JSON object or array (not a string or primitive)
+
+**Security:**
+- Only admin users can create/update default configurations
+- Client users will receive a 403 Forbidden error
+
+**Use Cases:**
+- Store default game configurations for different game types
+- Define global settings that can be used by multiple scenarios
+- Version control for configuration changes
+
+---
+
 ## Complete Integration Example
 
 Here's a complete flow for creating a scenario with files from Creator:
@@ -474,6 +551,33 @@ class TaghunterCreatorAPI {
 
     return result.data;
   }
+
+  // Step 6: Create/Update default configuration (admin only)
+  async createDefaultConfig(meta, configValue, version = 1) {
+    const response = await fetch(
+      `${this.baseUrl}/default_config.php?action=create`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_email: this.userEmail,
+          meta: meta,
+          version: version,
+          value: configValue
+        })
+      }
+    );
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create/update config');
+    }
+
+    return result;
+  }
 }
 
 // Usage Example
@@ -525,6 +629,18 @@ async function publishScenario() {
       version: '1.0'
     });
     console.log('Pattern uploaded:', pattern);
+
+    // 6. Create default config (admin only)
+    const config = await api.createDefaultConfig(
+      'tag_game_settings',
+      {
+        maxPlayers: 10,
+        roundDuration: 300,
+        powerUps: ['speed', 'invisibility']
+      },
+      1
+    );
+    console.log('Default config created:', config);
 
     console.log('Scenario published successfully!');
   } catch (error) {

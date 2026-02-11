@@ -1,12 +1,18 @@
-# Pattern Upload Error 500 - Debugging Guide
+# Creator API Error 500 - Debugging Guide
 
-This document explains the enhancements made to help diagnose the 500 error when calling `/backend/api/patterns.php?action=upload` from Creator.
+This document explains the enhancements made to help diagnose 500 errors when calling Creator endpoints from the Taghunter Creator application.
+
+## Affected Endpoints
+
+This guide covers debugging for:
+- `/backend/api/patterns.php?action=upload` - Pattern uploads
+- `/backend/api/default_config.php?action=create` - Default configuration creation
 
 ## Changes Made
 
 ### 1. Enhanced Error Logging
 
-Added comprehensive error logging throughout the patterns upload endpoint:
+Added comprehensive error logging throughout both endpoints:
 
 - **File initialization tracking**: Logs when each required file is loaded
 - **Fatal error capture**: Registers a shutdown function to catch PHP fatal errors
@@ -23,11 +29,18 @@ error_reporting(E_ALL);
 ini_set('log_errors', '1');
 ```
 
-### 3. Health Check Endpoint
+### 3. Health Check Endpoints
 
-Added a new `/backend/api/patterns.php?action=health` endpoint to verify the API is accessible:
+Added health check endpoints to verify APIs are accessible:
+
+**Patterns API:**
 ```bash
 curl https://your-domain.com/backend/api/patterns.php?action=health
+```
+
+**Default Config API:**
+```bash
+curl https://your-domain.com/backend/api/default_config.php?action=health
 ```
 
 Expected response:
@@ -54,18 +67,24 @@ This script checks:
 
 ## How to Debug
 
-### Step 1: Check Health Endpoint
+### Step 1: Check Health Endpoints
 
+**Test Patterns API:**
 ```bash
 curl -X GET https://your-domain.com/backend/api/patterns.php?action=health
 ```
 
-If this fails with 500:
+**Test Default Config API:**
+```bash
+curl -X GET https://your-domain.com/backend/api/default_config.php?action=health
+```
+
+If either fails with 500:
 - The issue is in the PHP initialization (requires, database connection)
 - Check web server error logs (see Step 4)
 
-If this succeeds:
-- The API is accessible, issue is specific to the upload action
+If both succeed:
+- The APIs are accessible, issue is specific to the create/upload actions
 - Continue to Step 2
 
 ### Step 2: Run Diagnostic Test
@@ -126,10 +145,9 @@ Look for:
 - Memory exhaustion
 - Database connection errors
 
-### Step 5: Test Upload with cURL
+### Step 5: Test Endpoints with cURL
 
-Test the upload endpoint directly:
-
+**Test Pattern Upload:**
 ```bash
 curl -X POST https://your-domain.com/backend/api/patterns.php?action=upload \
   -H "Content-Type: application/json" \
@@ -143,7 +161,20 @@ curl -X POST https://your-domain.com/backend/api/patterns.php?action=upload \
   }'
 ```
 
-This will show:
+**Test Default Config Creation:**
+```bash
+curl -X POST https://your-domain.com/backend/api/default_config.php?action=create \
+  -H "Content-Type: application/json" \
+  -H "X-Auth-Token: YOUR_AUTH_TOKEN" \
+  -d '{
+    "user_email": "your-admin-email@example.com",
+    "meta": "test_config",
+    "version": 1,
+    "value": {"test": "config"}
+  }'
+```
+
+These will show:
 - The exact error message
 - File and line number where the error occurred
 
@@ -197,7 +228,7 @@ This will show:
 
 ## Error Log Examples
 
-### Successful Upload
+### Successful Pattern Upload
 ```
 patterns.php: Starting script execution
 patterns.php: Database instance created
@@ -215,6 +246,24 @@ Pattern inserted successfully, ID: 42
 === Pattern Upload Successful ===
 ```
 
+### Successful Default Config Creation
+```
+default_config.php: Starting script execution
+default_config.php: Database instance created
+default_config.php: Action = create
+=== Default Config Create Started ===
+Request method: POST
+Content-Type: application/json
+Data retrieved, keys: ["user_email","meta","version","value"]
+Auth check passed, user_id: 5, type: admin
+Looking up user by email: admin@example.com
+User found: admin, ID: 1
+Checking existing config for meta: tag_game_config, found: no
+Creating new config
+Config created successfully
+=== Default Config Create Successful ===
+```
+
 ### Failed Upload (User Not Found)
 ```
 patterns.php: Starting script execution
@@ -224,6 +273,16 @@ patterns.php: Action = upload
 Looking up user by email: unknown@example.com
 Not an admin, checking clients table
 Upload failed: User not found for email: unknown@example.com
+```
+
+### Failed Config Creation (Not Admin)
+```
+default_config.php: Starting script execution
+default_config.php: Database instance created
+default_config.php: Action = create
+=== Default Config Create Started ===
+Looking up user by email: client@example.com
+Create failed: User not admin for email: client@example.com
 ```
 
 ### Fatal Error Example
@@ -262,14 +321,107 @@ This helps pinpoint exactly where the error occurred.
 
 ## Testing from Creator
 
-When testing from Creator, ensure:
+### Pattern Upload Requirements:
 1. The request includes `Content-Type: application/json` header
 2. All required fields are present:
    - `email` (admin or client email)
    - `name` (pattern name)
    - `game_type` (game type)
    - `pattern_data` (the pattern object)
+   - `version` (pattern version, e.g., "1.0")
 3. Check Creator's network tab for the exact error response
+
+### Default Config Creation Requirements:
+1. The request includes `Content-Type: application/json` header
+2. Authentication token in `X-Auth-Token` header (if not using session)
+3. All required fields are present:
+   - `user_email` (admin email only)
+   - `meta` (config identifier)
+   - `version` (version number)
+   - `value` (configuration object)
+4. User must be an admin (clients will get 403 error)
+5. The `value` field must be a JSON object or array, not a string
+
+### Creator Integration Code Example:
+
+```javascript
+// Pattern Upload
+async function uploadPattern(email, patternData) {
+  try {
+    const response = await fetch(
+      'https://admin.taghunter.fr/backend/api/patterns.php?action=upload',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: email,
+          name: patternData.name,
+          game_type: patternData.gameType,
+          pattern_data: patternData.data,
+          version: patternData.version || '1.0',
+          is_default: false
+        })
+      }
+    );
+
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error('Upload failed:', result.error);
+      if (result.details) {
+        console.error('Error details:', result.details);
+      }
+      throw new Error(result.error);
+    }
+
+    console.log('Pattern uploaded successfully:', result.data);
+    return result.data;
+  } catch (error) {
+    console.error('Pattern upload exception:', error);
+    throw error;
+  }
+}
+
+// Default Config Creation
+async function createDefaultConfig(email, authToken, meta, configValue) {
+  try {
+    const response = await fetch(
+      'https://admin.taghunter.fr/backend/api/default_config.php?action=create',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': authToken
+        },
+        body: JSON.stringify({
+          user_email: email,
+          meta: meta,
+          version: 1,
+          value: configValue
+        })
+      }
+    );
+
+    const result = await response.json();
+
+    if (!result.success) {
+      console.error('Config creation failed:', result.error);
+      if (result.details) {
+        console.error('Error details:', result.details);
+      }
+      throw new Error(result.error);
+    }
+
+    console.log('Config created successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Config creation exception:', error);
+    throw error;
+  }
+}
+```
 
 ## Support
 
