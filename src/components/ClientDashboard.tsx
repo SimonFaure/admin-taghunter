@@ -27,8 +27,8 @@ export function ClientDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white">
-        <div className="p-6 border-b border-slate-800">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col">
+        <div className="p-6 border-b border-slate-800 flex-shrink-0">
           <div className="flex flex-col space-y-4">
             <img
               src="/logo_tag_hunter.png"
@@ -39,7 +39,7 @@ export function ClientDashboard() {
           </div>
         </div>
 
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -59,7 +59,7 @@ export function ClientDashboard() {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-800 flex-shrink-0">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center">
