@@ -139,56 +139,69 @@ try {
                 $scenario_layout = $scenarioData['scenario_layout'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
-                Logger::log('scenarios', $method, 'before_email_lookup', null, [
-                    'email' => $email,
-                    'email_exists' => $email ? true : false,
-                    'will_do_lookup' => $email ? true : false
-                ], ['message' => 'About to check email for lookup'], 200, 'creator');
+                // NEW: Extract is_admin and client_id from request
+                $is_admin_from_creator = $scenarioData['is_admin'] ?? false;
+                $client_id_from_creator = isset($scenarioData['client_id']) ? (int)$scenarioData['client_id'] : null;
 
-                // Validate email exists in either admin_users or clients table
-                // and set appropriate IDs for database relations
-                if ($email) {
-                    $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
-                    $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+                Logger::log('scenarios', $method, 'creator_fields', null, [
+                    'is_admin' => $is_admin_from_creator,
+                    'client_id' => $client_id_from_creator,
+                    'email' => $email
+                ], ['message' => 'Fields from Creator app'], 200, 'creator');
 
-                    Logger::log('scenarios', $method, 'email_lookup', null, [
-                        'email' => $email,
-                        'admin_found' => $admin ? true : false,
-                        'admin_id' => $admin ? $admin['id'] : null,
-                        'client_found' => $client ? true : false,
-                        'client_id' => $client ? $client['id'] : null
-                    ], ['message' => 'Email lookup results'], 200, 'creator');
-
-                    if (!$admin && !$client) {
-                        // Email doesn't belong to admin or client - reject
-                        Logger::log('scenarios', $method, 'create', null, ['email' => $email], ['error' => 'User not found'], 404, 'creator');
-                        jsonResponse(['error' => 'User with this email not found. Please ensure the email is registered as either an admin or a client.'], 404);
+                // Use the fields from Creator directly
+                if ($is_admin_from_creator) {
+                    // This is an admin/Taghunter Product scenario
+                    $client_id = null;
+                    // Look up admin ID by email if provided
+                    if ($email) {
+                        $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
+                        if ($admin) {
+                            $emailBasedCreatedBy = (int)$admin['id'];
+                            Logger::log('scenarios', $method, 'admin_id_set', null, [
+                                'emailBasedCreatedBy' => $emailBasedCreatedBy,
+                                'source' => 'email_lookup',
+                                'email' => $email
+                            ], ['message' => 'Admin ID set from email lookup'], 200, 'creator');
+                        } else {
+                            Logger::log('scenarios', $method, 'admin_not_found', null, [
+                                'email' => $email
+                            ], ['error' => 'Admin not found'], 404, 'creator');
+                            jsonResponse(['error' => 'Admin with this email not found'], 404);
+                        }
                     }
-
-                    // Set appropriate IDs based on whether it's an admin or client
-                    if ($client) {
-                        $client_id = (int)$client['id'];
-                        $emailBasedCreatedBy = null; // Client scenarios don't need created_by
+                } else {
+                    // This is a client scenario - use client_id from Creator
+                    if ($client_id_from_creator) {
+                        $client_id = $client_id_from_creator;
+                        $emailBasedCreatedBy = null;
                         Logger::log('scenarios', $method, 'client_id_set', null, [
                             'client_id' => $client_id,
-                            'source' => 'email_lookup'
-                        ], ['message' => 'Client ID set from email lookup'], 200, 'creator');
-                    } else if ($admin) {
-                        $client_id = null; // Admin scenarios are Taghunter Products
-                        $emailBasedCreatedBy = (int)$admin['id']; // Store admin ID in created_by
-                        Logger::log('scenarios', $method, 'admin_id_set', null, [
-                            'emailBasedCreatedBy' => $emailBasedCreatedBy,
-                            'source' => 'email_lookup'
-                        ], ['message' => 'Admin ID set from email lookup'], 200, 'creator');
+                            'source' => 'creator_field'
+                        ], ['message' => 'Client ID set from Creator field'], 200, 'creator');
+                    } else {
+                        // Fallback: lookup client by email
+                        if ($email) {
+                            $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+                            if ($client) {
+                                $client_id = (int)$client['id'];
+                                $emailBasedCreatedBy = null;
+                                Logger::log('scenarios', $method, 'client_id_set', null, [
+                                    'client_id' => $client_id,
+                                    'source' => 'email_lookup_fallback',
+                                    'email' => $email
+                                ], ['message' => 'Client ID set from email fallback lookup'], 200, 'creator');
+                            } else {
+                                Logger::log('scenarios', $method, 'client_not_found', null, [
+                                    'email' => $email
+                                ], ['error' => 'Client not found'], 404, 'creator');
+                                jsonResponse(['error' => 'Client with this email not found'], 404);
+                            }
+                        } else {
+                            Logger::log('scenarios', $method, 'no_client_id', null, [], ['error' => 'No client_id or email provided'], 400, 'creator');
+                            jsonResponse(['error' => 'No client_id or email provided'], 400);
+                        }
                     }
-                } elseif (isset($scenarioData['clientId']) && $scenarioData['clientId']) {
-                    // Only use clientId from request if no email was provided
-                    $client_id = (int)$scenarioData['clientId'];
-                    $emailBasedCreatedBy = null;
-                } elseif (isset($scenarioData['client_id']) && $scenarioData['client_id']) {
-                    // Also check snake_case version
-                    $client_id = (int)$scenarioData['client_id'];
-                    $emailBasedCreatedBy = null;
                 }
             } else {
                 // Admin format - check for both 'media' and 'medias' field names
