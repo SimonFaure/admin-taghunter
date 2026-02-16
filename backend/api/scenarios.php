@@ -295,12 +295,12 @@ try {
                 $created_at = $existingScenario['created_at'];
                 $isUpdate = true;
 
-                $sql = 'UPDATE scenarios SET client_id = ?, email = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
-                $db->query($sql, [$client_id, $email, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid]);
+                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
+                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid]);
             } else {
                 // Insert new scenario
-                $sql = 'INSERT INTO scenarios (client_id, email, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                $db->query($sql, [$client_id, $email, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid, $created_by]);
+                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                $db->query($sql, [$client_id, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid, $created_by]);
                 $scenario_id = $db->getConnection()->lastInsertId();
                 $created_at = date('Y-m-d H:i:s');
             }
