@@ -310,20 +310,41 @@ function handleDownloadZip($pdo) {
     $email = $_GET['email'];
     Logger::log("handleDownloadZip - Uniqid: $uniqid, Email: $email");
 
+    // First, get the scenario
     $stmt = $pdo->prepare("
-        SELECT s.id, s.title
+        SELECT s.id, s.title, s.uniqid, c.email as client_email, a.email as admin_email
         FROM scenarios s
-        INNER JOIN clients c ON s.client_id = c.id
-        WHERE s.uniqid = ? AND c.email = ?
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
+        WHERE s.uniqid = ?
     ");
-
-    $stmt->execute([$uniqid, $email]);
+    $stmt->execute([$uniqid]);
     $scenario = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$scenario) {
-        Logger::log("handleDownloadZip - Scenario not found or access denied", 'ERROR');
+        Logger::log("handleDownloadZip - Scenario not found", 'ERROR');
         http_response_code(404);
-        echo json_encode(['error' => 'Scenario not found or access denied']);
+        echo json_encode(['error' => 'Scenario not found']);
+        return;
+    }
+
+    // Verify ownership
+    $isClientOwner = $scenario['client_email'] === $email;
+    $isAdminCreator = $scenario['admin_email'] === $email;
+
+    // Check if email belongs to any admin user
+    $isAdmin = false;
+    if (!$isClientOwner && !$isAdminCreator) {
+        $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt->execute([$email]);
+        $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = ($adminCheck !== false);
+    }
+
+    if (!$isClientOwner && !$isAdminCreator && !$isAdmin) {
+        Logger::log("handleDownloadZip - Unauthorized access attempt by: $email", 'ERROR');
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized - scenario does not belong to this user']);
         return;
     }
 

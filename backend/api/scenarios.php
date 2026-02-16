@@ -137,6 +137,10 @@ try {
                         $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
                         if ($client) {
                             $client_id = (int)$client['id'];
+                        } else {
+                            // Email doesn't belong to admin or client - reject
+                            Logger::log('scenarios', $method, 'create', null, ['email' => $email], ['error' => 'User not found'], 404, 'creator');
+                            jsonResponse(['error' => 'User with this email not found. Please ensure the email is registered as either an admin or a client.'], 404);
                         }
                     }
                 } elseif (isset($scenarioData['clientId'])) {
