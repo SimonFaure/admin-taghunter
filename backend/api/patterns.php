@@ -51,6 +51,7 @@ try {
 
 SecurityHeaders::setHeaders();
 setCorsHeaders();
+session_start();
 
 function getRequestData() {
     $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
@@ -71,20 +72,37 @@ function jsonResponse($data, $statusCode = 200) {
 }
 
 function requireAuth() {
+    // Check for session-based authentication first (web admin)
+    if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
+        $db = Database::getInstance();
+        $user = $db->fetch(
+            'SELECT id, email, name FROM admin_users WHERE id = ?',
+            [$_SESSION['user_id']]
+        );
+
+        if ($user) {
+            return [
+                'user_id' => $user['id'],
+                'user_type' => $_SESSION['user_type'],
+                'email' => $user['email']
+            ];
+        }
+    }
+
+    // Check for token-based authentication (API/Creator integration)
     $authHeader = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 
-    if (empty($authHeader)) {
-        jsonResponse(['error' => 'Authentication required'], 401);
+    if (!empty($authHeader)) {
+        $db = Database::getInstance();
+        $tokenData = TokenManager::validateToken($db, $authHeader);
+
+        if ($tokenData) {
+            return $tokenData;
+        }
     }
 
-    $db = Database::getInstance();
-    $tokenData = TokenManager::validateToken($db, $authHeader);
-
-    if (!$tokenData) {
-        jsonResponse(['error' => 'Invalid or expired token'], 401);
-    }
-
-    return $tokenData;
+    // No valid authentication found
+    jsonResponse(['error' => 'Authentication required'], 401);
 }
 
 try {
@@ -346,7 +364,7 @@ try {
             $data = getRequestData();
             $name = $data['name'] ?? '';
             $description = $data['description'] ?? null;
-            $version = $data['version'] ?? '';
+            $version = $data['version'] ?? '1.0';
             $gameType = $data['game_type'] ?? '';
             $patternData = $data['pattern_data'] ?? null;
             $isDefault = $data['is_default'] ?? false;
@@ -359,11 +377,6 @@ try {
             if (empty($name)) {
                 Logger::log('patterns', 'POST', 'create', $userId, [], ['error' => 'Name required'], 400);
                 jsonResponse(['error' => 'Pattern name is required'], 400);
-            }
-
-            if (empty($version)) {
-                Logger::log('patterns', 'POST', 'create', $userId, [], ['error' => 'Version required'], 400);
-                jsonResponse(['error' => 'Version is required'], 400);
             }
 
             if (empty($gameType)) {
