@@ -52,13 +52,13 @@ try {
         'scenario_files_migration.sql',
         'add_password_hash_migration.sql',
         'add_long_lived_tokens_migration.sql',
+        'add_devices_timestamps.sql',
         'cards_and_devices_migration.sql',
         'client_cards_migration.sql',
         'fix_cards_metadata_client_id_type.sql',
         'default_config_migration.sql',
         'patterns_migration.sql',
-        'add_source_to_api_logs.sql',
-        'add_devices_timestamps.sql'
+        'add_source_to_api_logs.sql'
     ];
 
     $results = [];
