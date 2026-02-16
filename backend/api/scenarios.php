@@ -100,6 +100,7 @@ try {
 
             // Get fields from either direct POST or scenarioData
             $client_id = null;
+            $emailBasedCreatedBy = null;
             $title = null;
             $description = null;
             $data = null;
@@ -125,6 +126,7 @@ try {
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // Validate email exists in either admin_users or clients table
+                // and set appropriate IDs for database relations
                 if ($email) {
                     $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
                     $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
@@ -135,14 +137,17 @@ try {
                         jsonResponse(['error' => 'User with this email not found. Please ensure the email is registered as either an admin or a client.'], 404);
                     }
 
-                    // Keep client_id for backward compatibility
+                    // Set appropriate IDs based on whether it's an admin or client
                     if ($client) {
                         $client_id = (int)$client['id'];
-                    } else {
-                        $client_id = null;
+                        $emailBasedCreatedBy = null; // Client scenarios don't need created_by
+                    } else if ($admin) {
+                        $client_id = null; // Admin scenarios are Taghunter Products
+                        $emailBasedCreatedBy = (int)$admin['id']; // Store admin ID in created_by
                     }
                 } elseif (isset($scenarioData['clientId'])) {
                     $client_id = (int)$scenarioData['clientId'];
+                    $emailBasedCreatedBy = null;
                 }
             } else {
                 // Admin format - check for both 'media' and 'medias' field names
@@ -260,7 +265,8 @@ try {
             // Check if scenario with this uniqid already exists
             $existingScenario = $db->fetch('SELECT id, created_at FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
-            $created_by = $_SESSION['user_id'] ?? null;
+            // Set created_by: prefer session user, fall back to email-based lookup
+            $created_by = $_SESSION['user_id'] ?? ($emailBasedCreatedBy ?? null);
             $isUpdate = false;
             $scenario_id = null;
             $created_at = null;
@@ -268,6 +274,7 @@ try {
             // Log final values before database operation
             Logger::log('scenarios', $method, 'create_pre_db', $_SESSION['user_id'] ?? null, [
                 'client_id' => $client_id,
+                'created_by' => $created_by,
                 'is_taghunter_product' => $client_id === null,
                 'email' => $email,
                 'title' => $title,
