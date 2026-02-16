@@ -145,8 +145,13 @@ try {
                         $client_id = null; // Admin scenarios are Taghunter Products
                         $emailBasedCreatedBy = (int)$admin['id']; // Store admin ID in created_by
                     }
-                } elseif (isset($scenarioData['clientId'])) {
+                } elseif (isset($scenarioData['clientId']) && $scenarioData['clientId']) {
+                    // Only use clientId from request if no email was provided
                     $client_id = (int)$scenarioData['clientId'];
+                    $emailBasedCreatedBy = null;
+                } elseif (isset($scenarioData['client_id']) && $scenarioData['client_id']) {
+                    // Also check snake_case version
+                    $client_id = (int)$scenarioData['client_id'];
                     $emailBasedCreatedBy = null;
                 }
             } else {
@@ -272,10 +277,13 @@ try {
             $created_at = null;
 
             // Log final values before database operation
+            // is_taghunter_product: true only if scenario_type is NOT 'custom' (i.e., it's a template or base game)
+            $is_taghunter_product = ($scenario_type !== 'custom');
+
             Logger::log('scenarios', $method, 'create_pre_db', $_SESSION['user_id'] ?? null, [
                 'client_id' => $client_id,
                 'created_by' => $created_by,
-                'is_taghunter_product' => $client_id === null,
+                'is_taghunter_product' => $is_taghunter_product,
                 'email' => $email,
                 'title' => $title,
                 'description' => substr($description, 0, 100),
