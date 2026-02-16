@@ -58,8 +58,16 @@ try {
 
             // Check if this is an admin request (with session) or client request (with email)
             $isAdminRequest = isset($_SESSION['user_id']);
+            // Extract email from multiple possible locations
             $email = $_POST['email'] ?? ($jsonInput['email'] ?? null);
             $logSource = $isAdminRequest ? 'admin' : 'creator';
+
+            Logger::log('scenarios', $method, 'email_extraction', null, [
+                'email_from_POST' => $_POST['email'] ?? 'NOT_SET',
+                'email_from_jsonInput' => $jsonInput['email'] ?? 'NOT_SET',
+                'final_email' => $email,
+                'jsonInput_keys' => is_array($jsonInput) ? array_keys($jsonInput) : 'NOT_ARRAY'
+            ], ['message' => 'Email extraction from request'], 200, 'creator');
 
             if (!$isAdminRequest && !$email) {
                 Logger::log('scenarios', $method, 'create', null, $_POST, ['error' => 'Unauthorized - no session or email'], 401, 'creator');
@@ -86,6 +94,11 @@ try {
                 $scenarioData = $jsonInput;
             }
 
+            // If email not found yet, check inside scenarioData
+            if (!$email && $scenarioData && isset($scenarioData['email'])) {
+                $email = $scenarioData['email'];
+            }
+
             // Log parsed scenario data if we have it
             if ($scenarioData) {
                 Logger::log('scenarios', $method, 'create_parsed', $_SESSION['user_id'] ?? null, [
@@ -94,6 +107,7 @@ try {
                     'data_value' => $scenarioData['data'] ?? 'NOT_SET',
                     'has_media_field' => isset($scenarioData['media']),
                     'media_value' => $scenarioData['media'] ?? 'NOT_SET',
+                    'email' => $email,
                     'all_keys' => array_keys($scenarioData)
                 ], ['message' => 'Parsed scenarioData'], 200);
             }
@@ -125,11 +139,25 @@ try {
                 $scenario_layout = $scenarioData['scenario_layout'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
+                Logger::log('scenarios', $method, 'before_email_lookup', null, [
+                    'email' => $email,
+                    'email_exists' => $email ? true : false,
+                    'will_do_lookup' => $email ? true : false
+                ], ['message' => 'About to check email for lookup'], 200, 'creator');
+
                 // Validate email exists in either admin_users or clients table
                 // and set appropriate IDs for database relations
                 if ($email) {
                     $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
                     $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+
+                    Logger::log('scenarios', $method, 'email_lookup', null, [
+                        'email' => $email,
+                        'admin_found' => $admin ? true : false,
+                        'admin_id' => $admin ? $admin['id'] : null,
+                        'client_found' => $client ? true : false,
+                        'client_id' => $client ? $client['id'] : null
+                    ], ['message' => 'Email lookup results'], 200, 'creator');
 
                     if (!$admin && !$client) {
                         // Email doesn't belong to admin or client - reject
@@ -141,9 +169,17 @@ try {
                     if ($client) {
                         $client_id = (int)$client['id'];
                         $emailBasedCreatedBy = null; // Client scenarios don't need created_by
+                        Logger::log('scenarios', $method, 'client_id_set', null, [
+                            'client_id' => $client_id,
+                            'source' => 'email_lookup'
+                        ], ['message' => 'Client ID set from email lookup'], 200, 'creator');
                     } else if ($admin) {
                         $client_id = null; // Admin scenarios are Taghunter Products
                         $emailBasedCreatedBy = (int)$admin['id']; // Store admin ID in created_by
+                        Logger::log('scenarios', $method, 'admin_id_set', null, [
+                            'emailBasedCreatedBy' => $emailBasedCreatedBy,
+                            'source' => 'email_lookup'
+                        ], ['message' => 'Admin ID set from email lookup'], 200, 'creator');
                     }
                 } elseif (isset($scenarioData['clientId']) && $scenarioData['clientId']) {
                     // Only use clientId from request if no email was provided
@@ -275,6 +311,15 @@ try {
             $isUpdate = false;
             $scenario_id = null;
             $created_at = null;
+
+            // Debug: Log client_id state right before database operation
+            Logger::log('scenarios', $method, 'client_id_final', $_SESSION['user_id'] ?? null, [
+                'client_id' => $client_id,
+                'client_id_type' => gettype($client_id),
+                'email' => $email,
+                'emailBasedCreatedBy' => $emailBasedCreatedBy,
+                'created_by' => $created_by
+            ], ['message' => 'Final client_id before DB operation'], 200, $logSource);
 
             // Log final values before database operation
             // is_taghunter_product: true only if scenario_type is NOT 'custom' (i.e., it's a template or base game)
