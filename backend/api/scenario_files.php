@@ -82,8 +82,12 @@ function handleUpload($pdo) {
 
     Logger::log("handleUpload - Querying scenario with ID: $scenarioId");
     $stmt = $pdo->prepare("
-        SELECT s.id, s.uniqid, s.email as scenario_email
+        SELECT s.id, s.uniqid, s.client_id, s.created_by,
+               c.email as client_email,
+               a.email as admin_email
         FROM scenarios s
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
         WHERE s.id = ?
     ");
     $stmt->execute([$scenarioId]);
@@ -96,8 +100,8 @@ function handleUpload($pdo) {
         return;
     }
 
-    // Verify ownership - check if email matches scenario email or user is an admin
-    $isOwner = $scenario['scenario_email'] === $email;
+    // Verify ownership - check if email matches scenario's client or creator
+    $isOwner = ($scenario['client_email'] === $email) || ($scenario['admin_email'] === $email);
 
     // Check if email belongs to any admin user
     $isAdmin = false;
@@ -233,9 +237,13 @@ function handleDelete($pdo) {
     Logger::log("handleDelete - File ID: $fileId, Email: $email");
 
     $stmt = $pdo->prepare("
-        SELECT sf.file_path, s.id as scenario_id, s.email as scenario_email
+        SELECT sf.file_path, s.id as scenario_id, s.client_id, s.created_by,
+               c.email as client_email,
+               a.email as admin_email
         FROM scenario_files sf
         JOIN scenarios s ON sf.scenario_id = s.id
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
         WHERE sf.id = ?
     ");
     $stmt->execute([$fileId]);
@@ -249,7 +257,7 @@ function handleDelete($pdo) {
     }
 
     // Verify ownership
-    $isOwner = $file['scenario_email'] === $email;
+    $isOwner = ($file['client_email'] === $email) || ($file['admin_email'] === $email);
 
     // Check if email belongs to any admin user
     $isAdmin = false;
@@ -306,8 +314,12 @@ function handleDownloadZip($pdo) {
 
     // First, get the scenario
     $stmt = $pdo->prepare("
-        SELECT s.id, s.title, s.uniqid, s.email as scenario_email
+        SELECT s.id, s.title, s.uniqid, s.client_id, s.created_by,
+               c.email as client_email,
+               a.email as admin_email
         FROM scenarios s
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
         WHERE s.uniqid = ?
     ");
     $stmt->execute([$uniqid]);
@@ -321,7 +333,7 @@ function handleDownloadZip($pdo) {
     }
 
     // Verify ownership
-    $isOwner = $scenario['scenario_email'] === $email;
+    $isOwner = ($scenario['client_email'] === $email) || ($scenario['admin_email'] === $email);
 
     // Check if email belongs to any admin user
     $isAdmin = false;

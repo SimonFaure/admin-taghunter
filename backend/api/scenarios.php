@@ -683,8 +683,12 @@ try {
 
             // Verify scenario exists and belongs to user
             $scenario = $db->fetch(
-                'SELECT s.id, s.uniqid, s.email as scenario_email
+                'SELECT s.id, s.uniqid, s.client_id, s.created_by,
+                        c.email as client_email,
+                        a.email as admin_email
                  FROM scenarios s
+                 LEFT JOIN clients c ON s.client_id = c.id
+                 LEFT JOIN admin_users a ON s.created_by = a.id
                  WHERE s.uniqid = ?',
                 [$uniqid]
             );
@@ -694,8 +698,8 @@ try {
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
-            // Verify ownership - check if email matches scenario email or user is an admin
-            $isOwner = $scenario['scenario_email'] === $email;
+            // Verify ownership - check if email matches scenario's client or creator, or user is an admin
+            $isOwner = ($scenario['client_email'] === $email) || ($scenario['admin_email'] === $email);
 
             // Also check if the email exists in admin_users table (for any admin)
             $isAdmin = false;
