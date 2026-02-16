@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../database/Database.php';
 
 try {
-    $db = new Database();
+    $db = Database::getInstance();
     echo "✓ Database connection successful<br>";
 
     // Check if patterns table exists

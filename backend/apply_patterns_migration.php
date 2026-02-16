@@ -5,7 +5,7 @@ require_once __DIR__ . '/database/Database.php';
 header('Content-Type: application/json');
 
 try {
-    $db = new Database();
+    $db = Database::getInstance();
 
     $migrationFile = __DIR__ . '/database/patterns_migration.sql';
 

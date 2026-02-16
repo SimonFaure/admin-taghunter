@@ -77,7 +77,7 @@ function requireAuth() {
         jsonResponse(['error' => 'Authentication required'], 401);
     }
 
-    $db = new Database();
+    $db = Database::getInstance();
     $tokenData = TokenManager::validateToken($db, $authHeader);
 
     if (!$tokenData) {
