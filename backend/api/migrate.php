@@ -54,7 +54,11 @@ try {
         'add_long_lived_tokens_migration.sql',
         'cards_and_devices_migration.sql',
         'client_cards_migration.sql',
-        'default_config_migration.sql'
+        'fix_cards_metadata_client_id_type.sql',
+        'default_config_migration.sql',
+        'patterns_migration.sql',
+        'add_source_to_api_logs.sql',
+        'add_devices_timestamps.sql'
     ];
 
     $results = [];
