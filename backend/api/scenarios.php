@@ -124,24 +124,22 @@ try {
                 $scenario_layout = $scenarioData['scenario_layout'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
-                // Determine client_id based on email
-                // If email belongs to an admin, keep client_id as null (Taghunter Product)
-                // Otherwise, look up the client
+                // Validate email exists in either admin_users or clients table
                 if ($email) {
                     $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
-                    if ($admin) {
-                        // Admin email - this is a Taghunter Product scenario
-                        $client_id = null;
+                    $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+
+                    if (!$admin && !$client) {
+                        // Email doesn't belong to admin or client - reject
+                        Logger::log('scenarios', $method, 'create', null, ['email' => $email], ['error' => 'User not found'], 404, 'creator');
+                        jsonResponse(['error' => 'User with this email not found. Please ensure the email is registered as either an admin or a client.'], 404);
+                    }
+
+                    // Keep client_id for backward compatibility
+                    if ($client) {
+                        $client_id = (int)$client['id'];
                     } else {
-                        // Not an admin - look up client
-                        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
-                        if ($client) {
-                            $client_id = (int)$client['id'];
-                        } else {
-                            // Email doesn't belong to admin or client - reject
-                            Logger::log('scenarios', $method, 'create', null, ['email' => $email], ['error' => 'User not found'], 404, 'creator');
-                            jsonResponse(['error' => 'User with this email not found. Please ensure the email is registered as either an admin or a client.'], 404);
-                        }
+                        $client_id = null;
                     }
                 } elseif (isset($scenarioData['clientId'])) {
                     $client_id = (int)$scenarioData['clientId'];
@@ -290,12 +288,12 @@ try {
                 $created_at = $existingScenario['created_at'];
                 $isUpdate = true;
 
-                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
-                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid]);
+                $sql = 'UPDATE scenarios SET client_id = ?, email = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
+                $db->query($sql, [$client_id, $email, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid]);
             } else {
                 // Insert new scenario
-                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                $db->query($sql, [$client_id, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid, $created_by]);
+                $sql = 'INSERT INTO scenarios (client_id, email, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                $db->query($sql, [$client_id, $email, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid, $created_by]);
                 $scenario_id = $db->getConnection()->lastInsertId();
                 $created_at = date('Y-m-d H:i:s');
             }
@@ -305,6 +303,7 @@ try {
                 'data' => [
                     'id' => $scenario_id,
                     'client_id' => $client_id,
+                    'email' => $email,
                     'is_taghunter_product' => $client_id === null,
                     'title' => $title,
                     'description' => $description,
@@ -611,10 +610,8 @@ try {
 
             // Verify scenario exists and belongs to user
             $scenario = $db->fetch(
-                'SELECT s.id, s.uniqid, c.email as client_email, a.email as admin_email
+                'SELECT s.id, s.uniqid, s.email as scenario_email
                  FROM scenarios s
-                 LEFT JOIN clients c ON s.client_id = c.id
-                 LEFT JOIN admin_users a ON s.created_by = a.id
                  WHERE s.uniqid = ?',
                 [$uniqid]
             );
@@ -624,18 +621,17 @@ try {
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
-            // Verify ownership - check if email matches either client or admin
-            $isClientOwner = $scenario['client_email'] === $email;
-            $isAdminOwner = $scenario['admin_email'] === $email;
+            // Verify ownership - check if email matches scenario email or user is an admin
+            $isOwner = $scenario['scenario_email'] === $email;
 
             // Also check if the email exists in admin_users table (for any admin)
             $isAdmin = false;
-            if (!$isClientOwner && !$isAdminOwner) {
+            if (!$isOwner) {
                 $adminCheck = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
                 $isAdmin = ($adminCheck !== false);
             }
 
-            if (!$isClientOwner && !$isAdminOwner && !$isAdmin) {
+            if (!$isOwner && !$isAdmin) {
                 Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid, 'email' => $email], ['error' => 'Unauthorized - email mismatch'], 403);
                 jsonResponse(['error' => 'Unauthorized - scenario does not belong to this user'], 403);
             }

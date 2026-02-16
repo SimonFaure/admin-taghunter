@@ -82,10 +82,8 @@ function handleUpload($pdo) {
 
     Logger::log("handleUpload - Querying scenario with ID: $scenarioId");
     $stmt = $pdo->prepare("
-        SELECT s.id, s.uniqid, c.email as client_email, a.email as admin_email
+        SELECT s.id, s.uniqid, s.email as scenario_email
         FROM scenarios s
-        LEFT JOIN clients c ON s.client_id = c.id
-        LEFT JOIN admin_users a ON s.created_by = a.id
         WHERE s.id = ?
     ");
     $stmt->execute([$scenarioId]);
@@ -98,20 +96,19 @@ function handleUpload($pdo) {
         return;
     }
 
-    // Verify ownership - check if email matches client, admin creator, or any admin
-    $isClientOwner = $scenario['client_email'] === $email;
-    $isAdminCreator = $scenario['admin_email'] === $email;
+    // Verify ownership - check if email matches scenario email or user is an admin
+    $isOwner = $scenario['scenario_email'] === $email;
 
     // Check if email belongs to any admin user
     $isAdmin = false;
-    if (!$isClientOwner && !$isAdminCreator) {
+    if (!$isOwner) {
         $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
         $stmt->execute([$email]);
         $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
         $isAdmin = ($adminCheck !== false);
     }
 
-    if (!$isClientOwner && !$isAdminCreator && !$isAdmin) {
+    if (!$isOwner && !$isAdmin) {
         Logger::log("handleUpload - Unauthorized access attempt by: $email", 'ERROR');
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized - scenario does not belong to this user']);
@@ -236,11 +233,9 @@ function handleDelete($pdo) {
     Logger::log("handleDelete - File ID: $fileId, Email: $email");
 
     $stmt = $pdo->prepare("
-        SELECT sf.file_path, s.id as scenario_id, c.email as client_email, a.email as admin_email
+        SELECT sf.file_path, s.id as scenario_id, s.email as scenario_email
         FROM scenario_files sf
         JOIN scenarios s ON sf.scenario_id = s.id
-        LEFT JOIN clients c ON s.client_id = c.id
-        LEFT JOIN admin_users a ON s.created_by = a.id
         WHERE sf.id = ?
     ");
     $stmt->execute([$fileId]);
@@ -254,19 +249,18 @@ function handleDelete($pdo) {
     }
 
     // Verify ownership
-    $isClientOwner = $file['client_email'] === $email;
-    $isAdminCreator = $file['admin_email'] === $email;
+    $isOwner = $file['scenario_email'] === $email;
 
     // Check if email belongs to any admin user
     $isAdmin = false;
-    if (!$isClientOwner && !$isAdminCreator) {
+    if (!$isOwner) {
         $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
         $stmt->execute([$email]);
         $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
         $isAdmin = ($adminCheck !== false);
     }
 
-    if (!$isClientOwner && !$isAdminCreator && !$isAdmin) {
+    if (!$isOwner && !$isAdmin) {
         Logger::log("handleDelete - Unauthorized access attempt by: $email", 'ERROR');
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized - file does not belong to this user']);
@@ -312,10 +306,8 @@ function handleDownloadZip($pdo) {
 
     // First, get the scenario
     $stmt = $pdo->prepare("
-        SELECT s.id, s.title, s.uniqid, c.email as client_email, a.email as admin_email
+        SELECT s.id, s.title, s.uniqid, s.email as scenario_email
         FROM scenarios s
-        LEFT JOIN clients c ON s.client_id = c.id
-        LEFT JOIN admin_users a ON s.created_by = a.id
         WHERE s.uniqid = ?
     ");
     $stmt->execute([$uniqid]);
@@ -329,19 +321,18 @@ function handleDownloadZip($pdo) {
     }
 
     // Verify ownership
-    $isClientOwner = $scenario['client_email'] === $email;
-    $isAdminCreator = $scenario['admin_email'] === $email;
+    $isOwner = $scenario['scenario_email'] === $email;
 
     // Check if email belongs to any admin user
     $isAdmin = false;
-    if (!$isClientOwner && !$isAdminCreator) {
+    if (!$isOwner) {
         $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
         $stmt->execute([$email]);
         $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
         $isAdmin = ($adminCheck !== false);
     }
 
-    if (!$isClientOwner && !$isAdminCreator && !$isAdmin) {
+    if (!$isOwner && !$isAdmin) {
         Logger::log("handleDownloadZip - Unauthorized access attempt by: $email", 'ERROR');
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized - scenario does not belong to this user']);
