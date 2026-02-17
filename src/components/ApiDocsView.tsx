@@ -217,6 +217,15 @@ export default function ApiDocsView() {
           response: '{ "data": { "id": 1, "email": "updated@example.com", "name": "Updated Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "created_at": "2024-01-15T10:30:00Z" } }',
         },
         {
+          method: 'GET',
+          path: '/backend/api/clients.php?action=creator_list&email={email}',
+          description: 'Get all clients (Creator API - admin only)',
+          auth: false,
+          creator: true,
+          params: [{ name: 'email', type: 'string', description: 'Admin email for authentication' }],
+          response: '{ "success": true, "data": [{ "id": 1, "email": "client@example.com", "name": "Client Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "playground_version": "1.0.0", "creator_version": "1.0.0", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }], "message": "Clients retrieved successfully" }',
+        },
+        {
           method: 'DELETE',
           path: '/backend/api/clients.php?action=delete&id={id}',
           description: 'Delete client',
