@@ -668,7 +668,7 @@ try {
                 ORDER BY c.name ASC, c.email ASC
             ';
 
-            $cardsList = $db->query($cardsListQuery);
+            $cardsList = $db->fetchAll($cardsListQuery);
 
             foreach ($cardsList as &$item) {
                 if ($item['version']) {
