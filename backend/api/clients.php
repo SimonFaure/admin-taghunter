@@ -411,6 +411,46 @@ try {
             jsonResponse($response);
             break;
 
+        case 'creator_list':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                $response = ['error' => 'Method not allowed'];
+                Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'creator_list', null, [], $response, 405, 'creator');
+                jsonResponse($response, 405);
+            }
+
+            $email = $_GET['email'] ?? '';
+            if (empty($email)) {
+                $response = ['error' => 'Email is required'];
+                Logger::log('clients', 'GET', 'creator_list', null, ['email' => ''], $response, 400, 'creator');
+                jsonResponse($response, 400);
+            }
+
+            $admin = $db->fetch(
+                'SELECT id, email FROM admin_users WHERE email = ?',
+                [$email]
+            );
+
+            if (!$admin) {
+                $response = ['error' => 'Admin user not found'];
+                Logger::log('clients', 'GET', 'creator_list', null, ['email' => $email], $response, 403, 'creator');
+                jsonResponse($response, 403);
+            }
+
+            $clients = $db->fetchAll(
+                'SELECT * FROM clients ORDER BY created_at DESC'
+            );
+
+            $clients = array_map('formatClientData', $clients);
+
+            $response = [
+                'success' => true,
+                'data' => $clients,
+                'message' => 'Clients retrieved successfully'
+            ];
+            Logger::log('clients', 'GET', 'creator_list', $admin['id'], ['email' => $email], $response, 200, 'creator');
+            jsonResponse($response);
+            break;
+
         default:
             $response = ['error' => 'Invalid action'];
             Logger::log('clients', $_SERVER['REQUEST_METHOD'], $action, $_SESSION['user_id'] ?? null, [], $response, 400);

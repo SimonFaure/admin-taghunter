@@ -339,7 +339,62 @@ const response = await fetch(
 
 ---
 
-### 6. Create/Update Default Configuration
+### 6. List All Clients (Admin Only)
+
+**Endpoint:** `GET /backend/api/clients.php?action=creator_list&email={email}`
+
+**Purpose:** Get a list of all clients (admin only)
+
+**Authentication:** Email-based (via `email` parameter)
+
+**Request:**
+```javascript
+const email = 'admin@taghunter.fr';
+const response = await fetch(
+  `https://admin.taghunter.fr/backend/api/clients.php?action=creator_list&email=${encodeURIComponent(email)}`
+);
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "email": "client@example.com",
+      "name": "Client Name",
+      "company": "Company Name",
+      "phone": "+33 1 23 45 67 89",
+      "notes": "Client notes",
+      "avatar_url": "https://admin.taghunter.fr/media/avatars/client_1.jpg",
+      "license_type": "premium",
+      "billing_up_to_date": true,
+      "playground_version": "1.0.0",
+      "creator_version": "1.0.0",
+      "created_at": "2024-01-01 12:00:00",
+      "updated_at": "2024-01-01 12:00:00"
+    }
+  ],
+  "message": "Clients retrieved successfully"
+}
+```
+
+**Required Fields:**
+- `email`: Admin user's email address
+
+**Security:**
+- Only admin users can access this endpoint
+- Client users will receive a 403 Forbidden error
+
+**Use Cases:**
+- Display list of clients in Creator app for admins
+- Allow admins to select a client when creating scenarios
+- Show client information and statistics
+
+---
+
+### 7. Create/Update Default Configuration
 
 **Endpoint:** `POST /backend/api/default_config.php?action=create`
 
@@ -552,7 +607,22 @@ class TaghunterCreatorAPI {
     return result.data;
   }
 
-  // Step 6: Create/Update default configuration (admin only)
+  // Step 6: List all clients (admin only)
+  async listClients() {
+    const response = await fetch(
+      `${this.baseUrl}/clients.php?action=creator_list&email=${encodeURIComponent(this.userEmail)}`
+    );
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to list clients');
+    }
+
+    return result.data;
+  }
+
+  // Step 7: Create/Update default configuration (admin only)
   async createDefaultConfig(meta, configValue, version = 1) {
     const response = await fetch(
       `${this.baseUrl}/default_config.php?action=create`,
@@ -630,7 +700,11 @@ async function publishScenario() {
     });
     console.log('Pattern uploaded:', pattern);
 
-    // 6. Create default config (admin only)
+    // 6. List all clients (admin only)
+    const clients = await api.listClients();
+    console.log('Available clients:', clients);
+
+    // 7. Create default config (admin only)
     const config = await api.createDefaultConfig(
       'tag_game_settings',
       {
