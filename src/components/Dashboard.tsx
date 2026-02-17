@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Zap, Package } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Zap, Package, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
@@ -12,6 +12,7 @@ import { SettingsView } from './SettingsView';
 import { MediaView } from './MediaView';
 import { AdminUsersView } from './AdminUsersView';
 import { PatternsView } from './PatternsView';
+import { ActivityHistoryView } from './ActivityHistoryView';
 import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 
 export function Dashboard() {
@@ -75,6 +76,7 @@ export function Dashboard() {
     { id: 'patterns', label: 'Patterns', icon: Package },
     { id: 'media', label: 'Media', icon: Image },
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
+    { id: 'activity-history', label: 'Activity History', icon: Clock },
     { id: 'admin-users', label: 'Admin Users', icon: Shield },
     { id: 'logs', label: 'API Logs', icon: FileText },
     { id: 'api-docs', label: 'API Docs', icon: Code },
@@ -172,6 +174,8 @@ export function Dashboard() {
 
           {activeTab === 'statistics' && <StatisticsView />}
 
+          {activeTab === 'activity-history' && <ActivityHistoryView />}
+
           {activeTab === 'admin-users' && <AdminUsersView />}
 
           {activeTab === 'logs' && <LogsView />}
@@ -248,7 +252,16 @@ export function Dashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-4">Recent Activity</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-slate-900">Recent Activity</h3>
+                <button
+                  onClick={() => setActiveTab('activity-history')}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1 transition-colors"
+                >
+                  <span>Show History</span>
+                  <Clock className="w-4 h-4" />
+                </button>
+              </div>
               <div className="space-y-4">
                 {activities.length === 0 ? (
                   <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
