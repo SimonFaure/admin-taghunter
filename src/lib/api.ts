@@ -229,3 +229,40 @@ export const dashboardApi = {
     });
   },
 };
+
+export interface ClientCardMetadata {
+  id: number;
+  email: string;
+  name: string;
+  version: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  has_file: boolean;
+  file_size: number;
+  card_count: number;
+}
+
+export interface CardData {
+  [key: string]: string;
+}
+
+export interface ClientCardsDataResponse {
+  success: boolean;
+  data: CardData[];
+  headers: string[];
+  count: number;
+}
+
+export const adminCardsApi = {
+  async listAll(): Promise<ApiResponse<{ data: ClientCardMetadata[] }>> {
+    return apiRequest('/cards.php?action=admin_list_all', {
+      method: 'GET',
+    });
+  },
+
+  async getCardsData(clientId: number): Promise<ApiResponse<ClientCardsDataResponse>> {
+    return apiRequest(`/cards.php?action=admin_get_data&client_id=${clientId}`, {
+      method: 'GET',
+    });
+  },
+};

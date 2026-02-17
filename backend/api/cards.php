@@ -648,6 +648,63 @@ try {
             ]);
             break;
 
+        case 'admin_list_all':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $adminId = requireAdminAuth($db);
+
+            $cardsListQuery = '
+                SELECT
+                    c.id,
+                    c.email,
+                    c.name,
+                    ccm.version,
+                    ccm.created_at,
+                    ccm.updated_at
+                FROM clients c
+                LEFT JOIN client_cards_metadata ccm ON c.id = ccm.client_id
+                ORDER BY c.name ASC, c.email ASC
+            ';
+
+            $cardsList = $db->query($cardsListQuery);
+
+            foreach ($cardsList as &$item) {
+                if ($item['version']) {
+                    $cardsFile = getCardsFilePath($item['id'], $item['version']);
+                    $item['has_file'] = file_exists($cardsFile);
+
+                    if ($item['has_file']) {
+                        $item['file_size'] = filesize($cardsFile);
+
+                        $cards = [];
+                        if (($handle = fopen($cardsFile, 'r')) !== false) {
+                            $rowIndex = 0;
+                            while (($data = fgetcsv($handle, 1000, ',')) !== false) {
+                                if ($rowIndex > 0) {
+                                    $cards[] = $data;
+                                }
+                                $rowIndex++;
+                            }
+                            fclose($handle);
+                        }
+                        $item['card_count'] = count($cards);
+                    } else {
+                        $item['file_size'] = 0;
+                        $item['card_count'] = 0;
+                    }
+                } else {
+                    $item['has_file'] = false;
+                    $item['file_size'] = 0;
+                    $item['card_count'] = 0;
+                }
+            }
+
+            Logger::log('cards', 'GET', 'admin_list_all', $adminId, [], ['success' => true, 'count' => count($cardsList)], 200);
+            jsonResponse(['success' => true, 'data' => $cardsList]);
+            break;
+
         default:
             jsonResponse(['error' => 'Invalid action'], 400);
     }
