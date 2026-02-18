@@ -140,7 +140,8 @@ try {
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // NEW: Extract is_admin and client_id from request
-                $is_admin_from_creator = $scenarioData['is_admin'] ?? false;
+                $raw_is_admin = $scenarioData['is_admin'] ?? false;
+                $is_admin_from_creator = $raw_is_admin === true || $raw_is_admin === 1 || $raw_is_admin === '1' || $raw_is_admin === 'true';
                 $client_id_from_creator = isset($scenarioData['client_id']) ? (int)$scenarioData['client_id'] : null;
 
                 Logger::log('scenarios', $method, 'creator_fields', null, [
@@ -151,8 +152,9 @@ try {
 
                 // Use the fields from Creator directly
                 if ($is_admin_from_creator) {
-                    // This is an admin/Taghunter Product scenario
+                    // is_admin is true/1 — force client_id to null regardless of any other value
                     $client_id = null;
+                    $client_id_from_creator = null;
                     // Look up admin ID by email if provided
                     if ($email) {
                         $admin = $db->fetch('SELECT id FROM admin_users WHERE email = ?', [$email]);
