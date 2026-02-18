@@ -2,35 +2,21 @@ import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { secureAuth } from '../../lib/secureAuth';
 import { Film, Play, Download } from 'lucide-react';
 import { useState, useEffect } from 'react';
-
-interface Scenario {
-  id: string;
-  title: string;
-  description: string;
-  uniqid: string;
-  game_type?: string;
-  scenario_type?: string;
-  granted_at?: string;
-  granted_by_email?: string;
-  medias?: string | Record<string, unknown>;
-  has_zip_files?: boolean;
-}
+import type { ClientScenario } from './types';
 
 interface MyScenariosViewProps {
-  onSelectScenario: (uniqid: string) => void;
+  onSelectScenario: (scenario: ClientScenario) => void;
 }
 
 const API_BASE_URL = '/backend/api';
 const MEDIA_BASE_URL = 'https://admin.taghunter.fr';
 
-function getGameVisual(scenario: Scenario): string | null {
-  if (!scenario.medias) return null;
+export function getGameVisualUrl(medias: string | Record<string, unknown> | null | undefined): string | null {
+  if (!medias) return null;
   try {
-    const medias =
-      typeof scenario.medias === 'string'
-        ? JSON.parse(scenario.medias)
-        : scenario.medias;
-    const gv = (medias as { images?: { game_visual?: string } })?.images?.game_visual;
+    const parsed =
+      typeof medias === 'string' ? JSON.parse(medias) : medias;
+    const gv = (parsed as { images?: { game_visual?: string } })?.images?.game_visual;
     if (!gv) return null;
     return gv.startsWith('http') ? gv : `${MEDIA_BASE_URL}${gv}`;
   } catch {
@@ -40,7 +26,7 @@ function getGameVisual(scenario: Scenario): string | null {
 
 export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
   const { user } = useSecureAuth();
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarios, setScenarios] = useState<ClientScenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,11 +87,11 @@ export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {scenarios.map((scenario) => {
-            const visual = getGameVisual(scenario);
+            const visual = getGameVisualUrl(scenario.medias);
             return (
               <button
                 key={scenario.id}
-                onClick={() => onSelectScenario(scenario.uniqid)}
+                onClick={() => onSelectScenario(scenario)}
                 className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all text-left w-full group overflow-hidden"
               >
                 <div className="relative w-full bg-slate-100" style={{ height: '180px' }}>

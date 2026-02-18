@@ -10,11 +10,12 @@ import { ClientStatisticsView } from './client/ClientStatisticsView';
 import { ClientHomeView } from './client/ClientHomeView';
 import { MyPatternsView } from './client/MyPatternsView';
 import { ScenarioDetailView } from './client/ScenarioDetailView';
+import type { ClientScenario } from './client/types';
 
 export function ClientDashboard() {
   const { user, logout } = useSecureAuth();
   const [activeTab, setActiveTab] = useState('home');
-  const [selectedScenarioUniqid, setSelectedScenarioUniqid] = useState<string | null>(null);
+  const [selectedScenario, setSelectedScenario] = useState<ClientScenario | null>(null);
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -27,22 +28,14 @@ export function ClientDashboard() {
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
   ];
 
-  const handleSelectScenario = (uniqid: string) => {
-    setSelectedScenarioUniqid(uniqid);
-  };
-
-  const handleBackFromScenario = () => {
-    setSelectedScenarioUniqid(null);
-  };
-
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
-    setSelectedScenarioUniqid(null);
+    setSelectedScenario(null);
   };
 
   const getPageTitle = () => {
-    if (activeTab === 'scenarios' && selectedScenarioUniqid) {
-      return 'Scenario Detail';
+    if (activeTab === 'scenarios' && selectedScenario) {
+      return selectedScenario.title;
     }
     return menuItems.find((item) => item.id === activeTab)?.label ?? '';
   };
@@ -114,13 +107,13 @@ export function ClientDashboard() {
           {activeTab === 'home' && <ClientHomeView />}
           {activeTab === 'account' && <MyAccountView />}
           {activeTab === 'scenarios' && (
-            selectedScenarioUniqid ? (
+            selectedScenario ? (
               <ScenarioDetailView
-                uniqid={selectedScenarioUniqid}
-                onBack={handleBackFromScenario}
+                scenario={selectedScenario}
+                onBack={() => setSelectedScenario(null)}
               />
             ) : (
-              <MyScenariosView onSelectScenario={handleSelectScenario} />
+              <MyScenariosView onSelectScenario={setSelectedScenario} />
             )
           )}
           {activeTab === 'patterns' && <MyPatternsView />}

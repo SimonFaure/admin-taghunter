@@ -1,34 +1,47 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { secureAuth } from '../../lib/secureAuth';
+import { getGameVisualUrl } from './MyScenariosView';
+import type { ClientScenario } from './types';
 
 const API_BASE_URL = '/backend/api';
-
-interface ScenarioDetail {
-  id: string;
-  title: string;
-  description: string;
-  uniqid: string;
-  game_type?: string;
-  scenario_type?: string;
-  version?: string;
-  game_visual: string | null;
-  images: string[];
-  video_url: string | null;
-  has_zip_files: boolean;
-  files_count: number;
-}
+const MEDIA_BASE_URL = 'https://admin.taghunter.fr';
 
 interface ScenarioDetailViewProps {
-  uniqid: string;
+  scenario: ClientScenario;
   onBack: () => void;
 }
 
-export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) {
-  const [scenario, setScenario] = useState<ScenarioDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function parseMedias(medias: string | Record<string, unknown> | null | undefined) {
+  if (!medias) return {};
+  try {
+    return typeof medias === 'string' ? JSON.parse(medias) : medias;
+  } catch {
+    return {};
+  }
+}
+
+function getVideoUrl(medias: string | Record<string, unknown> | null | undefined): string | null {
+  const parsed = parseMedias(medias) as { video?: string };
+  if (!parsed.video) return null;
+  return parsed.video.startsWith('http') ? parsed.video : `${MEDIA_BASE_URL}${parsed.video}`;
+}
+
+function getExtraImages(medias: string | Record<string, unknown> | null | undefined): string[] {
+  const parsed = parseMedias(medias) as { images?: Record<string, string> };
+  if (!parsed.images) return [];
+  return Object.entries(parsed.images)
+    .filter(([key]) => key !== 'game_visual')
+    .map(([, url]) => (url.startsWith('http') ? url : `${MEDIA_BASE_URL}${url}`));
+}
+
+export function ScenarioDetailView({ scenario, onBack }: ScenarioDetailViewProps) {
+  const gameVisual = getGameVisualUrl(scenario.medias);
+  const extraImages = getExtraImages(scenario.medias);
+  const allImages = [...(gameVisual ? [gameVisual] : []), ...extraImages];
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [videoUrl, setVideoUrl] = useState<string | null>(getVideoUrl(scenario.medias));
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
   const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
@@ -36,42 +49,10 @@ export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) 
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchScenarioDetail();
-  }, [uniqid]);
-
   const getAuthHeaders = (): Record<string, string> => {
     const token = secureAuth.getStoredToken();
     return token ? { 'X-Auth-Token': token } : {};
   };
-
-  const fetchScenarioDetail = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/scenario_files.php?action=get_scenario&uniqid=${encodeURIComponent(uniqid)}`,
-        { credentials: 'include', headers: getAuthHeaders() }
-      );
-      const result = await response.json();
-      if (result.success && result.data) {
-        setScenario(result.data);
-      } else {
-        setError(result.error || 'Failed to load scenario');
-      }
-    } catch {
-      setError('Network error — could not load scenario details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const allImages = scenario
-    ? [
-        ...(scenario.game_visual ? [scenario.game_visual] : []),
-        ...scenario.images.filter((img) => img !== scenario.game_visual),
-      ]
-    : [];
 
   const handlePrevImage = () => {
     setActiveImageIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
@@ -83,7 +64,7 @@ export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) 
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !scenario) return;
+    if (!file) return;
 
     setVideoUploading(true);
     setVideoUploadError(null);
@@ -104,7 +85,7 @@ export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) 
       const result = await response.json();
       if (result.success) {
         setVideoUploadSuccess(true);
-        setScenario((prev) => prev ? { ...prev, video_url: result.video_url } : prev);
+        setVideoUrl(result.video_url);
         setTimeout(() => setVideoUploadSuccess(false), 3000);
       } else {
         setVideoUploadError(result.error || 'Failed to upload video');
@@ -118,16 +99,14 @@ export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) 
   };
 
   const handleDownloadZip = async () => {
-    if (!scenario) return;
     setDownloadingZip(true);
     setDownloadError(null);
 
     try {
-      const token = secureAuth.getStoredToken();
       const url = `${API_BASE_URL}/scenario_files.php?action=download_zip&uniqid=${encodeURIComponent(scenario.uniqid)}`;
       const response = await fetch(url, {
         credentials: 'include',
-        headers: token ? { 'X-Auth-Token': token } : {},
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -151,32 +130,6 @@ export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) 
       setDownloadingZip(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-10 h-10 text-slate-400 animate-spin" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <AlertCircle className="w-12 h-12 text-red-400 mb-3" />
-        <p className="text-red-600 mb-4">{error}</p>
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-medium text-slate-700 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Scenarios
-        </button>
-      </div>
-    );
-  }
-
-  if (!scenario) return null;
 
   return (
     <div>
@@ -280,10 +233,10 @@ export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) 
               Scenario Video
             </h3>
 
-            {scenario.video_url ? (
+            {videoUrl ? (
               <div className="space-y-3">
                 <div className="rounded-xl overflow-hidden bg-slate-900 aspect-video">
-                  <video src={scenario.video_url} controls className="w-full h-full" />
+                  <video src={videoUrl} controls className="w-full h-full" />
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs text-slate-500 cursor-pointer hover:text-slate-700 transition-colors">
                   <Upload className="w-3.5 h-3.5" />
@@ -358,7 +311,7 @@ export function ScenarioDetailView({ uniqid, onBack }: ScenarioDetailViewProps) 
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   {scenario.has_zip_files
-                    ? `${scenario.files_count} file${scenario.files_count !== 1 ? 's' : ''} available as ZIP`
+                    ? `${scenario.files_count ?? ''} file${scenario.files_count !== 1 ? 's' : ''} available as ZIP`
                     : 'No files available yet'}
                 </p>
               </div>
