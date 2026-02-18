@@ -1,22 +1,28 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
-header('Content-Type: application/json');
+setCorsHeaders();
+session_start();
 
 $action = $_GET['action'] ?? '';
 
 Logger::log("scenario_files.php - Action: $action");
-Logger::log("scenario_files.php - POST data: " . json_encode($_POST));
-Logger::log("scenario_files.php - FILES data: " . json_encode(array_map(function($file) {
-    return [
-        'name' => $file['name'] ?? null,
-        'type' => $file['type'] ?? null,
-        'size' => $file['size'] ?? null,
-        'error' => $file['error'] ?? null
-    ];
-}, $_FILES)));
+
+function resolveEmailFromRequest($pdo) {
+    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+    if (!empty($token)) {
+        $db = Database::getInstance();
+        $tokenData = TokenManager::validateToken($db, $token);
+        if ($tokenData) {
+            return $tokenData['email'];
+        }
+    }
+    return null;
+}
 
 try {
     $pdo = getDbConnection();
@@ -39,6 +45,14 @@ try {
             handleDownloadZip($pdo);
             break;
 
+        case 'get_scenario':
+            handleGetScenario($pdo);
+            break;
+
+        case 'upload_video':
+            handleUploadVideo($pdo);
+            break;
+
         default:
             Logger::log("scenario_files.php - Invalid action: $action", 'ERROR');
             http_response_code(400);
@@ -46,20 +60,235 @@ try {
     }
 } catch (Exception $e) {
     Logger::log("scenario_files.php - Exception: " . $e->getMessage(), 'ERROR');
-    Logger::log("scenario_files.php - Stack trace: " . $e->getTraceAsString(), 'ERROR');
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
+}
+
+function handleGetScenario($pdo) {
+    $uniqid = $_GET['uniqid'] ?? null;
+    if (!$uniqid) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing uniqid']);
+        return;
+    }
+
+    $email = resolveEmailFromRequest($pdo);
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.title, s.description, s.uniqid, s.medias, s.media_url,
+               s.game_type, s.scenario_type, s.version, s.client_id,
+               c.email as client_email
+        FROM scenarios s
+        LEFT JOIN clients c ON s.client_id = c.id
+        WHERE s.uniqid = ?
+    ");
+    $stmt->execute([$uniqid]);
+    $scenario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$scenario) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Scenario not found']);
+        return;
+    }
+
+    $hasAccess = ($scenario['client_email'] === $email);
+    if (!$hasAccess) {
+        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt2->execute([$email]);
+        $hasAccess = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
+    }
+    if (!$hasAccess) {
+        $stmt3 = $pdo->prepare("
+            SELECT cs.id FROM client_scenarios cs
+            JOIN clients c ON cs.client_id = c.id
+            WHERE cs.scenario_id = ? AND c.email = ?
+        ");
+        $stmt3->execute([$scenario['id'], $email]);
+        $hasAccess = ($stmt3->fetch(PDO::FETCH_ASSOC) !== false);
+    }
+
+    if (!$hasAccess) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    $mediasJson = $scenario['medias'];
+    $medias = $mediasJson ? json_decode($mediasJson, true) : [];
+
+    $baseUrl = 'https://admin.taghunter.fr/media/' . $uniqid . '/';
+    $images = [];
+
+    $mediaDir = __DIR__ . '/../../media/' . $uniqid . '/';
+    if (is_dir($mediaDir)) {
+        $allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        foreach (scandir($mediaDir) as $file) {
+            if ($file === '.' || $file === '..' || is_dir($mediaDir . $file)) continue;
+            $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            if (in_array($ext, $allowedExts)) {
+                $images[] = $baseUrl . $file;
+            }
+        }
+    }
+
+    $gameVisual = null;
+    if (!empty($medias['images']['game_visual'])) {
+        $gv = $medias['images']['game_visual'];
+        if (strpos($gv, 'http') === 0) {
+            $gameVisual = $gv;
+        } else {
+            $gameVisual = 'https://admin.taghunter.fr' . $gv;
+        }
+    }
+
+    $videoUrl = null;
+    if (!empty($medias['video'])) {
+        $v = $medias['video'];
+        $videoUrl = strpos($v, 'http') === 0 ? $v : 'https://admin.taghunter.fr' . $v;
+    }
+
+    $stmt4 = $pdo->prepare("
+        SELECT id, name, file_path, file_size, mime_type, created_at
+        FROM scenario_files WHERE scenario_id = ? ORDER BY created_at DESC
+    ");
+    $stmt4->execute([$scenario['id']]);
+    $files = $stmt4->fetchAll(PDO::FETCH_ASSOC);
+
+    $hasZipFiles = !empty($files);
+
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            'id' => $scenario['id'],
+            'title' => $scenario['title'],
+            'description' => $scenario['description'],
+            'uniqid' => $scenario['uniqid'],
+            'game_type' => $scenario['game_type'],
+            'scenario_type' => $scenario['scenario_type'],
+            'version' => $scenario['version'],
+            'game_visual' => $gameVisual,
+            'images' => $images,
+            'video_url' => $videoUrl,
+            'has_zip_files' => $hasZipFiles,
+            'files_count' => count($files),
+        ]
+    ]);
+}
+
+function handleUploadVideo($pdo) {
+    $email = resolveEmailFromRequest($pdo);
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    if (!isset($_FILES['video']) || !isset($_POST['uniqid'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing required fields: video, uniqid']);
+        return;
+    }
+
+    $uniqid = $_POST['uniqid'];
+    $file = $_FILES['video'];
+
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        http_response_code(400);
+        echo json_encode(['error' => 'File upload error: ' . $file['error']]);
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT s.id, s.medias, s.client_id, c.email as client_email
+        FROM scenarios s
+        LEFT JOIN clients c ON s.client_id = c.id
+        WHERE s.uniqid = ?
+    ");
+    $stmt->execute([$uniqid]);
+    $scenario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$scenario) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Scenario not found']);
+        return;
+    }
+
+    $hasAccess = ($scenario['client_email'] === $email);
+    if (!$hasAccess) {
+        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt2->execute([$email]);
+        $hasAccess = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
+    }
+    if (!$hasAccess) {
+        $stmt3 = $pdo->prepare("
+            SELECT cs.id FROM client_scenarios cs
+            JOIN clients c ON cs.client_id = c.id
+            WHERE cs.scenario_id = ? AND c.email = ?
+        ");
+        $stmt3->execute([$scenario['id'], $email]);
+        $hasAccess = ($stmt3->fetch(PDO::FETCH_ASSOC) !== false);
+    }
+
+    if (!$hasAccess) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    $allowedMimes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    if (!in_array($mimeType, $allowedMimes)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Only video files are allowed (mp4, webm, ogg, mov)']);
+        return;
+    }
+
+    if ($file['size'] > 200 * 1024 * 1024) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Video file must be less than 200MB']);
+        return;
+    }
+
+    $uploadDir = __DIR__ . '/../../media/' . $uniqid . '/';
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+    $videoFilename = 'scenario_video_' . time() . '.' . $ext;
+    $fullPath = $uploadDir . $videoFilename;
+
+    if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to save video file']);
+        return;
+    }
+
+    $videoPath = '/media/' . $uniqid . '/' . $videoFilename;
+    $medias = $scenario['medias'] ? json_decode($scenario['medias'], true) : [];
+    $medias['video'] = $videoPath;
+
+    $stmt4 = $pdo->prepare("UPDATE scenarios SET medias = ? WHERE id = ?");
+    $stmt4->execute([json_encode($medias), $scenario['id']]);
+
+    echo json_encode([
+        'success' => true,
+        'video_url' => 'https://admin.taghunter.fr' . $videoPath
+    ]);
 }
 
 function handleUpload($pdo) {
     Logger::log("handleUpload - Starting file upload");
 
     if (!isset($_FILES['file']) || !isset($_POST['scenario_id']) || !isset($_POST['name']) || !isset($_POST['email'])) {
-        Logger::log("handleUpload - Missing required fields", 'ERROR');
-        Logger::log("handleUpload - FILES isset: " . (isset($_FILES['file']) ? 'yes' : 'no'));
-        Logger::log("handleUpload - scenario_id isset: " . (isset($_POST['scenario_id']) ? 'yes' : 'no'));
-        Logger::log("handleUpload - name isset: " . (isset($_POST['name']) ? 'yes' : 'no'));
-        Logger::log("handleUpload - email isset: " . (isset($_POST['email']) ? 'yes' : 'no'));
         http_response_code(400);
         echo json_encode(['error' => 'Missing required fields: file, scenario_id, name, email']);
         return;
@@ -70,17 +299,12 @@ function handleUpload($pdo) {
     $email = $_POST['email'];
     $file = $_FILES['file'];
 
-    Logger::log("handleUpload - Scenario ID: $scenarioId, Name: $name");
-    Logger::log("handleUpload - File error code: " . $file['error']);
-
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        Logger::log("handleUpload - File upload error: " . $file['error'], 'ERROR');
         http_response_code(400);
         echo json_encode(['error' => 'File upload error: ' . $file['error']]);
         return;
     }
 
-    Logger::log("handleUpload - Querying scenario with ID: $scenarioId");
     $stmt = $pdo->prepare("
         SELECT s.id, s.uniqid, s.client_id, s.created_by,
                c.email as client_email,
@@ -94,43 +318,30 @@ function handleUpload($pdo) {
     $scenario = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$scenario) {
-        Logger::log("handleUpload - Scenario not found with ID: $scenarioId", 'ERROR');
         http_response_code(404);
         echo json_encode(['error' => 'Scenario not found']);
         return;
     }
 
-    // Verify ownership - check if email matches scenario's client or creator
     $isOwner = ($scenario['client_email'] === $email) || ($scenario['admin_email'] === $email);
-
-    // Check if email belongs to any admin user
     $isAdmin = false;
     if (!$isOwner) {
-        $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
-        $stmt->execute([$email]);
-        $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
-        $isAdmin = ($adminCheck !== false);
+        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt2->execute([$email]);
+        $isAdmin = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
     }
 
     if (!$isOwner && !$isAdmin) {
-        Logger::log("handleUpload - Unauthorized access attempt by: $email", 'ERROR');
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized - scenario does not belong to this user']);
         return;
     }
 
-    Logger::log("handleUpload - Access granted for user: $email");
-
     $uniqid = $scenario['uniqid'];
-    Logger::log("handleUpload - Found scenario with uniqid: $uniqid");
-
     $uploadDir = __DIR__ . '/../../media/' . $uniqid . '/files/';
-    Logger::log("handleUpload - Upload directory: $uploadDir");
 
     if (!file_exists($uploadDir)) {
-        Logger::log("handleUpload - Creating upload directory");
         if (!mkdir($uploadDir, 0755, true)) {
-            Logger::log("handleUpload - Failed to create directory", 'ERROR');
             http_response_code(500);
             echo json_encode(['error' => 'Failed to create upload directory']);
             return;
@@ -144,36 +355,21 @@ function handleUpload($pdo) {
     $filePath = $uniqid . '/files/' . $uniqueFilename;
     $fullPath = $uploadDir . $uniqueFilename;
 
-    Logger::log("handleUpload - Original filename: $originalFilename");
-    Logger::log("handleUpload - Unique filename: $uniqueFilename");
-    Logger::log("handleUpload - Full path: $fullPath");
-    Logger::log("handleUpload - Temp file: " . $file['tmp_name']);
-
     if (!move_uploaded_file($file['tmp_name'], $fullPath)) {
-        Logger::log("handleUpload - Failed to move uploaded file", 'ERROR');
         http_response_code(500);
         echo json_encode(['error' => 'Failed to save file']);
         return;
     }
 
-    Logger::log("handleUpload - File moved successfully");
-
     $fileSize = filesize($fullPath);
     $mimeType = mime_content_type($fullPath);
 
-    Logger::log("handleUpload - File size: $fileSize, MIME type: $mimeType");
-    Logger::log("handleUpload - Inserting into database");
-
-    $stmt = $pdo->prepare("
+    $stmt3 = $pdo->prepare("
         INSERT INTO scenario_files (scenario_id, name, file_path, file_size, mime_type)
         VALUES (?, ?, ?, ?, ?)
     ");
-
-    $stmt->execute([$scenarioId, $name, $filePath, $fileSize, $mimeType]);
-
+    $stmt3->execute([$scenarioId, $name, $filePath, $fileSize, $mimeType]);
     $fileId = $pdo->lastInsertId();
-
-    Logger::log("handleUpload - File uploaded successfully with ID: $fileId");
 
     echo json_encode([
         'success' => true,
@@ -191,17 +387,13 @@ function handleUpload($pdo) {
 }
 
 function handleList($pdo) {
-    Logger::log("handleList - Starting");
-
     if (!isset($_GET['scenario_id'])) {
-        Logger::log("handleList - Missing scenario_id", 'ERROR');
         http_response_code(400);
         echo json_encode(['error' => 'Missing scenario_id']);
         return;
     }
 
     $scenarioId = $_GET['scenario_id'];
-    Logger::log("handleList - Scenario ID: $scenarioId");
 
     $stmt = $pdo->prepare("
         SELECT id, scenario_id, name, file_path, file_size, mime_type, created_at
@@ -209,24 +401,16 @@ function handleList($pdo) {
         WHERE scenario_id = ?
         ORDER BY created_at DESC
     ");
-
     $stmt->execute([$scenarioId]);
     $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    Logger::log("handleList - Found " . count($files) . " files");
-
-    echo json_encode([
-        'success' => true,
-        'data' => $files
-    ]);
+    echo json_encode(['success' => true, 'data' => $files]);
 }
 
 function handleDelete($pdo) {
-    Logger::log("handleDelete - Starting");
     $data = json_decode(file_get_contents('php://input'), true);
 
     if (!isset($data['id']) || !isset($data['email'])) {
-        Logger::log("handleDelete - Missing required fields", 'ERROR');
         http_response_code(400);
         echo json_encode(['error' => 'Missing required fields: id, email']);
         return;
@@ -234,7 +418,6 @@ function handleDelete($pdo) {
 
     $fileId = $data['id'];
     $email = $data['email'];
-    Logger::log("handleDelete - File ID: $fileId, Email: $email");
 
     $stmt = $pdo->prepare("
         SELECT sf.file_path, s.id as scenario_id, s.client_id, s.created_by,
@@ -250,69 +433,55 @@ function handleDelete($pdo) {
     $file = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$file) {
-        Logger::log("handleDelete - File not found with ID: $fileId", 'ERROR');
         http_response_code(404);
         echo json_encode(['error' => 'File not found']);
         return;
     }
 
-    // Verify ownership
     $isOwner = ($file['client_email'] === $email) || ($file['admin_email'] === $email);
-
-    // Check if email belongs to any admin user
     $isAdmin = false;
     if (!$isOwner) {
-        $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
-        $stmt->execute([$email]);
-        $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
-        $isAdmin = ($adminCheck !== false);
+        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt2->execute([$email]);
+        $isAdmin = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
     }
 
     if (!$isOwner && !$isAdmin) {
-        Logger::log("handleDelete - Unauthorized access attempt by: $email", 'ERROR');
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized - file does not belong to this user']);
         return;
     }
 
-    Logger::log("handleDelete - Access granted for user: $email");
-
     $fullPath = __DIR__ . '/../../media/' . $file['file_path'];
-    Logger::log("handleDelete - Full path: $fullPath");
-
     if (file_exists($fullPath)) {
-        Logger::log("handleDelete - Deleting physical file");
         unlink($fullPath);
-    } else {
-        Logger::log("handleDelete - Physical file does not exist");
     }
 
-    $stmt = $pdo->prepare("DELETE FROM scenario_files WHERE id = ?");
-    $stmt->execute([$fileId]);
+    $stmt3 = $pdo->prepare("DELETE FROM scenario_files WHERE id = ?");
+    $stmt3->execute([$fileId]);
 
-    Logger::log("handleDelete - File deleted successfully");
-
-    echo json_encode([
-        'success' => true,
-        'message' => 'File deleted successfully'
-    ]);
+    echo json_encode(['success' => true, 'message' => 'File deleted successfully']);
 }
 
 function handleDownloadZip($pdo) {
-    Logger::log("handleDownloadZip - Starting");
-
-    if (!isset($_GET['uniqid']) || !isset($_GET['email'])) {
-        Logger::log("handleDownloadZip - Missing uniqid or email", 'ERROR');
+    $uniqid = $_GET['uniqid'] ?? null;
+    if (!$uniqid) {
         http_response_code(400);
-        echo json_encode(['error' => 'Missing uniqid or email']);
+        echo json_encode(['error' => 'Missing uniqid']);
         return;
     }
 
-    $uniqid = $_GET['uniqid'];
-    $email = $_GET['email'];
-    Logger::log("handleDownloadZip - Uniqid: $uniqid, Email: $email");
+    $email = resolveEmailFromRequest($pdo);
+    if (!$email) {
+        $email = $_GET['email'] ?? null;
+    }
 
-    // First, get the scenario
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
     $stmt = $pdo->prepare("
         SELECT s.id, s.title, s.uniqid, s.client_id, s.created_by,
                c.email as client_email,
@@ -326,46 +495,39 @@ function handleDownloadZip($pdo) {
     $scenario = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$scenario) {
-        Logger::log("handleDownloadZip - Scenario not found", 'ERROR');
         http_response_code(404);
         echo json_encode(['error' => 'Scenario not found']);
         return;
     }
 
-    // Verify ownership
     $isOwner = ($scenario['client_email'] === $email) || ($scenario['admin_email'] === $email);
-
-    // Check if email belongs to any admin user
     $isAdmin = false;
     if (!$isOwner) {
-        $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
-        $stmt->execute([$email]);
-        $adminCheck = $stmt->fetch(PDO::FETCH_ASSOC);
-        $isAdmin = ($adminCheck !== false);
+        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt2->execute([$email]);
+        $isAdmin = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
+    }
+    if (!$isOwner && !$isAdmin) {
+        $stmt3 = $pdo->prepare("
+            SELECT cs.id FROM client_scenarios cs
+            JOIN clients c ON cs.client_id = c.id
+            WHERE cs.scenario_id = ? AND c.email = ?
+        ");
+        $stmt3->execute([$scenario['id'], $email]);
+        $isOwner = ($stmt3->fetch(PDO::FETCH_ASSOC) !== false);
     }
 
     if (!$isOwner && !$isAdmin) {
-        Logger::log("handleDownloadZip - Unauthorized access attempt by: $email", 'ERROR');
         http_response_code(403);
-        echo json_encode(['error' => 'Unauthorized - scenario does not belong to this user']);
+        echo json_encode(['error' => 'Unauthorized']);
         return;
     }
 
-    Logger::log("handleDownloadZip - Found scenario: " . $scenario['title']);
-
-    $stmt = $pdo->prepare("
-        SELECT name, file_path
-        FROM scenario_files
-        WHERE scenario_id = ?
-    ");
-
-    $stmt->execute([$scenario['id']]);
-    $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    Logger::log("handleDownloadZip - Found " . count($files) . " files");
+    $stmt4 = $pdo->prepare("SELECT name, file_path FROM scenario_files WHERE scenario_id = ?");
+    $stmt4->execute([$scenario['id']]);
+    $files = $stmt4->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($files)) {
-        Logger::log("handleDownloadZip - No files found", 'ERROR');
         http_response_code(404);
         echo json_encode(['error' => 'No files found for this scenario']);
         return;
@@ -373,11 +535,9 @@ function handleDownloadZip($pdo) {
 
     $zipFilename = 'scenario_' . $uniqid . '_files_' . time() . '.zip';
     $zipPath = sys_get_temp_dir() . '/' . $zipFilename;
-    Logger::log("handleDownloadZip - Creating zip: $zipPath");
 
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        Logger::log("handleDownloadZip - Failed to create zip file", 'ERROR');
         http_response_code(500);
         echo json_encode(['error' => 'Failed to create zip file']);
         return;
@@ -386,15 +546,11 @@ function handleDownloadZip($pdo) {
     foreach ($files as $file) {
         $fullPath = __DIR__ . '/../../media/' . $file['file_path'];
         if (file_exists($fullPath)) {
-            Logger::log("handleDownloadZip - Adding file to zip: " . $file['name']);
             $zip->addFile($fullPath, $file['name'] . '_' . basename($file['file_path']));
-        } else {
-            Logger::log("handleDownloadZip - File not found: $fullPath", 'ERROR');
         }
     }
 
     $zip->close();
-    Logger::log("handleDownloadZip - Zip created successfully");
 
     header('Content-Type: application/zip');
     header('Content-Disposition: attachment; filename="' . $zipFilename . '"');
@@ -403,6 +559,5 @@ function handleDownloadZip($pdo) {
 
     readfile($zipPath);
     unlink($zipPath);
-    Logger::log("handleDownloadZip - Zip sent and deleted");
     exit;
 }

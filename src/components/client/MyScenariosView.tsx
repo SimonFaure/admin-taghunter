@@ -1,7 +1,8 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { secureAuth } from '../../lib/secureAuth';
-import { Film, Play, ExternalLink } from 'lucide-react';
+import { Film, Play, Download } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { ScenarioDetailModal } from './ScenarioDetailModal';
 
 interface Scenario {
   id: string;
@@ -12,15 +13,31 @@ interface Scenario {
   scenario_type?: string;
   granted_at?: string;
   granted_by_email?: string;
+  medias?: string;
+  has_zip_files?: boolean;
 }
 
 const API_BASE_URL = '/backend/api';
+const MEDIA_BASE_URL = 'https://admin.taghunter.fr';
+
+function getGameVisual(scenario: Scenario): string | null {
+  if (!scenario.medias) return null;
+  try {
+    const medias = typeof scenario.medias === 'string' ? JSON.parse(scenario.medias) : scenario.medias;
+    const gv = medias?.images?.game_visual;
+    if (!gv) return null;
+    return gv.startsWith('http') ? gv : `${MEDIA_BASE_URL}${gv}`;
+  } catch {
+    return null;
+  }
+}
 
 export function MyScenariosView() {
   const { user } = useSecureAuth();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUniqid, setSelectedUniqid] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchScenarios = async () => {
@@ -54,10 +71,6 @@ export function MyScenariosView() {
     fetchScenarios();
   }, [user?.client_id]);
 
-  const handleScenarioClick = (scenario: Scenario) => {
-    window.open(`https://creator.taghunter.fr/download/${scenario.uniqid}`, '_blank');
-  };
-
   return (
     <div>
       <div className="mb-6">
@@ -84,46 +97,73 @@ export function MyScenariosView() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {scenarios.map((scenario) => (
-            <button
-              key={scenario.id}
-              onClick={() => handleScenarioClick(scenario)}
-              className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all text-left w-full group"
-            >
-              <div className="mb-4">
-                <div className="flex items-start justify-between">
-                  <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">
-                    {scenario.title}
-                  </h3>
-                  <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors flex-shrink-0 ml-2" />
-                </div>
-                <p className="text-sm text-slate-600 line-clamp-3">{scenario.description}</p>
-              </div>
-
-              {(scenario.game_type || scenario.scenario_type) && (
-                <div className="space-y-2 mb-4">
-                  {scenario.game_type && (
-                    <div className="flex items-center text-sm text-slate-600">
-                      <Play className="w-4 h-4 mr-2" />
-                      <span className="capitalize">{scenario.game_type}</span>
+          {scenarios.map((scenario) => {
+            const visual = getGameVisual(scenario);
+            return (
+              <button
+                key={scenario.id}
+                onClick={() => setSelectedUniqid(scenario.uniqid)}
+                className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all text-left w-full group overflow-hidden"
+              >
+                <div className="relative w-full bg-slate-100" style={{ height: '180px' }}>
+                  {visual ? (
+                    <img
+                      src={visual}
+                      alt={scenario.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Film className="w-12 h-12 text-slate-300" />
                     </div>
                   )}
-                  {scenario.scenario_type && (
-                    <div className="inline-block px-2 py-1 bg-slate-100 rounded text-xs text-slate-700 capitalize">
-                      {scenario.scenario_type}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 rounded-full text-xs font-medium text-slate-700">
+                      <Play className="w-3 h-3" />
+                      View
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">
+                      {scenario.title}
+                    </h3>
+                    {scenario.has_zip_files && (
+                      <Download className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500 line-clamp-2 mb-3">{scenario.description}</p>
+
+                  {(scenario.game_type || scenario.scenario_type) && (
+                    <div className="flex gap-2 flex-wrap">
+                      {scenario.game_type && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
+                          <Play className="w-2.5 h-2.5" />
+                          {scenario.game_type}
+                        </span>
+                      )}
+                      {scenario.scenario_type && (
+                        <span className="px-2 py-0.5 bg-slate-100 rounded-full text-xs text-slate-600 capitalize">
+                          {scenario.scenario_type}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-
-              <div className="pt-3 border-t border-slate-100">
-                <p className="text-xs text-slate-500">
-                  Click to view scenario details
-                </p>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
+      )}
+
+      {selectedUniqid && (
+        <ScenarioDetailModal
+          uniqid={selectedUniqid}
+          onClose={() => setSelectedUniqid(null)}
+        />
       )}
     </div>
   );
