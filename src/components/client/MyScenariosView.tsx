@@ -1,5 +1,6 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
-import { Film, Clock, Users, Play, ExternalLink } from 'lucide-react';
+import { secureAuth } from '../../lib/secureAuth';
+import { Film, Play, ExternalLink } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface Scenario {
@@ -29,8 +30,10 @@ export function MyScenariosView() {
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=list&client_id=${user.client_id}`, {
+        const token = secureAuth.getStoredToken();
+        const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=list`, {
           credentials: 'include',
+          headers: token ? { 'X-Auth-Token': token } : {},
         });
 
         const result = await response.json();

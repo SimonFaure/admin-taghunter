@@ -8,6 +8,7 @@ session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -24,6 +25,23 @@ function requireAuth() {
         jsonResponse(['error' => 'Unauthorized'], 401);
     }
     return $_SESSION['user_id'];
+}
+
+function requireClientOrAdminAuth($db) {
+    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+
+    if (!empty($token)) {
+        $tokenData = TokenManager::validateToken($db, $token);
+        if ($tokenData && $tokenData['user_type'] === 'client') {
+            return ['id' => $tokenData['user_id'], 'type' => 'client'];
+        }
+    }
+
+    if (isset($_SESSION['user_id'])) {
+        return ['id' => $_SESSION['user_id'], 'type' => 'admin'];
+    }
+
+    jsonResponse(['error' => 'Unauthorized'], 401);
 }
 
 try {
@@ -117,17 +135,25 @@ try {
     case 'list':
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
             $response = ['error' => 'Method not allowed'];
-            Logger::log('client_scenarios', $_SERVER['REQUEST_METHOD'], 'list', $_SESSION['user_id'] ?? null, [], $response, 405);
+            Logger::log('client_scenarios', $_SERVER['REQUEST_METHOD'], 'list', null, [], $response, 405);
             jsonResponse($response, 405);
         }
 
-        $userId = requireAuth();
+        $auth = requireClientOrAdminAuth($db);
         $clientId = $_GET['client_id'] ?? null;
+
+        if ($auth['type'] === 'client') {
+            $clientId = $auth['id'];
+        }
 
         if (!$clientId) {
             $response = ['error' => 'client_id is required'];
-            Logger::log('client_scenarios', 'GET', 'list', $userId, [], $response, 400);
+            Logger::log('client_scenarios', 'GET', 'list', $auth['id'], [], $response, 400);
             jsonResponse($response, 400);
+        }
+
+        if ($auth['type'] === 'client' && $clientId !== $auth['id']) {
+            jsonResponse(['error' => 'Unauthorized'], 403);
         }
 
         $scenarios = $db->fetchAll(
@@ -141,7 +167,7 @@ try {
         );
 
         $response = ['data' => $scenarios];
-        Logger::log('client_scenarios', 'GET', 'list', $userId, ['client_id' => $clientId], $response, 200);
+        Logger::log('client_scenarios', 'GET', 'list', $auth['id'], ['client_id' => $clientId], $response, 200);
         jsonResponse($response);
         break;
 
