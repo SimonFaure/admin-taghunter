@@ -156,24 +156,43 @@ try {
             jsonResponse(['error' => 'Unauthorized'], 403);
         }
 
-        $scenarios = $db->fetchAll(
-            'SELECT s.*, cs.granted_at, cs.granted_by, a.email as granted_by_email,
-                    (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
-             FROM client_scenarios cs
-             JOIN scenarios s ON cs.scenario_id = s.id
-             LEFT JOIN admin_users a ON cs.granted_by = a.id
-             WHERE cs.client_id = ?
-             UNION
-             SELECT s.*, s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email,
-                    (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
-             FROM scenarios s
-             WHERE s.client_id = ?
-               AND s.id NOT IN (
-                   SELECT scenario_id FROM client_scenarios WHERE client_id = ?
-               )
-             ORDER BY granted_at DESC',
-            [$clientId, $clientId, $clientId]
-        );
+        $client = $db->fetch('SELECT license_type FROM clients WHERE id = ?', [$clientId]);
+        $isPremium = $client && $client['license_type'] === 'premium';
+
+        if ($isPremium) {
+            $scenarios = $db->fetchAll(
+                'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type,
+                        s.version, s.medias, s.media_url, s.client_id, s.created_at, s.updated_at,
+                        s.created_at as granted_at, NULL as granted_by, NULL as granted_by_email,
+                        (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
+                 FROM scenarios s
+                 WHERE s.scenario_type = "product"
+                 ORDER BY s.created_at DESC'
+            );
+        } else {
+            $scenarios = $db->fetchAll(
+                'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type,
+                        s.version, s.medias, s.media_url, s.client_id, s.created_at, s.updated_at,
+                        cs.granted_at, cs.granted_by, a.email as granted_by_email,
+                        (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
+                 FROM client_scenarios cs
+                 JOIN scenarios s ON cs.scenario_id = s.id
+                 LEFT JOIN admin_users a ON cs.granted_by = a.id
+                 WHERE cs.client_id = ?
+                 UNION ALL
+                 SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type,
+                        s.version, s.medias, s.media_url, s.client_id, s.created_at, s.updated_at,
+                        s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email,
+                        (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
+                 FROM scenarios s
+                 WHERE s.client_id = ?
+                   AND s.id NOT IN (
+                       SELECT scenario_id FROM client_scenarios WHERE client_id = ?
+                   )
+                 ORDER BY granted_at DESC',
+                [$clientId, $clientId, $clientId]
+            );
+        }
 
         $scenarios = array_map(function($s) {
             $s['has_zip_files'] = (int)($s['files_count'] ?? 0) > 0;
