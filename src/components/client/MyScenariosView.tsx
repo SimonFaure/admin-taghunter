@@ -11,14 +11,19 @@ interface MyScenariosViewProps {
 const API_BASE_URL = '/backend/api';
 const MEDIA_BASE_URL = 'https://admin.taghunter.fr';
 
-export function getGameVisualUrl(medias: string | Record<string, unknown> | null | undefined): string | null {
+export function getGameVisualUrl(
+  medias: string | Record<string, unknown> | null | undefined,
+  uniqid?: string
+): string | null {
   if (!medias) return null;
   try {
     const parsed =
       typeof medias === 'string' ? JSON.parse(medias) : medias;
     const gv = (parsed as { images?: { game_visual?: string } })?.images?.game_visual;
     if (!gv) return null;
-    return gv.startsWith('http') ? gv : `${MEDIA_BASE_URL}${gv}`;
+    if (gv.startsWith('http')) return gv;
+    if (gv.startsWith('/')) return `${MEDIA_BASE_URL}${gv}`;
+    return uniqid ? `${MEDIA_BASE_URL}/media/${uniqid}/${gv}` : `${MEDIA_BASE_URL}/${gv}`;
   } catch {
     return null;
   }
@@ -93,7 +98,7 @@ export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {scenarios.map((scenario) => {
-            const visual = getGameVisualUrl(scenario.medias);
+            const visual = getGameVisualUrl(scenario.medias, scenario.uniqid);
             return (
               <button
                 key={scenario.id}

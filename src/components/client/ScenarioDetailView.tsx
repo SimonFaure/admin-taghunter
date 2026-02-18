@@ -21,27 +21,34 @@ function parseMedias(medias: string | Record<string, unknown> | null | undefined
   }
 }
 
-function getVideoUrl(medias: string | Record<string, unknown> | null | undefined): string | null {
+function getVideoUrl(medias: string | Record<string, unknown> | null | undefined, uniqid?: string): string | null {
   const parsed = parseMedias(medias) as { video?: string };
   if (!parsed.video) return null;
-  return parsed.video.startsWith('http') ? parsed.video : `${MEDIA_BASE_URL}${parsed.video}`;
+  const v = parsed.video;
+  if (v.startsWith('http')) return v;
+  if (v.startsWith('/')) return `${MEDIA_BASE_URL}${v}`;
+  return uniqid ? `${MEDIA_BASE_URL}/media/${uniqid}/${v}` : `${MEDIA_BASE_URL}/${v}`;
 }
 
-function getExtraImages(medias: string | Record<string, unknown> | null | undefined): string[] {
+function getExtraImages(medias: string | Record<string, unknown> | null | undefined, uniqid?: string): string[] {
   const parsed = parseMedias(medias) as { images?: Record<string, string> };
   if (!parsed.images) return [];
   return Object.entries(parsed.images)
     .filter(([key]) => key !== 'game_visual')
-    .map(([, url]) => (url.startsWith('http') ? url : `${MEDIA_BASE_URL}${url}`));
+    .map(([, url]) => {
+      if (url.startsWith('http')) return url;
+      if (url.startsWith('/')) return `${MEDIA_BASE_URL}${url}`;
+      return uniqid ? `${MEDIA_BASE_URL}/media/${uniqid}/${url}` : `${MEDIA_BASE_URL}/${url}`;
+    });
 }
 
 export function ScenarioDetailView({ scenario, onBack }: ScenarioDetailViewProps) {
-  const gameVisual = getGameVisualUrl(scenario.medias);
-  const extraImages = getExtraImages(scenario.medias);
+  const gameVisual = getGameVisualUrl(scenario.medias, scenario.uniqid);
+  const extraImages = getExtraImages(scenario.medias, scenario.uniqid);
   const allImages = [...(gameVisual ? [gameVisual] : []), ...extraImages];
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [videoUrl, setVideoUrl] = useState<string | null>(getVideoUrl(scenario.medias));
+  const [videoUrl, setVideoUrl] = useState<string | null>(getVideoUrl(scenario.medias, scenario.uniqid));
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
   const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
