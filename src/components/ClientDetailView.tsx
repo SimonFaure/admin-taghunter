@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, CreditCard, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Upload, User, FileText, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, CreditCard, AlertTriangle } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
-import { scenariosApi, ScenarioData } from '../lib/api';
+import { ScenarioData } from '../lib/api';
 
 interface ClientDetailViewProps {
   clientId: string;
@@ -16,7 +16,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [scenarios, setScenarios] = useState<ScenarioData[]>([]);
   const [boughtScenarios, setBoughtScenarios] = useState<ScenarioData[]>([]);
   const [loadingScenarios, setLoadingScenarios] = useState(true);
   const [showAddScenarioModal, setShowAddScenarioModal] = useState(false);
@@ -117,11 +116,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadScenarios = async () => {
     setLoadingScenarios(true);
     try {
-      const { data, error } = await scenariosApi.listScenarios(clientId);
-      if (!error && data) {
-        setScenarios(data.scenarios);
-      }
-
       const response = await fetch(`https://admin.taghunter.fr/backend/api/client_scenarios.php?action=list&client_id=${clientId}`, {
         credentials: 'include',
       });
@@ -899,7 +893,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <FileText className="w-6 h-6 text-slate-700" />
-              <h3 className="text-xl font-bold text-slate-900">Scenarios</h3>
+              <h3 className="text-xl font-bold text-slate-900">Product Scenarios</h3>
             </div>
             <div className="flex items-center gap-3">
               {client?.license_type === 'access' && (
@@ -912,7 +906,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 </button>
               )}
               <span className="text-sm text-slate-600">
-                {scenarios.length + boughtScenarios.length} total
+                {boughtScenarios.length} total
               </span>
             </div>
           </div>
@@ -921,103 +915,18 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
             </div>
-          ) : scenarios.length === 0 && boughtScenarios.length === 0 ? (
+          ) : boughtScenarios.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 rounded-lg">
-              <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-              <p className="text-slate-600">No scenarios yet</p>
+              <ShoppingCart className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+              <p className="text-slate-600">No product scenarios assigned</p>
               <p className="text-sm text-slate-500 mt-1">
-                Scenarios created by or granted to this client will appear here
+                Use the button above to grant product scenarios to this client
               </p>
             </div>
           ) : (
             <div className="space-y-6">
-              {scenarios.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-700 mb-3">Created Scenarios ({scenarios.length})</h4>
-                  <div className="space-y-4">
-                    {scenarios.map((scenario) => (
-                      <div
-                        key={scenario.id}
-                        className="border border-slate-200 rounded-lg p-6 hover:border-slate-300 transition-colors"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex-1">
-                            <h4 className="text-lg font-semibold text-slate-900 mb-1">
-                              {scenario.title}
-                            </h4>
-                            {scenario.description && (
-                              <p className="text-slate-600 text-sm leading-relaxed">
-                                {scenario.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-slate-100">
-                          {scenario.game_type && (
-                            <div className="flex items-center space-x-2 text-sm">
-                              <GamepadIcon className="w-4 h-4 text-slate-400" />
-                              <span className="text-slate-600">
-                                <span className="font-medium text-slate-700">Game Type:</span>{' '}
-                                {scenario.game_type}
-                              </span>
-                            </div>
-                          )}
-                          {scenario.scenario_type && (
-                            <div className="flex items-center space-x-2 text-sm">
-                              <Package className="w-4 h-4 text-slate-400" />
-                              <span className="text-slate-600">
-                                <span className="font-medium text-slate-700">Category:</span>{' '}
-                                {scenario.scenario_type}
-                              </span>
-                            </div>
-                          )}
-                          {scenario.uniqid && (
-                            <div className="flex items-center space-x-2 text-sm">
-                              <FileText className="w-4 h-4 text-slate-400" />
-                              <span className="text-slate-600">
-                                <span className="font-medium text-slate-700">ID:</span>{' '}
-                                {scenario.uniqid}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex items-center space-x-2 text-sm">
-                            <Calendar className="w-4 h-4 text-slate-400" />
-                            <span className="text-slate-600">
-                              <span className="font-medium text-slate-700">Created:</span>{' '}
-                              {new Date(scenario.created_at).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </span>
-                          </div>
-                        </div>
-
-                        {scenario.media_url && (
-                          <div className="mt-4 pt-4 border-t border-slate-100">
-                            <a
-                              href={scenario.media_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
-                            >
-                              View media file
-                            </a>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {boughtScenarios.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    <ShoppingCart className="w-4 h-4" />
-                    Product Scenarios ({boughtScenarios.length})
-                  </h4>
                   <div className="space-y-4">
                     {boughtScenarios.map((scenario) => (
                       <div

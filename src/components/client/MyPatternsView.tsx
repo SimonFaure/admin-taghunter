@@ -16,6 +16,58 @@ interface Pattern {
   updated_at: string;
 }
 
+interface PatternCardProps {
+  pattern: Pattern;
+  onPreview: (p: Pattern) => void;
+  onDownload: (p: Pattern) => void;
+  onDelete: ((id: number) => void) | undefined;
+}
+
+function PatternCard({ pattern, onPreview, onDownload, onDelete }: PatternCardProps) {
+  return (
+    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <h4 className="font-semibold text-slate-900 mb-1">{pattern.name}</h4>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
+              {pattern.game_type}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {pattern.description && (
+        <p className="text-sm text-slate-600 mb-4 line-clamp-2">{pattern.description}</p>
+      )}
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPreview(pattern)}
+          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm"
+        >
+          <Eye className="w-4 h-4" />
+          <span>Preview</span>
+        </button>
+        <button
+          onClick={() => onDownload(pattern)}
+          className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+        >
+          <Download className="w-4 h-4" />
+        </button>
+        {onDelete && (
+          <button
+            onClick={() => onDelete(pattern.id)}
+            className="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function MyPatternsView() {
   const { user } = useSecureAuth();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
@@ -84,6 +136,9 @@ export function MyPatternsView() {
 
     setFilteredPatterns(filtered);
   };
+
+  const defaultPatterns = filteredPatterns.filter((p) => p.is_default);
+  const customPatterns = filteredPatterns.filter((p) => !p.is_default);
 
   const handleDownload = (pattern: Pattern) => {
     const dataStr = JSON.stringify(JSON.parse(pattern.pattern_data), null, 2);
@@ -177,103 +232,77 @@ export function MyPatternsView() {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <h3 className="text-lg font-bold text-slate-900">My Patterns</h3>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search patterns..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-              />
-            </div>
-
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <select
-                value={selectedGameType}
-                onChange={(e) => setSelectedGameType(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 appearance-none bg-white"
-              >
-                <option value="all">All Game Types</option>
-                {gameTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search patterns..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
+          />
         </div>
+        <div className="relative">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <select
+            value={selectedGameType}
+            onChange={(e) => setSelectedGameType(e.target.value)}
+            className="pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 appearance-none bg-white"
+          >
+            <option value="all">All Game Types</option>
+            {gameTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-        {filteredPatterns.length === 0 ? (
-          <div className="text-center py-12">
-            <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-600 mb-2">No patterns found</p>
-            <p className="text-sm text-slate-500">
-              {searchTerm || selectedGameType !== 'all'
-                ? 'Try adjusting your filters'
-                : 'Patterns will appear here when available'}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 className="text-lg font-bold text-slate-900 mb-5">Default Patterns</h3>
+        {defaultPatterns.length === 0 ? (
+          <div className="text-center py-10">
+            <Package className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm">
+              {searchTerm || selectedGameType !== 'all' ? 'No default patterns match your filters' : 'No default patterns available'}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredPatterns.map((pattern) => (
-              <div
+            {defaultPatterns.map((pattern) => (
+              <PatternCard
                 key={pattern.id}
-                className="bg-slate-50 border border-slate-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-slate-900 mb-1">{pattern.name}</h4>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                        {pattern.game_type}
-                      </span>
-                      {pattern.is_default && (
-                        <span className="text-xs px-2 py-1 bg-slate-200 text-slate-700 rounded">
-                          Default
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                pattern={pattern}
+                onPreview={handlePreview}
+                onDownload={handleDownload}
+                onDelete={undefined}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-                {pattern.description && (
-                  <p className="text-sm text-slate-600 mb-4 line-clamp-2">
-                    {pattern.description}
-                  </p>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePreview(pattern)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>Preview</span>
-                  </button>
-                  <button
-                    onClick={() => handleDownload(pattern)}
-                    className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                  {!pattern.is_default && pattern.owner_id === user?.client_id && (
-                    <button
-                      onClick={() => handleDelete(pattern.id)}
-                      className="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 className="text-lg font-bold text-slate-900 mb-5">My Custom Patterns</h3>
+        {customPatterns.length === 0 ? (
+          <div className="text-center py-10">
+            <Plus className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm">
+              {searchTerm || selectedGameType !== 'all' ? 'No custom patterns match your filters' : 'No custom patterns yet — upload one from Creator'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {customPatterns.map((pattern) => (
+              <PatternCard
+                key={pattern.id}
+                pattern={pattern}
+                onPreview={handlePreview}
+                onDownload={handleDownload}
+                onDelete={pattern.owner_id === user?.client_id ? handleDelete : undefined}
+              />
             ))}
           </div>
         )}
