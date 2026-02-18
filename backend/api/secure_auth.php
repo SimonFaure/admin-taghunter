@@ -117,7 +117,7 @@ try {
             $hashedLongLivedToken = TokenManager::hasValidLongLivedToken($db, $userId, $userType);
 
             if ($hashedLongLivedToken) {
-                $tokenData = TokenManager::createToken($db, $userId, $ipAddress, $userAgent, $userType, false);
+                $tokenData = TokenManager::createToken($db, $userId, $ipAddress, $userAgent, $userType, true);
 
                 $response = [
                     'success' => true,

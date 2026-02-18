@@ -2,7 +2,6 @@ import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { secureAuth } from '../../lib/secureAuth';
 import { Film, Play, Download } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { ScenarioDetailModal } from './ScenarioDetailModal';
 
 interface Scenario {
   id: string;
@@ -13,8 +12,12 @@ interface Scenario {
   scenario_type?: string;
   granted_at?: string;
   granted_by_email?: string;
-  medias?: string;
+  medias?: string | Record<string, unknown>;
   has_zip_files?: boolean;
+}
+
+interface MyScenariosViewProps {
+  onSelectScenario: (uniqid: string) => void;
 }
 
 const API_BASE_URL = '/backend/api';
@@ -23,8 +26,11 @@ const MEDIA_BASE_URL = 'https://admin.taghunter.fr';
 function getGameVisual(scenario: Scenario): string | null {
   if (!scenario.medias) return null;
   try {
-    const medias = typeof scenario.medias === 'string' ? JSON.parse(scenario.medias) : scenario.medias;
-    const gv = medias?.images?.game_visual;
+    const medias =
+      typeof scenario.medias === 'string'
+        ? JSON.parse(scenario.medias)
+        : scenario.medias;
+    const gv = (medias as { images?: { game_visual?: string } })?.images?.game_visual;
     if (!gv) return null;
     return gv.startsWith('http') ? gv : `${MEDIA_BASE_URL}${gv}`;
   } catch {
@@ -32,12 +38,11 @@ function getGameVisual(scenario: Scenario): string | null {
   }
 }
 
-export function MyScenariosView() {
+export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
   const { user } = useSecureAuth();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedUniqid, setSelectedUniqid] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchScenarios = async () => {
@@ -74,14 +79,12 @@ export function MyScenariosView() {
   return (
     <div>
       <div className="mb-6">
-        <p className="text-slate-600">
-          View and manage your available game scenarios
-        </p>
+        <p className="text-slate-600">View and manage your available game scenarios</p>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900" />
         </div>
       ) : error ? (
         <div className="bg-red-50 p-6 rounded-xl shadow-sm border border-red-200 text-center">
@@ -102,7 +105,7 @@ export function MyScenariosView() {
             return (
               <button
                 key={scenario.id}
-                onClick={() => setSelectedUniqid(scenario.uniqid)}
+                onClick={() => onSelectScenario(scenario.uniqid)}
                 className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all text-left w-full group overflow-hidden"
               >
                 <div className="relative w-full bg-slate-100" style={{ height: '180px' }}>
@@ -157,13 +160,6 @@ export function MyScenariosView() {
             );
           })}
         </div>
-      )}
-
-      {selectedUniqid && (
-        <ScenarioDetailModal
-          uniqid={selectedUniqid}
-          onClose={() => setSelectedUniqid(null)}
-        />
       )}
     </div>
   );

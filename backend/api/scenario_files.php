@@ -1,5 +1,4 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/Logger.php';
@@ -12,7 +11,7 @@ $action = $_GET['action'] ?? '';
 
 Logger::log("scenario_files.php - Action: $action");
 
-function resolveEmailFromRequest($pdo) {
+function resolveEmailFromRequest() {
     $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
     if (!empty($token)) {
         $db = Database::getInstance();
@@ -25,7 +24,8 @@ function resolveEmailFromRequest($pdo) {
 }
 
 try {
-    $pdo = getDbConnection();
+    $dbInstance = Database::getInstance();
+    $pdo = $dbInstance->getConnection();
     Logger::log("scenario_files.php - Database connection established");
 
     switch ($action) {
@@ -72,7 +72,7 @@ function handleGetScenario($pdo) {
         return;
     }
 
-    $email = resolveEmailFromRequest($pdo);
+    $email = resolveEmailFromRequest();
     if (!$email) {
         http_response_code(401);
         echo json_encode(['error' => 'Unauthorized']);
@@ -181,7 +181,7 @@ function handleGetScenario($pdo) {
 }
 
 function handleUploadVideo($pdo) {
-    $email = resolveEmailFromRequest($pdo);
+    $email = resolveEmailFromRequest();
     if (!$email) {
         http_response_code(401);
         echo json_encode(['error' => 'Unauthorized']);
@@ -471,7 +471,7 @@ function handleDownloadZip($pdo) {
         return;
     }
 
-    $email = resolveEmailFromRequest($pdo);
+    $email = resolveEmailFromRequest();
     if (!$email) {
         $email = $_GET['email'] ?? null;
     }

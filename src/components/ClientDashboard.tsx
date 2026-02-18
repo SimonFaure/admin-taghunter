@@ -9,10 +9,12 @@ import { GameConfigView } from './client/GameConfigView';
 import { ClientStatisticsView } from './client/ClientStatisticsView';
 import { ClientHomeView } from './client/ClientHomeView';
 import { MyPatternsView } from './client/MyPatternsView';
+import { ScenarioDetailView } from './client/ScenarioDetailView';
 
 export function ClientDashboard() {
   const { user, logout } = useSecureAuth();
   const [activeTab, setActiveTab] = useState('home');
+  const [selectedScenarioUniqid, setSelectedScenarioUniqid] = useState<string | null>(null);
 
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
@@ -24,6 +26,26 @@ export function ClientDashboard() {
     { id: 'config', label: 'Game Config', icon: Settings },
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
   ];
+
+  const handleSelectScenario = (uniqid: string) => {
+    setSelectedScenarioUniqid(uniqid);
+  };
+
+  const handleBackFromScenario = () => {
+    setSelectedScenarioUniqid(null);
+  };
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    setSelectedScenarioUniqid(null);
+  };
+
+  const getPageTitle = () => {
+    if (activeTab === 'scenarios' && selectedScenarioUniqid) {
+      return 'Scenario Detail';
+    }
+    return menuItems.find((item) => item.id === activeTab)?.label ?? '';
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -45,7 +67,7 @@ export function ClientDashboard() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleTabChange(item.id)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
                   activeTab === item.id
                     ? 'bg-slate-800 text-white'
@@ -86,14 +108,21 @@ export function ClientDashboard() {
       <main className="ml-64 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-slate-900 mb-2">
-              {menuItems.find((item) => item.id === activeTab)?.label}
-            </h2>
+            <h2 className="text-3xl font-bold text-slate-900 mb-2">{getPageTitle()}</h2>
           </div>
 
           {activeTab === 'home' && <ClientHomeView />}
           {activeTab === 'account' && <MyAccountView />}
-          {activeTab === 'scenarios' && <MyScenariosView />}
+          {activeTab === 'scenarios' && (
+            selectedScenarioUniqid ? (
+              <ScenarioDetailView
+                uniqid={selectedScenarioUniqid}
+                onBack={handleBackFromScenario}
+              />
+            ) : (
+              <MyScenariosView onSelectScenario={handleSelectScenario} />
+            )
+          )}
           {activeTab === 'patterns' && <MyPatternsView />}
           {activeTab === 'cards' && <MyCardsView />}
           {activeTab === 'devices' && <MyDevicesView />}
