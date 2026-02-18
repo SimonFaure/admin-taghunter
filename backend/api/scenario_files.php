@@ -81,7 +81,7 @@ function handleGetScenario($pdo) {
 
     $stmt = $pdo->prepare("
         SELECT s.id, s.title, s.description, s.uniqid, s.medias, s.media_url,
-               s.game_type, s.scenario_type, s.version, s.client_id,
+               s.game_type, s.scenario_type, IFNULL(s.version, '1.0') as version, s.client_id,
                c.email as client_email
         FROM scenarios s
         LEFT JOIN clients c ON s.client_id = c.id
