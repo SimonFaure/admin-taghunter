@@ -278,36 +278,40 @@ try {
                     jsonResponse(['error' => 'User with this email not found'], 404);
                 }
 
-                error_log('[TRANSFORM-1] Raw $patternData type: ' . gettype($patternData));
-                error_log('[TRANSFORM-1] Raw $patternData (first 500 chars): ' . substr(is_string($patternData) ? $patternData : json_encode($patternData), 0, 500));
+                $rawPreview = substr(is_string($patternData) ? $patternData : json_encode($patternData), 0, 500);
+                Logger::log('patterns', 'POST', 'transform-1-raw-input', $ownerId, [
+                    'email' => $email,
+                    'pattern_data_type' => gettype($patternData),
+                    'pattern_data_preview' => $rawPreview
+                ], ['step' => 'raw input received from Creator'], 200, 'creator');
 
-                error_log('Converting pattern data to JSON');
                 $jsonData = is_string($patternData) ? $patternData : json_encode($patternData);
 
-                error_log('[TRANSFORM-2] $jsonData after conversion (first 500 chars): ' . substr($jsonData, 0, 500));
-                error_log('[TRANSFORM-2] $jsonData length: ' . strlen($jsonData));
+                Logger::log('patterns', 'POST', 'transform-2-after-encode', $ownerId, [
+                    'email' => $email,
+                    'was_already_string' => is_string($patternData),
+                    'json_length' => strlen($jsonData),
+                    'json_preview' => substr($jsonData, 0, 500)
+                ], ['step' => 'after json_encode / string passthrough'], 200, 'creator');
 
                 if (json_decode($jsonData) === null && json_last_error() !== JSON_ERROR_NONE) {
                     $jsonError = json_last_error_msg();
-                    error_log('Upload failed: Invalid JSON - ' . $jsonError);
                     Logger::log('patterns', 'POST', 'upload', $ownerId, ['email' => $email], ['error' => 'Invalid JSON data: ' . $jsonError], 400, 'creator');
                     jsonResponse(['error' => 'Invalid JSON pattern data: ' . $jsonError], 400);
                 }
 
                 $isDefaultInt = ($isDefault === true || $isDefault === 1 || $isDefault === '1') ? 1 : 0;
 
-                error_log('[TRANSFORM-3] About to INSERT with pattern_data (first 500 chars): ' . substr($jsonData, 0, 500));
-
-                error_log('About to insert pattern: ' . json_encode([
+                Logger::log('patterns', 'POST', 'transform-3-before-insert', $ownerId, [
+                    'email' => $email,
                     'name' => $name,
                     'game_type' => $gameType,
                     'version' => $version,
                     'is_default' => $isDefaultInt,
                     'owner_type' => $ownerType,
-                    'owner_id' => $ownerId,
-                    'email' => $email,
-                    'pattern_data_length' => strlen($jsonData)
-                ]));
+                    'pattern_data_length' => strlen($jsonData),
+                    'pattern_data_preview' => substr($jsonData, 0, 500)
+                ], ['step' => 'about to run INSERT'], 200, 'creator');
 
                 $patternId = $db->execute(
                     'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email)
@@ -315,13 +319,18 @@ try {
                     [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email]
                 );
 
-                error_log('[TRANSFORM-4] INSERT done, patternId: ' . $patternId);
-
                 $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$patternId]);
 
-                error_log('[TRANSFORM-5] SELECT result pattern_data (first 500 chars): ' . substr($pattern['pattern_data'] ?? 'NULL', 0, 500));
-                error_log('[TRANSFORM-5] SELECT result pattern_data length: ' . strlen($pattern['pattern_data'] ?? ''));
-                error_log('[TRANSFORM-5] Match inserted vs fetched: ' . ($jsonData === ($pattern['pattern_data'] ?? '') ? 'YES' : 'NO'));
+                $fetchedLength = strlen($pattern['pattern_data'] ?? '');
+                $dataMatches = $jsonData === ($pattern['pattern_data'] ?? '');
+                Logger::log('patterns', 'POST', 'transform-4-after-select', $ownerId, [
+                    'email' => $email,
+                    'pattern_id' => $patternId,
+                    'inserted_length' => strlen($jsonData),
+                    'fetched_length' => $fetchedLength,
+                    'data_matches_inserted' => $dataMatches,
+                    'fetched_preview' => substr($pattern['pattern_data'] ?? 'NULL', 0, 500)
+                ], ['step' => 'SELECT after INSERT', 'match' => $dataMatches], 200, 'creator');
 
                 if (!$pattern) {
                     error_log('WARNING: Pattern inserted but not found in database, ID: ' . $patternId);
