@@ -162,8 +162,15 @@ try {
              JOIN scenarios s ON cs.scenario_id = s.id
              LEFT JOIN admin_users a ON cs.granted_by = a.id
              WHERE cs.client_id = ?
-             ORDER BY cs.granted_at DESC',
-            [$clientId]
+             UNION
+             SELECT s.*, s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email
+             FROM scenarios s
+             WHERE s.client_id = ?
+               AND s.id NOT IN (
+                   SELECT scenario_id FROM client_scenarios WHERE client_id = ?
+               )
+             ORDER BY granted_at DESC',
+            [$clientId, $clientId, $clientId]
         );
 
         $response = ['data' => $scenarios];
