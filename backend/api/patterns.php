@@ -278,8 +278,14 @@ try {
                     jsonResponse(['error' => 'User with this email not found'], 404);
                 }
 
+                error_log('[TRANSFORM-1] Raw $patternData type: ' . gettype($patternData));
+                error_log('[TRANSFORM-1] Raw $patternData (first 500 chars): ' . substr(is_string($patternData) ? $patternData : json_encode($patternData), 0, 500));
+
                 error_log('Converting pattern data to JSON');
                 $jsonData = is_string($patternData) ? $patternData : json_encode($patternData);
+
+                error_log('[TRANSFORM-2] $jsonData after conversion (first 500 chars): ' . substr($jsonData, 0, 500));
+                error_log('[TRANSFORM-2] $jsonData length: ' . strlen($jsonData));
 
                 if (json_decode($jsonData) === null && json_last_error() !== JSON_ERROR_NONE) {
                     $jsonError = json_last_error_msg();
@@ -289,6 +295,8 @@ try {
                 }
 
                 $isDefaultInt = ($isDefault === true || $isDefault === 1 || $isDefault === '1') ? 1 : 0;
+
+                error_log('[TRANSFORM-3] About to INSERT with pattern_data (first 500 chars): ' . substr($jsonData, 0, 500));
 
                 error_log('About to insert pattern: ' . json_encode([
                     'name' => $name,
@@ -307,9 +315,13 @@ try {
                     [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email]
                 );
 
-                error_log('Pattern inserted successfully, ID: ' . $patternId);
+                error_log('[TRANSFORM-4] INSERT done, patternId: ' . $patternId);
 
                 $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$patternId]);
+
+                error_log('[TRANSFORM-5] SELECT result pattern_data (first 500 chars): ' . substr($pattern['pattern_data'] ?? 'NULL', 0, 500));
+                error_log('[TRANSFORM-5] SELECT result pattern_data length: ' . strlen($pattern['pattern_data'] ?? ''));
+                error_log('[TRANSFORM-5] Match inserted vs fetched: ' . ($jsonData === ($pattern['pattern_data'] ?? '') ? 'YES' : 'NO'));
 
                 if (!$pattern) {
                     error_log('WARNING: Pattern inserted but not found in database, ID: ' . $patternId);
