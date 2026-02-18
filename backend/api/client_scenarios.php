@@ -157,13 +157,15 @@ try {
         }
 
         $scenarios = $db->fetchAll(
-            'SELECT s.*, cs.granted_at, cs.granted_by, a.email as granted_by_email
+            'SELECT s.*, cs.granted_at, cs.granted_by, a.email as granted_by_email,
+                    (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
              FROM client_scenarios cs
              JOIN scenarios s ON cs.scenario_id = s.id
              LEFT JOIN admin_users a ON cs.granted_by = a.id
              WHERE cs.client_id = ?
              UNION
-             SELECT s.*, s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email
+             SELECT s.*, s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email,
+                    (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
              FROM scenarios s
              WHERE s.client_id = ?
                AND s.id NOT IN (
@@ -172,6 +174,12 @@ try {
              ORDER BY granted_at DESC',
             [$clientId, $clientId, $clientId]
         );
+
+        $scenarios = array_map(function($s) {
+            $s['has_zip_files'] = (int)($s['files_count'] ?? 0) > 0;
+            $s['files_count'] = (int)($s['files_count'] ?? 0);
+            return $s;
+        }, $scenarios);
 
         $response = ['data' => $scenarios];
         Logger::log('client_scenarios', 'GET', 'list', $auth['id'], ['client_id' => $clientId], $response, 200);
