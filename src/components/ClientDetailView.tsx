@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, CreditCard } from 'lucide-react';
+import { ArrowLeft, Upload, User, FileText, Calendar, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, CreditCard, AlertTriangle } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { scenariosApi, ScenarioData } from '../lib/api';
@@ -34,6 +34,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [uploadingCards, setUploadingCards] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<{ scenarioId: string; scenarioTitle: string } | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -185,30 +187,37 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
   };
 
-  const handleRemoveScenario = async (scenarioId: string) => {
-    if (!confirm('Are you sure you want to remove this scenario from the client?')) {
-      return;
-    }
+  const handleRemoveScenario = (scenarioId: string, scenarioTitle: string) => {
+    setRemoveConfirm({ scenarioId, scenarioTitle });
+  };
 
+  const confirmRemoveScenario = async () => {
+    if (!removeConfirm) return;
+    setRemoving(true);
     try {
       const response = await fetch('https://admin.taghunter.fr/backend/api/client_scenarios.php?action=remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ client_id: clientId, scenario_id: scenarioId }),
+        body: JSON.stringify({ client_id: clientId, scenario_id: removeConfirm.scenarioId }),
       });
 
       const result = await response.json();
 
       if (response.ok) {
+        setRemoveConfirm(null);
         setSuccess('Scenario removed successfully');
         setTimeout(() => setSuccess(''), 3000);
         await loadScenarios();
       } else {
         setError(result.error || 'Failed to remove scenario');
+        setRemoveConfirm(null);
       }
     } catch (err) {
       setError('Failed to remove scenario');
+      setRemoveConfirm(null);
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -1033,11 +1042,11 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                           </div>
                           {client?.license_type === 'access' && (
                             <button
-                              onClick={() => handleRemoveScenario(scenario.id)}
-                              className="ml-4 text-red-600 hover:text-red-700 transition-colors"
+                              onClick={() => handleRemoveScenario(scenario.id, scenario.title)}
+                              className="ml-4 p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
                               title="Remove scenario"
                             >
-                              <X className="w-5 h-5" />
+                              <X className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -1092,6 +1101,63 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
           )}
         </div>
       </div>
+
+      {removeConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Remove Product Scenario</h3>
+                  <p className="text-sm text-slate-500">This action cannot be undone</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-slate-600 mb-1">You are about to remove:</p>
+                <p className="font-semibold text-slate-900">"{removeConfirm.scenarioTitle}"</p>
+                <p className="text-sm text-slate-500 mt-2">
+                  from <span className="font-medium text-slate-700">{client?.name || client?.email}</span>
+                </p>
+              </div>
+
+              <p className="text-sm text-slate-600 mb-6">
+                The client will immediately lose access to this product scenario and all its associated content.
+              </p>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setRemoveConfirm(null)}
+                  disabled={removing}
+                  className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all font-medium text-sm disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmRemoveScenario}
+                  disabled={removing}
+                  className="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {removing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4" />
+                      Remove Scenario
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddScenarioModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

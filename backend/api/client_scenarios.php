@@ -32,8 +32,9 @@ function requireClientOrAdminAuth($db) {
 
     if (!empty($token)) {
         $tokenData = TokenManager::validateToken($db, $token);
-        if ($tokenData && $tokenData['user_type'] === 'client') {
-            return ['id' => $tokenData['user_id'], 'type' => 'client'];
+        if ($tokenData) {
+            $type = $tokenData['user_type'] === 'admin' ? 'admin' : 'client';
+            return ['id' => $tokenData['user_id'], 'type' => $type];
         }
     }
 
@@ -56,7 +57,12 @@ try {
             jsonResponse($response, 405);
         }
 
-        $userId = requireAuth();
+        $addAuth = requireClientOrAdminAuth($db);
+        if ($addAuth['type'] !== 'admin') {
+            $response = ['error' => 'Unauthorized'];
+            jsonResponse($response, 403);
+        }
+        $userId = $addAuth['id'];
         $data = getRequestData();
 
         $clientId = $data['client_id'] ?? null;
@@ -110,7 +116,12 @@ try {
             jsonResponse($response, 405);
         }
 
-        $userId = requireAuth();
+        $auth = requireClientOrAdminAuth($db);
+        if ($auth['type'] !== 'admin') {
+            $response = ['error' => 'Unauthorized'];
+            jsonResponse($response, 403);
+        }
+        $userId = $auth['id'];
         $data = getRequestData();
 
         $clientId = $data['client_id'] ?? null;
@@ -186,6 +197,7 @@ try {
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM scenarios s
                  WHERE s.client_id = ?
+                   AND s.scenario_type != "product"
                    AND s.id NOT IN (
                        SELECT scenario_id FROM client_scenarios WHERE client_id = ?
                    )
