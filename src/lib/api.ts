@@ -163,6 +163,7 @@ export interface ScenarioData {
   game_data?: string;
   game_type?: string;
   scenario_type?: string;
+  status?: string;
   uniqid: string;
   created_at: string;
   updated_at?: string;

@@ -123,6 +123,7 @@ try {
             $game_type = null;
             $scenario_type = null;
             $scenario_layout = null;
+            $status = null;
 
             if ($scenarioData) {
                 // Client app format
@@ -137,6 +138,7 @@ try {
                 $game_type = $scenarioData['game_type'] ?? null;
                 $scenario_type = $scenarioData['scenario_type'] ?? null;
                 $scenario_layout = $scenarioData['scenario_layout'] ?? null;
+                $status = $scenarioData['status'] ?? null;
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // NEW: Extract is_admin and client_id from request
@@ -216,6 +218,7 @@ try {
                 $game_type = $_POST['game_type'] ?? null;
                 $scenario_type = $_POST['scenario_type'] ?? null;
                 $scenario_layout = $_POST['scenario_layout'] ?? null;
+                $status = $_POST['status'] ?? null;
                 $uniqid = $_POST['uniqid'] ?? null;
             }
 
@@ -363,12 +366,12 @@ try {
                 $created_at = $existingScenario['created_at'];
                 $isUpdate = true;
 
-                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
-                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid]);
+                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
+                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $status, $uniqid]);
             } else {
                 // Insert new scenario
-                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                $db->query($sql, [$client_id, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $uniqid, $created_by]);
+                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, status, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                $db->query($sql, [$client_id, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $status, $uniqid, $created_by]);
                 $scenario_id = $db->getConnection()->lastInsertId();
                 $created_at = date('Y-m-d H:i:s');
             }
@@ -388,6 +391,7 @@ try {
                     'game_meta' => $game_meta,
                     'game_type' => $game_type,
                     'scenario_type' => $scenario_type,
+                    'status' => $status,
                     'uniqid' => $uniqid,
                     'created_at' => $created_at
                 ],
@@ -496,6 +500,7 @@ try {
             $game_meta = isset($_POST['game_meta']) ? $_POST['game_meta'] : $scenario['game_meta'];
             $game_type = isset($_POST['game_type']) ? $_POST['game_type'] : $scenario['game_type'];
             $scenario_type = isset($_POST['scenario_type']) ? $_POST['scenario_type'] : $scenario['scenario_type'];
+            $status = isset($_POST['status']) ? $_POST['status'] : $scenario['status'];
 
             // Convert data to JSON string if it's an array
             if (is_array($data)) {
@@ -585,8 +590,8 @@ try {
             }
 
             // Update scenario
-            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, updated_at = NOW() WHERE id = ?';
-            $db->query($sql, [$title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $id]);
+            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, status = ?, updated_at = NOW() WHERE id = ?';
+            $db->query($sql, [$title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $status, $id]);
 
             jsonResponse([
                 'success' => true,
@@ -599,7 +604,8 @@ try {
                     'medias' => $medias,
                     'game_meta' => $game_meta,
                     'game_type' => $game_type,
-                    'scenario_type' => $scenario_type
+                    'scenario_type' => $scenario_type,
+                    'status' => $status
                 ],
                 'message' => 'Scenario updated successfully'
             ]);

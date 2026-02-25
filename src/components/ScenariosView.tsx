@@ -19,6 +19,7 @@ interface Scenario {
   game_data?: string | null;
   game_meta?: string | null;
   scenario_layout?: string | null;
+  status?: string | null;
 }
 
 interface LayoutElement {
@@ -548,6 +549,19 @@ export function ScenariosView() {
                   </span>
                 </div>
               )}
+              {selectedScenario.status && (
+                <div className="flex items-center space-x-2">
+                  <span className={`px-2 py-1 rounded text-xs font-semibold capitalize ${
+                    selectedScenario.status === 'published'
+                      ? 'bg-green-100 text-green-700'
+                      : selectedScenario.status === 'archived'
+                      ? 'bg-slate-200 text-slate-600'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {selectedScenario.status}
+                  </span>
+                </div>
+              )}
               {selectedScenario.creator_name && (
                 <div className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
@@ -967,6 +981,19 @@ export function ScenariosView() {
               <div className="flex items-center space-x-2 text-sm text-slate-600">
                 <User className="w-4 h-4" />
                 <span className="truncate">Client: {scenario.client_name}</span>
+              </div>
+            )}
+            {scenario.status && (
+              <div className="flex items-center space-x-2">
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+                  scenario.status === 'published'
+                    ? 'bg-green-100 text-green-700'
+                    : scenario.status === 'archived'
+                    ? 'bg-slate-200 text-slate-600'
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {scenario.status}
+                </span>
               </div>
             )}
           </div>

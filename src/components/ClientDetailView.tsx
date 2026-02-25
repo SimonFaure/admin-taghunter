@@ -940,6 +940,17 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                           <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
                             Product
                           </span>
+                          {scenario.status && (
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${
+                              scenario.status === 'published'
+                                ? 'bg-green-100 text-green-700'
+                                : scenario.status === 'archived'
+                                ? 'bg-slate-200 text-slate-600'
+                                : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              {scenario.status}
+                            </span>
+                          )}
                         </div>
                         {scenario.description && (
                           <p className="text-slate-600 text-sm leading-relaxed">
@@ -1032,6 +1043,17 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
                       Custom
                     </span>
+                    {scenario.status && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${
+                        scenario.status === 'published'
+                          ? 'bg-green-100 text-green-700'
+                          : scenario.status === 'archived'
+                          ? 'bg-slate-200 text-slate-600'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {scenario.status}
+                      </span>
+                    )}
                   </div>
                   {scenario.description && (
                     <p className="text-slate-600 text-sm leading-relaxed mb-4">
