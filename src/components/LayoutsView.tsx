@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layout, Search, Plus, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown } from 'lucide-react';
+import { LayoutGrid as Layout, Search, Plus, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LayoutRow {
