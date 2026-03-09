@@ -306,8 +306,8 @@ try {
 
                 if ($existingLayout) {
                     $db->execute(
-                        'UPDATE layouts SET layout_data = ?, game_type = ?, scenario_uniqid = ?, status = ?, version = ?, owner_type = ?, owner_id = ?, created_by_email = ?, name = ? WHERE layout_uniqid = ?',
-                        [$jsonData, $gameType, $scenarioUniqid ?: null, $status, $version, $ownerType, $ownerId, $email, $name ?: null, $layoutUniqid]
+                        'UPDATE layouts SET layout_data = ?, game_type = ?, scenario_uniqid = ?, status = ?, version = ?, owner_type = ?, owner_id = ?, created_by_email = ? WHERE layout_uniqid = ?',
+                        [$jsonData, $gameType, $scenarioUniqid ?: null, $status, $version, $ownerType, $ownerId, $email, $layoutUniqid]
                     );
                     $layoutId = $existingLayout['id'];
                 } else {
