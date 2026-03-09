@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench, Layout } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -672,6 +672,61 @@ export default function ApiDocsView() {
             { name: 'meta', type: 'string', description: 'Configuration metadata name (required)' },
           ],
           response: '{ "success": true, "message": "Configuration deleted" }',
+        },
+      ],
+    },
+    {
+      title: 'Layouts',
+      icon: <Layout className="w-5 h-5" />,
+      color: 'bg-teal-600',
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/backend/api/layouts.php?action=list',
+          description: 'Get all layouts (admins see all, clients see their own). Filterable by game_type and status.',
+          auth: true,
+          params: [
+            { name: 'game_type', type: 'string', description: 'Filter by game type (optional)' },
+            { name: 'status', type: 'string', description: 'Filter by status: draft, active, or archived (optional)' },
+          ],
+          response: '{ "data": [{ "id": 1, "layout_data": "{}", "game_type": "TagHunter", "scenario_uniqid": "scenario_674fb123a45e6", "status": "active", "version": "1.0", "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/layouts.php?action=get&id={id}',
+          description: 'Get a specific layout by ID',
+          auth: true,
+          params: [
+            { name: 'id', type: 'integer', description: 'Layout ID (required)' },
+          ],
+          response: '{ "data": { "id": 1, "layout_data": "{}", "game_type": "TagHunter", "scenario_uniqid": "scenario_674fb123a45e6", "status": "active", "version": "1.0", "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+        },
+        {
+          method: 'POST',
+          path: '/backend/api/layouts.php?action=upload',
+          description: 'Upload a layout from Taghunter Creator (email-based authentication, no session required)',
+          auth: false,
+          creator: true,
+          body: [
+            { name: 'email', type: 'string', description: 'Email of admin or client (required)' },
+            { name: 'name', type: 'string', description: 'Layout name (required)' },
+            { name: 'game_type', type: 'string', description: 'Game type (required)' },
+            { name: 'layout_data', type: 'JSON', description: 'Layout JSON data (required)' },
+            { name: 'status', type: 'string', description: 'Layout status: draft, active, or archived (required)' },
+            { name: 'version', type: 'string', description: 'Layout version (optional, default: 1.0)' },
+            { name: 'scenario_uniqid', type: 'string', description: 'Associated scenario unique identifier (optional)' },
+          ],
+          response: '{ "success": true, "data": { "id": 1, "layout_data": "{}", "game_type": "TagHunter", "scenario_uniqid": "scenario_674fb123a45e6", "status": "draft", "version": "1.0", "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
+        },
+        {
+          method: 'DELETE',
+          path: '/backend/api/layouts.php?action=delete&id={id}',
+          description: 'Delete a layout (owner or admin only)',
+          auth: true,
+          params: [
+            { name: 'id', type: 'integer', description: 'Layout ID (required)' },
+          ],
+          response: '{ "success": true, "message": "Layout deleted successfully" }',
         },
       ],
     },
