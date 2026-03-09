@@ -1,0 +1,357 @@
+import { useState, useEffect } from 'react';
+import { Layout, Search, Plus, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+interface LayoutRow {
+  id: string;
+  layout_data: Record<string, unknown>;
+  user_id: string | null;
+  game_type: string;
+  scenario_uniqid: string | null;
+  status: 'draft' | 'active' | 'archived';
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  draft: 'bg-amber-100 text-amber-700',
+  active: 'bg-emerald-100 text-emerald-700',
+  archived: 'bg-slate-100 text-slate-500',
+};
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+export function LayoutsView() {
+  const [layouts, setLayouts] = useState<LayoutRow[]>([]);
+  const [filtered, setFiltered] = useState<LayoutRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedLayout, setSelectedLayout] = useState<LayoutRow | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+
+  useEffect(() => {
+    fetchLayouts();
+  }, []);
+
+  useEffect(() => {
+    let result = layouts;
+
+    if (statusFilter !== 'all') {
+      result = result.filter((l) => l.status === statusFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (l) =>
+          l.game_type.toLowerCase().includes(q) ||
+          (l.scenario_uniqid?.toLowerCase().includes(q) ?? false) ||
+          l.id.toLowerCase().includes(q)
+      );
+    }
+
+    setFiltered(result);
+  }, [searchQuery, statusFilter, layouts]);
+
+  const fetchLayouts = async () => {
+    if (!supabase) {
+      setError('Database not connected');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const { data, error: fetchError } = await supabase
+      .from('layouts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (fetchError) {
+      setError(fetchError.message);
+    } else {
+      setLayouts(data ?? []);
+      setFiltered(data ?? []);
+    }
+
+    setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!supabase) return;
+
+    const { error: deleteError } = await supabase
+      .from('layouts')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+    } else {
+      setLayouts((prev) => prev.filter((l) => l.id !== id));
+      if (selectedLayout?.id === id) setSelectedLayout(null);
+    }
+
+    setDeleteConfirm(null);
+  };
+
+  const statusOptions = ['all', 'draft', 'active', 'archived'];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <Layout className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm text-slate-500">{filtered.length} layout{filtered.length !== 1 ? 's' : ''}</p>
+          </div>
+        </div>
+        <button
+          className="flex items-center space-x-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-sm font-medium"
+          onClick={() => {}}
+        >
+          <Plus className="w-4 h-4" />
+          <span>New Layout</span>
+        </button>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)}><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      <div className="flex items-center space-x-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search by game type, scenario ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white"
+          />
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setShowStatusDropdown((v) => !v)}
+            className="flex items-center space-x-2 px-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white hover:bg-slate-50 transition-all"
+          >
+            <span className="text-slate-700 capitalize">{statusFilter === 'all' ? 'All Statuses' : statusFilter}</span>
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          </button>
+          {showStatusDropdown && (
+            <div className="absolute right-0 top-full mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-lg z-10 overflow-hidden">
+              {statusOptions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setStatusFilter(s); setShowStatusDropdown(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors capitalize ${
+                    statusFilter === s ? 'bg-slate-100 font-medium text-slate-900' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {s === 'all' ? 'All Statuses' : s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900"></div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-xl p-16 text-center">
+          <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Layout className="w-7 h-7 text-slate-400" />
+          </div>
+          <p className="text-slate-900 font-semibold mb-1">No layouts found</p>
+          <p className="text-slate-500 text-sm">
+            {searchQuery || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Create your first layout to get started.'}
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Game Type</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Scenario ID</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Version</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Created</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Updated</th>
+                <th className="px-5 py-3.5"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((layout) => (
+                <tr key={layout.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-5 py-4">
+                    <div className="flex items-center space-x-2">
+                      <Gamepad2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-slate-900">
+                        {layout.game_type || <span className="text-slate-400 italic">—</span>}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    {layout.scenario_uniqid ? (
+                      <div className="flex items-center space-x-2">
+                        <Tag className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        <span className="text-sm text-slate-600 font-mono">{layout.scenario_uniqid}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 text-sm">—</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[layout.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                      {layout.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="text-sm text-slate-600">v{layout.version}</span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center space-x-1.5 text-sm text-slate-500">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{formatDate(layout.created_at)}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center space-x-1.5 text-sm text-slate-500">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{formatDate(layout.updated_at)}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-4">
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => setSelectedLayout(layout)}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all"
+                        title="View layout data"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm(layout.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                        title="Delete layout"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selectedLayout && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setSelectedLayout(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <FileJson className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">Layout Data</h3>
+                  <p className="text-xs text-slate-500">{selectedLayout.game_type} &mdash; v{selectedLayout.version}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedLayout(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-6">
+              <div className="grid grid-cols-2 gap-4 mb-5">
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 mb-1">Status</p>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[selectedLayout.status]}`}>
+                    {selectedLayout.status}
+                  </span>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 mb-1">Version</p>
+                  <p className="text-sm font-semibold text-slate-900">v{selectedLayout.version}</p>
+                </div>
+                {selectedLayout.scenario_uniqid && (
+                  <div className="bg-slate-50 rounded-lg p-3 col-span-2">
+                    <p className="text-xs text-slate-500 mb-1">Scenario ID</p>
+                    <p className="text-sm font-mono text-slate-700">{selectedLayout.scenario_uniqid}</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Layout Data</p>
+                <pre className="bg-slate-950 text-emerald-400 text-xs rounded-xl p-4 overflow-auto leading-relaxed">
+                  {JSON.stringify(selectedLayout.layout_data, null, 2)}
+                </pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteConfirm(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-6 h-6 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 text-center mb-2">Delete Layout</h3>
+            <p className="text-sm text-slate-500 text-center mb-6">
+              This action cannot be undone. The layout will be permanently removed.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDelete(deleteConfirm)}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-all"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
