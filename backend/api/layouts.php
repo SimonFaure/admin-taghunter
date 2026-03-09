@@ -244,9 +244,9 @@ try {
                 $ownerId = null;
 
                 if ($admin) {
-                    error_log('User found: admin, ID: ' . $admin['id']);
+                    error_log('User found: admin, ID: ' . $admin['id'] . ' - owner_id set to null');
                     $ownerType = 'admin';
-                    $ownerId = $admin['id'];
+                    $ownerId = null;
                 } else {
                     error_log('Not an admin, checking clients table');
                     $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
