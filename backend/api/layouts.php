@@ -206,6 +206,7 @@ try {
                 $gameType = $data['game_type'] ?? '';
                 $scenarioUniqid = $data['scenario_uniqid'] ?? null;
                 $status = $data['status'] ?? 'draft';
+                $layoutUniqid = $data['layout_uniqid'] ?? null;
 
                 if (empty($email)) {
                     error_log('Upload failed: Email required');
@@ -285,6 +286,10 @@ try {
                     jsonResponse(['error' => 'Invalid JSON layout data: ' . $jsonError], 400);
                 }
 
+                $existingLayout = $layoutUniqid
+                    ? $db->fetch('SELECT id FROM layouts WHERE layout_uniqid = ?', [$layoutUniqid])
+                    : null;
+
                 Logger::log('layouts', 'POST', 'transform-3-before-insert', $ownerId, [
                     'email' => $email,
                     'name' => $name,
@@ -292,16 +297,26 @@ try {
                     'version' => $version,
                     'status' => $status,
                     'scenario_uniqid' => $scenarioUniqid,
+                    'layout_uniqid' => $layoutUniqid,
                     'owner_type' => $ownerType,
                     'layout_data_length' => strlen($jsonData),
-                    'layout_data_preview' => substr($jsonData, 0, 500)
-                ], ['step' => 'about to run INSERT'], 200, 'creator');
+                    'layout_data_preview' => substr($jsonData, 0, 500),
+                    'action' => $existingLayout ? 'UPDATE' : 'INSERT'
+                ], ['step' => $existingLayout ? 'about to run UPDATE' : 'about to run INSERT'], 200, 'creator');
 
-                $layoutId = $db->execute(
-                    'INSERT INTO layouts (layout_data, game_type, scenario_uniqid, status, version, owner_type, owner_id, created_by_email)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [$jsonData, $gameType, $scenarioUniqid ?: null, $status, $version, $ownerType, $ownerId, $email]
-                );
+                if ($existingLayout) {
+                    $db->execute(
+                        'UPDATE layouts SET layout_data = ?, game_type = ?, scenario_uniqid = ?, status = ?, version = ?, owner_type = ?, owner_id = ?, created_by_email = ?, name = ? WHERE layout_uniqid = ?',
+                        [$jsonData, $gameType, $scenarioUniqid ?: null, $status, $version, $ownerType, $ownerId, $email, $name ?: null, $layoutUniqid]
+                    );
+                    $layoutId = $existingLayout['id'];
+                } else {
+                    $layoutId = $db->execute(
+                        'INSERT INTO layouts (layout_data, game_type, scenario_uniqid, status, version, owner_type, owner_id, created_by_email, layout_uniqid)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [$jsonData, $gameType, $scenarioUniqid ?: null, $status, $version, $ownerType, $ownerId, $email, $layoutUniqid ?: null]
+                    );
+                }
 
                 $layout = $db->fetch('SELECT * FROM layouts WHERE id = ?', [$layoutId]);
 
