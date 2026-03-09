@@ -15,18 +15,8 @@ try {
 
     $sql = file_get_contents($migrationFile);
 
-    $statements = array_filter(
-        array_map('trim', explode(';', $sql)),
-        function($stmt) {
-            return !empty($stmt) && !preg_match('/^--/', $stmt);
-        }
-    );
-
-    foreach ($statements as $statement) {
-        if (!empty(trim($statement))) {
-            $db->execute($statement);
-        }
-    }
+    $pdo = $db->getConnection();
+    $pdo->exec($sql);
 
     echo json_encode([
         'success' => true,
