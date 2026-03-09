@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { LayoutGrid as Layout, Search, Plus, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { LayoutGrid as Layout, Search, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown, User } from 'lucide-react';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 interface LayoutRow {
-  id: string;
-  layout_data: Record<string, unknown>;
-  user_id: string | null;
+  id: number;
+  layout_data: string;
   game_type: string;
   scenario_uniqid: string | null;
   status: 'draft' | 'active' | 'archived';
-  version: number;
+  version: string;
+  owner_type: string;
+  owner_id: number | null;
+  created_by_email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +31,14 @@ function formatDate(dateStr: string) {
   });
 }
 
+function parsedLayoutData(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export function LayoutsView() {
   const [layouts, setLayouts] = useState<LayoutRow[]>([]);
   const [filtered, setFiltered] = useState<LayoutRow[]>([]);
@@ -36,7 +47,7 @@ export function LayoutsView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedLayout, setSelectedLayout] = useState<LayoutRow | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   useEffect(() => {
@@ -56,7 +67,8 @@ export function LayoutsView() {
         (l) =>
           l.game_type.toLowerCase().includes(q) ||
           (l.scenario_uniqid?.toLowerCase().includes(q) ?? false) ||
-          l.id.toLowerCase().includes(q)
+          (l.created_by_email?.toLowerCase().includes(q) ?? false) ||
+          String(l.id).includes(q)
       );
     }
 
@@ -64,43 +76,44 @@ export function LayoutsView() {
   }, [searchQuery, statusFilter, layouts]);
 
   const fetchLayouts = async () => {
-    if (!supabase) {
-      setError('Database not connected');
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('layouts')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      const res = await fetch(`${API_BASE_URL}/layouts.php?action=list`, {
+        credentials: 'include',
+      });
+      const json = await res.json();
 
-    if (fetchError) {
-      setError(fetchError.message);
-    } else {
-      setLayouts(data ?? []);
-      setFiltered(data ?? []);
+      if (!res.ok) {
+        setError(json.error || 'Failed to load layouts');
+      } else {
+        setLayouts(json.data ?? []);
+        setFiltered(json.data ?? []);
+      }
+    } catch {
+      setError('Network error — could not reach the server');
     }
 
     setLoading(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!supabase) return;
+  const handleDelete = async (id: number) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/layouts.php?action=delete&id=${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const json = await res.json();
 
-    const { error: deleteError } = await supabase
-      .from('layouts')
-      .delete()
-      .eq('id', id);
-
-    if (deleteError) {
-      setError(deleteError.message);
-    } else {
-      setLayouts((prev) => prev.filter((l) => l.id !== id));
-      if (selectedLayout?.id === id) setSelectedLayout(null);
+      if (!res.ok) {
+        setError(json.error || 'Failed to delete layout');
+      } else {
+        setLayouts((prev) => prev.filter((l) => l.id !== id));
+        if (selectedLayout?.id === id) setSelectedLayout(null);
+      }
+    } catch {
+      setError('Network error — could not delete layout');
     }
 
     setDeleteConfirm(null);
@@ -119,13 +132,6 @@ export function LayoutsView() {
             <p className="text-sm text-slate-500">{filtered.length} layout{filtered.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
-        <button
-          className="flex items-center space-x-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-sm font-medium"
-          onClick={() => {}}
-        >
-          <Plus className="w-4 h-4" />
-          <span>New Layout</span>
-        </button>
       </div>
 
       {error && (
@@ -140,7 +146,7 @@ export function LayoutsView() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by game type, scenario ID..."
+            placeholder="Search by game type, scenario ID, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 bg-white"
@@ -184,7 +190,7 @@ export function LayoutsView() {
           </div>
           <p className="text-slate-900 font-semibold mb-1">No layouts found</p>
           <p className="text-slate-500 text-sm">
-            {searchQuery || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Create your first layout to get started.'}
+            {searchQuery || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Layouts uploaded from Creator will appear here.'}
           </p>
         </div>
       ) : (
@@ -196,6 +202,7 @@ export function LayoutsView() {
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Scenario ID</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Version</th>
+                <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Owner</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Created</th>
                 <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Updated</th>
                 <th className="px-5 py-3.5"></th>
@@ -229,6 +236,16 @@ export function LayoutsView() {
                   </td>
                   <td className="px-5 py-4">
                     <span className="text-sm text-slate-600">v{layout.version}</span>
+                  </td>
+                  <td className="px-5 py-4">
+                    {layout.created_by_email ? (
+                      <div className="flex items-center space-x-1.5">
+                        <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        <span className="text-sm text-slate-600">{layout.created_by_email}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 text-sm">—</span>
+                    )}
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center space-x-1.5 text-sm text-slate-500">
@@ -303,8 +320,14 @@ export function LayoutsView() {
                   <p className="text-xs text-slate-500 mb-1">Version</p>
                   <p className="text-sm font-semibold text-slate-900">v{selectedLayout.version}</p>
                 </div>
+                {selectedLayout.created_by_email && (
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-xs text-slate-500 mb-1">Created by</p>
+                    <p className="text-sm text-slate-700">{selectedLayout.created_by_email}</p>
+                  </div>
+                )}
                 {selectedLayout.scenario_uniqid && (
-                  <div className="bg-slate-50 rounded-lg p-3 col-span-2">
+                  <div className="bg-slate-50 rounded-lg p-3">
                     <p className="text-xs text-slate-500 mb-1">Scenario ID</p>
                     <p className="text-sm font-mono text-slate-700">{selectedLayout.scenario_uniqid}</p>
                   </div>
@@ -314,7 +337,7 @@ export function LayoutsView() {
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Layout Data</p>
                 <pre className="bg-slate-950 text-emerald-400 text-xs rounded-xl p-4 overflow-auto leading-relaxed">
-                  {JSON.stringify(selectedLayout.layout_data, null, 2)}
+                  {JSON.stringify(parsedLayoutData(selectedLayout.layout_data), null, 2)}
                 </pre>
               </div>
             </div>
@@ -322,7 +345,7 @@ export function LayoutsView() {
         </div>
       )}
 
-      {deleteConfirm && (
+      {deleteConfirm !== null && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setDeleteConfirm(null)}>
           <div
             className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
