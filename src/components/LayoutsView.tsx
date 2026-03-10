@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { LayoutGrid as Layout, Search, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown, User } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { LayoutGrid as Layout, Search, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown, User, Shield, Building2 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -23,6 +23,21 @@ const STATUS_COLORS: Record<string, string> = {
   archived: 'bg-slate-100 text-slate-500',
 };
 
+const STATUS_OPTIONS: Array<'draft' | 'active' | 'archived'> = ['draft', 'active', 'archived'];
+
+const OWNER_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; classes: string }> = {
+  admin: {
+    label: 'Admin',
+    icon: <Shield className="w-3 h-3" />,
+    classes: 'bg-blue-100 text-blue-700',
+  },
+  client: {
+    label: 'Client',
+    icon: <Building2 className="w-3 h-3" />,
+    classes: 'bg-orange-100 text-orange-700',
+  },
+};
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', {
     day: '2-digit',
@@ -39,6 +54,98 @@ function parsedLayoutData(raw: string): unknown {
   }
 }
 
+function StatusDropdown({
+  layout,
+  onUpdate,
+}: {
+  layout: LayoutRow;
+  onUpdate: (updated: LayoutRow) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const changeStatus = async (newStatus: 'draft' | 'active' | 'archived') => {
+    if (newStatus === layout.status) {
+      setOpen(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/layouts.php?action=update_status`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: layout.id, status: newStatus }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error || 'Failed to update status');
+      } else {
+        onUpdate(json.data);
+      }
+    } catch {
+      setError('Network error');
+    }
+    setLoading(false);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      {error && (
+        <div className="absolute bottom-full mb-1 left-0 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-1.5 whitespace-nowrap z-20 shadow-md">
+          {error}
+          <button className="ml-2 opacity-60 hover:opacity-100" onClick={() => setError(null)}>
+            <X className="w-3 h-3 inline" />
+          </button>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={loading}
+        className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize transition-all cursor-pointer hover:opacity-80 ${STATUS_COLORS[layout.status] ?? 'bg-slate-100 text-slate-500'}`}
+      >
+        {loading ? (
+          <span className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+        ) : null}
+        <span>{layout.status}</span>
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 overflow-hidden min-w-[110px]">
+          {STATUS_OPTIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => changeStatus(s)}
+              className={`w-full text-left px-3 py-2 text-xs capitalize transition-colors flex items-center space-x-2 ${
+                s === layout.status
+                  ? 'font-semibold bg-slate-50 text-slate-900'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${s === 'active' ? 'bg-emerald-500' : s === 'draft' ? 'bg-amber-400' : 'bg-slate-400'}`} />
+              <span>{s}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LayoutsView() {
   const [layouts, setLayouts] = useState<LayoutRow[]>([]);
   const [filtered, setFiltered] = useState<LayoutRow[]>([]);
@@ -46,9 +153,11 @@ export function LayoutsView() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [selectedLayout, setSelectedLayout] = useState<LayoutRow | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
 
   useEffect(() => {
     fetchLayouts();
@@ -59,6 +168,10 @@ export function LayoutsView() {
 
     if (statusFilter !== 'all') {
       result = result.filter((l) => l.status === statusFilter);
+    }
+
+    if (ownerFilter !== 'all') {
+      result = result.filter((l) => l.owner_type === ownerFilter);
     }
 
     if (searchQuery.trim()) {
@@ -73,7 +186,7 @@ export function LayoutsView() {
     }
 
     setFiltered(result);
-  }, [searchQuery, statusFilter, layouts]);
+  }, [searchQuery, statusFilter, ownerFilter, layouts]);
 
   const fetchLayouts = async () => {
     setLoading(true);
@@ -119,7 +232,13 @@ export function LayoutsView() {
     setDeleteConfirm(null);
   };
 
+  const handleStatusUpdate = (updated: LayoutRow) => {
+    setLayouts((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    if (selectedLayout?.id === updated.id) setSelectedLayout(updated);
+  };
+
   const statusOptions = ['all', 'draft', 'active', 'archived'];
+  const ownerOptions = ['all', 'admin', 'client'];
 
   return (
     <div className="space-y-6">
@@ -141,8 +260,8 @@ export function LayoutsView() {
         </div>
       )}
 
-      <div className="flex items-center space-x-3">
-        <div className="relative flex-1">
+      <div className="flex items-center space-x-3 flex-wrap gap-y-2">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -155,7 +274,32 @@ export function LayoutsView() {
 
         <div className="relative">
           <button
-            onClick={() => setShowStatusDropdown((v) => !v)}
+            onClick={() => { setShowOwnerDropdown((v) => !v); setShowStatusDropdown(false); }}
+            className="flex items-center space-x-2 px-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white hover:bg-slate-50 transition-all"
+          >
+            <span className="text-slate-700 capitalize">{ownerFilter === 'all' ? 'All Owners' : ownerFilter === 'admin' ? 'Admin' : 'Client'}</span>
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          </button>
+          {showOwnerDropdown && (
+            <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-10 overflow-hidden">
+              {ownerOptions.map((o) => (
+                <button
+                  key={o}
+                  onClick={() => { setOwnerFilter(o); setShowOwnerDropdown(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors capitalize ${
+                    ownerFilter === o ? 'bg-slate-100 font-medium text-slate-900' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {o === 'all' ? 'All Owners' : o === 'admin' ? 'Admin' : 'Client'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => { setShowStatusDropdown((v) => !v); setShowOwnerDropdown(false); }}
             className="flex items-center space-x-2 px-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white hover:bg-slate-50 transition-all"
           >
             <span className="text-slate-700 capitalize">{statusFilter === 'all' ? 'All Statuses' : statusFilter}</span>
@@ -190,7 +334,7 @@ export function LayoutsView() {
           </div>
           <p className="text-slate-900 font-semibold mb-1">No layouts found</p>
           <p className="text-slate-500 text-sm">
-            {searchQuery || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Layouts uploaded from Creator will appear here.'}
+            {searchQuery || statusFilter !== 'all' || ownerFilter !== 'all' ? 'Try adjusting your filters.' : 'Layouts uploaded from Creator will appear here.'}
           </p>
         </div>
       ) : (
@@ -209,76 +353,85 @@ export function LayoutsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((layout) => (
-                <tr key={layout.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-4">
-                    <div className="flex items-center space-x-2">
-                      <Gamepad2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      <span className="text-sm font-medium text-slate-900">
-                        {layout.game_type || <span className="text-slate-400 italic">—</span>}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    {layout.scenario_uniqid ? (
+              {filtered.map((layout) => {
+                const ownerCfg = OWNER_TYPE_CONFIG[layout.owner_type];
+                return (
+                  <tr key={layout.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-4">
                       <div className="flex items-center space-x-2">
-                        <Tag className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        <span className="text-sm text-slate-600 font-mono">{layout.scenario_uniqid}</span>
+                        <Gamepad2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-slate-900">
+                          {layout.game_type || <span className="text-slate-400 italic">—</span>}
+                        </span>
                       </div>
-                    ) : (
-                      <span className="text-slate-400 text-sm">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[layout.status] ?? 'bg-slate-100 text-slate-500'}`}>
-                      {layout.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="text-sm text-slate-600">v{layout.version}</span>
-                  </td>
-                  <td className="px-5 py-4">
-                    {layout.created_by_email ? (
-                      <div className="flex items-center space-x-1.5">
-                        <User className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                        <span className="text-sm text-slate-600">{layout.created_by_email}</span>
+                    </td>
+                    <td className="px-5 py-4">
+                      {layout.scenario_uniqid ? (
+                        <div className="flex items-center space-x-2">
+                          <Tag className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          <span className="text-sm text-slate-600 font-mono">{layout.scenario_uniqid}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-sm">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <StatusDropdown layout={layout} onUpdate={handleStatusUpdate} />
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="text-sm text-slate-600">v{layout.version}</span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="space-y-1">
+                        {ownerCfg ? (
+                          <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-medium ${ownerCfg.classes}`}>
+                            {ownerCfg.icon}
+                            <span>{ownerCfg.label}</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400 capitalize">{layout.owner_type}</span>
+                        )}
+                        {layout.created_by_email && (
+                          <div className="flex items-center space-x-1">
+                            <User className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                            <span className="text-xs text-slate-500">{layout.created_by_email}</span>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <span className="text-slate-400 text-sm">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center space-x-1.5 text-sm text-slate-500">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{formatDate(layout.created_at)}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center space-x-1.5 text-sm text-slate-500">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>{formatDate(layout.updated_at)}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => setSelectedLayout(layout)}
-                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all"
-                        title="View layout data"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm(layout.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
-                        title="Delete layout"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center space-x-1.5 text-sm text-slate-500">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{formatDate(layout.created_at)}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center space-x-1.5 text-sm text-slate-500">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{formatDate(layout.updated_at)}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => setSelectedLayout(layout)}
+                          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-all"
+                          title="View layout data"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(layout.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all"
+                          title="Delete layout"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -312,13 +465,25 @@ export function LayoutsView() {
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs text-slate-500 mb-1">Status</p>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_COLORS[selectedLayout.status]}`}>
-                    {selectedLayout.status}
-                  </span>
+                  <StatusDropdown layout={selectedLayout} onUpdate={(updated) => { handleStatusUpdate(updated); setSelectedLayout(updated); }} />
                 </div>
                 <div className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs text-slate-500 mb-1">Version</p>
                   <p className="text-sm font-semibold text-slate-900">v{selectedLayout.version}</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-3">
+                  <p className="text-xs text-slate-500 mb-1">Owner Type</p>
+                  {(() => {
+                    const cfg = OWNER_TYPE_CONFIG[selectedLayout.owner_type];
+                    return cfg ? (
+                      <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.classes}`}>
+                        {cfg.icon}
+                        <span>{cfg.label}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-700 capitalize">{selectedLayout.owner_type}</span>
+                    );
+                  })()}
                 </div>
                 {selectedLayout.created_by_email && (
                   <div className="bg-slate-50 rounded-lg p-3">
@@ -327,7 +492,7 @@ export function LayoutsView() {
                   </div>
                 )}
                 {selectedLayout.scenario_uniqid && (
-                  <div className="bg-slate-50 rounded-lg p-3">
+                  <div className="bg-slate-50 rounded-lg p-3 col-span-2">
                     <p className="text-xs text-slate-500 mb-1">Scenario ID</p>
                     <p className="text-sm font-mono text-slate-700">{selectedLayout.scenario_uniqid}</p>
                   </div>

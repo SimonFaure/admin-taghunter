@@ -290,6 +290,21 @@ try {
                     ? $db->fetch('SELECT id FROM layouts WHERE layout_uniqid = ?', [$layoutUniqid])
                     : null;
 
+                if ($ownerType === 'admin' && $status === 'active') {
+                    $conflictQuery = 'SELECT id FROM layouts WHERE owner_type = ? AND game_type = ? AND status = ?';
+                    $conflictParams = ['admin', $gameType, 'active'];
+                    if ($existingLayout) {
+                        $conflictQuery .= ' AND id != ?';
+                        $conflictParams[] = $existingLayout['id'];
+                    }
+                    $conflict = $db->fetch($conflictQuery, $conflictParams);
+                    if ($conflict) {
+                        $displayGameType = strtoupper($gameType);
+                        Logger::log('layouts', 'POST', 'upload', $ownerId, ['email' => $email, 'game_type' => $gameType], ['error' => 'Duplicate default layout'], 409, 'creator');
+                        jsonResponse(['error' => 'A default Layout For ' . $displayGameType . ' already exists'], 409);
+                    }
+                }
+
                 Logger::log('layouts', 'POST', 'transform-3-before-insert', $ownerId, [
                     'email' => $email,
                     'name' => $name,
@@ -370,6 +385,58 @@ try {
                     ]
                 ], 500);
             }
+            break;
+
+        case 'update_status':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'PATCH') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $tokenData = requireAuth();
+            $userId = $tokenData['user_id'];
+            $userType = $tokenData['user_type'];
+
+            $data = getRequestData();
+            $id = $data['id'] ?? $_GET['id'] ?? '';
+            $newStatus = $data['status'] ?? '';
+
+            if (empty($id)) {
+                jsonResponse(['error' => 'Layout ID is required'], 400);
+            }
+
+            if (!in_array($newStatus, $validStatuses)) {
+                jsonResponse(['error' => 'Status must be one of: draft, active, archived'], 400);
+            }
+
+            $layout = $db->fetch('SELECT * FROM layouts WHERE id = ?', [$id]);
+
+            if (!$layout) {
+                jsonResponse(['error' => 'Layout not found'], 404);
+            }
+
+            if ($userType !== 'admin') {
+                if ($layout['owner_type'] !== $userType || $layout['owner_id'] != $userId) {
+                    jsonResponse(['error' => 'Access denied'], 403);
+                }
+            }
+
+            if ($newStatus === 'active' && $layout['owner_type'] === 'admin') {
+                $conflict = $db->fetch(
+                    'SELECT id FROM layouts WHERE owner_type = ? AND game_type = ? AND status = ? AND id != ?',
+                    ['admin', $layout['game_type'], 'active', $id]
+                );
+                if ($conflict) {
+                    $displayGameType = strtoupper($layout['game_type']);
+                    jsonResponse(['error' => 'A default Layout For ' . $displayGameType . ' already exists'], 409);
+                }
+            }
+
+            $db->execute('UPDATE layouts SET status = ? WHERE id = ?', [$newStatus, $id]);
+
+            $updated = $db->fetch('SELECT * FROM layouts WHERE id = ?', [$id]);
+            $response = ['success' => true, 'data' => $updated];
+            Logger::log('layouts', 'POST', 'update_status', $userId, ['id' => $id, 'new_status' => $newStatus], $response, 200);
+            jsonResponse($response);
             break;
 
         case 'delete':
