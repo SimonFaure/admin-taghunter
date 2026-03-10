@@ -15,6 +15,18 @@ function jsonResponse($data, $status = 200) {
     exit;
 }
 
+function resolveUser($db, $email) {
+    $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+    if ($client) {
+        return ['type' => 'client', 'data' => $client];
+    }
+    $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
+    if ($admin) {
+        return ['type' => 'admin', 'data' => $admin];
+    }
+    return null;
+}
+
 try {
     $db = Database::getInstance();
     $method = $_SERVER['REQUEST_METHOD'];
@@ -43,21 +55,27 @@ try {
             jsonResponse(['error' => 'email is required'], 400);
         }
 
-        $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_user_scenarios', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_user_scenarios', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
 
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
         $scenarios = [];
 
-        if ($client['licence_type'] === 'premium') {
+        if ($isAdmin) {
+            $scenarios = $db->fetchAll(
+                'SELECT s.* FROM scenarios s ORDER BY s.created_at DESC'
+            );
+        } elseif ($user['data']['licence_type'] === 'premium') {
             $scenarios = $db->fetchAll(
                 'SELECT s.* FROM scenarios s
                  WHERE s.client_id = ? OR s.scenario_type = "product"
                  ORDER BY s.created_at DESC',
-                [$client['id']]
+                [$userId]
             );
         } else {
             $scenarios = $db->fetchAll(
@@ -65,7 +83,7 @@ try {
                  LEFT JOIN client_scenarios cs ON s.id = cs.scenario_id AND cs.client_id = ?
                  WHERE s.client_id = ? OR cs.id IS NOT NULL
                  ORDER BY s.created_at DESC',
-                [$client['id'], $client['id']]
+                [$userId, $userId]
             );
         }
 
@@ -98,15 +116,15 @@ try {
 
         $responseData = [
             'client' => [
-                'id' => $client['id'],
-                'email' => $client['email'],
-                'licence_type' => $client['licence_type'],
-                'company_name' => $client['company_name']
+                'id' => $userId,
+                'email' => $user['data']['email'],
+                'licence_type' => $isAdmin ? 'admin' : ($user['data']['licence_type'] ?? null),
+                'company_name' => $isAdmin ? null : ($user['data']['company_name'] ?? null)
             ],
             'scenarios' => $scenarios
         ];
 
-        Logger::log('playground', $method, 'get_user_scenarios', $client['id'], ['email' => $email], ['count' => count($scenarios)], 200, 'playground');
+        Logger::log('playground', $method, 'get_user_scenarios', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($scenarios)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -123,15 +141,18 @@ try {
             jsonResponse(['error' => 'email is required'], 400);
         }
 
-        $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_available_scenarios', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_available_scenarios', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
 
-        if ($client['licence_type'] === 'premium') {
-            Logger::log('playground', $method, 'get_available_scenarios', $client['id'], ['email' => $email], ['scenarios' => []], 200, 'playground');
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
+
+        if ($isAdmin || ($user['data']['licence_type'] ?? '') === 'premium') {
+            Logger::log('playground', $method, 'get_available_scenarios', $userId, ['email' => $email, 'user_type' => $user['type']], ['scenarios' => []], 200, 'playground');
             jsonResponse(['scenarios' => []]);
         }
 
@@ -142,10 +163,10 @@ try {
                  SELECT scenario_id FROM client_scenarios WHERE client_id = ?
              )
              ORDER BY s.created_at DESC',
-            [$client['id']]
+            [$userId]
         );
 
-        Logger::log('playground', $method, 'get_available_scenarios', $client['id'], ['email' => $email], ['count' => count($availableScenarios)], 200, 'playground');
+        Logger::log('playground', $method, 'get_available_scenarios', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($availableScenarios)], 200, 'playground');
         jsonResponse(['scenarios' => $availableScenarios]);
         break;
 
@@ -163,30 +184,32 @@ try {
             jsonResponse(['error' => 'email and uniqid are required', 'received' => ['email' => $email, 'uniqid' => $uniqid, 'all_params' => $_GET]], 400);
         }
 
-        $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
 
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_scenario_game_data', $client['id'], ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
+            Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
-        $hasAccess = false;
+        $hasAccess = $isAdmin;
 
-        if ($scenario['client_id'] == $client['id']) {
+        if (!$hasAccess && $scenario['client_id'] == $userId) {
             $hasAccess = true;
-        } elseif ($client['licence_type'] === 'premium' && $scenario['scenario_type'] === 'product') {
+        } elseif (!$hasAccess && ($user['data']['licence_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
             $hasAccess = true;
-        } else {
+        } elseif (!$hasAccess) {
             $grantedScenario = $db->fetch(
                 'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$client['id'], $scenario['id']]
+                [$userId, $scenario['id']]
             );
 
             if ($grantedScenario) {
@@ -195,7 +218,7 @@ try {
         }
 
         if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_scenario_game_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
+            Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario'], 403);
         }
 
@@ -220,7 +243,7 @@ try {
             'medias' => $medias
         ];
 
-        Logger::log('playground', $method, 'get_scenario_game_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200, 'playground');
+        Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['email' => $email, 'uniqid' => $uniqid, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -239,30 +262,32 @@ try {
             jsonResponse(['error' => 'email, uniqid and filename are required'], 400);
         }
 
-        $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_media', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_media', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
 
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_media', $client['id'], ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
+            Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
-        $hasAccess = false;
+        $hasAccess = $isAdmin;
 
-        if ($scenario['client_id'] == $client['id']) {
+        if (!$hasAccess && $scenario['client_id'] == $userId) {
             $hasAccess = true;
-        } elseif ($client['licence_type'] === 'premium' && $scenario['scenario_type'] === 'product') {
+        } elseif (!$hasAccess && ($user['data']['licence_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
             $hasAccess = true;
-        } else {
+        } elseif (!$hasAccess) {
             $grantedScenario = $db->fetch(
                 'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$client['id'], $scenario['id']]
+                [$userId, $scenario['id']]
             );
 
             if ($grantedScenario) {
@@ -271,14 +296,14 @@ try {
         }
 
         if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_media', $client['id'], ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Access denied'], 403, 'playground');
+            Logger::log('playground', $method, 'get_media', $userId, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario media'], 403);
         }
 
         $mediaPath = __DIR__ . '/../../media/' . $uniqid . '/' . $filename;
 
         if (!file_exists($mediaPath)) {
-            Logger::log('playground', $method, 'get_media', $client['id'], ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'File not found'], 404, 'playground');
+            Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'File not found'], 404, 'playground');
             jsonResponse(['error' => 'Media file not found'], 404);
         }
 
@@ -287,7 +312,7 @@ try {
         header('Content-Length: ' . filesize($mediaPath));
         header('Content-Disposition: inline; filename="' . basename($filename) . '"');
 
-        Logger::log('playground', $method, 'get_media', $client['id'], ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200, 'playground');
+        Logger::log('playground', $method, 'get_media', $userId, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
 
         readfile($mediaPath);
         exit;
@@ -306,30 +331,32 @@ try {
             jsonResponse(['error' => 'email and uniqid are required'], 400);
         }
 
-        $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
 
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_available_scenario_data', $client['id'], ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
+            Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
-        $hasAccess = false;
+        $hasAccess = $isAdmin;
 
-        if ($scenario['client_id'] == $client['id']) {
+        if (!$hasAccess && $scenario['client_id'] == $userId) {
             $hasAccess = true;
-        } elseif ($client['licence_type'] === 'premium' && $scenario['scenario_type'] === 'product') {
+        } elseif (!$hasAccess && ($user['data']['licence_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
             $hasAccess = true;
-        } else {
+        } elseif (!$hasAccess) {
             $grantedScenario = $db->fetch(
                 'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$client['id'], $scenario['id']]
+                [$userId, $scenario['id']]
             );
 
             if ($grantedScenario) {
@@ -338,7 +365,7 @@ try {
         }
 
         if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_available_scenario_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
+            Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario'], 403);
         }
 
@@ -358,7 +385,7 @@ try {
             'medias' => $medias
         ];
 
-        Logger::log('playground', $method, 'get_available_scenario_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200, 'playground');
+        Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['email' => $email, 'uniqid' => $uniqid, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -375,22 +402,30 @@ try {
             jsonResponse(['error' => 'email is required'], 400);
         }
 
-        $client = $db->fetch(
-            'SELECT id, email, billing_up_to_date, license_type FROM clients WHERE email = ?',
-            [$email]
-        );
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_billing_status', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_billing_status', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
 
-        $responseData = [
-            'billing_up_to_date' => (bool)$client['billing_up_to_date'],
-            'license_type' => $client['license_type']
-        ];
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
 
-        Logger::log('playground', $method, 'get_billing_status', $client['id'], ['email' => $email], $responseData, 200, 'playground');
+        if ($isAdmin) {
+            $responseData = ['billing_up_to_date' => true, 'license_type' => 'admin'];
+        } else {
+            $client = $db->fetch(
+                'SELECT id, email, billing_up_to_date, license_type FROM clients WHERE id = ?',
+                [$userId]
+            );
+            $responseData = [
+                'billing_up_to_date' => (bool)$client['billing_up_to_date'],
+                'license_type' => $client['license_type']
+            ];
+        }
+
+        Logger::log('playground', $method, 'get_billing_status', $userId, ['email' => $email, 'user_type' => $user['type']], $responseData, 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -407,16 +442,18 @@ try {
             jsonResponse(['error' => 'email is required'], 400);
         }
 
-        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_cards_version', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_cards_version', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
+
+        $userId = $user['data']['id'];
 
         $metadata = $db->fetch(
             'SELECT version, updated_at FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
-            [$client['id']]
+            [$userId]
         );
 
         $responseData = [
@@ -424,7 +461,7 @@ try {
             'updated_at' => $metadata ? $metadata['updated_at'] : null
         ];
 
-        Logger::log('playground', $method, 'get_cards_version', $client['id'], ['email' => $email], $responseData, 200, 'playground');
+        Logger::log('playground', $method, 'get_cards_version', $userId, ['email' => $email, 'user_type' => $user['type']], $responseData, 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -442,21 +479,38 @@ try {
             jsonResponse(['error' => 'email is required'], 400);
         }
 
-        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_patterns', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_patterns', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
 
-        if ($gameType) {
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
+
+        if ($isAdmin) {
+            if ($gameType) {
+                $patterns = $db->fetchAll(
+                    'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
+                     FROM patterns WHERE game_type = ?
+                     ORDER BY game_type, is_default DESC, name',
+                    [$gameType]
+                );
+            } else {
+                $patterns = $db->fetchAll(
+                    'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
+                     FROM patterns ORDER BY game_type, is_default DESC, name'
+                );
+            }
+        } elseif ($gameType) {
             $patterns = $db->fetchAll(
                 'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
                  FROM patterns
                  WHERE (is_default = TRUE OR (owner_type = ? AND owner_id = ?))
                  AND game_type = ?
                  ORDER BY game_type, is_default DESC, name',
-                ['client', $client['id'], $gameType]
+                ['client', $userId, $gameType]
             );
         } else {
             $patterns = $db->fetchAll(
@@ -464,7 +518,7 @@ try {
                  FROM patterns
                  WHERE is_default = TRUE OR (owner_type = ? AND owner_id = ?)
                  ORDER BY game_type, is_default DESC, name',
-                ['client', $client['id']]
+                ['client', $userId]
             );
         }
 
@@ -473,7 +527,7 @@ try {
             'count' => count($patterns)
         ];
 
-        Logger::log('playground', $method, 'get_patterns', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($patterns)], 200, 'playground');
+        Logger::log('playground', $method, 'get_patterns', $userId, ['email' => $email, 'game_type' => $gameType, 'user_type' => $user['type']], ['count' => count($patterns)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -491,12 +545,14 @@ try {
             jsonResponse(['error' => 'email is required'], 400);
         }
 
-        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_layouts', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_layouts', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
+
+        $userId = $user['data']['id'];
 
         if ($gameType) {
             $layouts = $db->fetchAll(
@@ -522,7 +578,7 @@ try {
             'count' => count($layouts)
         ];
 
-        Logger::log('playground', $method, 'get_layouts', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($layouts)], 200, 'playground');
+        Logger::log('playground', $method, 'get_layouts', $userId, ['email' => $email, 'game_type' => $gameType, 'user_type' => $user['type']], ['count' => count($layouts)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -539,30 +595,32 @@ try {
             jsonResponse(['error' => 'email is required'], 400);
         }
 
-        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+        $user = resolveUser($db, $email);
 
-        if (!$client) {
-            Logger::log('playground', $method, 'get_cards', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
-            jsonResponse(['error' => 'Client not found'], 404);
+        if (!$user) {
+            Logger::log('playground', $method, 'get_cards', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
         }
+
+        $userId = $user['data']['id'];
 
         $metadata = $db->fetch(
             'SELECT version FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
-            [$client['id']]
+            [$userId]
         );
 
         if (!$metadata) {
             $responseData = ['cards' => [], 'version' => null];
-            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], $responseData, 200, 'playground');
+            Logger::log('playground', $method, 'get_cards', $userId, ['email' => $email, 'user_type' => $user['type']], $responseData, 200, 'playground');
             jsonResponse($responseData);
             break;
         }
 
         $version = $metadata['version'];
-        $cardsFile = __DIR__ . '/../../cards/' . $client['id'] . '/cards_v' . $version . '.csv';
+        $cardsFile = __DIR__ . '/../../cards/' . $userId . '/cards_v' . $version . '.csv';
 
         if (!file_exists($cardsFile)) {
-            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['error' => 'Cards file not found', 'version' => $version], 404, 'playground');
+            Logger::log('playground', $method, 'get_cards', $userId, ['email' => $email], ['error' => 'Cards file not found', 'version' => $version], 404, 'playground');
             jsonResponse(['error' => 'Cards file not found'], 404);
         }
 
@@ -587,7 +645,7 @@ try {
             'count' => count($cards)
         ];
 
-        Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['version' => $version, 'count' => count($cards)], 200, 'playground');
+        Logger::log('playground', $method, 'get_cards', $userId, ['email' => $email, 'user_type' => $user['type']], ['version' => $version, 'count' => count($cards)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
