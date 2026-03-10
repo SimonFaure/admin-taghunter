@@ -228,7 +228,7 @@ try {
                 $gameType = $data['game_type'] ?? '';
                 $isDefault = $data['is_default'] ?? false;
                 $patternUniqid = $data['pattern_uniqid'] ?? $data['uniqid'] ?? null;
-                $patternSlug = $data['pattern_slug'] ?? null;
+                $patternSlug = $data['pattern_slug'] ?? $data['slug'] ?? null;
 
                 if (empty($email)) {
                     error_log('Upload failed: Email required');
