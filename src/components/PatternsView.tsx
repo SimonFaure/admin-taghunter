@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Package, Search, Filter, Download, Eye, Trash2, Plus, Edit } from 'lucide-react';
+import { Package, Search, Filter, Download, Eye, Trash2, Plus, CreditCard as Edit } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { broadcastAdminNotification } from '../lib/adminNotificationsApi';
 
