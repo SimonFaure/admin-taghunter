@@ -1,6 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Bell, X, Package, Film, CheckCheck } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import {
   AdminNotification,
   fetchAdminNotifications,
@@ -11,8 +10,6 @@ import {
 interface AdminNotificationsListProps {
   onNavigate: (tab: string) => void;
 }
-
-const authMode = import.meta.env.VITE_AUTH_MODE || 'supabase';
 
 function timeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -54,6 +51,7 @@ export function AdminNotificationsList({ onNavigate }: AdminNotificationsListPro
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
   const [loading, setLoading] = useState(true);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadNotifications = useCallback(async () => {
     const data = await fetchAdminNotifications();
@@ -62,34 +60,22 @@ export function AdminNotificationsList({ onNavigate }: AdminNotificationsListPro
   }, []);
 
   useEffect(() => {
-    if (authMode !== 'supabase' || !supabase) {
-      setLoading(false);
-      return;
-    }
-
     loadNotifications();
 
-    const channel = supabase
-      .channel('admin_notifications_changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'admin_notifications' },
-        () => {
-          loadNotifications();
-        }
-      )
-      .subscribe();
+    intervalRef.current = setInterval(loadNotifications, 30000);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [loadNotifications]);
 
   const handleNotificationClick = async (notification: AdminNotification) => {
-    await markAdminNotificationRead(notification.id);
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
-    );
+    if (!notification.is_read) {
+      await markAdminNotificationRead(notification.id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
+      );
+    }
     setShowPanel(false);
 
     const tab = notification.metadata.navigate_to;

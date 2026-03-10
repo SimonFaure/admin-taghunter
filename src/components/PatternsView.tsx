@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Package, Search, Filter, Download, Eye, Trash2, Plus, CreditCard as Edit } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { broadcastAdminNotification } from '../lib/adminNotificationsApi';
 
 interface Pattern {
   id: number;
@@ -18,7 +16,6 @@ interface Pattern {
 }
 
 export function PatternsView() {
-  const { user } = useAuth();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [filteredPatterns, setFilteredPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,19 +199,6 @@ export function PatternsView() {
       });
       setSuccess('Pattern created successfully');
       setTimeout(() => setSuccess(''), 3000);
-
-      broadcastAdminNotification(
-        'pattern_created',
-        'New pattern created',
-        `"${formData.name}" was created by ${user?.email ?? 'an admin'}`,
-        {
-          creator_email: user?.email,
-          item_id: result.data?.id,
-          item_name: formData.name,
-          navigate_to: 'patterns',
-        },
-        (user as any)?.id
-      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create pattern');
     }

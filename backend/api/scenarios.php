@@ -405,6 +405,20 @@ try {
                 'email' => $email,
                 'uniqid' => $uniqid
             ], $responseData, $isUpdate ? 200 : 201, $logSource);
+
+            if (!$isUpdate) {
+                $notifMeta = json_encode([
+                    'creator_email' => $email,
+                    'item_id' => $scenario_id,
+                    'item_name' => $title,
+                    'navigate_to' => 'scenarios'
+                ]);
+                $db->execute(
+                    'INSERT INTO admin_notifications (type, title, message, metadata) VALUES (?, ?, ?, ?)',
+                    ['scenario_created', 'New scenario created', '"' . $title . '" was created by ' . $email, $notifMeta]
+                );
+            }
+
             jsonResponse($responseData, $isUpdate ? 200 : 201);
             break;
 

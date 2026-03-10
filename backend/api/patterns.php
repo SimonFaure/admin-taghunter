@@ -351,6 +351,17 @@ try {
                     'pattern_id' => $patternId
                 ], $response, 201, 'creator');
 
+                $notifMeta = json_encode([
+                    'creator_email' => $email,
+                    'item_id' => $patternId,
+                    'item_name' => $name,
+                    'navigate_to' => 'patterns'
+                ]);
+                $db->execute(
+                    'INSERT INTO admin_notifications (type, title, message, metadata) VALUES (?, ?, ?, ?)',
+                    ['pattern_created', 'New pattern uploaded', '"' . $name . '" was uploaded by ' . $email, $notifMeta]
+                );
+
                 error_log('=== Pattern Upload Successful ===');
                 jsonResponse($response, 201);
             } catch (Exception $uploadException) {
@@ -437,6 +448,18 @@ try {
                 'game_type' => $gameType,
                 'is_default' => $isDefault
             ], $response, 201);
+
+            $notifMetadata = json_encode([
+                'creator_email' => $email,
+                'item_id' => $patternId,
+                'item_name' => $name,
+                'navigate_to' => 'patterns'
+            ]);
+            $db->execute(
+                'INSERT INTO admin_notifications (type, title, message, metadata) VALUES (?, ?, ?, ?)',
+                ['pattern_created', 'New pattern created', '"' . $name . '" was created by ' . $email, $notifMetadata]
+            );
+
             jsonResponse($response, 201);
             break;
 
