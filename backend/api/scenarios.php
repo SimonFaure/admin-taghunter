@@ -138,7 +138,7 @@ try {
                 $game_type = $scenarioData['game_type'] ?? null;
                 $scenario_type = $scenarioData['scenario_type'] ?? null;
                 $scenario_layout = $scenarioData['scenario_layout'] ?? null;
-                $status = $scenarioData['status'] ?? null;
+                $status = $scenarioData['status'] ?? 'draft';
                 $uniqid = $scenarioData['uniqid'] ?? null;
 
                 // NEW: Extract is_admin and client_id from request
@@ -218,7 +218,7 @@ try {
                 $game_type = $_POST['game_type'] ?? null;
                 $scenario_type = $_POST['scenario_type'] ?? null;
                 $scenario_layout = $_POST['scenario_layout'] ?? null;
-                $status = $_POST['status'] ?? null;
+                $status = $_POST['status'] ?? 'draft';
                 $uniqid = $_POST['uniqid'] ?? null;
             }
 
