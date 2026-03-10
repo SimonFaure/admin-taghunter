@@ -22,7 +22,7 @@ try {
 
     switch ($action) {
     case 'test':
-        // Simple test endpoint to verify API is working
+        Logger::log('playground', $method, 'test', null, [], ['status' => 'ok'], 200, 'playground');
         jsonResponse([
             'status' => 'ok',
             'timestamp' => time(),
@@ -32,21 +32,21 @@ try {
 
     case 'get_user_scenarios':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
         $email = $_GET['email'] ?? null;
 
         if (!$email) {
-            Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Missing email'], 400);
+            Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Missing email'], 400, 'playground');
             jsonResponse(['error' => 'email is required'], 400);
         }
 
         $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_user_scenarios', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_user_scenarios', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
@@ -106,32 +106,32 @@ try {
             'scenarios' => $scenarios
         ];
 
-        Logger::log('playground', $method, 'get_user_scenarios', null, ['email' => $email], ['count' => count($scenarios)], 200);
+        Logger::log('playground', $method, 'get_user_scenarios', $client['id'], ['email' => $email], ['count' => count($scenarios)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
     case 'get_available_scenarios':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_available_scenarios', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_available_scenarios', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
         $email = $_GET['email'] ?? null;
 
         if (!$email) {
-            Logger::log('playground', $method, 'get_available_scenarios', null, [], ['error' => 'Missing email'], 400);
+            Logger::log('playground', $method, 'get_available_scenarios', null, [], ['error' => 'Missing email'], 400, 'playground');
             jsonResponse(['error' => 'email is required'], 400);
         }
 
         $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_available_scenarios', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_available_scenarios', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
         if ($client['licence_type'] === 'premium') {
-            Logger::log('playground', $method, 'get_available_scenarios', null, ['email' => $email], ['scenarios' => []], 200);
+            Logger::log('playground', $method, 'get_available_scenarios', $client['id'], ['email' => $email], ['scenarios' => []], 200, 'playground');
             jsonResponse(['scenarios' => []]);
         }
 
@@ -145,13 +145,13 @@ try {
             [$client['id']]
         );
 
-        Logger::log('playground', $method, 'get_available_scenarios', null, ['email' => $email], ['count' => count($availableScenarios)], 200);
+        Logger::log('playground', $method, 'get_available_scenarios', $client['id'], ['email' => $email], ['count' => count($availableScenarios)], 200, 'playground');
         jsonResponse(['scenarios' => $availableScenarios]);
         break;
 
     case 'get_scenario_game_data':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_scenario_game_data', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
@@ -159,21 +159,21 @@ try {
         $uniqid = $_GET['uniqid'] ?? null;
 
         if (!$email || !$uniqid) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, $_GET, ['error' => 'Missing parameters', 'email' => $email, 'uniqid' => $uniqid], 400);
+            Logger::log('playground', $method, 'get_scenario_game_data', null, $_GET, ['error' => 'Missing parameters', 'email' => $email, 'uniqid' => $uniqid], 400, 'playground');
             jsonResponse(['error' => 'email and uniqid are required', 'received' => ['email' => $email, 'uniqid' => $uniqid, 'all_params' => $_GET]], 400);
         }
 
         $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404);
+            Logger::log('playground', $method, 'get_scenario_game_data', $client['id'], ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
@@ -195,7 +195,7 @@ try {
         }
 
         if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403);
+            Logger::log('playground', $method, 'get_scenario_game_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario'], 403);
         }
 
@@ -220,13 +220,13 @@ try {
             'medias' => $medias
         ];
 
-        Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200);
+        Logger::log('playground', $method, 'get_scenario_game_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200, 'playground');
         jsonResponse($responseData);
         break;
 
     case 'get_media':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_media', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_media', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
@@ -235,21 +235,21 @@ try {
         $filename = $_GET['filename'] ?? null;
 
         if (!$email || !$uniqid || !$filename) {
-            Logger::log('playground', $method, 'get_media', null, $_GET, ['error' => 'Missing parameters'], 400);
+            Logger::log('playground', $method, 'get_media', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
             jsonResponse(['error' => 'email, uniqid and filename are required'], 400);
         }
 
         $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_media', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_media', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_media', null, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404);
+            Logger::log('playground', $method, 'get_media', $client['id'], ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
@@ -271,14 +271,14 @@ try {
         }
 
         if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_media', null, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Access denied'], 403);
+            Logger::log('playground', $method, 'get_media', $client['id'], ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario media'], 403);
         }
 
         $mediaPath = __DIR__ . '/../../media/' . $uniqid . '/' . $filename;
 
         if (!file_exists($mediaPath)) {
-            Logger::log('playground', $method, 'get_media', null, ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'File not found'], 404);
+            Logger::log('playground', $method, 'get_media', $client['id'], ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'File not found'], 404, 'playground');
             jsonResponse(['error' => 'Media file not found'], 404);
         }
 
@@ -287,14 +287,14 @@ try {
         header('Content-Length: ' . filesize($mediaPath));
         header('Content-Disposition: inline; filename="' . basename($filename) . '"');
 
-        Logger::log('playground', $method, 'get_media', null, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200);
+        Logger::log('playground', $method, 'get_media', $client['id'], ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200, 'playground');
 
         readfile($mediaPath);
         exit;
 
     case 'get_available_scenario_data':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_available_scenario_data', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
@@ -302,21 +302,21 @@ try {
         $uniqid = $_GET['uniqid'] ?? null;
 
         if (!$email || !$uniqid) {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, $_GET, ['error' => 'Missing parameters'], 400);
+            Logger::log('playground', $method, 'get_available_scenario_data', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
             jsonResponse(['error' => 'email and uniqid are required'], 400);
         }
 
         $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404);
+            Logger::log('playground', $method, 'get_available_scenario_data', $client['id'], ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
@@ -338,7 +338,7 @@ try {
         }
 
         if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403);
+            Logger::log('playground', $method, 'get_available_scenario_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario'], 403);
         }
 
@@ -358,20 +358,20 @@ try {
             'medias' => $medias
         ];
 
-        Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200);
+        Logger::log('playground', $method, 'get_available_scenario_data', $client['id'], ['email' => $email, 'uniqid' => $uniqid], ['success' => true], 200, 'playground');
         jsonResponse($responseData);
         break;
 
     case 'get_billing_status':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
         $email = $_GET['email'] ?? null;
 
         if (!$email) {
-            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Missing email'], 400);
+            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Missing email'], 400, 'playground');
             jsonResponse(['error' => 'email is required'], 400);
         }
 
@@ -381,7 +381,7 @@ try {
         );
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_billing_status', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_billing_status', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
@@ -390,27 +390,27 @@ try {
             'license_type' => $client['license_type']
         ];
 
-        Logger::log('playground', $method, 'get_billing_status', $client['id'], ['email' => $email], $responseData, 200);
+        Logger::log('playground', $method, 'get_billing_status', $client['id'], ['email' => $email], $responseData, 200, 'playground');
         jsonResponse($responseData);
         break;
 
     case 'get_cards_version':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
         $email = $_GET['email'] ?? null;
 
         if (!$email) {
-            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Missing email'], 400);
+            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Missing email'], 400, 'playground');
             jsonResponse(['error' => 'email is required'], 400);
         }
 
         $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_cards_version', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_cards_version', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
@@ -424,13 +424,13 @@ try {
             'updated_at' => $metadata ? $metadata['updated_at'] : null
         ];
 
-        Logger::log('playground', $method, 'get_cards_version', $client['id'], ['email' => $email], $responseData, 200);
+        Logger::log('playground', $method, 'get_cards_version', $client['id'], ['email' => $email], $responseData, 200, 'playground');
         jsonResponse($responseData);
         break;
 
     case 'get_patterns':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
@@ -438,14 +438,14 @@ try {
         $gameType = $_GET['game_type'] ?? null;
 
         if (!$email) {
-            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Missing email'], 400);
+            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Missing email'], 400, 'playground');
             jsonResponse(['error' => 'email is required'], 400);
         }
 
         $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_patterns', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_patterns', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
@@ -473,13 +473,13 @@ try {
             'count' => count($patterns)
         ];
 
-        Logger::log('playground', $method, 'get_patterns', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($patterns)], 200);
+        Logger::log('playground', $method, 'get_patterns', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($patterns)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
     case 'get_layouts':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
@@ -487,14 +487,14 @@ try {
         $gameType = $_GET['game_type'] ?? null;
 
         if (!$email) {
-            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Missing email'], 400);
+            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Missing email'], 400, 'playground');
             jsonResponse(['error' => 'email is required'], 400);
         }
 
         $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_layouts', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_layouts', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
@@ -522,27 +522,27 @@ try {
             'count' => count($layouts)
         ];
 
-        Logger::log('playground', $method, 'get_layouts', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($layouts)], 200);
+        Logger::log('playground', $method, 'get_layouts', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($layouts)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
     case 'get_cards':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Method not allowed'], 405);
+            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
         $email = $_GET['email'] ?? null;
 
         if (!$email) {
-            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Missing email'], 400);
+            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Missing email'], 400, 'playground');
             jsonResponse(['error' => 'email is required'], 400);
         }
 
         $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
 
         if (!$client) {
-            Logger::log('playground', $method, 'get_cards', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            Logger::log('playground', $method, 'get_cards', null, ['email' => $email], ['error' => 'Client not found'], 404, 'playground');
             jsonResponse(['error' => 'Client not found'], 404);
         }
 
@@ -553,7 +553,7 @@ try {
 
         if (!$metadata) {
             $responseData = ['cards' => [], 'version' => null];
-            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], $responseData, 200);
+            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], $responseData, 200, 'playground');
             jsonResponse($responseData);
             break;
         }
@@ -562,7 +562,7 @@ try {
         $cardsFile = __DIR__ . '/../../cards/' . $client['id'] . '/cards_v' . $version . '.csv';
 
         if (!file_exists($cardsFile)) {
-            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['error' => 'Cards file not found', 'version' => $version], 404);
+            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['error' => 'Cards file not found', 'version' => $version], 404, 'playground');
             jsonResponse(['error' => 'Cards file not found'], 404);
         }
 
@@ -587,12 +587,12 @@ try {
             'count' => count($cards)
         ];
 
-        Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['version' => $version, 'count' => count($cards)], 200);
+        Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['version' => $version, 'count' => count($cards)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
     default:
-        Logger::log('playground', $method, $action ?: 'none', null, [], ['error' => 'Invalid action'], 400);
+        Logger::log('playground', $method, $action ?: 'none', null, [], ['error' => 'Invalid action'], 400, 'playground');
         jsonResponse(['error' => 'Invalid action'], 400);
     }
 } catch (Exception $e) {
@@ -604,7 +604,7 @@ try {
     ];
 
     try {
-        Logger::log('playground', $_SERVER['REQUEST_METHOD'], $_GET['action'] ?? 'unknown', null, $_GET, $errorDetails, 500);
+        Logger::log('playground', $_SERVER['REQUEST_METHOD'], $_GET['action'] ?? 'unknown', null, $_GET, $errorDetails, 500, 'playground');
     } catch (Exception $logError) {
         error_log("Failed to log error: " . $logError->getMessage());
     }
