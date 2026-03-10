@@ -555,6 +555,58 @@ export default function ApiDocsView() {
           ],
           response: '(Binary file content with appropriate Content-Type header)',
         },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_billing_status&email={email}',
+          description: 'Get the billing status and license type for a client',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+          ],
+          response: '{ "billing_up_to_date": true, "license_type": "premium" }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_cards_version&email={email}',
+          description: 'Get the current cards file version for a client',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+          ],
+          response: '{ "version": 3, "updated_at": "2024-01-15T10:30:00Z" }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_patterns&email={email}&game_type={game_type}',
+          description: 'Get all default patterns plus patterns owned by the client. Optionally filter by game type.',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'game_type', type: 'string', description: 'Optional: filter patterns by game type' },
+          ],
+          response: '{ "patterns": [{ "id": 1, "name": "Default Pattern", "game_type": "taghunter", "version": "1.0", "is_default": true, "owner_type": "admin", "pattern_uniqid": "pat_abc123", "pattern_slug": "default-pattern", "description": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_layouts&email={email}&game_type={game_type}',
+          description: 'Get all active default layouts (admin-owned). Optionally filter by game type.',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'game_type', type: 'string', description: 'Optional: filter layouts by game type' },
+          ],
+          response: '{ "layouts": [{ "id": 1, "game_type": "taghunter", "status": "active", "version": "1.0", "owner_type": "admin", "layout_uniqid": "lay_abc123", "scenario_uniqid": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_cards&email={email}',
+          description: 'Get the full cards list for a client parsed from their latest CSV file',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+          ],
+          response: '{ "cards": [{ "key_name": "Tag Alpha", "color": "#FF0000", "key_number": "1", "id": "card_001" }], "version": 3, "count": 150 }',
+        },
       ],
     },
     {

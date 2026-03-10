@@ -362,6 +362,235 @@ try {
         jsonResponse($responseData);
         break;
 
+    case 'get_billing_status':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Method not allowed'], 405);
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+
+        if (!$email) {
+            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Missing email'], 400);
+            jsonResponse(['error' => 'email is required'], 400);
+        }
+
+        $client = $db->fetch(
+            'SELECT id, email, billing_up_to_date, license_type FROM clients WHERE email = ?',
+            [$email]
+        );
+
+        if (!$client) {
+            Logger::log('playground', $method, 'get_billing_status', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            jsonResponse(['error' => 'Client not found'], 404);
+        }
+
+        $responseData = [
+            'billing_up_to_date' => (bool)$client['billing_up_to_date'],
+            'license_type' => $client['license_type']
+        ];
+
+        Logger::log('playground', $method, 'get_billing_status', $client['id'], ['email' => $email], $responseData, 200);
+        jsonResponse($responseData);
+        break;
+
+    case 'get_cards_version':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Method not allowed'], 405);
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+
+        if (!$email) {
+            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Missing email'], 400);
+            jsonResponse(['error' => 'email is required'], 400);
+        }
+
+        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+
+        if (!$client) {
+            Logger::log('playground', $method, 'get_cards_version', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            jsonResponse(['error' => 'Client not found'], 404);
+        }
+
+        $metadata = $db->fetch(
+            'SELECT version, updated_at FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
+            [$client['id']]
+        );
+
+        $responseData = [
+            'version' => $metadata ? (int)$metadata['version'] : null,
+            'updated_at' => $metadata ? $metadata['updated_at'] : null
+        ];
+
+        Logger::log('playground', $method, 'get_cards_version', $client['id'], ['email' => $email], $responseData, 200);
+        jsonResponse($responseData);
+        break;
+
+    case 'get_patterns':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Method not allowed'], 405);
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+        $gameType = $_GET['game_type'] ?? null;
+
+        if (!$email) {
+            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Missing email'], 400);
+            jsonResponse(['error' => 'email is required'], 400);
+        }
+
+        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+
+        if (!$client) {
+            Logger::log('playground', $method, 'get_patterns', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            jsonResponse(['error' => 'Client not found'], 404);
+        }
+
+        if ($gameType) {
+            $patterns = $db->fetchAll(
+                'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
+                 FROM patterns
+                 WHERE (is_default = TRUE OR (owner_type = ? AND owner_id = ?))
+                 AND game_type = ?
+                 ORDER BY game_type, is_default DESC, name',
+                ['client', $client['id'], $gameType]
+            );
+        } else {
+            $patterns = $db->fetchAll(
+                'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
+                 FROM patterns
+                 WHERE is_default = TRUE OR (owner_type = ? AND owner_id = ?)
+                 ORDER BY game_type, is_default DESC, name',
+                ['client', $client['id']]
+            );
+        }
+
+        $responseData = [
+            'patterns' => $patterns,
+            'count' => count($patterns)
+        ];
+
+        Logger::log('playground', $method, 'get_patterns', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($patterns)], 200);
+        jsonResponse($responseData);
+        break;
+
+    case 'get_layouts':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Method not allowed'], 405);
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+        $gameType = $_GET['game_type'] ?? null;
+
+        if (!$email) {
+            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Missing email'], 400);
+            jsonResponse(['error' => 'email is required'], 400);
+        }
+
+        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+
+        if (!$client) {
+            Logger::log('playground', $method, 'get_layouts', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            jsonResponse(['error' => 'Client not found'], 404);
+        }
+
+        if ($gameType) {
+            $layouts = $db->fetchAll(
+                'SELECT id, game_type, status, version, owner_type, layout_uniqid, scenario_uniqid, created_at
+                 FROM layouts
+                 WHERE owner_type = ? AND status = ?
+                 AND game_type = ?
+                 ORDER BY game_type, version DESC',
+                ['admin', 'active', $gameType]
+            );
+        } else {
+            $layouts = $db->fetchAll(
+                'SELECT id, game_type, status, version, owner_type, layout_uniqid, scenario_uniqid, created_at
+                 FROM layouts
+                 WHERE owner_type = ? AND status = ?
+                 ORDER BY game_type, version DESC',
+                ['admin', 'active']
+            );
+        }
+
+        $responseData = [
+            'layouts' => $layouts,
+            'count' => count($layouts)
+        ];
+
+        Logger::log('playground', $method, 'get_layouts', $client['id'], ['email' => $email, 'game_type' => $gameType], ['count' => count($layouts)], 200);
+        jsonResponse($responseData);
+        break;
+
+    case 'get_cards':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Method not allowed'], 405);
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+
+        if (!$email) {
+            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Missing email'], 400);
+            jsonResponse(['error' => 'email is required'], 400);
+        }
+
+        $client = $db->fetch('SELECT id FROM clients WHERE email = ?', [$email]);
+
+        if (!$client) {
+            Logger::log('playground', $method, 'get_cards', null, ['email' => $email], ['error' => 'Client not found'], 404);
+            jsonResponse(['error' => 'Client not found'], 404);
+        }
+
+        $metadata = $db->fetch(
+            'SELECT version FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
+            [$client['id']]
+        );
+
+        if (!$metadata) {
+            $responseData = ['cards' => [], 'version' => null];
+            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], $responseData, 200);
+            jsonResponse($responseData);
+            break;
+        }
+
+        $version = $metadata['version'];
+        $cardsFile = __DIR__ . '/../../cards/' . $client['id'] . '/cards_v' . $version . '.csv';
+
+        if (!file_exists($cardsFile)) {
+            Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['error' => 'Cards file not found', 'version' => $version], 404);
+            jsonResponse(['error' => 'Cards file not found'], 404);
+        }
+
+        $cards = [];
+        $handle = fopen($cardsFile, 'r');
+
+        if ($handle !== false) {
+            $headers = fgetcsv($handle);
+
+            while (($row = fgetcsv($handle)) !== false) {
+                if (count($row) >= count($headers)) {
+                    $cards[] = array_combine($headers, array_slice($row, 0, count($headers)));
+                }
+            }
+
+            fclose($handle);
+        }
+
+        $responseData = [
+            'cards' => $cards,
+            'version' => (int)$version,
+            'count' => count($cards)
+        ];
+
+        Logger::log('playground', $method, 'get_cards', $client['id'], ['email' => $email], ['version' => $version, 'count' => count($cards)], 200);
+        jsonResponse($responseData);
+        break;
+
     default:
         Logger::log('playground', $method, $action ?: 'none', null, [], ['error' => 'Invalid action'], 400);
         jsonResponse(['error' => 'Invalid action'], 400);
