@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, RefreshCw, Trash2, ChevronDown, ChevronUp, Wrench, Gamepad2 } from 'lucide-react';
+import { FileText, RefreshCw, Trash2, ChevronDown, ChevronUp, Wrench, Gamepad2, AlertTriangle } from 'lucide-react';
 
 interface LogEntry {
   timestamp: string;
@@ -21,6 +21,8 @@ export default function LogsView() {
   const [error, setError] = useState('');
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const [total, setTotal] = useState(0);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const fetchLogs = async () => {
     try {
@@ -45,11 +47,8 @@ export default function LogsView() {
   };
 
   const clearLogs = async () => {
-    if (!confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
-      return;
-    }
-
     try {
+      setClearing(true);
       const response = await fetch('https://admin.taghunter.fr/backend/api/logs.php?action=clear', {
         method: 'POST',
         credentials: 'include',
@@ -61,8 +60,12 @@ export default function LogsView() {
 
       setLogs([]);
       setTotal(0);
+      setShowClearConfirm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to clear logs');
+      setShowClearConfirm(false);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -122,7 +125,7 @@ export default function LogsView() {
             Refresh
           </button>
           <button
-            onClick={clearLogs}
+            onClick={() => setShowClearConfirm(true)}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             <Trash2 className="w-4 h-4" />
@@ -230,6 +233,57 @@ export default function LogsView() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">Clear All Logs</h3>
+                  <p className="text-sm text-slate-600 mb-3">
+                    Are you sure you want to clear all <span className="font-semibold">{total} log entries</span>? This action cannot be undone.
+                  </p>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p className="text-sm text-red-700">
+                      All API activity history will be permanently deleted.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-50 px-6 py-4 flex items-center justify-end space-x-3 rounded-b-xl">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                disabled={clearing}
+                className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 rounded-lg transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={clearLogs}
+                disabled={clearing}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all disabled:opacity-50 flex items-center space-x-2"
+              >
+                {clearing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Clear All Logs</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
