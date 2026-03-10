@@ -227,7 +227,7 @@ try {
                 $version = isset($data['version']) ? (string)$data['version'] : '1.0';
                 $gameType = $data['game_type'] ?? '';
                 $isDefault = $data['is_default'] ?? false;
-                $patternUniqid = $data['pattern_uniqid'] ?? null;
+                $patternUniqid = $data['pattern_uniqid'] ?? $data['uniqid'] ?? null;
                 $patternSlug = $data['pattern_slug'] ?? null;
 
                 if (empty($email)) {
