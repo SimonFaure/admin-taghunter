@@ -228,6 +228,7 @@ try {
                 $gameType = $data['game_type'] ?? '';
                 $isDefault = $data['is_default'] ?? false;
                 $patternUniqid = $data['pattern_uniqid'] ?? null;
+                $patternSlug = $data['pattern_slug'] ?? null;
 
                 if (empty($email)) {
                     error_log('Upload failed: Email required');
@@ -311,14 +312,15 @@ try {
                     'is_default' => $isDefaultInt,
                     'owner_type' => $ownerType,
                     'pattern_uniqid' => $patternUniqid,
+                    'pattern_slug' => $patternSlug,
                     'pattern_data_length' => strlen($jsonData),
                     'pattern_data_preview' => substr($jsonData, 0, 500)
                 ], ['step' => 'about to run INSERT'], 200, 'creator');
 
                 $patternId = $db->execute(
-                    'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid]
+                    'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid, pattern_slug)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid, $patternSlug]
                 );
 
                 $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$patternId]);
