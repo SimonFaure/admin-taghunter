@@ -5,7 +5,7 @@ import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
 import LogsView from './LogsView';
 import ApiDocsView from './ApiDocsView';
-import { NotificationsList } from './NotificationsList';
+import { AdminNotificationsList } from './AdminNotificationsList';
 import { ScenariosView } from './ScenariosView';
 import { StatisticsView } from './StatisticsView';
 import { SettingsView } from './SettingsView';
@@ -25,9 +25,8 @@ export function Dashboard() {
   const [activities, setActivities] = useState<DashboardActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const handleNotificationClick = (clientId: string) => {
-    setSelectedClientId(clientId);
-    setActiveTab('clients');
+  const handleNotificationNavigate = (tab: string) => {
+    setActiveTab(tab);
   };
 
   useEffect(() => {
@@ -98,7 +97,7 @@ export function Dashboard() {
                 alt="Tag Hunter"
                 className="h-12 w-auto object-contain max-w-full"
               />
-              <NotificationsList onNotificationClick={handleNotificationClick} />
+              <AdminNotificationsList onNavigate={handleNotificationNavigate} />
             </div>
             <h1 className="text-lg font-bold">Admin Dashboard</h1>
           </div>
