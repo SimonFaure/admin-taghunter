@@ -318,9 +318,9 @@ try {
                 ], ['step' => 'about to run INSERT'], 200, 'creator');
 
                 $patternId = $db->execute(
-                    'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid, pattern_slug)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid, $patternSlug]
+                    'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid, pattern_slug, status)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid, $patternSlug, 'draft']
                 );
 
                 $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$patternId]);
@@ -433,9 +433,9 @@ try {
             }
 
             $db->execute(
-                'INSERT INTO patterns (name, description, version, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [$name, $description, $version, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email]
+                'INSERT INTO patterns (name, description, version, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$name, $description, $version, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email, 'draft']
             );
 
             $patternId = $db->lastInsertId();
@@ -505,6 +505,7 @@ try {
                 jsonResponse(['error' => 'Only admins can set patterns as default'], 403);
             }
 
+            $patternDataChanged = false;
             $jsonData = null;
             if ($patternData !== null) {
                 $jsonData = is_string($patternData) ? $patternData : json_encode($patternData);
@@ -513,13 +514,16 @@ try {
                     Logger::log('patterns', $_SERVER['REQUEST_METHOD'], 'update', $userId, ['id' => $id], ['error' => 'Invalid JSON data'], 400);
                     jsonResponse(['error' => 'Invalid JSON pattern data'], 400);
                 }
+                $patternDataChanged = true;
             } else {
                 $jsonData = $pattern['pattern_data'];
             }
 
+            $newStatus = $patternDataChanged ? 'draft' : ($pattern['status'] ?? 'draft');
+
             $db->execute(
-                'UPDATE patterns SET name = ?, description = ?, game_type = ?, pattern_data = ?, is_default = ? WHERE id = ?',
-                [$name, $description, $gameType, $jsonData, $isDefault ? 1 : 0, $id]
+                'UPDATE patterns SET name = ?, description = ?, game_type = ?, pattern_data = ?, is_default = ?, status = ? WHERE id = ?',
+                [$name, $description, $gameType, $jsonData, $isDefault ? 1 : 0, $newStatus, $id]
             );
 
             $updatedPattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$id]);

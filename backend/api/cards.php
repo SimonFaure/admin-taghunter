@@ -279,14 +279,14 @@ try {
             if ($currentMetadata) {
                 $newVersion = (int)$currentMetadata['version'] + 1;
                 $db->query(
-                    'UPDATE client_cards_metadata SET version = ?, updated_at = NOW() WHERE client_id = ?',
-                    [$newVersion, $clientId]
+                    'UPDATE client_cards_metadata SET version = ?, status = ?, updated_at = NOW() WHERE client_id = ?',
+                    [$newVersion, 'draft', $clientId]
                 );
             } else {
                 $newVersion = 1;
                 $db->query(
-                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
-                    [$clientId, $newVersion]
+                    'INSERT INTO client_cards_metadata (client_id, version, status) VALUES (?, ?, ?)',
+                    [$clientId, $newVersion, 'draft']
                 );
             }
 
@@ -346,14 +346,14 @@ try {
             if ($currentMetadata) {
                 $newVersion = (int)$currentMetadata['version'] + 1;
                 $db->query(
-                    'UPDATE client_cards_metadata SET version = ?, updated_at = NOW() WHERE client_id = ?',
-                    [$newVersion, $clientId]
+                    'UPDATE client_cards_metadata SET version = ?, status = ?, updated_at = NOW() WHERE client_id = ?',
+                    [$newVersion, 'draft', $clientId]
                 );
             } else {
                 $newVersion = 1;
                 $db->query(
-                    'INSERT INTO client_cards_metadata (client_id, version) VALUES (?, ?)',
-                    [$clientId, $newVersion]
+                    'INSERT INTO client_cards_metadata (client_id, version, status) VALUES (?, ?, ?)',
+                    [$clientId, $newVersion, 'draft']
                 );
             }
 
