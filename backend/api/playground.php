@@ -70,7 +70,7 @@ try {
             $scenarios = $db->fetchAll(
                 'SELECT s.* FROM scenarios s ORDER BY s.created_at DESC'
             );
-        } elseif ($user['data']['licence_type'] === 'premium') {
+        } elseif (($user['data']['license_type'] ?? '') === 'premium') {
             $scenarios = $db->fetchAll(
                 'SELECT s.* FROM scenarios s
                  WHERE s.client_id = ? OR s.scenario_type = "product"
@@ -118,7 +118,7 @@ try {
             'client' => [
                 'id' => $userId,
                 'email' => $user['data']['email'],
-                'licence_type' => $isAdmin ? 'admin' : ($user['data']['licence_type'] ?? null),
+                'license_type' => $isAdmin ? 'admin' : ($user['data']['license_type'] ?? null),
                 'company_name' => $isAdmin ? null : ($user['data']['company_name'] ?? null)
             ],
             'scenarios' => $scenarios
@@ -151,7 +151,7 @@ try {
         $isAdmin = $user['type'] === 'admin';
         $userId = $user['data']['id'];
 
-        if ($isAdmin || ($user['data']['licence_type'] ?? '') === 'premium') {
+        if ($isAdmin || ($user['data']['license_type'] ?? '') === 'premium') {
             Logger::log('playground', $method, 'get_available_scenarios', $userId, ['email' => $email, 'user_type' => $user['type']], ['scenarios' => []], 200, 'playground');
             jsonResponse(['scenarios' => []]);
         }
@@ -204,7 +204,7 @@ try {
 
         if (!$hasAccess && $scenario['client_id'] == $userId) {
             $hasAccess = true;
-        } elseif (!$hasAccess && ($user['data']['licence_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
+        } elseif (!$hasAccess && ($user['data']['license_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
             $hasAccess = true;
         } elseif (!$hasAccess) {
             $grantedScenario = $db->fetch(
@@ -282,7 +282,7 @@ try {
 
         if (!$hasAccess && $scenario['client_id'] == $userId) {
             $hasAccess = true;
-        } elseif (!$hasAccess && ($user['data']['licence_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
+        } elseif (!$hasAccess && ($user['data']['license_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
             $hasAccess = true;
         } elseif (!$hasAccess) {
             $grantedScenario = $db->fetch(
@@ -351,7 +351,7 @@ try {
 
         if (!$hasAccess && $scenario['client_id'] == $userId) {
             $hasAccess = true;
-        } elseif (!$hasAccess && ($user['data']['licence_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
+        } elseif (!$hasAccess && ($user['data']['license_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
             $hasAccess = true;
         } elseif (!$hasAccess) {
             $grantedScenario = $db->fetch(
