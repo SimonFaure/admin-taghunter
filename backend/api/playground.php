@@ -618,6 +618,48 @@ try {
         jsonResponse($responseData);
         break;
 
+    case 'get_on_demand_cards':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_on_demand_cards', null, [], ['error' => 'Method not allowed'], 405, 'playground');
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+
+        if (!$email) {
+            Logger::log('playground', $method, 'get_on_demand_cards', null, [], ['error' => 'Missing email'], 400, 'playground');
+            jsonResponse(['error' => 'email is required'], 400);
+        }
+
+        $user = resolveUser($db, $email);
+
+        if (!$user) {
+            Logger::log('playground', $method, 'get_on_demand_cards', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
+        }
+
+        $userId = $user['data']['id'];
+
+        $cards = $db->fetchAll(
+            'SELECT coc.id, coc.pool_card_id, coc.end_date, coc.assigned_at,
+                    p.key_name, p.color, p.key_number, p.card_id
+             FROM client_on_demand_cards coc
+             JOIN on_demand_cards_pool p ON coc.pool_card_id = p.id
+             WHERE coc.client_id = ?
+               AND (coc.end_date IS NULL OR coc.end_date >= CURDATE())
+             ORDER BY p.key_number ASC, p.key_name ASC',
+            [$userId]
+        );
+
+        $responseData = [
+            'cards' => $cards,
+            'count' => count($cards)
+        ];
+
+        Logger::log('playground', $method, 'get_on_demand_cards', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($cards)], 200, 'playground');
+        jsonResponse($responseData);
+        break;
+
     default:
         Logger::log('playground', $method, $action ?: 'none', null, [], ['error' => 'Invalid action'], 400, 'playground');
         jsonResponse(['error' => 'Invalid action'], 400);
