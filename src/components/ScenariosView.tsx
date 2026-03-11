@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, Layout, X, Upload, File, Download } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, LayoutGrid as Layout, X, Upload, File, Download, ChevronDown } from 'lucide-react';
 
 interface Scenario {
   id: number;
@@ -62,6 +62,8 @@ export function ScenariosView() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchScenarios();
@@ -336,6 +338,33 @@ export function ScenariosView() {
     }
   };
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!selectedScenario || newStatus === selectedScenario.status) return;
+    setStatusUpdating(true);
+    setStatusError(null);
+    try {
+      const formData = new FormData();
+      formData.append('id', String(selectedScenario.id));
+      formData.append('status', newStatus);
+      const response = await fetch('https://admin.taghunter.fr/backend/api/scenarios.php?action=update', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to update status');
+      }
+      const updated = { ...selectedScenario, status: newStatus };
+      setSelectedScenario(updated);
+      setScenarios(prev => prev.map(s => s.id === selectedScenario.id ? updated : s));
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -549,19 +578,33 @@ export function ScenariosView() {
                   </span>
                 </div>
               )}
-              {selectedScenario.status && (
-                <div className="flex items-center space-x-2">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold capitalize ${
-                    selectedScenario.status === 'published'
-                      ? 'bg-green-100 text-green-700'
-                      : selectedScenario.status === 'archived'
-                      ? 'bg-slate-200 text-slate-600'
-                      : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {selectedScenario.status}
-                  </span>
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <select
+                    value={selectedScenario.status || 'draft'}
+                    onChange={e => handleStatusChange(e.target.value)}
+                    disabled={statusUpdating}
+                    className={`appearance-none pl-2 pr-6 py-1 rounded text-xs font-semibold capitalize border cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${
+                      (selectedScenario.status || 'draft') === 'published'
+                        ? 'bg-green-100 text-green-700 border-green-200 focus:ring-green-400'
+                        : (selectedScenario.status || 'draft') === 'archived'
+                        ? 'bg-slate-200 text-slate-600 border-slate-300 focus:ring-slate-400'
+                        : 'bg-amber-100 text-amber-700 border-amber-200 focus:ring-amber-400'
+                    }`}
+                  >
+                    <option value="draft">draft</option>
+                    <option value="published">published</option>
+                    <option value="archived">archived</option>
+                  </select>
+                  <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
                 </div>
-              )}
+                {statusUpdating && (
+                  <span className="text-xs text-slate-400 animate-pulse">Saving...</span>
+                )}
+                {statusError && (
+                  <span className="text-xs text-red-500">{statusError}</span>
+                )}
+              </div>
               {selectedScenario.creator_name && (
                 <div className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
