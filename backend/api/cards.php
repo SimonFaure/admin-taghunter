@@ -662,8 +662,7 @@ try {
                     c.name,
                     ccm.version,
                     ccm.created_at,
-                    ccm.updated_at,
-                    ccm.status
+                    ccm.updated_at
                 FROM clients c
                 LEFT JOIN client_cards_metadata ccm ON c.id = ccm.client_id
                 ORDER BY c.name ASC, c.email ASC
@@ -704,35 +703,6 @@ try {
 
             Logger::log('cards', 'GET', 'admin_list_all', $adminId, [], ['success' => true, 'count' => count($cardsList)], 200);
             jsonResponse(['success' => true, 'data' => $cardsList]);
-            break;
-
-        case 'admin_update_status':
-            if ($_SERVER['REQUEST_METHOD'] !== 'PUT' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
-            }
-
-            $adminId = requireAdminAuth($db);
-
-            $body = json_decode(file_get_contents('php://input'), true);
-            $clientId = $body['client_id'] ?? null;
-            $status = $body['status'] ?? null;
-
-            if (!$clientId || !$status) {
-                jsonResponse(['error' => 'client_id and status are required'], 400);
-            }
-
-            $allowed = ['draft', 'published', 'archived'];
-            if (!in_array($status, $allowed)) {
-                jsonResponse(['error' => 'Invalid status value'], 400);
-            }
-
-            $db->execute(
-                'UPDATE client_cards_metadata SET status = ?, updated_at = NOW() WHERE client_id = ?',
-                [$status, $clientId]
-            );
-
-            Logger::log('cards', $_SERVER['REQUEST_METHOD'], 'admin_update_status', $adminId, ['client_id' => $clientId, 'status' => $status], ['success' => true], 200);
-            jsonResponse(['success' => true, 'status' => $status]);
             break;
 
         default:
