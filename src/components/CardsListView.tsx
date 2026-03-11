@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, User, FileText, Calendar, HardDrive, ChevronRight, ChevronLeft, Search, X } from 'lucide-react';
+import { CreditCard, User, FileText, Calendar, HardDrive, ChevronRight, ChevronLeft, Search, X, Layers, Upload } from 'lucide-react';
 import { adminCardsApi, ClientCardMetadata, CardData } from '../lib/api';
+import { OnDemandPoolModal } from './OnDemandPoolModal';
+import { AssignOnDemandCardsModal } from './AssignOnDemandCardsModal';
 
 export function CardsListView() {
   const [cardsList, setCardsList] = useState<ClientCardMetadata[]>([]);
@@ -12,6 +14,9 @@ export function CardsListView() {
   const [cardsData, setCardsData] = useState<CardData[]>([]);
   const [cardsHeaders, setCardsHeaders] = useState<string[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
+
+  const [showPoolModal, setShowPoolModal] = useState(false);
+  const [assignClient, setAssignClient] = useState<ClientCardMetadata | null>(null);
 
   useEffect(() => {
     fetchCardsList();
@@ -180,9 +185,18 @@ export function CardsListView() {
   return (
     <div>
       <div className="mb-6">
-        <p className="text-slate-600 mb-4">
-          View all client card lists and their details
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-slate-600">
+            View all client card lists and their details
+          </p>
+          <button
+            onClick={() => setShowPoolModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Manage On Demand Pool
+          </button>
+        </div>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -296,14 +310,25 @@ export function CardsListView() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => fetchCardsData(client)}
-                        disabled={!client.has_file}
-                        className="inline-flex items-center space-x-1 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <span>View Cards</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => fetchCardsData(client)}
+                          disabled={!client.has_file}
+                          className="inline-flex items-center space-x-1 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <span>View Cards</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <span className="text-slate-200">|</span>
+                        <button
+                          onClick={() => setAssignClient(client)}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
+                          title="On Demand Cards"
+                        >
+                          <Layers className="w-4 h-4" />
+                          <span>On Demand</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -313,6 +338,17 @@ export function CardsListView() {
         </div>
       )}
 
+      {showPoolModal && (
+        <OnDemandPoolModal onClose={() => setShowPoolModal(false)} />
+      )}
+
+      {assignClient && (
+        <AssignOnDemandCardsModal
+          clientId={assignClient.id}
+          clientName={assignClient.name}
+          onClose={() => setAssignClient(null)}
+        />
+      )}
     </div>
   );
 }

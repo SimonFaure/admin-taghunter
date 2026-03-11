@@ -266,5 +266,80 @@ export const adminCardsApi = {
       method: 'GET',
     });
   },
+};
 
+export interface OnDemandPoolCard {
+  id: string;
+  key_name: string;
+  color: string;
+  key_number: string;
+  card_id: string;
+  pool_version: number;
+  created_at: string;
+}
+
+export interface OnDemandPoolMeta {
+  current_version: number;
+  card_count: number;
+  updated_at: string | null;
+}
+
+export interface ClientOnDemandCard {
+  id: string;
+  pool_card_id: string;
+  end_date: string | null;
+  assigned_at: string;
+  assigned_by: string | null;
+  key_name: string;
+  color: string;
+  key_number: string;
+  card_id: string;
+}
+
+export const onDemandCardsApi = {
+  async getPoolMeta(): Promise<ApiResponse<{ data: OnDemandPoolMeta }>> {
+    return apiRequest('/on_demand_cards.php?action=get_pool_meta', { method: 'GET' });
+  },
+
+  async uploadPool(file: File): Promise<ApiResponse<{ success: boolean; version: number; count: number }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/on_demand_cards.php?action=upload_pool`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) return { error: data.error || 'Upload failed' };
+    return { data };
+  },
+
+  async getPool(): Promise<ApiResponse<{ data: OnDemandPoolCard[]; version: number }>> {
+    return apiRequest('/on_demand_cards.php?action=get_pool', { method: 'GET' });
+  },
+
+  async getClientAssignments(clientId: number): Promise<ApiResponse<{ data: ClientOnDemandCard[] }>> {
+    return apiRequest(`/on_demand_cards.php?action=get_client_assignments&client_id=${clientId}`, { method: 'GET' });
+  },
+
+  async assignCards(clientId: number, poolCardIds: string[], endDate: string | null): Promise<ApiResponse<{ success: boolean; assigned: number; skipped: number }>> {
+    return apiRequest('/on_demand_cards.php?action=assign_cards', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: clientId, pool_card_ids: poolCardIds, end_date: endDate }),
+    });
+  },
+
+  async removeAssignment(assignmentId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return apiRequest('/on_demand_cards.php?action=remove_assignment', {
+      method: 'POST',
+      body: JSON.stringify({ assignment_id: assignmentId }),
+    });
+  },
+
+  async removeAllAssignments(clientId: number): Promise<ApiResponse<{ success: boolean }>> {
+    return apiRequest('/on_demand_cards.php?action=remove_all_assignments', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: clientId }),
+    });
+  },
 };
