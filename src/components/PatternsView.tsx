@@ -122,9 +122,9 @@ export function PatternsView() {
     setStatusError(null);
     try {
       const response = await fetch(
-        `https://admin.taghunter.fr/backend/api/patterns.php?action=update&id=${pattern.id}`,
+        `https://admin.taghunter.fr/backend/api/patterns.php?action=update_status`,
         {
-          method: 'PUT',
+          method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: pattern.id, status: newStatus }),
@@ -134,7 +134,7 @@ export function PatternsView() {
       if (!response.ok || result.error) {
         throw new Error(result.error || 'Failed to update status');
       }
-      const updated = { ...pattern, status: newStatus };
+      const updated = result.data ?? { ...pattern, status: newStatus };
       setPatterns((prev) => prev.map((p) => (p.id === pattern.id ? updated : p)));
       if (selectedPattern?.id === pattern.id) setSelectedPattern(updated);
     } catch (err) {

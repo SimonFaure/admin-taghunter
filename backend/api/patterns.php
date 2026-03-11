@@ -533,6 +533,49 @@ try {
             jsonResponse($response);
             break;
 
+        case 'update_status':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'PATCH') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $tokenData = requireAuth();
+            $userId = $tokenData['user_id'];
+            $userType = $tokenData['user_type'];
+
+            $data = getRequestData();
+            $id = $data['id'] ?? $_GET['id'] ?? '';
+            $newStatus = $data['status'] ?? '';
+
+            $validStatuses = ['draft', 'published', 'archived'];
+
+            if (empty($id)) {
+                jsonResponse(['error' => 'Pattern ID is required'], 400);
+            }
+
+            if (!in_array($newStatus, $validStatuses)) {
+                jsonResponse(['error' => 'Status must be one of: draft, published, archived'], 400);
+            }
+
+            $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$id]);
+
+            if (!$pattern) {
+                jsonResponse(['error' => 'Pattern not found'], 404);
+            }
+
+            if ($userType !== 'admin') {
+                if ($pattern['owner_type'] !== $userType || $pattern['owner_id'] != $userId) {
+                    jsonResponse(['error' => 'Access denied'], 403);
+                }
+            }
+
+            $db->execute('UPDATE patterns SET status = ? WHERE id = ?', [$newStatus, $id]);
+
+            $updated = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$id]);
+            $response = ['success' => true, 'data' => $updated];
+            Logger::log('patterns', 'POST', 'update_status', $userId, ['id' => $id, 'new_status' => $newStatus], $response, 200);
+            jsonResponse($response);
+            break;
+
         case 'delete':
             if ($_SERVER['REQUEST_METHOD'] !== 'DELETE' && $_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
