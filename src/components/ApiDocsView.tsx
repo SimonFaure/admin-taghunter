@@ -577,23 +577,21 @@ export default function ApiDocsView() {
         },
         {
           method: 'GET',
-          path: '/backend/api/playground.php?action=get_patterns&email={email}&game_type={game_type}',
-          description: 'Get all default patterns plus patterns owned by the client. Optionally filter by game type.',
+          path: '/backend/api/playground.php?action=get_patterns&email={email}',
+          description: 'Get all default patterns plus patterns owned by the client.',
           auth: false,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
-            { name: 'game_type', type: 'string', description: 'Optional: filter patterns by game type' },
           ],
           response: '{ "patterns": [{ "id": 1, "name": "Default Pattern", "game_type": "taghunter", "version": "1.0", "is_default": true, "owner_type": "admin", "pattern_uniqid": "pat_abc123", "pattern_slug": "default-pattern", "description": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
         },
         {
           method: 'GET',
-          path: '/backend/api/playground.php?action=get_layouts&email={email}&game_type={game_type}',
-          description: 'Get all active default layouts (admin-owned). Optionally filter by game type.',
+          path: '/backend/api/playground.php?action=get_layouts&email={email}',
+          description: 'Get all active default layouts (admin-owned).',
           auth: false,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
-            { name: 'game_type', type: 'string', description: 'Optional: filter layouts by game type' },
           ],
           response: '{ "layouts": [{ "id": 1, "game_type": "taghunter", "status": "active", "version": "1.0", "owner_type": "admin", "layout_uniqid": "lay_abc123", "scenario_uniqid": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
         },

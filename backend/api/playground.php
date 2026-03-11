@@ -472,7 +472,6 @@ try {
         }
 
         $email = $_GET['email'] ?? null;
-        $gameType = $_GET['game_type'] ?? null;
 
         if (!$email) {
             Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Missing email'], 400, 'playground');
@@ -490,27 +489,9 @@ try {
         $userId = $user['data']['id'];
 
         if ($isAdmin) {
-            if ($gameType) {
-                $patterns = $db->fetchAll(
-                    'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
-                     FROM patterns WHERE game_type = ?
-                     ORDER BY game_type, is_default DESC, name',
-                    [$gameType]
-                );
-            } else {
-                $patterns = $db->fetchAll(
-                    'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
-                     FROM patterns ORDER BY game_type, is_default DESC, name'
-                );
-            }
-        } elseif ($gameType) {
             $patterns = $db->fetchAll(
                 'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
-                 FROM patterns
-                 WHERE (is_default = TRUE OR (owner_type = ? AND owner_id = ?))
-                 AND game_type = ?
-                 ORDER BY game_type, is_default DESC, name',
-                ['client', $userId, $gameType]
+                 FROM patterns ORDER BY game_type, is_default DESC, name'
             );
         } else {
             $patterns = $db->fetchAll(
@@ -527,7 +508,7 @@ try {
             'count' => count($patterns)
         ];
 
-        Logger::log('playground', $method, 'get_patterns', $userId, ['email' => $email, 'game_type' => $gameType, 'user_type' => $user['type']], ['count' => count($patterns)], 200, 'playground');
+        Logger::log('playground', $method, 'get_patterns', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($patterns)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
@@ -538,7 +519,6 @@ try {
         }
 
         $email = $_GET['email'] ?? null;
-        $gameType = $_GET['game_type'] ?? null;
 
         if (!$email) {
             Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Missing email'], 400, 'playground');
@@ -554,31 +534,20 @@ try {
 
         $userId = $user['data']['id'];
 
-        if ($gameType) {
-            $layouts = $db->fetchAll(
-                'SELECT id, game_type, status, version, owner_type, layout_uniqid, scenario_uniqid, created_at
-                 FROM layouts
-                 WHERE owner_type = ? AND status = ?
-                 AND game_type = ?
-                 ORDER BY game_type, version DESC',
-                ['admin', 'active', $gameType]
-            );
-        } else {
-            $layouts = $db->fetchAll(
-                'SELECT id, game_type, status, version, owner_type, layout_uniqid, scenario_uniqid, created_at
-                 FROM layouts
-                 WHERE owner_type = ? AND status = ?
-                 ORDER BY game_type, version DESC',
-                ['admin', 'active']
-            );
-        }
+        $layouts = $db->fetchAll(
+            'SELECT id, game_type, status, version, owner_type, layout_uniqid, scenario_uniqid, created_at
+             FROM layouts
+             WHERE owner_type = ? AND status = ?
+             ORDER BY game_type, version DESC',
+            ['admin', 'active']
+        );
 
         $responseData = [
             'layouts' => $layouts,
             'count' => count($layouts)
         ];
 
-        Logger::log('playground', $method, 'get_layouts', $userId, ['email' => $email, 'game_type' => $gameType, 'user_type' => $user['type']], ['count' => count($layouts)], 200, 'playground');
+        Logger::log('playground', $method, 'get_layouts', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($layouts)], 200, 'playground');
         jsonResponse($responseData);
         break;
 
