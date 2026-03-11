@@ -241,6 +241,7 @@ export interface ClientCardMetadata {
   has_file: boolean;
   file_size: number;
   card_count: number;
+  status?: string | null;
 }
 
 export interface CardData {
@@ -264,6 +265,13 @@ export const adminCardsApi = {
   async getCardsData(clientId: number): Promise<ApiResponse<ClientCardsDataResponse>> {
     return apiRequest(`/cards.php?action=admin_get_data&client_id=${clientId}`, {
       method: 'GET',
+    });
+  },
+
+  async updateStatus(clientId: number, status: string): Promise<ApiResponse<{ status: string }>> {
+    return apiRequest('/cards.php?action=admin_update_status', {
+      method: 'PUT',
+      body: JSON.stringify({ client_id: clientId, status }),
     });
   },
 };

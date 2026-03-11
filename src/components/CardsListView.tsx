@@ -1,6 +1,22 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, User, FileText, Calendar, HardDrive, ChevronRight, ChevronLeft, Search, X } from 'lucide-react';
+import { CreditCard, User, FileText, Calendar, HardDrive, ChevronRight, ChevronLeft, Search, X, ChevronDown } from 'lucide-react';
 import { adminCardsApi, ClientCardMetadata, CardData } from '../lib/api';
+
+const STATUS_OPTIONS = ['draft', 'published', 'archived'];
+
+function statusStyle(status: string | null | undefined) {
+  const s = status || 'draft';
+  if (s === 'published') return 'bg-green-100 text-green-700 border-green-200';
+  if (s === 'archived') return 'bg-slate-200 text-slate-600 border-slate-300';
+  return 'bg-amber-100 text-amber-700 border-amber-200';
+}
+
+function statusFocus(status: string | null | undefined) {
+  const s = status || 'draft';
+  if (s === 'published') return 'focus:ring-green-400';
+  if (s === 'archived') return 'focus:ring-slate-400';
+  return 'focus:ring-amber-400';
+}
 
 export function CardsListView() {
   const [cardsList, setCardsList] = useState<ClientCardMetadata[]>([]);
@@ -12,6 +28,8 @@ export function CardsListView() {
   const [cardsData, setCardsData] = useState<CardData[]>([]);
   const [cardsHeaders, setCardsHeaders] = useState<string[]>([]);
   const [loadingCards, setLoadingCards] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState<number | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCardsList();
@@ -95,6 +113,22 @@ export function CardsListView() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const handleStatusChange = async (client: ClientCardMetadata, newStatus: string) => {
+    if (newStatus === (client.status || 'draft')) return;
+    setStatusUpdating(client.id);
+    setStatusError(null);
+    try {
+      const response = await adminCardsApi.updateStatus(client.id, newStatus);
+      if (response.error) throw new Error(response.error);
+      const updated = { ...client, status: newStatus };
+      setCardsList((prev) => prev.map((c) => (c.id === client.id ? updated : c)));
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setStatusUpdating(null);
+    }
   };
 
   const closeCardsView = () => {
@@ -299,15 +333,24 @@ export function CardsListView() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {client.has_file ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                          No File
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <select
+                            value={client.status || 'draft'}
+                            onChange={(e) => handleStatusChange(client, e.target.value)}
+                            disabled={statusUpdating === client.id}
+                            className={`appearance-none pl-2 pr-6 py-1 rounded text-xs font-semibold capitalize border cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-60 disabled:cursor-not-allowed ${statusStyle(client.status)} ${statusFocus(client.status)}`}
+                          >
+                            {STATUS_OPTIONS.map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                        </div>
+                        {statusUpdating === client.id && (
+                          <span className="text-xs text-slate-400 animate-pulse">Saving...</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
@@ -325,6 +368,10 @@ export function CardsListView() {
             </table>
           </div>
         </div>
+      )}
+
+      {statusError && (
+        <div className="mt-3 text-sm text-red-600">{statusError}</div>
       )}
     </div>
   );
