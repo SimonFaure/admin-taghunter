@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, createPortal } from 'react';
 import { LayoutGrid as Layout, Search, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown, User, Shield, Building2 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
@@ -8,7 +8,7 @@ interface LayoutRow {
   layout_data: string;
   game_type: string;
   scenario_uniqid: string | null;
-  status: 'draft' | 'active' | 'archived';
+  status: 'draft' | 'published' | 'archived';
   version: string;
   owner_type: string;
   owner_id: number | null;
@@ -19,11 +19,11 @@ interface LayoutRow {
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'bg-amber-100 text-amber-700',
-  active: 'bg-emerald-100 text-emerald-700',
+  published: 'bg-emerald-100 text-emerald-700',
   archived: 'bg-slate-100 text-slate-500',
 };
 
-const STATUS_OPTIONS: Array<'draft' | 'active' | 'archived'> = ['draft', 'active', 'archived'];
+const STATUS_OPTIONS: Array<'draft' | 'published' | 'archived'> = ['draft', 'published', 'archived'];
 
 const OWNER_TYPE_CONFIG: Record<string, { label: string; icon: React.ReactNode; classes: string }> = {
   admin: {
@@ -65,10 +65,15 @@ function StatusDropdown({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
@@ -76,7 +81,15 @@ function StatusDropdown({
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const changeStatus = async (newStatus: 'draft' | 'active' | 'archived') => {
+  const handleOpen = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX });
+    }
+    setOpen((v) => !v);
+  };
+
+  const changeStatus = async (newStatus: 'draft' | 'published' | 'archived') => {
     if (newStatus === layout.status) {
       setOpen(false);
       return;
@@ -104,7 +117,7 @@ function StatusDropdown({
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative inline-block">
       {error && (
         <div className="absolute bottom-full mb-1 left-0 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-1.5 whitespace-nowrap z-20 shadow-md">
           {error}
@@ -114,7 +127,8 @@ function StatusDropdown({
         </div>
       )}
       <button
-        onClick={() => setOpen((v) => !v)}
+        ref={buttonRef}
+        onClick={handleOpen}
         disabled={loading}
         className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize transition-all cursor-pointer hover:opacity-80 ${STATUS_COLORS[layout.status] ?? 'bg-slate-100 text-slate-500'}`}
       >
@@ -124,8 +138,12 @@ function StatusDropdown({
         <span>{layout.status}</span>
         <ChevronDown className="w-3 h-3 opacity-60" />
       </button>
-      {open && (
-        <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 overflow-hidden min-w-[110px]">
+      {open && menuPos && createPortal(
+        <div
+          ref={ref}
+          style={{ position: 'absolute', top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+          className="bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden min-w-[120px]"
+        >
           {STATUS_OPTIONS.map((s) => (
             <button
               key={s}
@@ -136,11 +154,12 @@ function StatusDropdown({
                   : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${s === 'active' ? 'bg-emerald-500' : s === 'draft' ? 'bg-amber-400' : 'bg-slate-400'}`} />
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s === 'published' ? 'bg-emerald-500' : s === 'draft' ? 'bg-amber-400' : 'bg-slate-400'}`} />
               <span>{s}</span>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -237,7 +256,7 @@ export function LayoutsView() {
     if (selectedLayout?.id === updated.id) setSelectedLayout(updated);
   };
 
-  const statusOptions = ['all', 'draft', 'active', 'archived'];
+  const statusOptions = ['all', 'draft', 'published', 'archived'];
   const ownerOptions = ['all', 'admin', 'client'];
 
   return (
