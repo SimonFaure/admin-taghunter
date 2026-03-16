@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, LayoutGrid as Layout, X, Upload, File, Download, ChevronDown } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, LayoutGrid, X, Upload, File, Download, ChevronDown, List } from 'lucide-react';
+const Layout = LayoutGrid;
 
 interface Scenario {
   id: number;
@@ -64,6 +65,7 @@ export function ScenariosView() {
   const [isDragging, setIsDragging] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     fetchScenarios();
@@ -1053,13 +1055,99 @@ export function ScenariosView() {
     );
   };
 
+  const renderScenarioRow = (scenario: Scenario) => {
+    const version = getGameVersion(scenario);
+    return (
+      <tr
+        key={scenario.id}
+        className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer group"
+        onClick={() => setSelectedScenario(scenario)}
+      >
+        <td className="px-4 py-3">
+          <div className="font-medium text-slate-900 group-hover:text-slate-700">{scenario.title}</div>
+          {scenario.description && (
+            <div className="text-xs text-slate-400 truncate max-w-xs mt-0.5">{scenario.description}</div>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          <span className="text-sm font-medium text-slate-600 capitalize">{scenario.game_type}</span>
+        </td>
+        <td className="px-4 py-3">
+          {scenario.scenario_type ? (
+            <span className="px-2 py-0.5 rounded text-xs font-semibold text-slate-600 bg-slate-100 capitalize">
+              {scenario.scenario_type}
+            </span>
+          ) : (
+            <span className="text-slate-300 text-xs">—</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {version ? (
+            <span className="px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-50">
+              v{version}
+            </span>
+          ) : (
+            <span className="text-slate-300 text-xs">—</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {scenario.status ? (
+            <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+              scenario.status === 'published'
+                ? 'bg-green-100 text-green-700'
+                : scenario.status === 'archived'
+                ? 'bg-slate-200 text-slate-600'
+                : 'bg-amber-100 text-amber-700'
+            }`}>
+              {scenario.status}
+            </span>
+          ) : (
+            <span className="text-slate-300 text-xs">—</span>
+          )}
+        </td>
+        <td className="px-4 py-3">
+          {scenario.client_name ? (
+            <span className="text-sm text-slate-600 truncate max-w-[140px] block">{scenario.client_name}</span>
+          ) : (
+            <span className="text-slate-300 text-xs">—</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">
+          {new Date(scenario.created_at).toLocaleDateString()}
+        </td>
+        <td className="px-4 py-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); setSelectedScenario(scenario); }}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-slate-600">
-            {scenarios.length} {scenarios.length === 1 ? 'scenario' : 'scenarios'} total
-          </p>
+        <p className="text-slate-600">
+          {scenarios.length} {scenarios.length === 1 ? 'scenario' : 'scenarios'} total
+        </p>
+        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+            title="Grid view"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+            title="List view"
+          >
+            <List className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -1069,7 +1157,7 @@ export function ScenariosView() {
           <h3 className="text-lg font-semibold text-slate-900 mb-2">No scenarios yet</h3>
           <p className="text-slate-600">Scenarios will appear here once they are created.</p>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="space-y-8">
           {scenarioTypes.map((type) => (
             <div key={type} className="space-y-4">
@@ -1085,6 +1173,28 @@ export function ScenariosView() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Title</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Game Type</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Version</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Created</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {scenarios.map((scenario) => renderScenarioRow(scenario))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
