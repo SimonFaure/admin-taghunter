@@ -618,6 +618,101 @@ try {
         jsonResponse($responseData);
         break;
 
+    case 'get_user_data_update':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'get_user_data_update', null, [], ['error' => 'Method not allowed'], 405, 'playground');
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+
+        if (!$email) {
+            Logger::log('playground', $method, 'get_user_data_update', null, [], ['error' => 'Missing email'], 400, 'playground');
+            jsonResponse(['error' => 'email is required'], 400);
+        }
+
+        $user = resolveUser($db, $email);
+
+        if (!$user) {
+            Logger::log('playground', $method, 'get_user_data_update', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
+        }
+
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
+
+        if ($isAdmin) {
+            $customScenarios = $db->fetchAll(
+                'SELECT name, slug, uniqid, version FROM scenarios WHERE status = "published" ORDER BY created_at DESC'
+            );
+        } else {
+            $customScenarios = $db->fetchAll(
+                'SELECT name, slug, uniqid, version FROM scenarios WHERE client_id = ? AND status = "published" ORDER BY created_at DESC',
+                [$userId]
+            );
+        }
+
+        $productScenarios = $db->fetchAll(
+            'SELECT name, slug, uniqid, version FROM scenarios WHERE scenario_type = "product" AND status = "published" ORDER BY created_at DESC'
+        );
+
+        if ($isAdmin) {
+            $defaultPatterns = $db->fetchAll(
+                'SELECT name, game_type, version FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
+            );
+            $customPatterns = $db->fetchAll(
+                'SELECT name, game_type, version FROM patterns WHERE is_default = FALSE ORDER BY game_type, name'
+            );
+        } else {
+            $defaultPatterns = $db->fetchAll(
+                'SELECT name, game_type, version FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
+            );
+            $customPatterns = $db->fetchAll(
+                'SELECT name, game_type, version FROM patterns WHERE is_default = FALSE AND owner_type = ? AND owner_id = ? ORDER BY game_type, name',
+                ['client', $userId]
+            );
+        }
+
+        $cardsMetadata = $db->fetch(
+            'SELECT version FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
+            [$userId]
+        );
+
+        $hasOnDemandCards = false;
+        $onDemandCount = $db->fetch(
+            'SELECT COUNT(*) as cnt FROM client_on_demand_cards WHERE client_id = ? AND (end_date IS NULL OR end_date >= CURDATE())',
+            [$userId]
+        );
+        if ($onDemandCount && (int)$onDemandCount['cnt'] > 0) {
+            $hasOnDemandCards = true;
+        }
+
+        $layouts = $db->fetchAll(
+            'SELECT id, version, game_type FROM layouts WHERE owner_type = "admin" AND status = "active" ORDER BY game_type, version DESC'
+        );
+
+        $responseData = [
+            'custom_scenarios' => $customScenarios,
+            'product_scenarios' => $productScenarios,
+            'default_patterns' => $defaultPatterns,
+            'custom_patterns' => $customPatterns,
+            'cards_version' => $cardsMetadata ? (int)$cardsMetadata['version'] : null,
+            'has_on_demand_cards' => $hasOnDemandCards,
+            'layouts' => $layouts
+        ];
+
+        Logger::log('playground', $method, 'get_user_data_update', $userId, ['email' => $email, 'user_type' => $user['type']], [
+            'custom_scenarios_count' => count($customScenarios),
+            'product_scenarios_count' => count($productScenarios),
+            'default_patterns_count' => count($defaultPatterns),
+            'custom_patterns_count' => count($customPatterns),
+            'cards_version' => $cardsMetadata ? (int)$cardsMetadata['version'] : null,
+            'has_on_demand_cards' => $hasOnDemandCards,
+            'layouts_count' => count($layouts)
+        ], 200, 'playground');
+        jsonResponse($responseData);
+        break;
+
     case 'get_on_demand_cards':
         if ($method !== 'GET') {
             Logger::log('playground', $method, 'get_on_demand_cards', null, [], ['error' => 'Method not allowed'], 405, 'playground');

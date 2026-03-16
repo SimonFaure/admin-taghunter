@@ -605,6 +605,26 @@ export default function ApiDocsView() {
           ],
           response: '{ "cards": [{ "key_name": "Tag Alpha", "color": "#FF0000", "key_number": "1", "id": "card_001" }], "version": 3, "count": 150 }',
         },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_on_demand_cards&email={email}',
+          description: 'Get all active on-demand cards assigned to a client (excludes expired assignments)',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client email address' },
+          ],
+          response: '{ "cards": [{ "id": "uuid", "pool_card_id": "uuid", "end_date": "2025-12-31", "assigned_at": "2024-01-15T10:30:00Z", "key_name": "Tag Alpha", "color": "#FF0000", "key_number": "1", "card_id": "card_001" }], "count": 5 }',
+        },
+        {
+          method: 'GET',
+          path: '/backend/api/playground.php?action=get_user_data_update&email={email}',
+          description: 'Aggregate endpoint returning all data a client needs to check for updates: published scenarios (custom + product), default and custom patterns, cards version, on-demand cards flag, and active layouts. Designed to be called on app launch or sync.',
+          auth: false,
+          params: [
+            { name: 'email', type: 'string', description: 'Client or admin email address' },
+          ],
+          response: '{ "custom_scenarios": [{ "name": "My Scenario", "slug": "my-scenario", "uniqid": "scenario_abc123", "version": "1.2" }], "product_scenarios": [{ "name": "Product Scenario", "slug": "product-scenario", "uniqid": "scenario_def456", "version": "2.0" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0" }], "cards_version": 3, "has_on_demand_cards": true, "layouts": [{ "id": 1, "version": "1.0", "game_type": "taghunter" }] }',
+        },
       ],
     },
     {
