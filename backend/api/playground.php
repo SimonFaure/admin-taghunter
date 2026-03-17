@@ -691,6 +691,18 @@ try {
             'SELECT id, version, game_type FROM layouts WHERE owner_type = "admin" AND status = "active" ORDER BY game_type, version DESC'
         );
 
+        if ($isAdmin) {
+            $billingUpToDate = true;
+            $licenseType = 'admin';
+        } else {
+            $clientBilling = $db->fetch(
+                'SELECT billing_up_to_date, license_type FROM clients WHERE id = ?',
+                [$userId]
+            );
+            $billingUpToDate = (bool)($clientBilling['billing_up_to_date'] ?? false);
+            $licenseType = $clientBilling['license_type'] ?? null;
+        }
+
         $responseData = [
             'custom_scenarios' => $customScenarios,
             'product_scenarios' => $productScenarios,
@@ -698,7 +710,9 @@ try {
             'custom_patterns' => $customPatterns,
             'cards_version' => $cardsMetadata ? (int)$cardsMetadata['version'] : null,
             'has_on_demand_cards' => $hasOnDemandCards,
-            'layouts' => $layouts
+            'layouts' => $layouts,
+            'billing_up_to_date' => $billingUpToDate,
+            'license_type' => $licenseType
         ];
 
         Logger::log('playground', $method, 'get_user_data_update', $userId, ['email' => $email, 'user_type' => $user['type']], [
@@ -708,7 +722,9 @@ try {
             'custom_patterns_count' => count($customPatterns),
             'cards_version' => $cardsMetadata ? (int)$cardsMetadata['version'] : null,
             'has_on_demand_cards' => $hasOnDemandCards,
-            'layouts_count' => count($layouts)
+            'layouts_count' => count($layouts),
+            'billing_up_to_date' => $billingUpToDate,
+            'license_type' => $licenseType
         ], 200, 'playground');
         jsonResponse($responseData);
         break;
