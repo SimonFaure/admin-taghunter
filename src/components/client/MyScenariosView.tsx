@@ -137,12 +137,17 @@ export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
                   </div>
                   <p className="text-sm text-slate-500 line-clamp-2 mb-3">{scenario.description}</p>
 
-                  {(scenario.game_type || scenario.scenario_type) && (
-                    <div className="flex gap-2 flex-wrap">
+                  {(scenario.game_type || scenario.scenario_type || scenario.version) && (
+                    <div className="flex gap-2 flex-wrap items-center">
                       {scenario.game_type && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
                           <Play className="w-2.5 h-2.5" />
                           {scenario.game_type}
+                        </span>
+                      )}
+                      {scenario.version && (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
+                          v{scenario.version}
                         </span>
                       )}
                       {scenario.scenario_type && (
