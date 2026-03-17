@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench, LayoutGrid as Layout } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench, LayoutGrid as Layout, Gamepad2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -7,6 +7,7 @@ interface Endpoint {
   description: string;
   auth?: boolean;
   creator?: boolean;
+  playground?: boolean;
   params?: { name: string; type: string; description: string }[];
   body?: { name: string; type: string; description: string }[];
   response?: string;
@@ -21,6 +22,11 @@ interface ApiSection {
 
 export default function ApiDocsView() {
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | null>(null);
+
+  const scrollToPlayground = () => {
+    const el = document.getElementById('section-taghunter-playground-api');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const apiSections: ApiSection[] = [
     {
@@ -502,7 +508,7 @@ export default function ApiDocsView() {
     },
     {
       title: 'TagHunter Playground API',
-      icon: <Smartphone className="w-5 h-5" />,
+      icon: <Gamepad2 className="w-5 h-5" />,
       color: 'bg-cyan-500',
       endpoints: [
         {
@@ -510,6 +516,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_user_scenarios&email={email}',
           description: 'Get all scenarios available to a user based on their license type',
           auth: false,
+          playground: true,
           params: [{ name: 'email', type: 'string', description: 'Client email address' }],
           response: '{ "client": { "id": 1, "email": "client@example.com", "licence_type": "premium", "company_name": "Acme Corp" }, "scenarios": [{ "id": 1, "title": "Scenario Title", "description": "Description", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6" }] }',
         },
@@ -518,6 +525,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_available_scenarios&email={email}',
           description: 'Get product scenarios that the user has not yet purchased (access license only)',
           auth: false,
+          playground: true,
           params: [{ name: 'email', type: 'string', description: 'Client email address' }],
           response: '{ "scenarios": [{ "id": 5, "title": "Product Scenario", "description": "Available for purchase", "game_type": "puzzle", "scenario_type": "product", "uniqid": "scenario_674fb123a45e6" }] }',
         },
@@ -526,6 +534,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_scenario_game_data&email={email}&uniqid={uniqid}',
           description: 'Get game data and media information for a specific scenario (client must have access)',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
@@ -537,6 +546,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_available_scenario_data&email={email}&uniqid={uniqid}',
           description: 'Get scenario metadata and media information without full game data (lightweight)',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
@@ -548,6 +558,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_media&email={email}&uniqid={uniqid}&filename={filename}',
           description: 'Get media file for a scenario (client must have access)',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
@@ -560,6 +571,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_billing_status&email={email}',
           description: 'Get the billing status and license type for a client',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
           ],
@@ -570,6 +582,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_cards_version&email={email}',
           description: 'Get the current cards file version for a client',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
           ],
@@ -580,6 +593,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_patterns&email={email}',
           description: 'Get all default patterns plus patterns owned by the client.',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
           ],
@@ -590,16 +604,18 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_layouts&email={email}',
           description: 'Get all active default layouts (admin-owned).',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
           ],
-          response: '{ "layouts": [{ "id": 1, "game_type": "taghunter", "status": "active", "version": "1.0", "owner_type": "admin", "layout_uniqid": "lay_abc123", "scenario_uniqid": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
+          response: '{ "layouts": [{ "id": 1, "game_type": "taghunter", "status": "published", "version": "1.0", "owner_type": "admin", "layout_uniqid": "lay_abc123", "scenario_uniqid": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
         },
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_cards&email={email}',
           description: 'Get the full cards list for a client parsed from their latest CSV file',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
           ],
@@ -610,6 +626,7 @@ export default function ApiDocsView() {
           path: '/backend/api/playground.php?action=get_on_demand_cards&email={email}',
           description: 'Get all active on-demand cards assigned to a client (excludes expired assignments)',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
           ],
@@ -618,12 +635,13 @@ export default function ApiDocsView() {
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_user_data_update&email={email}',
-          description: 'Aggregate endpoint returning all data a client needs to check for updates: published scenarios (custom + product), default and custom patterns, cards version, on-demand cards flag, and active layouts. Designed to be called on app launch or sync.',
+          description: 'Aggregate endpoint returning all data a client needs to check for updates: published scenarios (custom + product), default and custom patterns, cards version, on-demand cards flag, active layouts, and billing status. Designed to be called on app launch or sync.',
           auth: false,
+          playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client or admin email address' },
           ],
-          response: '{ "custom_scenarios": [{ "name": "My Scenario", "slug": "my-scenario", "uniqid": "scenario_abc123", "version": "1.2" }], "product_scenarios": [{ "name": "Product Scenario", "slug": "product-scenario", "uniqid": "scenario_def456", "version": "2.0" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0" }], "cards_version": 3, "has_on_demand_cards": true, "layouts": [{ "id": 1, "version": "1.0", "game_type": "taghunter" }] }',
+          response: '{ "custom_scenarios": [{ "name": "My Scenario", "slug": "my-scenario", "uniqid": "scenario_abc123", "version": "1.2" }], "product_scenarios": [{ "name": "Product Scenario", "slug": "product-scenario", "uniqid": "scenario_def456", "version": "2.0" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0" }], "cards_version": 3, "has_on_demand_cards": true, "layouts": [{ "id": 1, "version": "1.0", "game_type": "taghunter" }], "billing_status": { "billing_up_to_date": true, "license_type": "premium" } }',
         },
       ],
     },
@@ -908,9 +926,18 @@ export default function ApiDocsView() {
   return (
     <div className="max-w-7xl mx-auto p-8">
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <Code className="w-8 h-8 text-gray-700" />
-          <h1 className="text-3xl font-bold text-gray-900">API Documentation</h1>
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div className="flex items-center gap-3">
+            <Code className="w-8 h-8 text-gray-700" />
+            <h1 className="text-3xl font-bold text-gray-900">API Documentation</h1>
+          </div>
+          <button
+            onClick={scrollToPlayground}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors flex-shrink-0"
+          >
+            <Gamepad2 className="w-4 h-4" />
+            Playground Endpoints
+          </button>
         </div>
         <p className="text-gray-600 text-lg">
           Complete reference for TagHunter Admin API endpoints
@@ -928,7 +955,7 @@ export default function ApiDocsView() {
         </p>
       </div>
 
-      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-8">
+      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
         <h2 className="font-semibold text-orange-900 mb-2 flex items-center gap-2">
           <Wrench className="w-4 h-4" />
           Taghunter Creator Endpoints
@@ -942,8 +969,26 @@ export default function ApiDocsView() {
         </p>
       </div>
 
+      <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-8">
+        <h2 className="font-semibold text-cyan-900 mb-2 flex items-center gap-2">
+          <Gamepad2 className="w-4 h-4" />
+          Taghunter Playground Endpoints
+        </h2>
+        <p className="text-cyan-800 text-sm">
+          Endpoints marked with the <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800 border border-cyan-300">
+            <Gamepad2 className="w-3 h-3" />
+            Playground
+          </span> badge are designed for use with the Taghunter Playground mobile application.
+          These endpoints are public (no session required) and identify users by email address. They provide all data needed by the app including scenarios, patterns, layouts, cards, and billing status.
+        </p>
+      </div>
+
       {apiSections.map((section, sectionIdx) => (
-        <div key={sectionIdx} className="mb-12">
+        <div
+          key={sectionIdx}
+          id={`section-${section.title.toLowerCase().replace(/\s+/g, '-')}`}
+          className="mb-12"
+        >
           <div className="flex items-center gap-3 mb-6">
             <div className={`${section.color} p-2 rounded-lg text-white`}>
               {section.icon}
@@ -983,6 +1028,12 @@ export default function ApiDocsView() {
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-300 flex-shrink-0">
                               <Wrench className="w-3 h-3" />
                               Creator
+                            </span>
+                          )}
+                          {endpoint.playground && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800 border border-cyan-300 flex-shrink-0">
+                              <Gamepad2 className="w-3 h-3" />
+                              Playground
                             </span>
                           )}
                         </div>
