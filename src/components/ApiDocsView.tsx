@@ -641,7 +641,7 @@ export default function ApiDocsView() {
           params: [
             { name: 'email', type: 'string', description: 'Client or admin email address' },
           ],
-          response: '{ "custom_scenarios": [{ "name": "My Scenario", "slug": "my-scenario", "uniqid": "scenario_abc123", "version": "1.2" }], "product_scenarios": [{ "name": "Product Scenario", "slug": "product-scenario", "uniqid": "scenario_def456", "version": "2.0" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0" }], "cards_version": 3, "has_on_demand_cards": true, "layouts": [{ "id": 1, "version": "1.0", "game_type": "taghunter" }], "billing_status": { "billing_up_to_date": true, "license_type": "premium" } }',
+          response: '{ "custom_scenarios": [{ "title": "My Scenario", "uniqid": "scenario_abc123", "version": "1.2" }], "product_scenarios": [{ "title": "Product Scenario", "uniqid": "scenario_def456", "version": "2.0" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0" }], "cards_version": 3, "has_on_demand_cards": true, "layouts": [{ "id": 1, "version": "1.0", "game_type": "taghunter" }], "billing_up_to_date": true, "license_type": "premium" }',
         },
       ],
     },
