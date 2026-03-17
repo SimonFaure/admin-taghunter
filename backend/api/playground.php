@@ -643,17 +643,17 @@ try {
 
         if ($isAdmin) {
             $customScenarios = $db->fetchAll(
-                'SELECT name, slug, uniqid, version FROM scenarios WHERE status = "published" ORDER BY created_at DESC'
+                'SELECT title, slug, uniqid, version FROM scenarios WHERE status = "published" ORDER BY created_at DESC'
             );
         } else {
             $customScenarios = $db->fetchAll(
-                'SELECT name, slug, uniqid, version FROM scenarios WHERE client_id = ? AND status = "published" ORDER BY created_at DESC',
+                'SELECT title, slug, uniqid, version FROM scenarios WHERE client_id = ? AND status = "published" ORDER BY created_at DESC',
                 [$userId]
             );
         }
 
         $productScenarios = $db->fetchAll(
-            'SELECT name, slug, uniqid, version FROM scenarios WHERE scenario_type = "product" AND status = "published" ORDER BY created_at DESC'
+            'SELECT title, slug, uniqid, version FROM scenarios WHERE scenario_type = "product" AND status = "published" ORDER BY created_at DESC'
         );
 
         if ($isAdmin) {
