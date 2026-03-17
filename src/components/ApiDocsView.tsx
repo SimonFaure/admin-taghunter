@@ -308,7 +308,7 @@ export default function ApiDocsView() {
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier (required)' },
             { name: 'file', type: 'file', description: 'Media file to upload (required)' },
           ],
-          response: '{ "success": true, "data": { "name": "icon.png", "path": "/media/scenario_674fb123a45e6/icon.png", "url": "https://admin.taghunter.fr/media/scenario_674fb123a45e6/icon.png" }, "message": "File uploaded successfully" }',
+          response: '{ "success": true, "data": { "name": "icon.png", "path": "/media/scenarios/scenario_674fb123a45e6/icon.png", "url": "https://admin.taghunter.fr/media/scenarios/scenario_674fb123a45e6/icon.png" }, "message": "File uploaded successfully" }',
         },
       ],
     },
@@ -374,7 +374,7 @@ export default function ApiDocsView() {
           path: '/backend/api/media.php?action=list',
           description: 'Get all media files from all scenarios',
           auth: true,
-          response: '{ "media": [{ "id": "md5hash", "name": "video.mp4", "scenario_uniqid": "scenario_674fb123a45e6", "path": "/media/scenario_674fb123a45e6/video.mp4", "url": "https://admin.taghunter.fr/media/scenario_674fb123a45e6/video.mp4", "size": 1048576, "mime_type": "video/mp4", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" }] }',
+          response: '{ "media": [{ "id": "md5hash", "name": "video.mp4", "scenario_uniqid": "scenario_674fb123a45e6", "path": "/media/scenarios/scenario_674fb123a45e6/video.mp4", "url": "https://admin.taghunter.fr/media/scenarios/scenario_674fb123a45e6/video.mp4", "size": 1048576, "mime_type": "video/mp4", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" }] }',
         },
         {
           method: 'GET',
@@ -385,7 +385,7 @@ export default function ApiDocsView() {
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
             { name: 'filename', type: 'string', description: 'Media filename' },
           ],
-          response: '{ "media": { "id": "md5hash", "name": "video.mp4", "scenario_uniqid": "scenario_674fb123a45e6", "path": "/media/scenario_674fb123a45e6/video.mp4", "url": "https://admin.taghunter.fr/media/scenario_674fb123a45e6/video.mp4", "size": 1048576, "mime_type": "video/mp4", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" } }',
+          response: '{ "media": { "id": "md5hash", "name": "video.mp4", "scenario_uniqid": "scenario_674fb123a45e6", "path": "/media/scenarios/scenario_674fb123a45e6/video.mp4", "url": "https://admin.taghunter.fr/media/scenarios/scenario_674fb123a45e6/video.mp4", "size": 1048576, "mime_type": "video/mp4", "created_at": "2024-01-15T10:30:00", "updated_at": "2024-01-15T10:30:00" } }',
         },
         {
           method: 'GET',
@@ -556,15 +556,15 @@ export default function ApiDocsView() {
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_media&email={email}&uniqid={uniqid}&filename={filename}',
-          description: 'Get media file for a scenario (client must have access)',
+          description: 'Get media file for a scenario (client must have access). Files are served from media/scenarios/{uniqid}/{filename}.',
           auth: false,
           playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
-            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
-            { name: 'filename', type: 'string', description: 'Media filename' },
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier — maps to the folder media/scenarios/{uniqid}/' },
+            { name: 'filename', type: 'string', description: 'Media filename inside the scenario folder' },
           ],
-          response: '(Binary file content with appropriate Content-Type header)',
+          response: '(Binary file content with appropriate Content-Type header — file served from media/scenarios/{uniqid}/{filename})',
         },
         {
           method: 'GET',
