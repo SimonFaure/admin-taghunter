@@ -658,17 +658,17 @@ try {
 
         if ($isAdmin) {
             $defaultPatterns = $db->fetchAll(
-                'SELECT name, game_type, version FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
+                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
             );
             $customPatterns = $db->fetchAll(
-                'SELECT name, game_type, version FROM patterns WHERE is_default = FALSE ORDER BY game_type, name'
+                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = FALSE ORDER BY game_type, name'
             );
         } else {
             $defaultPatterns = $db->fetchAll(
-                'SELECT name, game_type, version FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
+                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
             );
             $customPatterns = $db->fetchAll(
-                'SELECT name, game_type, version FROM patterns WHERE is_default = FALSE AND owner_type = ? AND owner_id = ? ORDER BY game_type, name',
+                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = FALSE AND owner_type = ? AND owner_id = ? ORDER BY game_type, name',
                 ['client', $userId]
             );
         }
@@ -769,6 +769,185 @@ try {
 
         Logger::log('playground', $method, 'get_on_demand_cards', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($cards)], 200, 'playground');
         jsonResponse($responseData);
+        break;
+
+    case 'download_pattern':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'download_pattern', null, [], ['error' => 'Method not allowed'], 405, 'playground');
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+        $patternUniqid = $_GET['pattern_uniqid'] ?? null;
+
+        if (!$email || !$patternUniqid) {
+            Logger::log('playground', $method, 'download_pattern', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
+            jsonResponse(['error' => 'email and pattern_uniqid are required'], 400);
+        }
+
+        $user = resolveUser($db, $email);
+
+        if (!$user) {
+            Logger::log('playground', $method, 'download_pattern', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
+        }
+
+        $isAdmin = $user['type'] === 'admin';
+        $userId = $user['data']['id'];
+
+        $pattern = $db->fetch(
+            'SELECT id, name, game_type, version, pattern_data, is_default, owner_type, owner_id, pattern_uniqid, pattern_slug, description
+             FROM patterns WHERE pattern_uniqid = ?',
+            [$patternUniqid]
+        );
+
+        if (!$pattern) {
+            Logger::log('playground', $method, 'download_pattern', $userId, ['pattern_uniqid' => $patternUniqid], ['error' => 'Pattern not found'], 404, 'playground');
+            jsonResponse(['error' => 'Pattern not found'], 404);
+        }
+
+        $hasAccess = $isAdmin || (bool)$pattern['is_default'];
+
+        if (!$hasAccess && $pattern['owner_type'] === 'client' && (int)$pattern['owner_id'] === (int)$userId) {
+            $hasAccess = true;
+        }
+
+        if (!$hasAccess) {
+            Logger::log('playground', $method, 'download_pattern', $userId, ['pattern_uniqid' => $patternUniqid], ['error' => 'Access denied'], 403, 'playground');
+            jsonResponse(['error' => 'Access denied to this pattern'], 403);
+        }
+
+        $patternData = !empty($pattern['pattern_data']) ? json_decode($pattern['pattern_data'], true) : null;
+
+        $responseData = [
+            'name' => $pattern['name'],
+            'game_type' => $pattern['game_type'],
+            'version' => $pattern['version'],
+            'pattern_uniqid' => $pattern['pattern_uniqid'],
+            'pattern_slug' => $pattern['pattern_slug'],
+            'description' => $pattern['description'],
+            'is_default' => (bool)$pattern['is_default'],
+            'pattern_data' => $patternData
+        ];
+
+        Logger::log('playground', $method, 'download_pattern', $userId, ['email' => $email, 'pattern_uniqid' => $patternUniqid, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
+        jsonResponse($responseData);
+        break;
+
+    case 'download_cards':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'download_cards', null, [], ['error' => 'Method not allowed'], 405, 'playground');
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+        $cardsVersion = $_GET['version'] ?? null;
+
+        if (!$email || $cardsVersion === null) {
+            Logger::log('playground', $method, 'download_cards', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
+            jsonResponse(['error' => 'email and version are required'], 400);
+        }
+
+        $user = resolveUser($db, $email);
+
+        if (!$user) {
+            Logger::log('playground', $method, 'download_cards', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
+        }
+
+        $userId = $user['data']['id'];
+        $cardsVersion = (int)$cardsVersion;
+
+        $metadata = $db->fetch(
+            'SELECT version FROM client_cards_metadata WHERE client_id = ? AND version = ?',
+            [$userId, $cardsVersion]
+        );
+
+        if (!$metadata) {
+            Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion], ['error' => 'Cards version not found'], 404, 'playground');
+            jsonResponse(['error' => 'Cards version not found for this user'], 404);
+        }
+
+        $cardsFile = __DIR__ . '/../../cards/' . $userId . '/cards_v' . $cardsVersion . '.csv';
+
+        if (!file_exists($cardsFile)) {
+            Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion], ['error' => 'Cards file not found on filesystem'], 404, 'playground');
+            jsonResponse(['error' => 'Cards file not found'], 404);
+        }
+
+        $cards = [];
+        $handle = fopen($cardsFile, 'r');
+
+        if ($handle !== false) {
+            $headers = fgetcsv($handle);
+
+            while (($row = fgetcsv($handle)) !== false) {
+                if (count($row) >= count($headers)) {
+                    $cards[] = array_combine($headers, array_slice($row, 0, count($headers)));
+                }
+            }
+
+            fclose($handle);
+        }
+
+        $responseData = [
+            'version' => $cardsVersion,
+            'count' => count($cards),
+            'cards' => $cards
+        ];
+
+        Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion, 'user_type' => $user['type']], ['version' => $cardsVersion, 'count' => count($cards)], 200, 'playground');
+        jsonResponse($responseData);
+        break;
+
+    case 'download_layout':
+        if ($method !== 'GET') {
+            Logger::log('playground', $method, 'download_layout', null, [], ['error' => 'Method not allowed'], 405, 'playground');
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $email = $_GET['email'] ?? null;
+        $layoutId = $_GET['layout_id'] ?? null;
+
+        if (!$email || !$layoutId) {
+            Logger::log('playground', $method, 'download_layout', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
+            jsonResponse(['error' => 'email and layout_id are required'], 400);
+        }
+
+        $user = resolveUser($db, $email);
+
+        if (!$user) {
+            Logger::log('playground', $method, 'download_layout', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
+            jsonResponse(['error' => 'User not found'], 404);
+        }
+
+        $userId = $user['data']['id'];
+        $layoutId = (int)$layoutId;
+
+        $layout = $db->fetch(
+            'SELECT id, layout_data, game_type, version, status, owner_type, layout_uniqid, scenario_uniqid
+             FROM layouts WHERE id = ? AND status = "active"',
+            [$layoutId]
+        );
+
+        if (!$layout) {
+            Logger::log('playground', $method, 'download_layout', $userId, ['layout_id' => $layoutId], ['error' => 'Layout not found'], 404, 'playground');
+            jsonResponse(['error' => 'Layout not found or not active'], 404);
+        }
+
+        $layoutData = !empty($layout['layout_data']) ? json_decode($layout['layout_data'], true) : null;
+
+        $layoutJson = [
+            'id' => $layout['id'],
+            'layout_uniqid' => $layout['layout_uniqid'],
+            'game_type' => $layout['game_type'],
+            'version' => $layout['version'],
+            'scenario_uniqid' => $layout['scenario_uniqid'],
+            'layout_data' => $layoutData
+        ];
+
+        Logger::log('playground', $method, 'download_layout', $userId, ['email' => $email, 'layout_id' => $layoutId, 'user_type' => $user['type']], ['success' => true, 'layout_id' => $layoutId], 200, 'playground');
+        jsonResponse($layoutJson);
         break;
 
     default:
