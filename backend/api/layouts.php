@@ -90,7 +90,7 @@ function requireAuth() {
     jsonResponse(['error' => 'Authentication required'], 401);
 }
 
-$validStatuses = ['draft', 'active', 'archived'];
+$validStatuses = ['draft', 'published', 'archived'];
 
 try {
     $db = Database::getInstance();
@@ -235,7 +235,7 @@ try {
                 if (!in_array($status, $GLOBALS['validStatuses'])) {
                     error_log('Upload failed: Invalid status: ' . $status);
                     Logger::log('layouts', 'POST', 'upload', null, ['email' => $email], ['error' => 'Invalid status'], 400, 'creator');
-                    jsonResponse(['error' => 'Status must be one of: draft, active, archived'], 400);
+                    jsonResponse(['error' => 'Status must be one of: draft, published, archived'], 400);
                 }
 
                 error_log('Looking up user by email: ' . $email);
@@ -405,7 +405,7 @@ try {
             }
 
             if (!in_array($newStatus, $validStatuses)) {
-                jsonResponse(['error' => 'Status must be one of: draft, active, archived'], 400);
+                jsonResponse(['error' => 'Status must be one of: draft, published, archived'], 400);
             }
 
             $layout = $db->fetch('SELECT * FROM layouts WHERE id = ?', [$id]);
