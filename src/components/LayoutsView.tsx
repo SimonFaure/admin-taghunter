@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, createPortal } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { LayoutGrid as Layout, Search, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown, User, Shield, Building2 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
