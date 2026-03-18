@@ -935,8 +935,14 @@ try {
             'layout_data' => $layoutData
         ];
 
+        $filename = $layout['game_type'] . '_layout_' . $layout['version'] . '.json';
+
         Logger::log('playground', $method, 'download_layout', $userId, ['email' => $email, 'layout_id' => $layoutId, 'user_type' => $user['type']], ['success' => true, 'layout_id' => $layoutId], 200, 'playground');
-        jsonResponse($layoutJson);
+
+        header('Content-Type: application/json');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        echo json_encode($layoutJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit;
         break;
 
     default:
