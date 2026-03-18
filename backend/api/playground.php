@@ -879,30 +879,15 @@ try {
             jsonResponse(['error' => 'Cards file not found'], 404);
         }
 
-        $cards = [];
-        $handle = fopen($cardsFile, 'r');
+        Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion, 'user_type' => $user['type']], ['version' => $cardsVersion], 200, 'playground');
 
-        if ($handle !== false) {
-            $headers = fgetcsv($handle);
+        http_response_code(200);
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="cards_v' . $cardsVersion . '.csv"');
+        header('Content-Length: ' . filesize($cardsFile));
 
-            while (($row = fgetcsv($handle)) !== false) {
-                if (count($row) >= count($headers)) {
-                    $cards[] = array_combine($headers, array_slice($row, 0, count($headers)));
-                }
-            }
-
-            fclose($handle);
-        }
-
-        $responseData = [
-            'version' => $cardsVersion,
-            'count' => count($cards),
-            'cards' => $cards
-        ];
-
-        Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion, 'user_type' => $user['type']], ['version' => $cardsVersion, 'count' => count($cards)], 200, 'playground');
-        jsonResponse($responseData);
-        break;
+        readfile($cardsFile);
+        exit;
 
     case 'download_layout':
         if ($method !== 'GET') {
