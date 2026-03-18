@@ -768,8 +768,12 @@ try {
         ];
 
         Logger::log('playground', $method, 'get_on_demand_cards', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($cards)], 200, 'playground');
-        jsonResponse($responseData);
-        break;
+
+        http_response_code(200);
+        header('Content-Type: application/json');
+        header('Content-Disposition: attachment; filename="on_demand_cards.json"');
+        echo json_encode($responseData);
+        exit;
 
     case 'download_pattern':
         if ($method !== 'GET') {
