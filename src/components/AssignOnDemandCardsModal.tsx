@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   X, CreditCard, Search, CheckSquare, Square, Layers, Calendar,
-  Trash2, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Filter
+  Trash2, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Filter, Download
 } from 'lucide-react';
 import { onDemandCardsApi, OnDemandPoolCard, ClientOnDemandCard } from '../lib/api';
 
@@ -188,6 +188,30 @@ export function AssignOnDemandCardsModal({ clientId, clientName, onClose }: Assi
   const formatDate = (d: string | null) => {
     if (!d) return 'No expiry';
     return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  const handleDownloadAssigned = () => {
+    const headers = ['key_name', 'color', 'key_number', 'id', 'end_date', 'assigned_at'];
+    const rows = assignments.map((a) => [
+      a.key_name || '',
+      a.color || '',
+      a.key_number || '',
+      a.card_id || '',
+      a.end_date || '',
+      a.assigned_at || '',
+    ]);
+    const csv = [headers, ...rows]
+      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `on_demand_${clientName.replace(/\s+/g, '_')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   };
 
   const unassignedInFilter = filteredPool.filter((c) => !assignedPoolIds.has(c.id));
@@ -476,14 +500,23 @@ export function AssignOnDemandCardsModal({ clientId, clientName, onClose }: Assi
                     <p className="text-sm text-slate-600">
                       <span className="font-semibold text-slate-900">{assignments.length}</span> card{assignments.length !== 1 ? 's' : ''} assigned
                     </p>
-                    <button
-                      onClick={handleRemoveAll}
-                      disabled={removingAll}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Remove All
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleDownloadAssigned}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Download CSV
+                      </button>
+                      <button
+                        onClick={handleRemoveAll}
+                        disabled={removingAll}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Remove All
+                      </button>
+                    </div>
                   </div>
                   <div className="border border-slate-200 rounded-xl overflow-hidden">
                     <div className="overflow-x-auto">
