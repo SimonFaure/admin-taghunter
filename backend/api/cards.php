@@ -648,6 +648,39 @@ try {
             ]);
             break;
 
+        case 'admin_download':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $adminId = requireAdminAuth($db);
+            $clientId = isset($_GET['client_id']) ? (int)$_GET['client_id'] : null;
+
+            if (!$clientId) {
+                jsonResponse(['error' => 'client_id is required'], 400);
+            }
+
+            $cardsFile = getCurrentCardsFile($db, $clientId);
+
+            if (!$cardsFile) {
+                jsonResponse(['error' => 'No cards file found for this client'], 404);
+            }
+
+            $metadata = $db->fetch(
+                'SELECT version FROM client_cards_metadata WHERE client_id = ?',
+                [$clientId]
+            );
+
+            $filename = 'cards_client' . $clientId . '_v' . ($metadata['version'] ?? '1') . '.csv';
+
+            Logger::log('cards', 'GET', 'admin_download', $adminId, ['client_id' => $clientId], ['success' => true], 200);
+
+            header('Content-Type: text/csv');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Length: ' . filesize($cardsFile));
+            readfile($cardsFile);
+            exit;
+
         case 'admin_list_all':
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
                 jsonResponse(['error' => 'Method not allowed'], 405);

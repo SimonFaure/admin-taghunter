@@ -266,6 +266,18 @@ export const adminCardsApi = {
       method: 'GET',
     });
   },
+
+  async downloadCardsFile(clientId: number): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}/cards.php?action=admin_download&client_id=${clientId}`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to download cards file');
+    }
+    return response.blob();
+  },
 };
 
 export interface OnDemandPoolCard {

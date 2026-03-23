@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CreditCard, User, FileText, Calendar, HardDrive, ChevronRight, ChevronLeft, Search, X, Layers, Upload } from 'lucide-react';
+import { CreditCard, User, FileText, Calendar, HardDrive, ChevronRight, ChevronLeft, Search, X, Layers, Upload, Download } from 'lucide-react';
 import { adminCardsApi, ClientCardMetadata, CardData } from '../lib/api';
 import { OnDemandPoolModal } from './OnDemandPoolModal';
 import { AssignOnDemandCardsModal } from './AssignOnDemandCardsModal';
@@ -17,6 +17,7 @@ export function CardsListView() {
 
   const [showPoolModal, setShowPoolModal] = useState(false);
   const [assignClient, setAssignClient] = useState<ClientCardMetadata | null>(null);
+  const [downloadingClientId, setDownloadingClientId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCardsList();
@@ -102,6 +103,26 @@ export function CardsListView() {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
+  const handleDownload = async (client: ClientCardMetadata) => {
+    setDownloadingClientId(client.id);
+    try {
+      const blob = await adminCardsApi.downloadCardsFile(client.id);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cards_${client.name.replace(/\s+/g, '_')}_v${client.version || '1'}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      setError('Failed to download cards file');
+      console.error('Failed to download cards file:', err);
+    } finally {
+      setDownloadingClientId(null);
+    }
+  };
+
   const closeCardsView = () => {
     setSelectedClient(null);
     setCardsData([]);
@@ -127,15 +148,25 @@ export function CardsListView() {
               <p className="text-sm text-slate-600">{selectedClient.email}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4 text-sm text-slate-600">
-            <div className="flex items-center space-x-2">
-              <FileText className="w-4 h-4" />
-              <span>Version {selectedClient.version}</span>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 text-sm text-slate-600">
+              <div className="flex items-center space-x-2">
+                <FileText className="w-4 h-4" />
+                <span>Version {selectedClient.version}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <CreditCard className="w-4 h-4" />
+                <span>{selectedClient.card_count} cards</span>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <CreditCard className="w-4 h-4" />
-              <span>{selectedClient.card_count} cards</span>
-            </div>
+            <button
+              onClick={() => handleDownload(selectedClient)}
+              disabled={downloadingClientId === selectedClient.id}
+              className="flex items-center space-x-2 px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              <span>{downloadingClientId === selectedClient.id ? 'Downloading...' : 'Download CSV'}</span>
+            </button>
           </div>
         </div>
 
@@ -316,8 +347,18 @@ export function CardsListView() {
                           disabled={!client.has_file}
                           className="inline-flex items-center space-x-1 text-sm font-medium text-blue-600 hover:text-blue-700 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
                         >
-                          <span>View Cards</span>
+                          <span>View</span>
                           <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <span className="text-slate-200">|</span>
+                        <button
+                          onClick={() => handleDownload(client)}
+                          disabled={!client.has_file || downloadingClientId === client.id}
+                          className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors"
+                          title="Download CSV"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>{downloadingClientId === client.id ? '...' : 'Download'}</span>
                         </button>
                         <span className="text-slate-200">|</span>
                         <button
