@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { Package, Search, Filter, Download, Eye, Trash2, Plus } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
 interface Pattern {
   id: number;
   name: string;
@@ -92,7 +94,7 @@ export function MyPatternsView() {
     try {
       setLoading(true);
       const response = await fetch(
-        'https://admin.taghunter.fr/backend/api/patterns.php?action=list',
+        `${API_BASE_URL}/patterns.php?action=list`,
         {
           headers: {
             'X-Auth-Token': user?.token || '',
@@ -165,7 +167,7 @@ export function MyPatternsView() {
 
     try {
       const response = await fetch(
-        `https://admin.taghunter.fr/backend/api/patterns.php?action=delete&id=${patternId}`,
+        `${API_BASE_URL}/patterns.php?action=delete&id=${patternId}`,
         {
           method: 'DELETE',
           headers: {

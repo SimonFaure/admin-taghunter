@@ -14,7 +14,12 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/backend': {
-          target: 'https://admin.taghunter.fr',
+          target: env.VITE_BACKEND_PROXY || 'http://admin-taghunter.test',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/media': {
+          target: env.VITE_BACKEND_PROXY || 'http://admin-taghunter.test',
           changeOrigin: true,
           secure: false,
         },
@@ -40,6 +45,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || ''),
       'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || '/backend/api'),
+      'import.meta.env.VITE_MEDIA_BASE_URL': JSON.stringify(env.VITE_MEDIA_BASE_URL || ''),
       'import.meta.env.VITE_DEV_AUTO_LOGIN': JSON.stringify(env.VITE_DEV_AUTO_LOGIN || 'false'),
       'import.meta.env.VITE_DEV_ADMIN_EMAIL': JSON.stringify(env.VITE_DEV_ADMIN_EMAIL || ''),
       'import.meta.env.VITE_DEV_ADMIN_PASSWORD': JSON.stringify(env.VITE_DEV_ADMIN_PASSWORD || ''),

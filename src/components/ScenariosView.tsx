@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, LayoutGrid, X, Upload, File, Download, ChevronDown, List } from 'lucide-react';
 const Layout = LayoutGrid;
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
+
 interface Scenario {
   id: number;
   title: string;
@@ -187,14 +190,14 @@ export function ScenariosView() {
         if (medias.images?.game_visual) {
           gameVisualUrl = medias.images.game_visual.startsWith('http')
             ? medias.images.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${medias.images.game_visual}`;
           console.log('Found game_visual from medias.images.game_visual:', gameVisualUrl);
         }
 
         if (medias.images?.background_image) {
           backgroundUrl = medias.images.background_image.startsWith('http')
             ? medias.images.background_image
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.background_image}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${medias.images.background_image}`;
           console.log('Found background_image from medias.images.background_image:', backgroundUrl);
         }
       } catch (e) {
@@ -210,34 +213,34 @@ export function ScenariosView() {
         if (gameData.media?.images?.game_visual) {
           gameVisualUrl = gameData.media.images.game_visual.startsWith('http')
             ? gameData.media.images.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.media.images.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.media.images.game_visual}`;
           console.log('Found game_visual (new structure):', gameVisualUrl);
         } else if (gameData.data?.game_meta?.game_visual) {
           gameVisualUrl = gameData.data.game_meta.game_visual.startsWith('http')
             ? gameData.data.game_meta.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.data.game_meta.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.data.game_meta.game_visual}`;
           console.log('Found game_visual (new data structure):', gameVisualUrl);
         } else if (gameData.game_meta?.game_visual) {
           gameVisualUrl = gameData.game_meta.game_visual.startsWith('http')
             ? gameData.game_meta.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.game_meta.game_visual}`;
           console.log('Found game_visual (old structure):', gameVisualUrl);
         } else if (gameData.game_visual) {
-          gameVisualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
+          gameVisualUrl = `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.game_visual}`;
           console.log('Found game_visual (legacy):', gameVisualUrl);
         }
 
         if (gameData.media?.images?.background_image) {
-          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.media.images.background_image}`;
+          backgroundUrl = `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.media.images.background_image}`;
           console.log('Found background_image (new structure):', backgroundUrl);
         } else if (gameData.data?.game_meta?.background_image) {
-          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.data.game_meta.background_image}`;
+          backgroundUrl = `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.data.game_meta.background_image}`;
           console.log('Found background_image (new data structure):', backgroundUrl);
         } else if (gameData.game_meta?.background_image) {
-          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.background_image}`;
+          backgroundUrl = `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.game_meta.background_image}`;
           console.log('Found background_image (old structure):', backgroundUrl);
         } else if (gameData.backgroundImage) {
-          backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.backgroundImage}`;
+          backgroundUrl = `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.backgroundImage}`;
           console.log('Found backgroundImage (legacy):', backgroundUrl);
         }
       } catch (e) {
@@ -289,7 +292,7 @@ export function ScenariosView() {
           setFallbackAttempted(true);
           const fullUrl = backgroundUrl.startsWith('http')
             ? backgroundUrl
-            : `https://admin.taghunter.fr/media/${selectedScenario.uniqid}/${backgroundUrl}`;
+            : `${MEDIA_BASE_URL}/media/${selectedScenario.uniqid}/${backgroundUrl}`;
           setDisplayImage(fullUrl);
           setImageLabel('Background Image');
           setImageError(false);
@@ -306,7 +309,7 @@ export function ScenariosView() {
   const fetchScenarios = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://admin.taghunter.fr/backend/api/scenarios.php?action=list', {
+      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=list`, {
         credentials: 'include',
       });
 
@@ -325,7 +328,7 @@ export function ScenariosView() {
 
   const fetchScenarioFiles = async (scenarioId: number) => {
     try {
-      const response = await fetch(`https://admin.taghunter.fr/backend/api/scenario_files.php?action=list&scenario_id=${scenarioId}`, {
+      const response = await fetch(`${API_BASE_URL}/scenario_files.php?action=list&scenario_id=${scenarioId}`, {
         credentials: 'include',
       });
 
@@ -348,7 +351,7 @@ export function ScenariosView() {
       const formData = new FormData();
       formData.append('id', String(selectedScenario.id));
       formData.append('status', newStatus);
-      const response = await fetch('https://admin.taghunter.fr/backend/api/scenarios.php?action=update', {
+      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=update`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -409,7 +412,7 @@ export function ScenariosView() {
       formData.append('name', uploadFileName);
       formData.append('scenario_id', selectedScenario.id.toString());
 
-      const response = await fetch('https://admin.taghunter.fr/backend/api/scenario_files.php?action=upload', {
+      const response = await fetch(`${API_BASE_URL}/scenario_files.php?action=upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -442,7 +445,7 @@ export function ScenariosView() {
     }
 
     try {
-      const response = await fetch('https://admin.taghunter.fr/backend/api/scenario_files.php?action=delete', {
+      const response = await fetch(`${API_BASE_URL}/scenario_files.php?action=delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -475,7 +478,7 @@ export function ScenariosView() {
     }
 
     try {
-      const response = await fetch('https://admin.taghunter.fr/backend/api/scenarios.php?action=delete', {
+      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -698,7 +701,7 @@ export function ScenariosView() {
               <div className="mb-6">
                 <h4 className="text-sm font-semibold text-slate-700 mb-2">Media File</h4>
                 <a
-                  href={`https://admin.taghunter.fr${selectedScenario.media_url}`}
+                  href={`${MEDIA_BASE_URL}${selectedScenario.media_url}`}
                   download
                   className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
                 >
@@ -922,12 +925,12 @@ export function ScenariosView() {
         if (medias.images?.game_visual) {
           gameVisualUrl = medias.images.game_visual.startsWith('http')
             ? medias.images.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${medias.images.game_visual}`;
         }
         if (medias.images?.background_image) {
           backgroundUrl = medias.images.background_image.startsWith('http')
             ? medias.images.background_image
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${medias.images.background_image}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${medias.images.background_image}`;
         }
       } catch (e) {
         console.error('Failed to parse medias', e);
@@ -940,17 +943,17 @@ export function ScenariosView() {
         if (gameData.media?.images?.game_visual) {
           gameVisualUrl = gameData.media.images.game_visual.startsWith('http')
             ? gameData.media.images.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.media.images.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.media.images.game_visual}`;
         } else if (gameData.data?.game_meta?.game_visual) {
           gameVisualUrl = gameData.data.game_meta.game_visual.startsWith('http')
             ? gameData.data.game_meta.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.data.game_meta.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.data.game_meta.game_visual}`;
         } else if (gameData.game_meta?.game_visual) {
           gameVisualUrl = gameData.game_meta.game_visual.startsWith('http')
             ? gameData.game_meta.game_visual
-            : `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_meta.game_visual}`;
+            : `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.game_meta.game_visual}`;
         } else if (gameData.game_visual) {
-          gameVisualUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${gameData.game_visual}`;
+          gameVisualUrl = `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${gameData.game_visual}`;
         }
 
         if (!backgroundUrl && (gameData.media?.images?.background_image || gameData.data?.game_meta?.background_image || gameData.game_meta?.background_image || gameData.backgroundImage)) {
@@ -959,7 +962,7 @@ export function ScenariosView() {
                          gameData.game_meta?.background_image ||
                          gameData.backgroundImage;
           if (backgroundUrl && !backgroundUrl.startsWith('http')) {
-            backgroundUrl = `https://admin.taghunter.fr/media/${scenario.uniqid}/${backgroundUrl}`;
+            backgroundUrl = `${MEDIA_BASE_URL}/media/${scenario.uniqid}/${backgroundUrl}`;
           }
         }
       } catch (e) {

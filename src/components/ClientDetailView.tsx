@@ -4,6 +4,8 @@ import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { ScenarioData } from '../lib/api';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
 interface ClientDetailViewProps {
   clientId: string;
   onBack: () => void;
@@ -60,8 +62,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       console.log('========== LOADING CARDS METADATA ==========');
       console.log('Client ID:', clientId, 'Type:', typeof clientId);
 
-      const metadataUrl = `https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_metadata&client_id=${clientId}`;
-      const dataUrl = `https://admin.taghunter.fr/backend/api/cards.php?action=admin_get_data&client_id=${clientId}`;
+      const metadataUrl = `${API_BASE_URL}/cards.php?action=admin_get_metadata&client_id=${clientId}`;
+      const dataUrl = `${API_BASE_URL}/cards.php?action=admin_get_data&client_id=${clientId}`;
 
       console.log('Metadata URL:', metadataUrl);
       console.log('Data URL:', dataUrl);
@@ -116,7 +118,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadScenarios = async () => {
     setLoadingScenarios(true);
     try {
-      const response = await fetch(`https://admin.taghunter.fr/backend/api/client_scenarios.php?action=list&client_id=${clientId}`, {
+      const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=list&client_id=${clientId}`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -133,7 +135,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadAvailableScenarios = async () => {
     setLoadingAvailable(true);
     try {
-      const response = await fetch('https://admin.taghunter.fr/backend/api/scenarios.php?action=list', {
+      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=list`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -153,7 +155,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     setAddingScenario(true);
     try {
       console.log('Adding scenario:', { client_id: clientId, scenario_id: scenarioId });
-      const response = await fetch('https://admin.taghunter.fr/backend/api/client_scenarios.php?action=add', {
+      const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -189,7 +191,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     if (!removeConfirm) return;
     setRemoving(true);
     try {
-      const response = await fetch('https://admin.taghunter.fr/backend/api/client_scenarios.php?action=remove', {
+      const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -264,7 +266,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       formData.append('avatar', file);
       formData.append('client_id', clientId);
 
-      const response = await fetch('https://admin.taghunter.fr/backend/api/clients.php?action=upload_avatar', {
+      const response = await fetch(`${API_BASE_URL}/clients.php?action=upload_avatar`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -387,7 +389,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
       console.log('Uploading file for client:', clientId);
 
-      const response = await fetch('https://admin.taghunter.fr/backend/api/cards.php?action=admin_upload', {
+      const response = await fetch(`${API_BASE_URL}/cards.php?action=admin_upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData,

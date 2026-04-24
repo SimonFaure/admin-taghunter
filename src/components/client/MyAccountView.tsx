@@ -2,6 +2,8 @@ import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { Mail, User, Building, Calendar, Crown, CheckCircle, XCircle, Upload } from 'lucide-react';
 import { useState } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
 function formatMemberSince(dateString?: string): string {
   if (!dateString) return 'N/A';
 
@@ -67,7 +69,7 @@ export function MyAccountView() {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const response = await fetch('https://admin.taghunter.fr/backend/api/secure_auth.php?action=upload-avatar', {
+      const response = await fetch(`${API_BASE_URL}/secure_auth.php?action=upload-avatar`, {
         method: 'POST',
         headers: {
           'X-Auth-Token': user?.token || '',

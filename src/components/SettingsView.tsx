@@ -1,5 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Database, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
+type DbInfo = {
+  host: string;
+  port: number;
+  database: string;
+  charset: string;
+  server_version: string;
+};
 
 export function SettingsView() {
   const [isMigrating, setIsMigrating] = useState(false);
@@ -8,13 +18,27 @@ export function SettingsView() {
     message: string;
     details?: string[];
   } | null>(null);
+  const [dbInfo, setDbInfo] = useState<DbInfo | null>(null);
+  const [dbInfoError, setDbInfoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/db_info.php`, { credentials: 'include' })
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        setDbInfo(body.data);
+      })
+      .catch((err: Error) => setDbInfoError(err.message));
+  }, []);
 
   const runMigrations = async () => {
     setIsMigrating(true);
     setMigrationStatus(null);
 
     try {
-      const response = await fetch('https://admin.taghunter.fr/backend/api/migrate.php', {
+      const response = await fetch(`${API_BASE_URL}/migrate.php`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -145,18 +169,34 @@ export function SettingsView() {
         <h3 className="text-lg font-bold text-slate-900 mb-4">System Information</h3>
         <div className="space-y-3">
           <div className="flex justify-between items-center py-2 border-b border-slate-100">
-            <span className="text-sm text-slate-600">Backend URL</span>
-            <span className="text-sm font-medium text-slate-900">
-              admin.taghunter.fr/backend
+            <span className="text-sm text-slate-600">API base URL</span>
+            <span className="text-sm font-medium text-slate-900 font-mono">
+              {API_BASE_URL}
             </span>
           </div>
           <div className="flex justify-between items-center py-2 border-b border-slate-100">
-            <span className="text-sm text-slate-600">Database</span>
-            <span className="text-sm font-medium text-slate-900">MySQL</span>
+            <span className="text-sm text-slate-600">Database host</span>
+            <span className="text-sm font-medium text-slate-900 font-mono">
+              {dbInfoError
+                ? <span className="text-red-600">error</span>
+                : dbInfo
+                  ? `${dbInfo.host}:${dbInfo.port}`
+                  : 'loading…'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-b border-slate-100">
+            <span className="text-sm text-slate-600">Database name</span>
+            <span className="text-sm font-medium text-slate-900 font-mono">
+              {dbInfoError
+                ? <span className="text-red-600">{dbInfoError}</span>
+                : dbInfo?.database ?? 'loading…'}
+            </span>
           </div>
           <div className="flex justify-between items-center py-2">
-            <span className="text-sm text-slate-600">Environment</span>
-            <span className="text-sm font-medium text-slate-900">Production</span>
+            <span className="text-sm text-slate-600">MySQL server</span>
+            <span className="text-sm font-medium text-slate-900 font-mono">
+              {dbInfo?.server_version ?? (dbInfoError ? '—' : 'loading…')}
+            </span>
           </div>
         </div>
       </div>

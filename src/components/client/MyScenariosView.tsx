@@ -8,8 +8,8 @@ interface MyScenariosViewProps {
   onSelectScenario: (scenario: ClientScenario) => void;
 }
 
-const API_BASE_URL = '/backend/api';
-const MEDIA_BASE_URL = 'https://admin.taghunter.fr';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
 
 export function getGameVisualUrl(
   medias: string | Record<string, unknown> | null | undefined,

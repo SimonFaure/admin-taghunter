@@ -4,8 +4,8 @@ import { secureAuth } from '../../lib/secureAuth';
 import { getGameVisualUrl } from './MyScenariosView';
 import type { ClientScenario } from './types';
 
-const API_BASE_URL = '/backend/api';
-const MEDIA_BASE_URL = 'https://admin.taghunter.fr';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
 
 interface ScenarioDetailViewProps {
   scenario: ClientScenario;

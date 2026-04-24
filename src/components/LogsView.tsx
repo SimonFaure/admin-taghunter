@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, RefreshCw, Trash2, ChevronDown, ChevronUp, Wrench, Gamepad2, AlertTriangle } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
 interface LogEntry {
   timestamp: string;
   endpoint: string;
@@ -28,7 +30,7 @@ export default function LogsView() {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch('https://admin.taghunter.fr/backend/api/logs.php?action=list&limit=100', {
+      const response = await fetch(`${API_BASE_URL}/logs.php?action=list&limit=100`, {
         credentials: 'include',
       });
 
@@ -49,7 +51,7 @@ export default function LogsView() {
   const clearLogs = async () => {
     try {
       setClearing(true);
-      const response = await fetch('https://admin.taghunter.fr/backend/api/logs.php?action=clear', {
+      const response = await fetch(`${API_BASE_URL}/logs.php?action=clear`, {
         method: 'POST',
         credentials: 'include',
       });

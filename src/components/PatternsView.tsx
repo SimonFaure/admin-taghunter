@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Package, Search, Filter, Download, Eye, Trash2, Pencil, Plus, ChevronLeft, ChevronDown, Calendar, User, Tag, X } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
 interface Pattern {
   id: number;
   name: string;
@@ -80,7 +82,7 @@ export function PatternsView() {
     try {
       setLoading(true);
       const response = await fetch(
-        'https://admin.taghunter.fr/backend/api/patterns.php?action=list',
+        `${API_BASE_URL}/patterns.php?action=list`,
         { credentials: 'include' }
       );
       const result = await response.json();
@@ -122,7 +124,7 @@ export function PatternsView() {
     setStatusError(null);
     try {
       const response = await fetch(
-        `https://admin.taghunter.fr/backend/api/patterns.php?action=update_status`,
+        `${API_BASE_URL}/patterns.php?action=update_status`,
         {
           method: 'POST',
           credentials: 'include',
@@ -161,7 +163,7 @@ export function PatternsView() {
     if (!confirm('Are you sure you want to delete this pattern?')) return;
     try {
       const response = await fetch(
-        `https://admin.taghunter.fr/backend/api/patterns.php?action=delete&id=${patternId}`,
+        `${API_BASE_URL}/patterns.php?action=delete&id=${patternId}`,
         { method: 'DELETE', credentials: 'include' }
       );
       const result = await response.json();
@@ -203,7 +205,7 @@ export function PatternsView() {
     try {
       const patternJson = JSON.parse(formData.pattern_data);
       const response = await fetch(
-        'https://admin.taghunter.fr/backend/api/patterns.php?action=create',
+        `${API_BASE_URL}/patterns.php?action=create`,
         {
           method: 'POST',
           credentials: 'include',
@@ -235,7 +237,7 @@ export function PatternsView() {
     try {
       const patternJson = JSON.parse(formData.pattern_data);
       const response = await fetch(
-        `https://admin.taghunter.fr/backend/api/patterns.php?action=update&id=${editingPattern.id}`,
+        `${API_BASE_URL}/patterns.php?action=update&id=${editingPattern.id}`,
         {
           method: 'PUT',
           credentials: 'include',

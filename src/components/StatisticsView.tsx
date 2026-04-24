@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { BarChart3, Users, Clock, CheckCircle, TrendingUp, Gamepad2 } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
 interface Statistics {
   overview: {
     total_games: number;
@@ -42,10 +44,10 @@ export function StatisticsView() {
       setLoading(true);
 
       const [overviewRes, recentRes] = await Promise.all([
-        fetch('https://admin.taghunter.fr/backend/api/statistics.php?action=overview', {
+        fetch(`${API_BASE_URL}/statistics.php?action=overview`, {
           credentials: 'include',
         }),
-        fetch('https://admin.taghunter.fr/backend/api/statistics.php?action=recent&limit=20', {
+        fetch(`${API_BASE_URL}/statistics.php?action=recent&limit=20`, {
           credentials: 'include',
         }),
       ]);

@@ -7,6 +7,7 @@ session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     header('Content-Type: application/json');
@@ -16,9 +17,46 @@ function jsonResponse($data, $statusCode = 200) {
 }
 
 function requireAuth() {
-    if (!isset($_SESSION['user_id'])) {
-        jsonResponse(['error' => 'Unauthorized'], 401);
+    // Session-based auth (legacy admin web UI)
+    if (isset($_SESSION['user_id'])) return;
+
+    // Token-based auth (Creator web app)
+    $header = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if ($header !== '') {
+        $tokenData = TokenManager::validateToken(Database::getInstance(), $header);
+        if ($tokenData) {
+            $_SESSION['user_id'] = $tokenData['user_id'];
+            return;
+        }
     }
+
+    jsonResponse(['error' => 'Unauthorized'], 401);
+}
+
+// Validate a relative media path ("uniqid/filename.ext" or "sub/dir/file.jpg").
+// Rejects absolute paths, traversal, hidden files, empty segments.
+function validateMediaPath(string $path): string {
+    $path = trim($path, '/');
+    if ($path === '') {
+        jsonResponse(['error' => 'path is required'], 400);
+    }
+    if (preg_match('#(^|/)\.+($|/)#', $path)) {
+        jsonResponse(['error' => 'Invalid path (traversal)'], 400);
+    }
+    // Allow alphanumerics, dash, underscore, dot, slash. No spaces, no unicode weirdness.
+    if (!preg_match('#^[A-Za-z0-9._/\-]+$#', $path)) {
+        jsonResponse(['error' => 'Invalid characters in path'], 400);
+    }
+    return $path;
+}
+
+function mediaRoot(): string {
+    return realpath(__DIR__ . '/../../media') ?: (__DIR__ . '/../../media');
+}
+
+function resolveUnderMedia(string $relPath): string {
+    $root = mediaRoot();
+    return $root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relPath);
 }
 
 try {
@@ -204,9 +242,145 @@ try {
             ]);
             break;
 
+        case 'upload':
+            requireAuth();
+
+            if ($method !== 'POST') {
+                Logger::log('media', $method, 'upload', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $rawPath = $_POST['path'] ?? $_GET['path'] ?? '';
+            $upsert = filter_var($_POST['upsert'] ?? $_GET['upsert'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
+
+            if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+                jsonResponse(['error' => 'No file uploaded'], 400);
+            }
+
+            $path = validateMediaPath($rawPath);
+            if ($_FILES['file']['size'] > 50 * 1024 * 1024) {
+                jsonResponse(['error' => 'File size must be less than 50MB'], 400);
+            }
+
+            $destPath = resolveUnderMedia($path);
+            $destDir  = dirname($destPath);
+
+            if (!is_dir($destDir) && !mkdir($destDir, 0755, true) && !is_dir($destDir)) {
+                jsonResponse(['error' => 'Failed to create directory'], 500);
+            }
+
+            // Containment check: ensure final path is inside the media root.
+            $resolvedDir = realpath($destDir);
+            $root        = mediaRoot();
+            if (!$resolvedDir || strpos($resolvedDir, $root) !== 0) {
+                jsonResponse(['error' => 'Invalid path'], 400);
+            }
+
+            if (!$upsert && file_exists($destPath)) {
+                jsonResponse(['error' => 'File already exists'], 409);
+            }
+
+            if (!move_uploaded_file($_FILES['file']['tmp_name'], $destPath)) {
+                jsonResponse(['error' => 'Failed to save file'], 500);
+            }
+
+            Logger::log('media', $method, 'upload', $_SESSION['user_id'], ['path' => $path], ['success' => true], 200);
+            jsonResponse([
+                'success' => true,
+                'path'    => $path,
+                'size'    => filesize($destPath),
+            ]);
+            break;
+
+        case 'list_folder':
+            requireAuth();
+
+            if ($method !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $rawPath = $_GET['path'] ?? '';
+            $path    = validateMediaPath($rawPath);
+            $dirPath = resolveUnderMedia($path);
+
+            if (!is_dir($dirPath)) {
+                // Supabase returns [] for nonexistent folders, not an error.
+                jsonResponse(['files' => []]);
+            }
+
+            $resolvedDir = realpath($dirPath);
+            $root        = mediaRoot();
+            if (!$resolvedDir || strpos($resolvedDir, $root) !== 0) {
+                jsonResponse(['error' => 'Invalid path'], 400);
+            }
+
+            $entries = array_values(array_diff(scandir($dirPath), ['.', '..']));
+            $files = [];
+            foreach ($entries as $name) {
+                $full = $dirPath . DIRECTORY_SEPARATOR . $name;
+                if (!is_file($full)) continue;
+                $files[] = [
+                    'name' => $name,
+                    'size' => filesize($full),
+                    'updated_at' => date('Y-m-d H:i:s', filemtime($full)),
+                ];
+            }
+            jsonResponse(['files' => $files]);
+            break;
+
+        case 'delete_path':
+            requireAuth();
+
+            if ($method !== 'POST' && $method !== 'DELETE') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $body = json_decode(file_get_contents('php://input'), true) ?? [];
+            $paths = $body['paths'] ?? $_POST['paths'] ?? null;
+
+            if (!is_array($paths) || count($paths) === 0) {
+                jsonResponse(['error' => 'paths array is required'], 400);
+            }
+
+            $root = mediaRoot();
+            $deleted = [];
+            $errors  = [];
+
+            foreach ($paths as $raw) {
+                if (!is_string($raw) || $raw === '') continue;
+                try {
+                    $rel = validateMediaPath($raw);
+                } catch (Throwable $e) {
+                    $errors[] = ['path' => $raw, 'error' => 'Invalid path'];
+                    continue;
+                }
+                $abs = resolveUnderMedia($rel);
+                $realAbs = realpath($abs);
+                if (!$realAbs || strpos($realAbs, $root) !== 0 || !is_file($realAbs)) {
+                    $errors[] = ['path' => $rel, 'error' => 'Not found'];
+                    continue;
+                }
+                if (!unlink($realAbs)) {
+                    $errors[] = ['path' => $rel, 'error' => 'Failed to delete'];
+                    continue;
+                }
+                $deleted[] = $rel;
+
+                // Clean up empty parent directory (don't recurse past media root).
+                $parent = dirname($realAbs);
+                if ($parent !== $root && is_dir($parent) &&
+                    count(array_diff(scandir($parent), ['.', '..'])) === 0) {
+                    @rmdir($parent);
+                }
+            }
+
+            Logger::log('media', $method, 'delete_path', $_SESSION['user_id'], ['paths' => $paths], ['deleted' => count($deleted)], 200);
+            jsonResponse(['success' => true, 'deleted' => $deleted, 'errors' => $errors]);
+            break;
+
         default:
             Logger::log('media', $method, $action ?: 'none', $_SESSION['user_id'] ?? null, [], ['error' => 'Invalid action'], 400);
-            jsonResponse(['error' => 'Invalid action. Available actions: list, get, scenarios, delete'], 400);
+            jsonResponse(['error' => 'Invalid action. Available actions: list, get, scenarios, delete, upload, list_folder, delete_path'], 400);
     }
 } catch (Exception $e) {
     Logger::log('media', $method, $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], ['error' => $e->getMessage()], 500);

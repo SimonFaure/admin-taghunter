@@ -7,7 +7,7 @@ interface ApiResponse<T> {
 }
 
 const authMode = import.meta.env.VITE_AUTH_MODE || 'supabase';
-const API_BASE_URL = 'https://admin.taghunter.fr/backend/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 async function phpFetch<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   try {
