@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Film, User, Calendar, Trash2, Eye, Image as ImageIcon, FileJson, Globe, Tag, LayoutGrid, X, Upload, File, Download, ChevronDown, List } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, LayoutGrid, X, Upload, File, ChevronDown, List } from 'lucide-react';
+import { authFetch } from '../lib/authFetch';
 const Layout = LayoutGrid;
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
@@ -48,8 +50,12 @@ function getGameVersion(scenario: Scenario): string | null {
   return null;
 }
 
+type ScenarioFilter = 'all' | 'products' | 'client-authored' | 'drafts';
+
 export function ScenariosView() {
+  const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [filter, setFilter] = useState<ScenarioFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -309,7 +315,7 @@ export function ScenariosView() {
   const fetchScenarios = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=list`, {
+      const response = await authFetch(`${API_BASE_URL}/scenarios.php?action=list`, {
         credentials: 'include',
       });
 
@@ -328,7 +334,7 @@ export function ScenariosView() {
 
   const fetchScenarioFiles = async (scenarioId: number) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/scenario_files.php?action=list&scenario_id=${scenarioId}`, {
+      const response = await authFetch(`${API_BASE_URL}/scenario_files.php?action=list&scenario_id=${scenarioId}`, {
         credentials: 'include',
       });
 
@@ -351,7 +357,7 @@ export function ScenariosView() {
       const formData = new FormData();
       formData.append('id', String(selectedScenario.id));
       formData.append('status', newStatus);
-      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=update`, {
+      const response = await authFetch(`${API_BASE_URL}/scenarios.php?action=update`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -412,7 +418,7 @@ export function ScenariosView() {
       formData.append('name', uploadFileName);
       formData.append('scenario_id', selectedScenario.id.toString());
 
-      const response = await fetch(`${API_BASE_URL}/scenario_files.php?action=upload`, {
+      const response = await authFetch(`${API_BASE_URL}/scenario_files.php?action=upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -445,7 +451,7 @@ export function ScenariosView() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/scenario_files.php?action=delete`, {
+      const response = await authFetch(`${API_BASE_URL}/scenario_files.php?action=delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -478,7 +484,7 @@ export function ScenariosView() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=delete`, {
+      const response = await authFetch(`${API_BASE_URL}/scenarios.php?action=delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -902,7 +908,14 @@ export function ScenariosView() {
     );
   }
 
-  const groupedScenarios = scenarios.reduce((acc, scenario) => {
+  const filteredScenarios = scenarios.filter((s) => {
+    if (filter === 'products') return s.scenario_type === 'product' || s.client_id === null;
+    if (filter === 'client-authored') return s.scenario_type === 'custom' || s.client_id !== null;
+    if (filter === 'drafts') return (s.status || 'draft') === 'draft';
+    return true;
+  });
+
+  const groupedScenarios = filteredScenarios.reduce((acc, scenario) => {
     const type = scenario.scenario_type || 'Uncategorized';
     if (!acc[type]) {
       acc[type] = [];
@@ -1046,13 +1059,27 @@ export function ScenariosView() {
             )}
           </div>
 
-          <button
-            onClick={() => setSelectedScenario(scenario)}
-            className="w-full px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all inline-flex items-center justify-center space-x-2"
-          >
-            <Eye className="w-4 h-4" />
-            <span>View Details</span>
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedScenario(scenario)}
+              className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all inline-flex items-center justify-center space-x-2"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View Details</span>
+            </button>
+            {scenario.uniqid && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/studio/scenarios/${scenario.uniqid}`);
+                }}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-all inline-flex items-center"
+                title="Edit in Studio"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -1119,12 +1146,24 @@ export function ScenariosView() {
           {new Date(scenario.created_at).toLocaleDateString()}
         </td>
         <td className="px-4 py-3">
-          <button
-            onClick={(e) => { e.stopPropagation(); setSelectedScenario(scenario); }}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
-          >
-            <Eye className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedScenario(scenario); }}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all"
+              title="View details"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            {scenario.uniqid && (
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate(`/studio/scenarios/${scenario.uniqid}`); }}
+                className="p-1.5 rounded-lg text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-all"
+                title="Edit in Studio"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </td>
       </tr>
     );
@@ -1134,7 +1173,8 @@ export function ScenariosView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-slate-600">
-          {scenarios.length} {scenarios.length === 1 ? 'scenario' : 'scenarios'} total
+          {filteredScenarios.length} {filteredScenarios.length === 1 ? 'scenario' : 'scenarios'}
+          {filter !== 'all' && ` (${scenarios.length} total)`}
         </p>
         <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
           <button
@@ -1154,11 +1194,34 @@ export function ScenariosView() {
         </div>
       </div>
 
-      {scenarios.length === 0 ? (
+      <div className="flex items-center gap-2 flex-wrap">
+        {(['all', 'products', 'client-authored', 'drafts'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFilter(key)}
+            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              filter === key
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {key === 'all' ? 'All' : key === 'client-authored' ? 'Client-authored' : key[0].toUpperCase() + key.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {filteredScenarios.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
           <Film className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No scenarios yet</h3>
-          <p className="text-slate-600">Scenarios will appear here once they are created.</p>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+            {scenarios.length === 0 ? 'No scenarios yet' : 'No scenarios match this filter'}
+          </h3>
+          <p className="text-slate-600">
+            {scenarios.length === 0
+              ? 'Scenarios will appear here once they are created.'
+              : 'Try a different filter or switch to All.'}
+          </p>
         </div>
       ) : viewMode === 'grid' ? (
         <div className="space-y-8">
@@ -1194,7 +1257,7 @@ export function ScenariosView() {
                 </tr>
               </thead>
               <tbody>
-                {scenarios.map((scenario) => renderScenarioRow(scenario))}
+                {filteredScenarios.map((scenario) => renderScenarioRow(scenario))}
               </tbody>
             </table>
           </div>

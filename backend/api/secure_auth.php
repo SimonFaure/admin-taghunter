@@ -529,7 +529,10 @@ try {
                 jsonResponse(['error' => 'Failed to upload file'], 500);
             }
 
-            $avatarUrl = 'https://admin.taghunter.fr/media/avatars/' . $uniqueName;
+            // Store the avatar as a relative path; the frontend prefixes with
+            // VITE_MEDIA_BASE_URL at render time. Avoids hardcoding a host that
+            // changed when admin-taghunter merged into studio-taghunter.
+            $avatarUrl = '/media/avatars/' . $uniqueName;
 
             $db->execute(
                 'UPDATE clients SET avatar_url = ? WHERE id = ?',

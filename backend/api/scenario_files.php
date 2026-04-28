@@ -121,7 +121,8 @@ function handleGetScenario($pdo) {
     $mediasJson = $scenario['medias'];
     $medias = $mediasJson ? json_decode($mediasJson, true) : [];
 
-    $baseUrl = 'https://admin.taghunter.fr/media/' . $uniqid . '/';
+    // Return relative paths; the frontend prefixes with VITE_MEDIA_BASE_URL.
+    $baseUrl = '/media/' . $uniqid . '/';
     $images = [];
 
     $mediaDir = __DIR__ . '/../../media/' . $uniqid . '/';
@@ -139,17 +140,13 @@ function handleGetScenario($pdo) {
     $gameVisual = null;
     if (!empty($medias['images']['game_visual'])) {
         $gv = $medias['images']['game_visual'];
-        if (strpos($gv, 'http') === 0) {
-            $gameVisual = $gv;
-        } else {
-            $gameVisual = 'https://admin.taghunter.fr' . $gv;
-        }
+        // Pass through absolute URLs unchanged; otherwise return as-is (relative).
+        $gameVisual = $gv;
     }
 
     $videoUrl = null;
     if (!empty($medias['video'])) {
-        $v = $medias['video'];
-        $videoUrl = strpos($v, 'http') === 0 ? $v : 'https://admin.taghunter.fr' . $v;
+        $videoUrl = $medias['video'];
     }
 
     $stmt4 = $pdo->prepare("
@@ -281,7 +278,7 @@ function handleUploadVideo($pdo) {
 
     echo json_encode([
         'success' => true,
-        'video_url' => 'https://admin.taghunter.fr' . $videoPath
+        'video_url' => $videoPath
     ]);
 }
 

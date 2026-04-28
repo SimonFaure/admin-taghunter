@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { LayoutGrid as Layout, Search, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown, User, Shield, Building2 } from 'lucide-react';
+import { LayoutGrid as Layout, Search, Eye, Trash2, Calendar, Tag, Gamepad2, FileJson, X, ChevronDown, User, Shield, Building2, Pencil } from 'lucide-react';
+import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -98,7 +100,7 @@ function StatusDropdown({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/layouts.php?action=update_status`, {
+      const res = await authFetch(`${API_BASE_URL}/layouts.php?action=update_status`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -167,6 +169,7 @@ function StatusDropdown({
 }
 
 export function LayoutsView() {
+  const navigate = useNavigate();
   const [layouts, setLayouts] = useState<LayoutRow[]>([]);
   const [filtered, setFiltered] = useState<LayoutRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -213,7 +216,7 @@ export function LayoutsView() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/layouts.php?action=list`, {
+      const res = await authFetch(`${API_BASE_URL}/layouts.php?action=list`, {
         credentials: 'include',
       });
       const json = await res.json();
@@ -233,7 +236,7 @@ export function LayoutsView() {
 
   const handleDelete = async (id: number) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/layouts.php?action=delete&id=${id}`, {
+      const res = await authFetch(`${API_BASE_URL}/layouts.php?action=delete&id=${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -258,7 +261,12 @@ export function LayoutsView() {
   };
 
   const statusOptions = ['all', 'draft', 'published', 'archived'];
-  const ownerOptions = ['all', 'admin', 'client'];
+  const ownerOptions = ['all', 'system', 'admin', 'client'];
+  const ownerLabel = (o: string) =>
+    o === 'all' ? 'All Owners'
+    : o === 'system' ? 'System'
+    : o === 'admin' ? 'Admin'
+    : 'Client-authored';
 
   return (
     <div className="space-y-6">
@@ -297,7 +305,7 @@ export function LayoutsView() {
             onClick={() => { setShowOwnerDropdown((v) => !v); setShowStatusDropdown(false); }}
             className="flex items-center space-x-2 px-4 py-2.5 border border-slate-200 rounded-lg text-sm bg-white hover:bg-slate-50 transition-all"
           >
-            <span className="text-slate-700 capitalize">{ownerFilter === 'all' ? 'All Owners' : ownerFilter === 'admin' ? 'Admin' : 'Client'}</span>
+            <span className="text-slate-700">{ownerLabel(ownerFilter)}</span>
             <ChevronDown className="w-4 h-4 text-slate-400" />
           </button>
           {showOwnerDropdown && (
@@ -306,11 +314,11 @@ export function LayoutsView() {
                 <button
                   key={o}
                   onClick={() => { setOwnerFilter(o); setShowOwnerDropdown(false); }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors capitalize ${
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
                     ownerFilter === o ? 'bg-slate-100 font-medium text-slate-900' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  {o === 'all' ? 'All Owners' : o === 'admin' ? 'Admin' : 'Client'}
+                  {ownerLabel(o)}
                 </button>
               ))}
             </div>
@@ -514,7 +522,17 @@ export function LayoutsView() {
                 {selectedLayout.scenario_uniqid && (
                   <div className="bg-slate-50 rounded-lg p-3 col-span-2">
                     <p className="text-xs text-slate-500 mb-1">Scenario ID</p>
-                    <p className="text-sm font-mono text-slate-700">{selectedLayout.scenario_uniqid}</p>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-mono text-slate-700">{selectedLayout.scenario_uniqid}</p>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/studio/layouts/${selectedLayout.scenario_uniqid}`)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-600 text-white text-xs hover:bg-blue-500"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                        Edit in Studio
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

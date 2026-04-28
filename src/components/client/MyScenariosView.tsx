@@ -1,7 +1,8 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { secureAuth } from '../../lib/secureAuth';
-import { Film, Play, Download, Star } from 'lucide-react';
+import { Film, Play, Download, Star, Plus } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ClientScenario } from './types';
 
 interface MyScenariosViewProps {
@@ -30,6 +31,7 @@ export function getGameVisualUrl(
 }
 
 export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
+  const navigate = useNavigate();
   const { user } = useSecureAuth();
   const [scenarios, setScenarios] = useState<ClientScenario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,12 +73,22 @@ export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
     <div>
       <div className="mb-6 flex items-center justify-between gap-4">
         <p className="text-slate-600">View and manage your available game scenarios</p>
-        {user?.license_type === 'premium' && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-sm font-medium">
-            <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
-            Premium — all scenarios unlocked
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {user?.license_type === 'premium' && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-sm font-medium">
+              <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
+              Premium — all scenarios unlocked
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate('/studio/scenarios/new')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500"
+          >
+            <Plus className="w-4 h-4" />
+            New scenario
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -90,10 +102,18 @@ export function MyScenariosView({ onSelectScenario }: MyScenariosViewProps) {
       ) : scenarios.length === 0 ? (
         <div className="bg-white p-12 rounded-xl shadow-sm border border-slate-200 text-center">
           <Film className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No Scenarios Available</h3>
-          <p className="text-slate-600">
-            You don't have any scenarios assigned yet. Contact your administrator for access.
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No scenarios yet</h3>
+          <p className="text-slate-600 mb-6">
+            Create your first scenario to get started, or contact your administrator if you expected existing ones to be available.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/studio/scenarios/new')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+          >
+            <Plus className="w-4 h-4" />
+            Create a scenario
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -7,6 +7,7 @@ session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     header('Content-Type: application/json');
@@ -15,10 +16,25 @@ function jsonResponse($data, $statusCode = 200) {
     exit;
 }
 
+// Token takes precedence; session fallback requires explicit user_type.
+// A stale session from a prior admin login must not shadow the current token.
 function requireAuth() {
-    if (!isset($_SESSION['user_id'])) {
-        jsonResponse(['error' => 'Unauthorized'], 401);
+    $header = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if ($header !== '') {
+        $tokenData = TokenManager::validateToken(Database::getInstance(), $header);
+        if ($tokenData) {
+            // Overwrite any stale session with the authoritative token values.
+            $_SESSION['user_id'] = $tokenData['user_id'];
+            $_SESSION['user_type'] = $tokenData['user_type'];
+            return;
+        }
     }
+
+    if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
+        return;
+    }
+
+    jsonResponse(['error' => 'Unauthorized'], 401);
 }
 
 function getRequestData() {
@@ -36,6 +52,11 @@ try {
                 Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
+
+            // Phase 4a: require a real token or session. The legacy email-based
+            // path (client sends their email in the body) is no longer trusted —
+            // auth must come from a validated token.
+            requireAuth();
 
             // Get raw input to check if it's JSON
             $rawInput = file_get_contents('php://input');
@@ -56,8 +77,9 @@ try {
                 'content_type' => $_SERVER['CONTENT_TYPE'] ?? null
             ], ['message' => 'Incoming create request'], 200);
 
-            // Check if this is an admin request (with session) or client request (with email)
-            $isAdminRequest = isset($_SESSION['user_id']);
+            // Post-Phase-4a: admin vs client is decided by the token's user_type,
+            // not just session-has-a-user (which is now true for clients too after requireAuth).
+            $isAdminRequest = ($_SESSION['user_type'] ?? '') === 'admin';
             // Extract email from multiple possible locations
             $email = $_POST['email'] ?? ($jsonInput['email'] ?? null);
             $logSource = $isAdminRequest ? 'admin' : 'creator';
@@ -220,6 +242,14 @@ try {
                 $scenario_layout = $_POST['scenario_layout'] ?? null;
                 $status = $_POST['status'] ?? 'draft';
                 $uniqid = $_POST['uniqid'] ?? null;
+            }
+
+            // Phase 4a: for non-admin tokens, override client_id and scenario_type
+            // with server-derived safe values. A client cannot self-promote their
+            // scenario to a Taghunter product template or assign it to another user.
+            if (!$isAdminRequest) {
+                $client_id = (int)$_SESSION['user_id'];
+                $scenario_type = 'custom';
             }
 
             // Log extracted fields before processing
@@ -507,6 +537,15 @@ try {
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
+            // Phase 4a: non-admin tokens can only update scenarios they own,
+            // and cannot change scenario_type (handled below after the assignment).
+            $isAdminToken = ($_SESSION['user_type'] ?? '') === 'admin';
+            if (!$isAdminToken) {
+                if ((int)($scenario['client_id'] ?? 0) !== (int)$_SESSION['user_id']) {
+                    jsonResponse(['error' => 'Forbidden'], 403);
+                }
+            }
+
             $title = isset($_POST['title']) ? trim($_POST['title']) : $scenario['title'];
             $description = isset($_POST['description']) ? trim($_POST['description']) : $scenario['description'];
             $media_path = $scenario['media_url'];
@@ -516,6 +555,11 @@ try {
             $game_type = isset($_POST['game_type']) ? $_POST['game_type'] : $scenario['game_type'];
             $scenario_type = isset($_POST['scenario_type']) ? $_POST['scenario_type'] : $scenario['scenario_type'];
             $status = isset($_POST['status']) ? $_POST['status'] : $scenario['status'];
+
+            // Phase 4a: non-admin tokens cannot change scenario_type.
+            if (!$isAdminToken) {
+                $scenario_type = $scenario['scenario_type'];
+            }
 
             // Convert data to JSON string if it's an array
             if (is_array($data)) {
@@ -766,9 +810,9 @@ try {
                 jsonResponse(['error' => 'Failed to save file'], 500);
             }
 
-            // Build response
+            // Build response — return relative path; the frontend prefixes with VITE_MEDIA_BASE_URL.
             $relativePath = '/media/' . $uniqid . '/' . $originalFilename;
-            $fullUrl = 'https://admin.taghunter.fr' . $relativePath;
+            $fullUrl = $relativePath;
 
             $responseData = [
                 'success' => true,

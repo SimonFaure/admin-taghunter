@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, Loader2, AlertCircle, CheckCircle, Pencil } from 'lucide-react';
 import { secureAuth } from '../../lib/secureAuth';
 import { getGameVisualUrl } from './MyScenariosView';
 import type { ClientScenario } from './types';
@@ -138,15 +139,28 @@ export function ScenarioDetailView({ scenario, onBack }: ScenarioDetailViewProps
     }
   };
 
+  const navigate = useNavigate();
+
   return (
     <div>
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-6 group"
-      >
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-        <span className="text-sm font-medium">Back to Scenarios</span>
-      </button>
+      <div className="flex items-center justify-between mb-6">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          <span className="text-sm font-medium">Back to Scenarios</span>
+        </button>
+        {scenario.uniqid && (
+          <button
+            onClick={() => navigate(`/studio/scenarios/${scenario.uniqid}`)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500"
+          >
+            <Pencil className="w-4 h-4" />
+            Edit in Studio
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="space-y-4">

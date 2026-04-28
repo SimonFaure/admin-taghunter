@@ -338,7 +338,7 @@ try {
                 jsonResponse($response, 500);
             }
 
-            $avatarUrl = 'https://admin.taghunter.fr/media/avatars/' . $uniqueName;
+            $avatarUrl = '/media/avatars/' . $uniqueName;
 
             $db->execute(
                 'UPDATE clients SET avatar_url = ? WHERE id = ?',

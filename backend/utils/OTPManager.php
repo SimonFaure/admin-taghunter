@@ -129,7 +129,7 @@ class OTPManager {
                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
                     <tr>
                         <td style="padding: 48px 40px; text-align: center; background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
-                            <img src="https://admin.taghunter.fr/logo_tag_hunter.png" alt="Tag Hunter" style="height: 80px; width: auto; margin-bottom: 24px;">
+                            <img src="https://studio.taghunter.fr/logo_tag_hunter.png" alt="Tag Hunter" style="height: 80px; width: auto; margin-bottom: 24px;">
                             <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 12px 0;">Your Login Code</h1>
                             <p style="color: #94a3b8; font-size: 16px; margin: 0; line-height: 1.5;">Enter this code to access your Tag Hunter dashboard</p>
                         </td>
@@ -177,7 +177,7 @@ HTML;
                 <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
                     <tr>
                         <td style="padding: 48px 40px; text-align: center; background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
-                            <img src="https://admin.taghunter.fr/logo_tag_hunter.png" alt="Tag Hunter" style="height: 80px; width: auto; margin-bottom: 24px;">
+                            <img src="https://studio.taghunter.fr/logo_tag_hunter.png" alt="Tag Hunter" style="height: 80px; width: auto; margin-bottom: 24px;">
                             <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 12px 0;">Your Magic Login Link</h1>
                             <p style="color: #94a3b8; font-size: 16px; margin: 0; line-height: 1.5;">Click the button below to access your Tag Hunter dashboard</p>
                         </td>

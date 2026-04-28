@@ -2,7 +2,7 @@ import { TrendingUp, Trophy, Target, Clock, Calendar } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export function ClientStatisticsView() {
-  const [stats, setStats] = useState({
+  const [stats] = useState({
     gamesPlayed: 0,
     totalTime: '0h',
     averageScore: 0,

@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Package, Search, Filter, Download, Eye, Trash2, Pencil, Plus, ChevronLeft, ChevronDown, Calendar, User, Tag, X } from 'lucide-react';
+import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 interface Pattern {
   id: number;
+  uniqid?: string | null;
   name: string;
   description: string;
   game_type: string;
@@ -44,6 +47,7 @@ function formatDate(dateString: string | null) {
 }
 
 export function PatternsView() {
+  const navigate = useNavigate();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [filteredPatterns, setFilteredPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +55,7 @@ export function PatternsView() {
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
+  const [ownerFilter, setOwnerFilter] = useState<'all' | 'system' | 'admin' | 'client'>('all');
   const [gameTypes, setGameTypes] = useState<string[]>([]);
 
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
@@ -76,12 +81,12 @@ export function PatternsView() {
 
   useEffect(() => {
     filterPatterns();
-  }, [patterns, searchTerm, selectedGameType]);
+  }, [patterns, searchTerm, selectedGameType, ownerFilter]);
 
   const fetchPatterns = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/patterns.php?action=list`,
         { credentials: 'include' }
       );
@@ -115,6 +120,9 @@ export function PatternsView() {
     if (selectedGameType !== 'all') {
       filtered = filtered.filter((p) => p.game_type === selectedGameType);
     }
+    if (ownerFilter !== 'all') {
+      filtered = filtered.filter((p) => (p.owner_type || '').toLowerCase() === ownerFilter);
+    }
     setFilteredPatterns(filtered);
   };
 
@@ -123,7 +131,7 @@ export function PatternsView() {
     setStatusUpdating(pattern.id);
     setStatusError(null);
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/patterns.php?action=update_status`,
         {
           method: 'POST',
@@ -162,7 +170,7 @@ export function PatternsView() {
   const handleDelete = async (patternId: number) => {
     if (!confirm('Are you sure you want to delete this pattern?')) return;
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/patterns.php?action=delete&id=${patternId}`,
         { method: 'DELETE', credentials: 'include' }
       );
@@ -204,7 +212,7 @@ export function PatternsView() {
     setError('');
     try {
       const patternJson = JSON.parse(formData.pattern_data);
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/patterns.php?action=create`,
         {
           method: 'POST',
@@ -236,7 +244,7 @@ export function PatternsView() {
     if (!editingPattern) return;
     try {
       const patternJson = JSON.parse(formData.pattern_data);
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/patterns.php?action=update&id=${editingPattern.id}`,
         {
           method: 'PUT',
@@ -292,7 +300,13 @@ export function PatternsView() {
               <span>Download</span>
             </button>
             <button
-              onClick={() => openEdit(selectedPattern)}
+              onClick={() => {
+                if (selectedPattern.uniqid) {
+                  navigate(`/studio/patterns/${selectedPattern.uniqid}`);
+                } else {
+                  openEdit(selectedPattern);
+                }
+              }}
               className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
             >
               <Pencil className="w-4 h-4" />
@@ -563,6 +577,28 @@ export function PatternsView() {
         </div>
       </div>
 
+      <div className="flex items-center gap-2 flex-wrap">
+        {([
+          { key: 'all' as const, label: 'All' },
+          { key: 'system' as const, label: 'System' },
+          { key: 'admin' as const, label: 'Admin' },
+          { key: 'client' as const, label: 'Client-authored' },
+        ]).map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setOwnerFilter(key)}
+            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              ownerFilter === key
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900" />
@@ -663,9 +699,15 @@ export function PatternsView() {
                           <Download className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => openEdit(pattern)}
+                          onClick={() => {
+                            if (pattern.uniqid) {
+                              navigate(`/studio/patterns/${pattern.uniqid}`);
+                            } else {
+                              openEdit(pattern);
+                            }
+                          }}
                           className="text-blue-500 hover:text-blue-700 transition-colors"
-                          title="Edit"
+                          title="Edit in Studio"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>

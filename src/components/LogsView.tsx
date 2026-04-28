@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, RefreshCw, Trash2, ChevronDown, ChevronUp, Wrench, Gamepad2, AlertTriangle } from 'lucide-react';
+import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -30,7 +31,7 @@ export default function LogsView() {
     try {
       setLoading(true);
       setError('');
-      const response = await fetch(`${API_BASE_URL}/logs.php?action=list&limit=100`, {
+      const response = await authFetch(`${API_BASE_URL}/logs.php?action=list&limit=100`, {
         credentials: 'include',
       });
 
@@ -51,7 +52,7 @@ export default function LogsView() {
   const clearLogs = async () => {
     try {
       setClearing(true);
-      const response = await fetch(`${API_BASE_URL}/logs.php?action=clear`, {
+      const response = await authFetch(`${API_BASE_URL}/logs.php?action=clear`, {
         method: 'POST',
         credentials: 'include',
       });

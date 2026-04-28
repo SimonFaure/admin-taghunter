@@ -1,4 +1,4 @@
-import { Settings, Volume2, Monitor, Gamepad2, Save } from 'lucide-react';
+import { Volume2, Monitor, Gamepad2, Save } from 'lucide-react';
 import { useState } from 'react';
 
 export function GameConfigView() {

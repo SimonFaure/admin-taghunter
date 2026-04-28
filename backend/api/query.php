@@ -36,13 +36,18 @@ function respond($payload, int $status = 200): void {
 }
 
 function requireAuth() {
-    if (isset($_SESSION['user_id'])) {
-        return ['user_id' => $_SESSION['user_id'], 'user_type' => $_SESSION['user_type'] ?? 'admin'];
-    }
+    // Bearer/X-Auth-Token takes precedence — a stale session cookie from a
+    // prior admin login must not shadow the current user's token.
     $header = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     if ($header !== '') {
         $tokenData = TokenManager::validateToken(Database::getInstance(), $header);
         if ($tokenData) return $tokenData;
+    }
+    // Fallback: legacy session auth. Requires BOTH user_id and user_type to be
+    // set — no defaulting user_type to 'admin' (the old bug that let clients
+    // escalate if their session predated this code).
+    if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
+        return ['user_id' => $_SESSION['user_id'], 'user_type' => $_SESSION['user_type']];
     }
     respond(['error' => 'Authentication required'], 401);
 }
@@ -58,6 +63,57 @@ $ALLOWED_TABLES = [
     'import_logs',
     'si_balises',
 ];
+
+// Columns a non-admin token may not set/change via this endpoint. A client
+// cannot promote their scenario to a product (client_id = NULL, scenario_type
+// = 'product') or masquerade ownership on patterns/layouts. Admin tokens
+// bypass all of this — they own the data model.
+$PROTECTED_WRITE_COLUMNS = [
+    'scenarios' => ['client_id', 'scenario_type'],
+    'patterns'  => ['owner_type', 'owner_id'],
+    'layouts'   => ['owner_type', 'owner_id'],
+];
+
+// On insert/upsert, force protected columns to safe values for non-admin tokens.
+function enforceInsertAcl(string $table, array $row, array $tokenData): array {
+    global $PROTECTED_WRITE_COLUMNS;
+    if (($tokenData['user_type'] ?? '') === 'admin') return $row;
+    if (!isset($PROTECTED_WRITE_COLUMNS[$table])) return $row;
+    $userId = $tokenData['user_id'] ?? null;
+    if ($table === 'scenarios') {
+        $row['client_id'] = $userId;
+        $row['scenario_type'] = 'custom';
+    } elseif ($table === 'patterns' || $table === 'layouts') {
+        $row['owner_type'] = 'client';
+        $row['owner_id'] = $userId;
+    }
+    return $row;
+}
+
+// Returns ['column', 'value'] for the row-ownership predicate that pins UPDATE/DELETE
+// to rows owned by the current non-admin user, or null if the table is unrestricted.
+// Admin tokens always return null (no extra constraint — admins write anything).
+function ownerPredicate(string $table, array $tokenData): ?array {
+    if (($tokenData['user_type'] ?? '') === 'admin') return null;
+    $userId = $tokenData['user_id'] ?? null;
+    if ($userId === null) return null;
+    if ($table === 'scenarios') return ['client_id', $userId];
+    if ($table === 'patterns' || $table === 'layouts') return ['owner_id', $userId];
+    return null;
+}
+
+// On update, reject any write that touches protected columns from a non-admin token.
+function enforceUpdateAcl(string $table, array $values, array $tokenData): array {
+    global $PROTECTED_WRITE_COLUMNS;
+    if (($tokenData['user_type'] ?? '') === 'admin') return $values;
+    if (!isset($PROTECTED_WRITE_COLUMNS[$table])) return $values;
+    foreach ($PROTECTED_WRITE_COLUMNS[$table] as $col) {
+        if (array_key_exists($col, $values)) {
+            respond(['error' => "Only admins can modify '$col' on '$table'"], 403);
+        }
+    }
+    return $values;
+}
 
 $OP_MAP = [
     'eq'  => '=',
@@ -146,7 +202,7 @@ function buildSelect($select): string {
 }
 
 try {
-    requireAuth();
+    $tokenData = requireAuth();
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         respond(['error' => 'Method not allowed'], 405);
@@ -200,6 +256,9 @@ try {
             $rows = isset($values[0]) && is_array($values[0]) ? $values : [$values];
             if (count($rows) === 0) respond(['error' => 'insert: no rows'], 400);
 
+            // Non-admin tokens: force protected columns to safe values.
+            $rows = array_map(fn($r) => enforceInsertAcl($table, $r, $tokenData), $rows);
+
             $cols = array_map('safeIdent', array_keys($rows[0]));
             $placeholders = '(' . implode(',', array_fill(0, count($cols), '?')) . ')';
 
@@ -233,6 +292,8 @@ try {
             if (!is_array($values) || count($values) === 0) {
                 respond(['error' => 'update: values required'], 400);
             }
+            // Non-admin tokens cannot modify protected columns.
+            $values = enforceUpdateAcl($table, $values, $tokenData);
             $params = [];
             $setClauses = [];
             foreach ($values as $col => $val) {
@@ -243,6 +304,13 @@ try {
             $whereSql = buildWhere($body['where'] ?? [], $params);
             if ($whereSql === '') respond(['error' => 'update: where is required'], 400);
 
+            // Row-level ownership: a non-admin token can only update its own rows.
+            $owner = ownerPredicate($table, $tokenData);
+            if ($owner !== null) {
+                $whereSql .= " AND $owner[0] = ?";
+                $params[] = $owner[1];
+            }
+
             $sql = "UPDATE $table SET " . implode(',', $setClauses) . $whereSql;
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
@@ -250,6 +318,10 @@ try {
             if (!empty($body['returning'])) {
                 $selParams = [];
                 $selWhere = buildWhere($body['where'] ?? [], $selParams);
+                if ($owner !== null) {
+                    $selWhere .= " AND $owner[0] = ?";
+                    $selParams[] = $owner[1];
+                }
                 $sel = $pdo->prepare("SELECT * FROM $table$selWhere");
                 $sel->execute($selParams);
                 respond(['data' => $sel->fetchAll(PDO::FETCH_ASSOC), 'error' => null]);
@@ -262,6 +334,13 @@ try {
             $whereSql = buildWhere($body['where'] ?? [], $params);
             if ($whereSql === '') respond(['error' => 'delete: where is required'], 400);
 
+            // Row-level ownership: a non-admin token can only delete its own rows.
+            $owner = ownerPredicate($table, $tokenData);
+            if ($owner !== null) {
+                $whereSql .= " AND $owner[0] = ?";
+                $params[] = $owner[1];
+            }
+
             $sql = "DELETE FROM $table$whereSql";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
@@ -273,6 +352,9 @@ try {
             if ($values === null) respond(['error' => 'upsert: values required'], 400);
             $rows = isset($values[0]) && is_array($values[0]) ? $values : [$values];
             if (count($rows) === 0) respond(['error' => 'upsert: no rows'], 400);
+
+            // Non-admin tokens: force protected columns to safe values on both insert and update paths.
+            $rows = array_map(fn($r) => enforceInsertAcl($table, $r, $tokenData), $rows);
 
             $onConflict = $body['onConflict'] ?? null;
             if ($onConflict !== null) safeIdent($onConflict); // validation side-effect

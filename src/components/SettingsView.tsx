@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Database, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -38,7 +39,7 @@ export function SettingsView() {
     setMigrationStatus(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/migrate.php`, {
+      const response = await authFetch(`${API_BASE_URL}/migrate.php`, {
         method: 'POST',
         credentials: 'include',
       });

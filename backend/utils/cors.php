@@ -3,12 +3,11 @@
 function setCorsHeaders() {
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
+    // Localhost (any port) is already matched via the $isDevelopment substring
+    // check below, so the explicit list focuses on production / staging origins.
     $allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'http://localhost:4173',
-        'https://admin.taghunter.fr',
-        'http://admin.taghunter.fr'
+        'https://studio.taghunter.fr',
+        'http://studio.taghunter.test',
     ];
 
     $isDevelopment = !empty($origin) && (

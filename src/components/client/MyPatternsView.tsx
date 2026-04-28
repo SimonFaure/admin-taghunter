@@ -111,7 +111,7 @@ export function MyPatternsView() {
       const patternsData = result.data || [];
       setPatterns(patternsData);
 
-      const types = Array.from(new Set(patternsData.map((p: Pattern) => p.game_type)));
+      const types = Array.from(new Set(patternsData.map((p: Pattern) => p.game_type))) as string[];
       setGameTypes(types.sort());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load patterns');
@@ -303,7 +303,7 @@ export function MyPatternsView() {
                 pattern={pattern}
                 onPreview={handlePreview}
                 onDownload={handleDownload}
-                onDelete={pattern.owner_id === user?.client_id ? handleDelete : undefined}
+                onDelete={String(pattern.owner_id ?? '') === String(user?.client_id ?? '') ? handleDelete : undefined}
               />
             ))}
           </div>

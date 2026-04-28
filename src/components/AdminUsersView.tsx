@@ -80,7 +80,7 @@ export function AdminUsersView() {
   };
 
   const handleDelete = async (id: string) => {
-    if (user && id === String(user.id)) {
+    if (user && id === String(user.user_id)) {
       setError('Cannot delete your own account');
       return;
     }

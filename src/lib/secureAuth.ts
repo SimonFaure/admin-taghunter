@@ -8,15 +8,21 @@ interface ApiResponse<T> {
 interface TokenData {
   token: string;
   expires_at: string;
-  client_id: string;
+  user_id: string;
+  user_type: 'admin' | 'client';
+  client_id?: string;
   email: string;
   name?: string;
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
+  created_at?: string;
+  avatar_url?: string;
 }
 
 interface ValidationData {
   valid: boolean;
+  user_id?: string;
+  user_type?: 'admin' | 'client';
   client_id?: string;
   email?: string;
   name?: string;
@@ -24,6 +30,8 @@ interface ValidationData {
   error?: string;
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
+  created_at?: string;
+  avatar_url?: string;
 }
 
 const API_BASE_URL = '/backend/api';
@@ -36,9 +44,9 @@ async function secureFetch<T>(
 ): Promise<ApiResponse<T>> {
   try {
     const token = secureAuth.getStoredToken();
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     };
 
     if (token) {
@@ -68,16 +76,16 @@ async function secureFetch<T>(
 
 export const secureAuth = {
   async login(email: string, password: string): Promise<ApiResponse<TokenData> & { code_required?: boolean }> {
-    const result = await secureFetch<TokenData>('/secure_auth.php?action=login', {
+    const result = (await secureFetch<TokenData>('/secure_auth.php?action=login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
-    });
+    })) as ApiResponse<TokenData> & { code_required?: boolean };
 
-    if (result.success && result['code_required'] === false && result.data && result.data.token) {
+    if (result.success && result.code_required === false && result.data && result.data.token) {
       this.storeToken(result.data.token, result.data.expires_at);
     }
 
-    return result as ApiResponse<TokenData> & { code_required?: boolean };
+    return result;
   },
 
   async requestCode(email: string, type: 'otp' | 'magic_link' = 'otp', password?: string): Promise<ApiResponse<{ expires_in: number }>> {

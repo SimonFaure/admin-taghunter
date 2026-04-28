@@ -3,6 +3,7 @@ import { ArrowLeft, Upload, User, FileText, GamepadIcon, Package, Plus, X, Shopp
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { ScenarioData } from '../lib/api';
+import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -118,7 +119,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadScenarios = async () => {
     setLoadingScenarios(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=list&client_id=${clientId}`, {
+      const response = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=list&client_id=${clientId}`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -135,7 +136,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadAvailableScenarios = async () => {
     setLoadingAvailable(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/scenarios.php?action=list`, {
+      const response = await authFetch(`${API_BASE_URL}/scenarios.php?action=list`, {
         credentials: 'include',
       });
       if (response.ok) {
@@ -155,7 +156,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     setAddingScenario(true);
     try {
       console.log('Adding scenario:', { client_id: clientId, scenario_id: scenarioId });
-      const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=add`, {
+      const response = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -191,7 +192,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     if (!removeConfirm) return;
     setRemoving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=remove`, {
+      const response = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -266,7 +267,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       formData.append('avatar', file);
       formData.append('client_id', clientId);
 
-      const response = await fetch(`${API_BASE_URL}/clients.php?action=upload_avatar`, {
+      const response = await authFetch(`${API_BASE_URL}/clients.php?action=upload_avatar`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -389,7 +390,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
       console.log('Uploading file for client:', clientId);
 
-      const response = await fetch(`${API_BASE_URL}/cards.php?action=admin_upload`, {
+      const response = await authFetch(`${API_BASE_URL}/cards.php?action=admin_upload`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
