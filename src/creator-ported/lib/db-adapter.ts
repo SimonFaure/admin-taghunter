@@ -216,7 +216,7 @@ class MySQLQueryBuilder {
 }
 
 // ---------------------------------------------------------------------------
-// PHP adapter — routes Supabase-SDK-style calls to the admin backend via
+// PHP adapter — routes builder-style queries to the admin backend via
 // /backend/api/query.php (a generic, whitelisted dispatcher).
 // ---------------------------------------------------------------------------
 
@@ -240,7 +240,7 @@ class PhpQueryBuilder {
 
   select(columns: string = '*') {
     if (this.op === 'insert' || this.op === 'update' || this.op === 'upsert') {
-      // Supabase pattern: `.insert(...).select()` means "return the affected rows".
+      // `.insert(...).select()` returns the affected rows.
       this.returning = true;
       if (columns && columns !== '*') this.selectColumns = columns;
       return this;
@@ -348,7 +348,17 @@ class PhpQueryBuilder {
         return { data: null, error: { message } };
       }
 
-      return { data: json.data ?? null, error: json.error ?? null };
+      // query.php's INSERT/UPDATE/UPSERT return arrays even with single/maybeSingle.
+      // Unwrap to a single object when requested.
+      let data = json.data ?? null;
+      const wantSingle = !!extra.single || !!extra.maybeSingle;
+      if (wantSingle && this.op !== 'select' && Array.isArray(data)) {
+        data = data.length > 0 ? data[0] : null;
+        if (extra.single && data === null) {
+          return { data: null, error: { message: 'No rows returned' } };
+        }
+      }
+      return { data, error: json.error ?? null };
     } catch (error: any) {
       return { data: null, error: { message: error?.message || 'Network error' } };
     }
@@ -357,16 +367,16 @@ class PhpQueryBuilder {
 
 // ---------------------------------------------------------------------------
 
-export const createDbAdapter = (supabaseClient: any) => {
+export const createDbAdapter = (legacyClient: any) => {
   if (isElectron && (window as any).electron?.db?.query) {
     return {
       from: (tableName: string) => new MySQLQueryBuilder(tableName),
-      storage: supabaseClient?.storage,
+      storage: legacyClient?.storage,
     };
   }
 
-  if (supabaseClient) {
-    return supabaseClient;
+  if (legacyClient) {
+    return legacyClient;
   }
 
   // Default for browser web-app mode: route all .from(...) table calls through

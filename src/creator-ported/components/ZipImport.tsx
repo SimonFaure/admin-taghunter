@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react';
 import { Upload, FileArchive, CheckCircle, XCircle, Loader2, ArrowLeft, FolderTree } from 'lucide-react';
 import JSZip from 'jszip';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { parseCSV, csvToKeyValue } from '../utils/csvParser';
 
 interface ZipImportProps {
@@ -35,7 +35,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
     setLogs(logsRef.current);
 
     if (importLogIdRef.current) {
-      const { error } = await supabase
+      const { error } = await db
         .from('import_logs')
         .update({ logs: logsRef.current })
         .eq('id', importLogIdRef.current);
@@ -243,7 +243,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
 
     const startTime = Date.now();
 
-    const { data: importLogData, error: logError } = await supabase
+    const { data: importLogData, error: logError } = await db
       .from('import_logs')
       .insert({
         file_name: file.name,
@@ -374,7 +374,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
       addLog('success', `Import completed successfully in ${totalDuration}s!`);
 
       if (importLogIdRef.current) {
-        await supabase
+        await db
           .from('import_logs')
           .update({
             status: 'success',
@@ -389,7 +389,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
       console.error('Import error:', error);
 
       if (importLogIdRef.current) {
-        await supabase
+        await db
           .from('import_logs')
           .update({
             status: 'failed',
@@ -609,7 +609,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
         }
       }
 
-      const { data: existingScenario } = await supabase
+      const { data: existingScenario } = await db
         .from('scenarios')
         .select('id')
         .eq('uniqid', uniqid)
@@ -672,17 +672,17 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
         addLog('info', `Updating existing scenario (ID: ${existingScenario.id})`);
 
         const storageKey = existingScenario.uniqid || existingScenario.id;
-        const { data: oldFiles } = await supabase.storage
+        const { data: oldFiles } = await db.storage
           .from('game-media')
           .list(storageKey);
 
         if (oldFiles && oldFiles.length > 0) {
           const filesToDelete = oldFiles.map(file => `${storageKey}/${file.name}`);
-          await supabase.storage.from('game-media').remove(filesToDelete);
+          await db.storage.from('game-media').remove(filesToDelete);
           addLog('success', `Removed ${filesToDelete.length} old media files`);
         }
 
-        const { data: updatedScenario, error: updateError } = await supabase
+        const { data: updatedScenario, error: updateError } = await db
           .from('scenarios')
           .update(scenarioData)
           .eq('id', existingScenario.id)
@@ -696,7 +696,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
         scenario = updatedScenario;
         addLog('success', `Scenario updated (ID: ${scenario.id})`);
       } else {
-        const { data: newScenario, error: scenarioError } = await supabase
+        const { data: newScenario, error: scenarioError } = await db
           .from('scenarios')
           .insert(scenarioData)
           .select()
@@ -811,7 +811,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
             const sanitizedFileName = sanitizeFileName(fileName);
             const storagePath = `${scenario.uniqid || scenario.id}/${sanitizedFileName}`;
 
-            const { error: uploadError } = await supabase.storage
+            const { error: uploadError } = await db.storage
               .from('game-media')
               .upload(storagePath, blob, {
                 contentType,
@@ -857,7 +857,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
             const sanitizedFileName = sanitizeFileName(fileName);
             const storagePath = `${scenario.uniqid || scenario.id}/${sanitizedFileName}`;
 
-            const { error: uploadError } = await supabase.storage
+            const { error: uploadError } = await db.storage
               .from('game-media')
               .upload(storagePath, blob, {
                 contentType,
@@ -980,7 +980,7 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
         }
       });
 
-      await supabase
+      await db
         .from('scenarios')
         .update({
           media: updatedMedia

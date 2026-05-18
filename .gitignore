@@ -14,6 +14,10 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Playground self-update release artifacts (large binaries). Keep .htaccess.
+backend/releases/*
+!backend/releases/.htaccess
 .DS_Store
 *.suo
 *.ntvs*
@@ -21,3 +25,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Runtime scenario media uploads (hundreds of MB of binaries — not source).
+media/
+# Local build-artifact tarball.
+dist.tar.gz

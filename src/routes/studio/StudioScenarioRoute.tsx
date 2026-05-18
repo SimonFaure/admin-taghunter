@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { MysteryConfig } from '../../creator-ported/components/MysteryConfig';
-import { TagquestConfig } from '../../creator-ported/components/TagquestConfig';
 import { ScenarioCreator } from '../../creator-ported/components/ScenarioCreator';
-import { supabase } from '../../creator-ported/lib/db';
+import { db } from '../../creator-ported/lib/db';
 import { useAuth } from '../../auth/AuthContext';
+import { ScenarioEditorShell } from '../../scenarios/shell/ScenarioEditorShell';
+import { getAdapter } from '../../scenarios/registry';
+import '../../scenarios/bootstrap';
 
 interface ScenarioRow {
   id: string;
   uniqid: string;
   game_type: 'mystery' | 'tagquest' | 'tracks' | string;
   title?: string;
+  scenario_type?: string;
 }
 
 export function StudioScenarioRoute() {
@@ -18,10 +20,6 @@ export function StudioScenarioRoute() {
   const navigate = useNavigate();
   const { userType } = useAuth();
   const isAdmin = userType === 'admin';
-  // Admin list views (/admin/scenarios etc.) are still placeholders until Phase 3b
-  // splits Dashboard into sub-routes. For now admins land back at the Dashboard home
-  // and reclick the Scenarios tab. Clients have real list routes already.
-  const roleHome = isAdmin ? '/admin' : '/my/scenarios';
 
   const isNew = uniqid === 'new';
   const [scenario, setScenario] = useState<ScenarioRow | null>(null);
@@ -35,15 +33,21 @@ export function StudioScenarioRoute() {
       setLoading(true);
       setError(null);
       try {
-        const { data, error: e } = await supabase
+        const { data, error: e } = await db
           .from('scenarios')
-          .select('id, uniqid, game_type, title')
+          .select('id, uniqid, game_type, title, scenario_type')
           .eq('uniqid', uniqid)
           .maybeSingle();
         if (cancelled) return;
         if (e || !data) {
           setError(e?.message || 'Scenario not found');
         } else {
+          // Product scenarios are read-only for clients. Backend already rejects
+          // saves; this redirect keeps the user out of an editor they can't save.
+          if (!isAdmin && (data as ScenarioRow).scenario_type === 'product') {
+            navigate(`/my/scenarios/${uniqid}`, { replace: true });
+            return;
+          }
           setScenario(data as ScenarioRow);
         }
       } catch (err) {
@@ -55,9 +59,14 @@ export function StudioScenarioRoute() {
     return () => {
       cancelled = true;
     };
-  }, [isNew, uniqid]);
+  }, [isNew, uniqid, isAdmin, navigate]);
 
-  const backToList = () => navigate(roleHome);
+  // Admins land on Dashboard with the Scenarios tab pre-selected (Dashboard
+   // reads `location.state.tab`); clients have a dedicated list route.
+   const backToList = () =>
+     isAdmin
+       ? navigate('/admin', { state: { tab: 'scenarios' } })
+       : navigate('/my/scenarios');
   const openLayoutEditor = (scenarioUniqid: string) =>
     navigate(`/studio/layouts/${scenarioUniqid}`);
 
@@ -98,20 +107,16 @@ export function StudioScenarioRoute() {
 
   const scenarioId = String(scenario.id);
 
-  if (scenario.game_type === 'mystery') {
+  // New-shell path — adapters are registered via bootstrap.ts (Slice 2B+).
+  // Mystery + Tagquest both route through <ScenarioEditorShell>; tracks (and
+  // any future type) falls through to the not-available branch until an
+  // adapter is registered for it.
+  const adapter = getAdapter(scenario.game_type);
+  if (adapter) {
     return (
-      <MysteryConfig
+      <ScenarioEditorShell
         scenarioId={scenarioId}
-        onBack={backToList}
-        onOpenLayoutEditor={() => openLayoutEditor(scenario.uniqid)}
-      />
-    );
-  }
-
-  if (scenario.game_type === 'tagquest') {
-    return (
-      <TagquestConfig
-        scenarioId={scenarioId}
+        adapter={adapter}
         onBack={backToList}
         onOpenLayoutEditor={() => openLayoutEditor(scenario.uniqid)}
       />

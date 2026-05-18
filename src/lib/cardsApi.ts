@@ -2,168 +2,116 @@ import { secureAuth } from './secureAuth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
-export interface CardsMetadata {
+// Row-based card CRUD. Replaces the studio's legacy per-client CSV upload/
+// download flow (retired in Unit 7). Studio's cards.php exposes these
+// endpoints under the same client-token gate that auth.php login mints.
+
+export interface CardRow {
   id: number;
-  client_id: number;
+  key_number: number;
+  key_name: string;
+  color: string | null;
+}
+
+export interface NewCardInput {
+  id: number;
+  key_number: number;
+  key_name: string;
+  color?: string | null;
+}
+
+export interface CardUpdateInput {
+  key_number?: number;
+  key_name?: string;
+  color?: string | null;
+}
+
+export interface ListCardsResponse {
+  cards: CardRow[];
   version: number;
-  created_at: string;
-  updated_at: string;
-  has_file: boolean;
 }
 
-function getAuthHeaders(): HeadersInit {
-  const token = secureAuth.getStoredToken();
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
+export interface ImportCsvResponse {
+  success: boolean;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  version: number;
+}
 
-  if (token) {
-    headers['X-Auth-Token'] = token;
+export class CardsConflictError extends Error {
+  constructor(public errorCode: 'card_id_exists' | 'key_number_taken', message: string) {
+    super(message);
+    this.name = 'CardsConflictError';
   }
-
-  return headers;
 }
 
-export async function getCardsMetadata(): Promise<CardsMetadata | null> {
-  const url = `${API_BASE_URL}/cards.php?action=get_metadata`;
-  const headers = getAuthHeaders();
+async function cardsApiRequest<T>(action: string, init: RequestInit = {}): Promise<T> {
+  const token = secureAuth.getStoredToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  if (token) headers['X-Auth-Token'] = token;
 
-  console.log('[cardsApi] getCardsMetadata - URL:', url);
-  console.log('[cardsApi] getCardsMetadata - Headers:', headers);
-
-  const response = await fetch(url, {
-    method: 'GET',
+  const response = await fetch(`${API_BASE_URL}/cards.php?action=${action}`, {
     credentials: 'include',
+    ...init,
     headers,
   });
 
-  console.log('[cardsApi] getCardsMetadata - Response status:', response.status, response.statusText);
-  console.log('[cardsApi] getCardsMetadata - Response headers:', Object.fromEntries(response.headers.entries()));
+  const body = await response.json().catch(() => ({}));
 
-  if (!response.ok) {
-    const error = await response.json();
-    console.error('[cardsApi] getCardsMetadata - Error:', error);
-    throw new Error(error.error || 'Failed to fetch cards metadata');
+  if (response.status === 409 && body.error_code) {
+    throw new CardsConflictError(body.error_code, body.error || body.error_code);
   }
-
-  const result = await response.json();
-  console.log('[cardsApi] getCardsMetadata - Result:', result);
-  return result.data;
+  if (!response.ok) {
+    throw new Error(body.error || `cards.php ${action} failed (${response.status})`);
+  }
+  return body as T;
 }
 
-export async function uploadCardsFile(file: File): Promise<{ version: number }> {
-  if (!file.name.toLowerCase().endsWith('.csv')) {
-    throw new Error('Only CSV files are allowed');
-  }
+export async function listCards(): Promise<ListCardsResponse> {
+  return cardsApiRequest<ListCardsResponse>('list_cards', { method: 'GET' });
+}
+
+export async function createCard(card: NewCardInput): Promise<{ success: true; card: CardRow; version: number }> {
+  return cardsApiRequest('create_card', {
+    method: 'POST',
+    body: JSON.stringify(card),
+  });
+}
+
+export async function updateCard(id: number, fields: CardUpdateInput): Promise<{ success: true; version: number }> {
+  return cardsApiRequest('update_card', {
+    method: 'PUT',
+    body: JSON.stringify({ id, ...fields }),
+  });
+}
+
+export async function deleteCard(id: number): Promise<{ success: true; version: number }> {
+  return cardsApiRequest(`delete_card&id=${id}`, { method: 'DELETE' });
+}
+
+export async function importCardsCsv(file: File): Promise<ImportCsvResponse> {
+  const token = secureAuth.getStoredToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['X-Auth-Token'] = token;
 
   const formData = new FormData();
   formData.append('file', file);
 
-  const token = secureAuth.getStoredToken();
-  const headers: HeadersInit = {};
-
-  if (token) {
-    headers['X-Auth-Token'] = token;
-  }
-
-  const response = await fetch(`${API_BASE_URL}/cards.php?action=upload`, {
+  const response = await fetch(`${API_BASE_URL}/cards.php?action=import_csv`, {
     method: 'POST',
     credentials: 'include',
     headers,
     body: formData,
   });
 
+  const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to upload cards file');
+    throw new Error(body.error || `import_csv failed (${response.status})`);
   }
-
-  const result = await response.json();
-  return { version: result.version };
-}
-
-export async function downloadCardsFile(): Promise<Blob> {
-  const token = secureAuth.getStoredToken();
-  const headers: HeadersInit = {};
-
-  if (token) {
-    headers['X-Auth-Token'] = token;
-  }
-
-  const response = await fetch(`${API_BASE_URL}/cards.php?action=download`, {
-    method: 'GET',
-    credentials: 'include',
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to download cards file');
-  }
-
-  return response.blob();
-}
-
-export async function deleteCardsFile(): Promise<void> {
-  const token = secureAuth.getStoredToken();
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-
-  if (token) {
-    headers['X-Auth-Token'] = token;
-  }
-
-  const response = await fetch(`${API_BASE_URL}/cards.php?action=delete`, {
-    method: 'DELETE',
-    credentials: 'include',
-    headers,
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to delete cards file');
-  }
-}
-
-export interface CardData {
-  [key: string]: string;
-}
-
-export interface CardsDataResponse {
-  success: boolean;
-  data: CardData[];
-  headers: string[];
-  count: number;
-}
-
-export async function getCardsData(): Promise<CardsDataResponse | null> {
-  const url = `${API_BASE_URL}/cards.php?action=get_data`;
-  const headers = getAuthHeaders();
-
-  console.log('[cardsApi] getCardsData - URL:', url);
-  console.log('[cardsApi] getCardsData - Headers:', headers);
-
-  const response = await fetch(url, {
-    method: 'GET',
-    credentials: 'include',
-    headers,
-  });
-
-  console.log('[cardsApi] getCardsData - Response status:', response.status, response.statusText);
-  console.log('[cardsApi] getCardsData - Response headers:', Object.fromEntries(response.headers.entries()));
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      console.log('[cardsApi] getCardsData - No file found (404)');
-      return null;
-    }
-    const error = await response.json();
-    console.error('[cardsApi] getCardsData - Error:', error);
-    throw new Error(error.error || 'Failed to fetch cards data');
-  }
-
-  const result = await response.json();
-  console.log('[cardsApi] getCardsData - Result:', result);
-  return result;
+  return body as ImportCsvResponse;
 }

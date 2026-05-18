@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FileArchive, CheckCircle, XCircle, Clock, Download, ArrowLeft } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 
 interface ImportLog {
   type: 'info' | 'success' | 'error' | 'warning';
@@ -42,7 +42,7 @@ export function ImportLogViewer({ onBack }: ImportLogViewerProps) {
 
   const loadImportLogs = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('import_logs')
       .select('*')
       .order('created_at', { ascending: false })

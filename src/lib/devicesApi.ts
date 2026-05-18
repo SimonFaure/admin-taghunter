@@ -8,6 +8,8 @@ export interface Device {
   playground_version: string;
   cards_file_version: number;
   device_uniq: string;
+  device_label: string | null;
+  display_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,6 +68,7 @@ export async function updateDevice(data: {
   device_uniq: string;
   playground_version?: string;
   cards_file_version?: number;
+  display_name?: string | null;
 }): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/devices.php?action=update`, {
     method: 'PUT',

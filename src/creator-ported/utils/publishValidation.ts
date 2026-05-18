@@ -25,22 +25,24 @@ export function validateTagquestConfig(config: any, scenarioTitle: string, scena
   check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
   check(issues, !!config.background_image, 'background_image', 'Background image is required', 'error');
   check(issues, !!config.game_visual, 'game_visual', 'Game visual image is required', 'error');
-  check(issues, !!config.common_image, 'common_image', 'Common image is required', 'warning');
-  check(issues, !!config.square_image, 'square_image', 'Square image is required', 'error');
-  check(issues, !!config.score_image, 'score_image', 'Score image is required', 'error');
-  check(issues, !!config.timer_container_image, 'timer_container_image', 'Timer container image is required', 'warning');
-  check(issues, !!config.team_name_container_image, 'team_name_container_image', 'Team name container image is required', 'warning');
-  check(issues, !!config.quest_counter_image, 'quest_counter_image', 'Quest counter image is required', 'warning');
+  if (config.use_default_template === false) {
+    check(issues, !!config.custom_template, 'custom_template', 'Custom template is required when "Use default template" is off', 'error');
+  }
   check(issues, !!config.top_1_image, 'top_1_image', 'Top 1 image is required', 'warning');
   check(issues, !!config.top_3_image, 'top_3_image', 'Top 3 image is required', 'warning');
   check(issues, !!config.top_10_image, 'top_10_image', 'Top 10 image is required', 'warning');
 
   const questCount = config.quests?.length ?? 0;
   check(issues, questCount > 0, 'quests', 'At least one quest is required', 'error');
+  check(issues, questCount <= 6, 'quests', 'Tagquest supports at most 6 quests', 'error');
 
   if (questCount > 0) {
     config.quests.forEach((q: any, i: number) => {
       check(issues, !!q.main_image, `quests[${i}].main_image`, `Quest ${i + 1}: main image is required`, 'error');
+      check(issues, !!q.image_1, `quests[${i}].image_1`, `Quest ${i + 1}: top-left piece is required`, 'error');
+      check(issues, !!q.image_2, `quests[${i}].image_2`, `Quest ${i + 1}: top-right piece is required`, 'error');
+      check(issues, !!q.image_3, `quests[${i}].image_3`, `Quest ${i + 1}: bottom-left piece is required`, 'error');
+      check(issues, !!q.image_4, `quests[${i}].image_4`, `Quest ${i + 1}: bottom-right piece is required`, 'error');
       check(issues, !!q.name, `quests[${i}].name`, `Quest ${i + 1}: name is required`, 'warning');
       check(issues, !!q.points && q.points !== '0', `quests[${i}].points`, `Quest ${i + 1}: points should be greater than 0`, 'warning');
     });

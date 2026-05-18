@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2, AlertCircle } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 
 interface Scenario {
   id: string;
@@ -29,7 +29,7 @@ export function ScenarioSelector({ gameType, onSelect, onClose }: ScenarioSelect
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await db
         .from('scenarios')
         .select('id, title, uniqid, game_type')
         .eq('game_type', gameType)

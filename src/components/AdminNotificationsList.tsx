@@ -109,10 +109,10 @@ export function AdminNotificationsList({ onNavigate }: AdminNotificationsListPro
       {showPanel && (
         <>
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0 z-[99]"
             onClick={() => setShowPanel(false)}
           />
-          <div className="absolute right-0 top-11 w-96 bg-white rounded-xl shadow-2xl border border-slate-200 z-20 overflow-hidden">
+          <div className="absolute left-full top-0 ml-3 w-96 bg-white rounded-xl shadow-2xl border border-slate-200 z-[100] overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
                 <Bell className="w-4 h-4 text-slate-600" />

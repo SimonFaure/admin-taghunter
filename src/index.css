@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  input,
+  textarea,
+  select {
+    color: #000;
+  }
+}
+
 @keyframes slide-in {
   from {
     transform: translateX(100%);

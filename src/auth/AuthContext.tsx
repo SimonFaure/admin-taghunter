@@ -24,6 +24,8 @@ export interface AuthUser {
   billing_up_to_date?: boolean;
   created_at?: string;
   avatar_url?: string;
+  company_logo_url?: string | null;
+  company_logo_uses_avatar?: boolean;
 }
 
 interface AuthContextType {
@@ -41,6 +43,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
   updateUserAvatar: (avatarUrl: string) => void;
+  updateCompanyLogo: (logoUrl: string | null) => void;
+  updateLogoPreference: (useAvatar: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,6 +63,9 @@ function buildUserFromPayload(payload: any, fallbackToken: string): AuthUser {
     billing_up_to_date: payload.billing_up_to_date,
     created_at: payload.created_at,
     avatar_url: payload.avatar_url,
+    company_logo_url: payload.company_logo_url ?? null,
+    company_logo_uses_avatar:
+      payload.company_logo_uses_avatar === undefined ? true : !!payload.company_logo_uses_avatar,
   };
 }
 
@@ -143,6 +150,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) setUser({ ...user, avatar_url: avatarUrl });
   };
 
+  const updateCompanyLogo = (logoUrl: string | null) => {
+    if (user) setUser({ ...user, company_logo_url: logoUrl });
+  };
+
+  const updateLogoPreference = (useAvatar: boolean) => {
+    if (user) setUser({ ...user, company_logo_uses_avatar: useAvatar });
+  };
+
   useEffect(() => {
     if (!user) return;
     const expiry = secureAuth.getTokenExpiry();
@@ -169,6 +184,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout,
         refreshToken,
         updateUserAvatar,
+        updateCompanyLogo,
+        updateLogoPreference,
       }}
     >
       {children}

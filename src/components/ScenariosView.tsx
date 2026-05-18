@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, LayoutGrid, X, Upload, File, ChevronDown, List } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
-const Layout = LayoutGrid;
+import { ImportLegacyZipModal } from './ImportLegacyZipModal';
+import { ScenarioListControls } from './scenarios/ScenarioListControls';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -17,37 +18,18 @@ interface Scenario {
   client_name: string | null;
   client_email: string | null;
   creator_name: string | null;
-  media_url: string | null;
   created_at: string;
   uniqid: string | null;
   data: string | null;
   medias: string | null;
   game_data?: string | null;
-  game_meta?: string | null;
   scenario_layout?: string | null;
   status?: string | null;
-}
-
-interface LayoutElement {
-  id: string;
-  type: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  label?: string;
+  version?: string | null;
 }
 
 function getGameVersion(scenario: Scenario): string | null {
-  if (scenario.game_meta) {
-    try {
-      const gameMeta = JSON.parse(scenario.game_meta);
-      return gameMeta.game_version || null;
-    } catch (e) {
-      console.error('Failed to parse game_meta for version', e);
-    }
-  }
-  return null;
+  return scenario.version || null;
 }
 
 type ScenarioFilter = 'all' | 'products' | 'client-authored' | 'drafts';
@@ -65,8 +47,6 @@ export function ScenariosView() {
   const [fallbackAttempted, setFallbackAttempted] = useState(false);
   const [detectedLanguages, setDetectedLanguages] = useState<string[]>([]);
   const [parsedGameData, setParsedGameData] = useState<any>(null);
-  const [showLayoutModal, setShowLayoutModal] = useState(false);
-  const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
   const [scenarioFiles, setScenarioFiles] = useState<any[]>([]);
   const [uploadFileName, setUploadFileName] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -74,7 +54,10 @@ export function ScenariosView() {
   const [isDragging, setIsDragging] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [zipDownloading, setZipDownloading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [groupBy, setGroupBy] = useState<'scenario_type' | 'game_type'>('scenario_type');
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     fetchScenarios();
@@ -87,26 +70,6 @@ export function ScenariosView() {
       fetchScenarioFiles(selectedScenario.id);
     }
   }, [selectedScenario]);
-
-  const handleShowLayout = () => {
-    if (!selectedScenario?.scenario_layout) {
-      alert('No layout data available for this scenario');
-      return;
-    }
-
-    try {
-      const layout = JSON.parse(selectedScenario.scenario_layout);
-      if (Array.isArray(layout)) {
-        setLayoutElements(layout);
-        setShowLayoutModal(true);
-      } else {
-        alert('Invalid layout data format');
-      }
-    } catch (e) {
-      console.error('Failed to parse scenario_layout', e);
-      alert('Failed to parse layout data');
-    }
-  };
 
   const detectLanguages = (scenario: Scenario) => {
     setDetectedLanguages([]);
@@ -343,7 +306,7 @@ export function ScenariosView() {
       }
 
       const data = await response.json();
-      setScenarioFiles(data.files || []);
+      setScenarioFiles(data.data || data.files || []);
     } catch (err) {
       console.error('Failed to fetch scenario files:', err);
     }
@@ -430,7 +393,10 @@ export function ScenariosView() {
       }
 
       const data = await response.json();
-      setScenarioFiles([data.file, ...scenarioFiles]);
+      const newFile = data.data || data.file;
+      if (newFile) {
+        setScenarioFiles([newFile, ...scenarioFiles]);
+      }
       setUploadFileName('');
       setUploadFile(null);
 
@@ -442,6 +408,49 @@ export function ScenariosView() {
       alert(err instanceof Error ? err.message : 'Failed to upload file');
     } finally {
       setUploadLoading(false);
+    }
+  };
+
+  const handleDownloadFile = (file: { name?: string; file_path?: string }) => {
+    if (!file.file_path) return;
+    const url = `${MEDIA_BASE_URL}/media/${file.file_path}`;
+    const ext = getFileExt(file);
+    const suggested = file.name ? (ext && !file.name.toLowerCase().endsWith('.' + ext) ? `${file.name}.${ext}` : file.name) : '';
+    const a = document.createElement('a');
+    a.href = url;
+    if (suggested) a.download = suggested;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownloadZip = async () => {
+    if (!selectedScenario?.uniqid) return;
+    try {
+      setZipDownloading(true);
+      const response = await authFetch(
+        `${API_BASE_URL}/scenario_files.php?action=download_zip&uniqid=${encodeURIComponent(selectedScenario.uniqid)}`,
+        { credentials: 'include' }
+      );
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Failed to download zip' }));
+        throw new Error(err.error || 'Failed to download zip');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `scenario_${selectedScenario.uniqid}_files.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to download zip');
+    } finally {
+      setZipDownloading(false);
     }
   };
 
@@ -476,6 +485,55 @@ export function ScenariosView() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
+  const getFileExt = (file: { name?: string; file_path?: string }): string => {
+    const source = file.file_path || file.name || '';
+    const m = source.match(/\.([a-zA-Z0-9]+)(?:\?.*)?$/);
+    return m ? m[1].toLowerCase() : '';
+  };
+
+  const getFileKind = (file: { mime_type?: string; name?: string; file_path?: string }):
+    'image' | 'video' | 'audio' | 'archive' | 'pdf' | 'json' | 'code' | 'text' | 'other' => {
+    const mime = (file.mime_type || '').toLowerCase();
+    const ext = getFileExt(file);
+    if (mime.startsWith('image/') || ['png','jpg','jpeg','gif','webp','svg','bmp','avif'].includes(ext)) return 'image';
+    if (mime.startsWith('video/') || ['mp4','webm','mov','mkv','avi','ogv'].includes(ext)) return 'video';
+    if (mime.startsWith('audio/') || ['mp3','wav','ogg','flac','m4a','aac'].includes(ext)) return 'audio';
+    if (mime.includes('zip') || mime.includes('compressed') || ['zip','rar','7z','tar','gz'].includes(ext)) return 'archive';
+    if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
+    if (mime.includes('json') || ext === 'json') return 'json';
+    if (['js','jsx','ts','tsx','html','css','xml','yaml','yml','php','py','sh','rb','go','rs','java','c','cpp','cs'].includes(ext)) return 'code';
+    if (mime.startsWith('text/') || ['txt','md','csv','log'].includes(ext)) return 'text';
+    return 'other';
+  };
+
+  const getFileTypeLabel = (file: { mime_type?: string; name?: string; file_path?: string }): string => {
+    const ext = getFileExt(file);
+    if (ext) return ext.toUpperCase();
+    const mime = file.mime_type || '';
+    const sub = mime.split('/')[1];
+    return sub ? sub.toUpperCase() : 'FILE';
+  };
+
+  const fileThumbnailUrl = (file: { file_path?: string }): string | null => {
+    if (!file.file_path) return null;
+    return `${MEDIA_BASE_URL}/media/${file.file_path}`;
+  };
+
+  const FileTypeIcon = ({ kind, className }: { kind: ReturnType<typeof getFileKind>; className?: string }) => {
+    const cls = className ?? 'w-5 h-5';
+    switch (kind) {
+      case 'image': return <FileImage className={`${cls} text-emerald-500`} />;
+      case 'video': return <FileVideo className={`${cls} text-purple-500`} />;
+      case 'audio': return <FileAudio className={`${cls} text-pink-500`} />;
+      case 'archive': return <FileArchive className={`${cls} text-amber-500`} />;
+      case 'pdf': return <FileText className={`${cls} text-red-500`} />;
+      case 'json': return <FileJson className={`${cls} text-blue-500`} />;
+      case 'code': return <FileCode className={`${cls} text-indigo-500`} />;
+      case 'text': return <FileText className={`${cls} text-slate-500`} />;
+      default: return <File className={`${cls} text-slate-400`} />;
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -657,10 +715,6 @@ export function ScenariosView() {
 
           <div className="p-6">
             <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2">Description</h4>
-                <p className="text-slate-600 whitespace-pre-wrap">{selectedScenario.description}</p>
-              </div>
               {displayImage && !imageError && (
                 <div className="lg:col-span-1">
                   <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
@@ -678,21 +732,11 @@ export function ScenariosView() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {parsedGameData && (
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
-                  <FileJson className="w-4 h-4" />
-                  <span>Game Data (JSON)</span>
-                </h4>
-                <div className="bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto">
-                  <pre className="text-xs font-mono whitespace-pre-wrap break-words">
-                    {JSON.stringify(parsedGameData, null, 2)}
-                  </pre>
-                </div>
+              <div className={displayImage && !imageError ? 'lg:col-span-2' : 'lg:col-span-3'}>
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Description</h4>
+                <p className="text-slate-600 whitespace-pre-wrap">{selectedScenario.description}</p>
               </div>
-            )}
+            </div>
 
             {selectedScenario.client_name && (
               <div className="mb-6">
@@ -703,27 +747,89 @@ export function ScenariosView() {
               </div>
             )}
 
-            {selectedScenario.media_url && (
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2">Media File</h4>
-                <a
-                  href={`${MEDIA_BASE_URL}${selectedScenario.media_url}`}
-                  download
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
-                >
-                  <Film className="w-4 h-4" />
-                  <span>Download Media</span>
-                </a>
-              </div>
-            )}
-
             <div className="mb-6 border-t border-slate-200 pt-6">
-              <h4 className="text-sm font-semibold text-slate-700 mb-4 flex items-center space-x-2">
-                <File className="w-4 h-4" />
-                <span>Scenario Files</span>
-              </h4>
+              <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+                <h4 className="text-sm font-semibold text-slate-700 flex items-center space-x-2">
+                  <File className="w-4 h-4" />
+                  <span>Scenario Files</span>
+                </h4>
+                {scenarioFiles.length > 0 && (
+                  <button
+                    onClick={handleDownloadZip}
+                    disabled={zipDownloading}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                    title="Download all files as ZIP"
+                  >
+                    <FileArchive className="w-4 h-4" />
+                    <span>{zipDownloading ? 'Preparing ZIP…' : 'Download all (ZIP)'}</span>
+                  </button>
+                )}
+              </div>
 
-              <form onSubmit={handleFileUpload} className="mb-6 bg-slate-50 p-4 rounded-lg">
+              {scenarioFiles.length > 0 ? (
+                <div className="space-y-2">
+                  {scenarioFiles.map((file) => {
+                    const kind = getFileKind(file);
+                    const typeLabel = getFileTypeLabel(file);
+                    const thumb = kind === 'image' ? fileThumbnailUrl(file) : null;
+                    return (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:shadow-sm transition-all"
+                      >
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div className="w-12 h-12 flex-shrink-0 rounded-md bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
+                            {thumb ? (
+                              <img
+                                src={thumb}
+                                alt={file.name}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  img.style.display = 'none';
+                                  img.parentElement?.setAttribute('data-fallback', 'true');
+                                }}
+                              />
+                            ) : (
+                              <FileTypeIcon kind={kind} className="w-6 h-6" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
+                            <p className="text-xs text-slate-500">
+                              <span className="inline-block px-1.5 py-0.5 mr-2 rounded bg-slate-100 text-slate-600 font-semibold tracking-wide">
+                                {typeLabel}
+                              </span>
+                              {formatFileSize(file.file_size)} • {new Date(file.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDownloadFile(file)}
+                            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                            title="Download file"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFile(file.id)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete file"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">No files uploaded yet</p>
+              )}
+
+              <form onSubmit={handleFileUpload} className="mt-6 bg-slate-50 p-4 rounded-lg">
                 <div
                   className={`border-2 border-dashed rounded-lg p-6 mb-4 transition-all ${
                     isDragging
@@ -784,48 +890,23 @@ export function ScenariosView() {
                   <span>{uploadLoading ? 'Uploading...' : 'Upload File'}</span>
                 </button>
               </form>
-
-              {scenarioFiles.length > 0 ? (
-                <div className="space-y-2">
-                  {scenarioFiles.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-center space-x-3 flex-1">
-                        <File className="w-5 h-5 text-slate-400" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-900">{file.name}</p>
-                          <p className="text-xs text-slate-500">
-                            {formatFileSize(file.file_size)} • {new Date(file.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteFile(file.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                        title="Delete file"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">No files uploaded yet</p>
-              )}
             </div>
 
+            {parsedGameData && (
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2 flex items-center space-x-2">
+                  <FileJson className="w-4 h-4" />
+                  <span>Game Data (JSON)</span>
+                </h4>
+                <div className="bg-slate-900 text-slate-100 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs font-mono whitespace-pre-wrap break-words">
+                    {JSON.stringify(parsedGameData, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-3">
-              {selectedScenario.scenario_layout && (
-                <button
-                  onClick={handleShowLayout}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center space-x-2"
-                >
-                  <Layout className="w-4 h-4" />
-                  <span>Show Layout</span>
-                </button>
-              )}
               <button
                 onClick={() => handleDelete(selectedScenario.id)}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all inline-flex items-center space-x-2"
@@ -837,73 +918,6 @@ export function ScenariosView() {
           </div>
         </div>
 
-        {showLayoutModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={() => setShowLayoutModal(false)}>
-            <div className="relative max-w-6xl w-full max-h-[90vh] bg-white rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center space-x-2">
-                  <Layout className="w-5 h-5" />
-                  <span>Scenario Layout - {selectedScenario.title}</span>
-                </h3>
-                <button
-                  onClick={() => setShowLayoutModal(false)}
-                  className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-slate-600" />
-                </button>
-              </div>
-
-              <div className="overflow-auto max-h-[calc(90vh-4rem)]">
-                <div className="relative inline-block min-w-full">
-                  {displayImage && !imageError ? (
-                    <>
-                      <img
-                        src={displayImage}
-                        alt="Background"
-                        className="w-full h-auto"
-                        style={{ display: 'block' }}
-                      />
-                      {layoutElements.map((element) => (
-                        <div
-                          key={element.id}
-                          className="absolute border-2 border-blue-500 bg-blue-500 bg-opacity-20"
-                          style={{
-                            left: `${element.x}%`,
-                            top: `${element.y}%`,
-                            width: `${element.width}%`,
-                            height: `${element.height}%`,
-                          }}
-                          title={element.label || `${element.type} (${element.id})`}
-                        >
-                          {element.label && (
-                            <div className="absolute top-0 left-0 bg-blue-600 text-white text-xs px-2 py-1 rounded-br font-semibold whitespace-nowrap">
-                              {element.label}
-                            </div>
-                          )}
-                          <div className="absolute bottom-0 right-0 bg-slate-900 bg-opacity-75 text-white text-xs px-2 py-1 rounded-tl">
-                            {element.type}
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  ) : (
-                    <div className="p-12 text-center text-slate-600">
-                      <ImageIcon className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                      <p>No background image available for this scenario</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4 border-t border-slate-200 bg-slate-50">
-                <div className="flex items-center justify-between text-sm text-slate-600">
-                  <span className="font-semibold">{layoutElements.length} layout element(s)</span>
-                  <span className="text-xs">Positions and sizes are relative to the background image</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -916,15 +930,26 @@ export function ScenariosView() {
   });
 
   const groupedScenarios = filteredScenarios.reduce((acc, scenario) => {
-    const type = scenario.scenario_type || 'Uncategorized';
-    if (!acc[type]) {
-      acc[type] = [];
+    const key =
+      groupBy === 'game_type'
+        ? scenario.game_type || 'Uncategorized'
+        : scenario.scenario_type || 'Uncategorized';
+    if (!acc[key]) {
+      acc[key] = [];
     }
-    acc[type].push(scenario);
+    acc[key].push(scenario);
     return acc;
   }, {} as Record<string, Scenario[]>);
 
   const scenarioTypes = Object.keys(groupedScenarios).sort();
+
+  const sortedListScenarios =
+    groupBy === 'game_type'
+      ? [...filteredScenarios].sort((a, b) =>
+          (a.game_type || '').localeCompare(b.game_type || '') ||
+          a.title.localeCompare(b.title)
+        )
+      : filteredScenarios;
 
   const getScenarioThumbnail = (scenario: Scenario): string | null => {
     if (!scenario.uniqid) return null;
@@ -995,7 +1020,7 @@ export function ScenariosView() {
         className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-all"
       >
         {thumbnailUrl && (
-          <div className="relative w-full h-48 bg-slate-100">
+          <div className="relative w-full aspect-square bg-slate-100">
             <img
               src={thumbnailUrl}
               alt={scenario.title}
@@ -1073,10 +1098,11 @@ export function ScenariosView() {
                   e.stopPropagation();
                   navigate(`/studio/scenarios/${scenario.uniqid}`);
                 }}
-                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-all inline-flex items-center"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-all inline-flex items-center justify-center space-x-2"
                 title="Edit in Studio"
               >
                 <Pencil className="w-4 h-4" />
+                <span>Edit in Studio</span>
               </button>
             )}
           </div>
@@ -1176,23 +1202,46 @@ export function ScenariosView() {
           {filteredScenarios.length} {filteredScenarios.length === 1 ? 'scenario' : 'scenarios'}
           {filter !== 'all' && ` (${scenarios.length} total)`}
         </p>
-        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-            title="Grid view"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-            title="List view"
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
+        <ScenarioListControls
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          groupBy={groupBy}
+          onGroupByChange={(v) => setGroupBy(v as 'scenario_type' | 'game_type')}
+          groupOptions={[
+            { value: 'scenario_type', label: 'Scenario type' },
+            { value: 'game_type', label: 'Game type' },
+          ]}
+          extraActions={
+            <>
+              <button
+                onClick={() => navigate('/studio/scenarios/new')}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+                title="Create a new scenario"
+              >
+                <Plus className="w-4 h-4" />
+                Create scenario
+              </button>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                title="Import a legacy Taghunter ZIP"
+              >
+                <FileArchive className="w-4 h-4" />
+                Import legacy ZIP
+              </button>
+            </>
+          }
+        />
       </div>
+
+      <ImportLegacyZipModal
+        open={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={() => {
+          setShowImportModal(false);
+          fetchScenarios();
+        }}
+      />
 
       <div className="flex items-center gap-2 flex-wrap">
         {(['all', 'products', 'client-authored', 'drafts'] as const).map((key) => (
@@ -1257,7 +1306,7 @@ export function ScenariosView() {
                 </tr>
               </thead>
               <tbody>
-                {filteredScenarios.map((scenario) => renderScenarioRow(scenario))}
+                {sortedListScenarios.map((scenario) => renderScenarioRow(scenario))}
               </tbody>
             </table>
           </div>

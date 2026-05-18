@@ -1,12 +1,60 @@
-import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { getDevices, deleteDevice, Device } from '../../lib/devicesApi';
+import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X } from 'lucide-react';
+import { useState, useEffect, KeyboardEvent } from 'react';
+import { getDevices, deleteDevice, updateDevice, Device } from '../../lib/devicesApi';
+
+const MAX_DISPLAY_NAME = 120;
 
 export function MyDevicesView() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = (device: Device) => {
+    setEditingId(device.id);
+    setDraft(device.display_name ?? device.device_label ?? '');
+    setError('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft('');
+  };
+
+  const saveEdit = async (device: Device) => {
+    const trimmed = draft.trim();
+    if (trimmed.length > MAX_DISPLAY_NAME) {
+      setError(`Name must be ${MAX_DISPLAY_NAME} characters or fewer`);
+      return;
+    }
+    try {
+      setSaving(true);
+      await updateDevice({
+        device_uniq: device.device_uniq,
+        display_name: trimmed === '' ? null : trimmed,
+      });
+      setEditingId(null);
+      setDraft('');
+      await loadDevices();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rename device');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, device: Device) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit(device);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelEdit();
+    }
+  };
 
   useEffect(() => {
     loadDevices();
@@ -102,9 +150,54 @@ export function MyDevicesView() {
                     <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center">
                       <Smartphone className="w-6 h-6 text-slate-700" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-slate-900">Device</h3>
-                      <p className="text-xs text-slate-500 font-mono">{device.device_uniq}</p>
+                    <div className="min-w-0">
+                      {editingId === device.id ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            autoFocus
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            onKeyDown={(e) => handleKeyDown(e, device)}
+                            maxLength={MAX_DISPLAY_NAME + 1}
+                            placeholder={device.device_label ?? 'Device name'}
+                            className="border border-slate-300 rounded px-2 py-1 text-sm font-semibold text-slate-900 w-40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => saveEdit(device)}
+                            disabled={saving}
+                            title="Save"
+                            className="p-1 rounded hover:bg-green-50 text-green-600 disabled:opacity-50"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            disabled={saving}
+                            title="Cancel"
+                            className="p-1 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-50"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 group">
+                          <h3 className="font-semibold text-slate-900 truncate">
+                            {device.display_name || device.device_label || 'Device'}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => startEdit(device)}
+                            title="Rename"
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-opacity"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                      <p className="text-xs text-slate-500 font-mono truncate">{device.device_uniq}</p>
                     </div>
                   </div>
                   <button

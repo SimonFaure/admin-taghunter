@@ -1,0 +1,334 @@
+/**
+ * Top-level shell for scenario authoring. Owns chrome + state machine + the
+ * common-base form. Mounts the per-type body declared by the adapter.
+ *
+ * Slice 3B: title/description/story now live as `Localized<string>` inside
+ * `gameMeta`. The reducer no longer carries them as separate fields. The
+ * shell load runs `migrateLegacyData` as a safety net so any rows that
+ * escape the one-shot SQL migration still load + save cleanly.
+ *
+ * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 + 3 sections)
+ */
+
+import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { db } from '../../creator-ported/lib/db';
+import { getMediaUrl as getMediaUrlUtil, extractFileName } from '../../creator-ported/utils/mediaUrl';
+import { useAuth } from '../../auth/AuthContext';
+import { Alert } from '../../creator-ported/components/Alert';
+import { AdminOnlyPanel } from '../../components/AdminOnlyPanel';
+import { ScenarioAdminControls } from '../../components/ScenarioAdminControls';
+import { ScenarioEditorContext } from './ScenarioEditorContext';
+import { editorReducer, initialState } from './state/reducer';
+import {
+  performSave,
+  performZipDownload,
+  type SavePayload,
+} from './state/saveOrchestrator';
+import { uploadAsset as uploadAssetImpl } from './state/assetUpload';
+import { getLocalized } from '../i18n/getLocalized';
+import type { Lang } from '../i18n/types';
+import { ScenarioHeader } from './components/ScenarioHeader';
+import { SaveBar } from './components/SaveBar';
+import { CollapseAllProvider } from './components/CollapsibleSection';
+import { LanguageBar } from './components/LanguageBar';
+import { MetaSection } from './sections/MetaSection';
+import { CoverSection } from './sections/CoverSection';
+import { PodiumSection } from './sections/PodiumSection';
+import { LevelsSection } from './sections/LevelsSection';
+import { OverscoresSection } from './sections/OverscoresSection';
+import { TextStringsSection } from './sections/TextStringsSection';
+import { TypographySection } from './sections/TypographySection';
+import { TimingSection } from './sections/TimingSection';
+import { AdminSection } from './sections/AdminSection';
+import type { ScenarioAdapter, ScenarioEditorState, ShellAlert } from '../types';
+
+interface ScenarioEditorShellProps {
+  scenarioId: string;
+  adapter: ScenarioAdapter;
+  onBack: () => void;
+  onOpenLayoutEditor: () => void;
+}
+
+export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutEditor }: ScenarioEditorShellProps) {
+  const { userType } = useAuth();
+  const isAdmin = userType === 'admin';
+
+  const [state, dispatch] = useReducer(editorReducer, scenarioId, (id) =>
+    initialState(id, adapter.defaultConfig()),
+  );
+
+  // Load scenario row + hydrate state
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await db
+          .from('scenarios')
+          .select('title, description, uniqid, data, medias, status, scenario_type, scenario_layout')
+          .eq('id', scenarioId)
+          .maybeSingle();
+        if (cancelled || error || !data) return;
+
+        const parseCol = (v: unknown): unknown => {
+          if (v == null) return null;
+          if (typeof v !== 'string') return v;
+          try {
+            return JSON.parse(v);
+          } catch {
+            return null;
+          }
+        };
+        const parsedData = parseCol((data as { data: unknown }).data) as
+          | {
+              game_meta?: Record<string, unknown>;
+              default_language?: string;
+              available_languages?: string[];
+            }
+          | null;
+        const parsedMedia = parseCol((data as { medias: unknown }).medias) as
+          | {
+              images?: Record<string, string>;
+              sounds?: Record<string, string>;
+              video?: string;
+              quests?: Array<Record<string, string | number | undefined>>;
+            }
+          | null;
+        const parsedLayout = parseCol((data as { scenario_layout: unknown }).scenario_layout);
+        const row = data as {
+          uniqid?: string;
+          title?: string;
+          description?: string;
+          status?: string;
+          scenario_type?: string;
+        };
+
+        // Validate against adapter schema (warn-only). Doesn't gate hydration.
+        if (parsedData) {
+          const result = adapter.dataSchema.safeParse(parsedData);
+          if (!result.success) {
+            console.warn('[ScenarioEditorShell] data did not match adapter schema', {
+              scenarioId,
+              issues: result.error.issues,
+            });
+          }
+        }
+
+        // Merge gameMeta + media (images/sounds/video) back into a flat working copy.
+        const gameMetaIn = parsedData?.game_meta ?? {};
+        const merged: Record<string, unknown> = { ...gameMetaIn };
+        if (parsedMedia?.images) for (const [k, v] of Object.entries(parsedMedia.images)) merged[k] = v;
+        if (parsedMedia?.sounds) for (const [k, v] of Object.entries(parsedMedia.sounds)) merged[k] = v;
+        // medias.video is a single full path "/media/<uniqid>/scenario_video_*.ext"
+        // for ScenarioDetailView compat; strip to bare filename for the editor.
+        if (parsedMedia?.video) merged.scenario_video = extractFileName(parsedMedia.video);
+
+        // Tagquest stores per-quest image/sound filenames in medias.quests
+        // (cleanGameMetaForData strips them out of data.game_meta.quests on save;
+        // the legacy zip importer also writes mapped filenames there). Overlay
+        // them onto merged.quests by array index so the editor sees real files.
+        if (parsedMedia?.quests && Array.isArray(merged.quests)) {
+          const inMerged = merged.quests as Array<Record<string, unknown>>;
+          const QUEST_MEDIA_KEYS = ['main_image', 'sound', 'image_1', 'image_2', 'image_3', 'image_4'] as const;
+          parsedMedia.quests.forEach((mq, i) => {
+            if (!mq || i >= inMerged.length) return;
+            for (const k of QUEST_MEDIA_KEYS) {
+              const v = mq[k];
+              if (typeof v === 'string' && v) inMerged[i][k] = v;
+            }
+          });
+        }
+
+        const defaultLanguage = parsedData?.default_language ?? 'fr';
+        dispatch({
+          type: 'HYDRATE',
+          payload: {
+            uniqid: row.uniqid ?? '',
+            scenarioStatus: row.status ?? 'draft',
+            scenarioType: row.scenario_type ?? 'custom',
+            scenarioLayout: parsedLayout,
+            gameMeta: merged,
+            defaultLanguage,
+            currentLanguage: defaultLanguage,
+            availableLanguages:
+              parsedData?.available_languages && parsedData.available_languages.length > 0
+                ? parsedData.available_languages
+                : [defaultLanguage],
+          },
+        });
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[ScenarioEditorShell] load failed', err);
+          dispatch({ type: 'SET_ALERT', payload: { type: 'error', message: 'Failed to load scenario' } });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [scenarioId, adapter]);
+
+  const buildPayload = useCallback((): SavePayload => {
+    // Derive row-level title/description from the Localized maps' default-lang
+    // values. saveOrchestrator writes these to the scenarios row columns.
+    const meta = state.gameMeta as Record<string, unknown>;
+    const defaultLang = state.defaultLanguage as Lang;
+    const rowTitle = getLocalized(meta.title as never, defaultLang, defaultLang);
+    const rowDescription = getLocalized(meta.description as never, defaultLang, defaultLang);
+    return {
+      scenarioId,
+      uniqid: state.uniqid,
+      adapter,
+      title: rowTitle,
+      description: rowDescription,
+      gameMeta: state.gameMeta,
+      defaultLanguage: state.defaultLanguage,
+      availableLanguages: state.availableLanguages,
+      scenarioType: state.scenarioType,
+      scenarioLayout: state.scenarioLayout,
+    };
+  }, [adapter, scenarioId, state]);
+
+  const save = useCallback(async () => {
+    dispatch({ type: 'BEGIN_SAVING' });
+    const result = await performSave(buildPayload());
+    dispatch({
+      type: 'END_SAVING',
+      payload: result.ok
+        ? { type: 'success', message: 'Saved' }
+        : { type: 'error', message: result.error ?? 'Save failed' },
+    });
+  }, [buildPayload]);
+
+  const publish = useCallback(async () => {
+    dispatch({ type: 'BEGIN_PUBLISHING' });
+    const meta = state.gameMeta as Record<string, unknown>;
+    const currentVersion = parseFloat(String(meta.scenario_version ?? '0'));
+    const safeCurrent = Number.isFinite(currentVersion) ? currentVersion : 0;
+    const nextVersion = (Math.round((safeCurrent + 0.1) * 10) / 10).toFixed(1);
+    const bumpedMeta = { ...meta, scenario_version: nextVersion };
+    dispatch({ type: 'SET_GAME_META', payload: bumpedMeta });
+    const payload: SavePayload = { ...buildPayload(), gameMeta: bumpedMeta };
+    const result = await performSave(payload);
+    dispatch({
+      type: 'END_PUBLISHING',
+      payload: result.ok
+        ? { type: 'success', message: `Published v${nextVersion}` }
+        : { type: 'error', message: result.error ?? 'Publish failed' },
+    });
+  }, [buildPayload, state.gameMeta]);
+
+  const downloadZip = useCallback(async () => {
+    const result = await performZipDownload(buildPayload());
+    if (!result.ok) {
+      dispatch({ type: 'SET_ALERT', payload: { type: 'error', message: result.error ?? 'ZIP download failed' } });
+    }
+  }, [buildPayload]);
+
+  const uploadAsset = useCallback(
+    async (slotKey: string, file: File): Promise<string> => {
+      const slot = adapter.mediaSlots.find((s) => s.key === slotKey);
+      const result = await uploadAssetImpl(file, {
+        scenarioUniqid: state.uniqid,
+        fieldName: slotKey,
+        slotKind: slot?.kind ?? 'image',
+      });
+      if (!result.ok || !result.filename) {
+        throw new Error(result.error ?? 'Upload failed');
+      }
+      return result.filename;
+    },
+    [state.uniqid, adapter.mediaSlots],
+  );
+
+  const getMediaUrl = useCallback(
+    (filename: string) => getMediaUrlUtil(state.uniqid || scenarioId, filename),
+    [state.uniqid, scenarioId],
+  );
+
+  const setAlert = useCallback((a: ShellAlert | null) => {
+    dispatch({ type: 'SET_ALERT', payload: a });
+  }, []);
+
+  const value: ScenarioEditorState = useMemo(
+    () => ({
+      scenarioId,
+      uniqid: state.uniqid,
+      gameType: adapter.kind,
+      adapter,
+      gameMeta: state.gameMeta,
+      setGameMeta: (updater) => dispatch({ type: 'SET_GAME_META', payload: updater(state.gameMeta) }),
+      setField: (key, val) =>
+        dispatch({
+          type: 'SET_GAME_META',
+          payload: { ...(state.gameMeta as Record<string, unknown>), [key as string]: val },
+        }),
+      currentLanguage: state.currentLanguage,
+      defaultLanguage: state.defaultLanguage,
+      availableLanguages: state.availableLanguages,
+      switchLanguage: (lang) => dispatch({ type: 'SWITCH_LANGUAGE', payload: lang }),
+      addLanguage: (lang) => dispatch({ type: 'ADD_LANGUAGE', payload: lang }),
+      removeLanguage: (lang) => dispatch({ type: 'REMOVE_LANGUAGE', payload: lang }),
+      isDirty: state.isDirty,
+      isSaving: state.isSaving,
+      isPublishing: state.isPublishing,
+      alert: state.alert,
+      setAlert,
+      uploadAsset,
+      getMediaUrl,
+      save,
+      publish,
+      downloadZip,
+      isAdmin,
+      onBack,
+      onOpenLayoutEditor,
+    }),
+    [
+      scenarioId,
+      adapter,
+      state,
+      isAdmin,
+      onBack,
+      onOpenLayoutEditor,
+      save,
+      publish,
+      downloadZip,
+      uploadAsset,
+      getMediaUrl,
+      setAlert,
+    ],
+  );
+
+  const Body = adapter.Body;
+
+  return (
+    <ScenarioEditorContext.Provider value={value}>
+      <CollapseAllProvider>
+        <div className="min-h-screen bg-gray-50 flex flex-col">
+          <ScenarioHeader />
+          {state.alert && (
+            <div className="px-6 pt-4">
+              <Alert type={state.alert.type === 'success' ? 'success' : 'error'} message={state.alert.message} onClose={() => setAlert(null)} />
+            </div>
+          )}
+          <main className="flex-1 px-6 py-4 space-y-4">
+            <LanguageBar />
+            <MetaSection />
+            <CoverSection />
+            <PodiumSection />
+            <LevelsSection />
+            <OverscoresSection />
+            <Body />
+            <TextStringsSection />
+            <TypographySection />
+            <TimingSection />
+            <AdminSection />
+            <AdminOnlyPanel>
+              <ScenarioAdminControls scenarioId={scenarioId} />
+            </AdminOnlyPanel>
+          </main>
+          <SaveBar />
+        </div>
+      </CollapseAllProvider>
+    </ScenarioEditorContext.Provider>
+  );
+}

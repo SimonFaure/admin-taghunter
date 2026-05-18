@@ -1,5 +1,20 @@
 <?php
 
+/**
+ * Scenarios API.
+ *
+ * Canonical columns on the `scenarios` table:
+ *   - data            jsonb   Game configuration (e.g. available_languages, gameplay settings)
+ *   - medias          jsonb   Media manifest: {images: {game_visual, background_image, ...}, video, sounds, ...}
+ *   - scenario_layout jsonb   Hotspot/element layout: array of {id, type, x, y, width, height, label}
+ *   - version         text    Scenario version string (default '1.0')
+ *   - status          text    'draft' | 'published' | 'archived'
+ *   - scenario_type   text    'product' (Taghunter template) | 'custom' (client-authored)
+ *
+ * Uploaded files (including the bundled ZIP) live in the separate `scenario_files` table.
+ * The `game_meta` and `media_url` columns were dropped 2026-04-29; do not re-add.
+ */
+
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
 
@@ -141,7 +156,6 @@ try {
             $description = null;
             $data = null;
             $medias = null;
-            $game_meta = null;
             $game_type = null;
             $scenario_type = null;
             $scenario_layout = null;
@@ -149,8 +163,6 @@ try {
 
             if ($scenarioData) {
                 // Client app format
-                // Store entire payload in game_meta
-                $game_meta = $scenarioData;
                 // Store the 'data' field in data column (default to empty object if not present)
                 $data = $scenarioData['data'] ?? [];
                 // Store the 'media' field in medias column (default to empty object if not present)
@@ -235,8 +247,15 @@ try {
                 $title = $_POST['title'] ?? null;
                 $description = $_POST['description'] ?? null;
                 $data = $_POST['data'] ?? null;
-                $medias = $_POST['medias'] ?? $_POST['media'] ?? null; // Check both singular and plural
-                $game_meta = $_POST['game_meta'] ?? null;
+                // Canonical field is 'medias' (matches DB column). 'media' (singular) is a deprecated alias
+                // accepted for one release window; emit a log when seen so we can track remaining callers.
+                if (!isset($_POST['medias']) && isset($_POST['media'])) {
+                    Logger::log('scenarios', $method, 'deprecated_field', $_SESSION['user_id'] ?? null, [
+                        'field' => 'media',
+                        'replacement' => 'medias'
+                    ], ['message' => 'Deprecated singular "media" field received; rename to "medias"'], 200);
+                }
+                $medias = $_POST['medias'] ?? $_POST['media'] ?? null;
                 $game_type = $_POST['game_type'] ?? null;
                 $scenario_type = $_POST['scenario_type'] ?? null;
                 $scenario_layout = $_POST['scenario_layout'] ?? null;
@@ -286,18 +305,6 @@ try {
                 }
             }
 
-            // Convert game_meta to JSON string if it's an array
-            if (is_array($game_meta)) {
-                $game_meta = json_encode($game_meta);
-            } elseif (is_string($game_meta) && !empty($game_meta)) {
-                // Validate it's valid JSON
-                json_decode($game_meta);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    Logger::log('scenarios', $method, 'create', $_SESSION['user_id'] ?? null, ['game_meta' => $game_meta], ['error' => 'Invalid JSON in game_meta'], 400);
-                    jsonResponse(['error' => 'game_meta must be valid JSON string or object'], 400);
-                }
-            }
-
             // Convert scenario_layout to JSON string if it's an array
             if (is_array($scenario_layout)) {
                 $scenario_layout = json_encode($scenario_layout);
@@ -310,15 +317,12 @@ try {
                 }
             }
 
-            // Ensure data, medias, and game_meta are never null - use empty JSON object if needed
+            // Ensure data and medias are never null - use empty JSON object if needed
             if ($data === null || $data === '') {
                 $data = '{}';
             }
             if ($medias === null || $medias === '') {
                 $medias = '{}';
-            }
-            if ($game_meta === null || $game_meta === '') {
-                $game_meta = '{}';
             }
             if ($scenario_layout === null || $scenario_layout === '') {
                 $scenario_layout = '[]';
@@ -348,9 +352,7 @@ try {
                 }
             }
 
-            // Skip file upload for now - will be handled in a separate request
-            $media_path = null;
-
+            // File uploads are handled separately via scenario_files.php
             // Check if scenario with this uniqid already exists
             $existingScenario = $db->fetch('SELECT id, created_at FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
@@ -383,7 +385,6 @@ try {
                 'data' => $data === '{}' ? 'EMPTY_OBJECT' : (is_string($data) ? substr($data, 0, 200) : 'ARRAY'),
                 'medias' => $medias === '{}' ? 'EMPTY_OBJECT' : (is_string($medias) ? substr($medias, 0, 200) : 'ARRAY'),
                 'medias_full' => $medias,
-                'game_meta' => $game_meta === '{}' ? 'EMPTY_OBJECT' : (is_string($game_meta) ? substr($game_meta, 0, 100) : 'ARRAY'),
                 'game_type' => $game_type,
                 'scenario_type' => $scenario_type,
                 'uniqid' => $uniqid,
@@ -396,12 +397,12 @@ try {
                 $created_at = $existingScenario['created_at'];
                 $isUpdate = true;
 
-                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
-                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $status, $uniqid]);
+                $sql = 'UPDATE scenarios SET client_id = ?, title = ?, description = ?, data = ?, medias = ?, game_type = ?, scenario_type = ?, scenario_layout = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE uniqid = ?';
+                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_type, $scenario_type, $scenario_layout, $status, $uniqid]);
             } else {
                 // Insert new scenario
-                $sql = 'INSERT INTO scenarios (client_id, title, description, media_url, data, medias, game_meta, game_type, scenario_type, scenario_layout, status, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                $db->query($sql, [$client_id, $title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $scenario_layout, $status, $uniqid, $created_by]);
+                $sql = 'INSERT INTO scenarios (client_id, title, description, data, medias, game_type, scenario_type, scenario_layout, status, uniqid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                $db->query($sql, [$client_id, $title, $description, $data, $medias, $game_type, $scenario_type, $scenario_layout, $status, $uniqid, $created_by]);
                 $scenario_id = $db->getConnection()->lastInsertId();
                 $created_at = date('Y-m-d H:i:s');
             }
@@ -415,10 +416,8 @@ try {
                     'is_taghunter_product' => $client_id === null,
                     'title' => $title,
                     'description' => $description,
-                    'media_url' => $media_path,
                     'data' => $data,
                     'medias' => $medias,
-                    'game_meta' => $game_meta,
                     'game_type' => $game_type,
                     'scenario_type' => $scenario_type,
                     'status' => $status,
@@ -444,10 +443,18 @@ try {
                     'item_name' => $title,
                     'navigate_to' => 'scenarios'
                 ]);
-                $db->execute(
-                    'INSERT INTO admin_notifications (type, title, message, metadata) VALUES (?, ?, ?, ?)',
-                    ['scenario_created', 'Scenario published', '"' . $title . '" was ' . $notifAction . ' by ' . $email, $notifMeta]
-                );
+                // Notifications are a side-effect — never fail a publish for them.
+                // (Was load-bearing before: a missing admin_notifications table
+                // returned 500 even though the scenario row had already been
+                // saved. Caught during Stage 2 QA on 2026-05-05.)
+                try {
+                    $db->execute(
+                        'INSERT INTO admin_notifications (type, title, message, metadata) VALUES (?, ?, ?, ?)',
+                        ['scenario_created', 'Scenario published', '"' . $title . '" was ' . $notifAction . ' by ' . $email, $notifMeta]
+                    );
+                } catch (Throwable $notifErr) {
+                    error_log('scenarios.php: admin_notifications insert failed (non-fatal): ' . $notifErr->getMessage());
+                }
             }
 
             jsonResponse($responseData, $isUpdate ? 200 : 201);
@@ -548,10 +555,8 @@ try {
 
             $title = isset($_POST['title']) ? trim($_POST['title']) : $scenario['title'];
             $description = isset($_POST['description']) ? trim($_POST['description']) : $scenario['description'];
-            $media_path = $scenario['media_url'];
             $data = isset($_POST['data']) ? $_POST['data'] : $scenario['data'];
             $medias = isset($_POST['medias']) ? $_POST['medias'] : $scenario['medias'];
-            $game_meta = isset($_POST['game_meta']) ? $_POST['game_meta'] : $scenario['game_meta'];
             $game_type = isset($_POST['game_type']) ? $_POST['game_type'] : $scenario['game_type'];
             $scenario_type = isset($_POST['scenario_type']) ? $_POST['scenario_type'] : $scenario['scenario_type'];
             $status = isset($_POST['status']) ? $_POST['status'] : $scenario['status'];
@@ -583,33 +588,18 @@ try {
                 }
             }
 
-            // Convert game_meta to JSON string if it's an array
-            if (is_array($game_meta)) {
-                $game_meta = json_encode($game_meta);
-            } elseif (is_string($game_meta) && !empty($game_meta)) {
-                // Validate it's valid JSON
-                json_decode($game_meta);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    jsonResponse(['error' => 'game_meta must be valid JSON string or object'], 400);
-                }
-            }
-
-            // Ensure data, medias, and game_meta are never null - use empty JSON object if needed
+            // Ensure data and medias are never null - use empty JSON object if needed
             if ($data === null || $data === '') {
                 $data = '{}';
             }
             if ($medias === null || $medias === '') {
                 $medias = '{}';
             }
-            if ($game_meta === null || $game_meta === '') {
-                $game_meta = '{}';
-            }
 
-            // Handle new zip file upload
+            // Handle new zip file upload — store as a row in scenario_files (mime_type=application/zip)
             if (isset($_FILES['zip_file']) && $_FILES['zip_file']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['zip_file'];
 
-                // Validate file type
                 $finfo = finfo_open(FILEINFO_MIME_TYPE);
                 $mimeType = finfo_file($finfo, $file['tmp_name']);
                 finfo_close($finfo);
@@ -619,38 +609,47 @@ try {
                     jsonResponse(['error' => 'Only zip files are allowed'], 400);
                 }
 
-                // Validate file size (50MB max)
                 if ($file['size'] > 50 * 1024 * 1024) {
                     jsonResponse(['error' => 'File size must be less than 50MB'], 400);
                 }
 
-                // Delete old file if exists
-                if ($media_path && file_exists(__DIR__ . '/../../' . $media_path)) {
-                    unlink(__DIR__ . '/../../' . $media_path);
-                }
-
-                // Create upload directory if it doesn't exist
-                $uploadDir = __DIR__ . '/../../uploads/scenarios/';
+                $scenarioUniqid = $scenario['uniqid'];
+                $uploadDir = __DIR__ . '/../../media/' . $scenarioUniqid . '/files/';
                 if (!is_dir($uploadDir)) {
                     mkdir($uploadDir, 0755, true);
                 }
 
-                // Generate unique filename
+                // Remove any prior bundled-zip rows for this scenario (and their files)
+                $priorZips = $db->fetchAll(
+                    'SELECT id, file_path FROM scenario_files WHERE scenario_id = ? AND mime_type IN (?, ?)',
+                    [$id, 'application/zip', 'application/x-zip-compressed']
+                );
+                foreach ($priorZips as $prior) {
+                    $priorFull = __DIR__ . '/../../media/' . $prior['file_path'];
+                    if (file_exists($priorFull)) {
+                        unlink($priorFull);
+                    }
+                    $db->query('DELETE FROM scenario_files WHERE id = ?', [$prior['id']]);
+                }
+
                 $fileExtension = pathinfo($file['name'], PATHINFO_EXTENSION);
                 $uniqueName = uniqid('scenario_', true) . '.' . $fileExtension;
                 $uploadPath = $uploadDir . $uniqueName;
 
-                // Move uploaded file
                 if (!move_uploaded_file($file['tmp_name'], $uploadPath)) {
                     jsonResponse(['error' => 'Failed to upload file'], 500);
                 }
 
-                $media_path = '/uploads/scenarios/' . $uniqueName;
+                $relativePath = $scenarioUniqid . '/files/' . $uniqueName;
+                $db->query(
+                    'INSERT INTO scenario_files (scenario_id, name, file_path, file_size, mime_type) VALUES (?, ?, ?, ?, ?)',
+                    [$id, 'Scenario Bundle', $relativePath, filesize($uploadPath), $mimeType]
+                );
             }
 
             // Update scenario
-            $sql = 'UPDATE scenarios SET title = ?, description = ?, media_url = ?, data = ?, medias = ?, game_meta = ?, game_type = ?, scenario_type = ?, status = ?, updated_at = NOW() WHERE id = ?';
-            $db->query($sql, [$title, $description, $media_path, $data, $medias, $game_meta, $game_type, $scenario_type, $status, $id]);
+            $sql = 'UPDATE scenarios SET title = ?, description = ?, data = ?, medias = ?, game_type = ?, scenario_type = ?, status = ?, updated_at = NOW() WHERE id = ?';
+            $db->query($sql, [$title, $description, $data, $medias, $game_type, $scenario_type, $status, $id]);
 
             jsonResponse([
                 'success' => true,
@@ -658,10 +657,8 @@ try {
                     'id' => $id,
                     'title' => $title,
                     'description' => $description,
-                    'media_url' => $media_path,
                     'data' => $data,
                     'medias' => $medias,
-                    'game_meta' => $game_meta,
                     'game_type' => $game_type,
                     'scenario_type' => $scenario_type,
                     'status' => $status
@@ -687,29 +684,34 @@ try {
             }
 
             // Get scenario to delete associated files
-            $scenario = $db->fetch('SELECT media_url, uniqid FROM scenarios WHERE id = ?', [(int)$id]);
+            $scenario = $db->fetch('SELECT uniqid FROM scenarios WHERE id = ?', [(int)$id]);
             if (!$scenario) {
                 Logger::log('scenarios', $method, 'delete', $_SESSION['user_id'], ['id' => $id], ['error' => 'Not found'], 404);
                 jsonResponse(['error' => 'Scenario not found'], 404);
             }
 
-            // Delete zip file if exists
-            if ($scenario['media_url'] && file_exists(__DIR__ . '/../../' . $scenario['media_url'])) {
-                unlink(__DIR__ . '/../../' . $scenario['media_url']);
+            // Unlink files registered in scenario_files, then drop their rows
+            $registeredFiles = $db->fetchAll('SELECT id, file_path FROM scenario_files WHERE scenario_id = ?', [(int)$id]);
+            foreach ($registeredFiles as $registered) {
+                $registeredFull = __DIR__ . '/../../media/' . $registered['file_path'];
+                if (file_exists($registeredFull)) {
+                    unlink($registeredFull);
+                }
             }
+            $db->query('DELETE FROM scenario_files WHERE scenario_id = ?', [(int)$id]);
 
-            // Delete media directory if exists
+            // Delete media directory if exists (recursively, since /files/ subdir is now used)
             if ($scenario['uniqid']) {
                 $mediaDir = __DIR__ . '/../../media/' . $scenario['uniqid'];
                 if (is_dir($mediaDir)) {
-                    $files = array_diff(scandir($mediaDir), ['.', '..']);
-                    foreach ($files as $file) {
-                        $filePath = $mediaDir . '/' . $file;
-                        if (is_file($filePath)) {
-                            unlink($filePath);
+                    $rrmdir = function ($dir) use (&$rrmdir) {
+                        foreach (array_diff(scandir($dir), ['.', '..']) as $entry) {
+                            $full = $dir . '/' . $entry;
+                            is_dir($full) ? $rrmdir($full) : unlink($full);
                         }
-                    }
-                    rmdir($mediaDir);
+                        rmdir($dir);
+                    };
+                    $rrmdir($mediaDir);
                 }
             }
 

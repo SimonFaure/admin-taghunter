@@ -1,0 +1,22 @@
+-- Drop the media_url column from scenarios.
+--
+-- Background: media_url stored a single ZIP path for the scenario bundle. This
+-- overlapped with the scenario_files table (which stores per-file rows including
+-- the bundled ZIP as mime_type='application/zip'). Verified empty across all
+-- rows before drop. The MySQL column was also typed `date` (a schema bug — it
+-- should have been `text`), but no rows were populated so no data is lost.
+--
+-- Reads were removed from:
+--   - backend/api/client_scenarios.php (3 SELECTs)
+--   - backend/api/scenario_files.php (handleGetScenario SELECT)
+--   - backend/api/scenarios.php (delete branch now iterates scenario_files)
+--   - src/components/ScenariosView.tsx (Scenario interface + Download Media UI)
+--   - src/components/client/types.ts (ClientScenario.media_url)
+--   - src/lib/api.ts (ScenarioData.media_url)
+--   - src/components/ApiDocsView.tsx (response examples)
+--
+-- Writes were removed from:
+--   - backend/api/scenarios.php create branch (INSERT no longer includes media_url)
+--   - backend/api/scenarios.php update branch (zip upload now INSERTs into scenario_files)
+
+ALTER TABLE scenarios DROP COLUMN media_url;

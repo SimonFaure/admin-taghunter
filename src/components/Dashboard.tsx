@@ -1,6 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, LayoutGrid as Layout } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, LayoutGrid as Layout, Monitor, AlertTriangle, Languages, Gamepad2, Rocket } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
 import LogsView from './LogsView';
@@ -15,11 +16,20 @@ import { PatternsView } from './PatternsView';
 import { ActivityHistoryView } from './ActivityHistoryView';
 import { CardsListView } from './CardsListView';
 import { LayoutsView } from './LayoutsView';
+import { DevicesView } from './DevicesView';
+import { RecentErrorsView } from './RecentErrorsView';
+import { GameTypesView } from './GameTypesView';
+import { ReleasesView } from './ReleasesView';
+import AdminTranslationsView from './admin/AdminTranslationsView';
 import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState('home');
+  // Allow callers to land on a specific tab via `navigate('/admin', { state: { tab } })`.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const initialTab = (location.state as { tab?: string } | null)?.tab ?? 'home';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<DashboardActivity[]>([]);
@@ -78,9 +88,14 @@ export function Dashboard() {
     { id: 'cards', label: 'Cards', icon: CreditCard },
     { id: 'layouts', label: 'Layouts', icon: Layout },
     { id: 'media', label: 'Media', icon: Image },
+    { id: 'devices', label: 'Devices', icon: Monitor },
+    { id: 'releases', label: 'Releases', icon: Rocket },
+    { id: 'recent-errors', label: 'Recent Errors', icon: AlertTriangle },
     { id: 'statistics', label: 'Statistics', icon: TrendingUp },
     { id: 'activity-history', label: 'Activity History', icon: Clock },
     { id: 'admin-users', label: 'Admin Users', icon: Shield },
+    { id: 'translations', label: 'Translations', icon: Languages },
+    { id: 'game-types', label: 'Game Types', icon: Gamepad2 },
     { id: 'logs', label: 'API Logs', icon: FileText },
     { id: 'api-docs', label: 'API Docs', icon: Code },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -88,7 +103,7 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col z-40">
         <div className="p-6 border-b border-slate-800 flex-shrink-0">
           <div className="flex flex-col space-y-4">
             <div className="flex items-center justify-between">
@@ -109,7 +124,13 @@ export function Dashboard() {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  if ('route' in item && item.route) {
+                    navigate(item.route);
+                    return;
+                  }
+                  setActiveTab(item.id);
+                }}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
                   activeTab === item.id
                     ? 'bg-slate-800 text-white'
@@ -179,6 +200,12 @@ export function Dashboard() {
 
           {activeTab === 'media' && <MediaView />}
 
+          {activeTab === 'devices' && <DevicesView />}
+
+          {activeTab === 'releases' && <ReleasesView />}
+
+          {activeTab === 'recent-errors' && <RecentErrorsView />}
+
           {activeTab === 'statistics' && <StatisticsView />}
 
           {activeTab === 'activity-history' && <ActivityHistoryView />}
@@ -190,6 +217,10 @@ export function Dashboard() {
           {activeTab === 'api-docs' && <ApiDocsView />}
 
           {activeTab === 'settings' && <SettingsView />}
+
+          {activeTab === 'game-types' && <GameTypesView />}
+
+          {activeTab === 'translations' && <AdminTranslationsView />}
 
           {activeTab === 'home' && (
           <>

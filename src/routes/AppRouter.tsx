@@ -1,30 +1,23 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { Dashboard } from '../components/Dashboard';
-import { ClientDashboard } from '../components/ClientDashboard';
+import { ClientLayout } from '../layouts/ClientLayout';
+import { MyHomeView } from '../components/client/MyHomeView';
 import { MyScenariosView } from '../components/client/MyScenariosView';
+import { ScenarioDetailView } from '../components/client/ScenarioDetailView';
 import { MyPatternsView } from '../components/client/MyPatternsView';
 import { MyLayoutsView } from '../components/client/MyLayoutsView';
+import { MyCardsView } from '../components/client/MyCardsView';
+import { MyDevicesView } from '../components/client/MyDevicesView';
+import { MyAccountView } from '../components/client/MyAccountView';
+import { AccountSecurityView } from '../components/client/AccountSecurityView';
 import { HomeRedirect, LoginPage } from '../auth/LoginPage';
 import { StudioLayout } from '../layouts/StudioLayout';
 import { RequireAuth, RequireRole } from './guards';
 import { StudioScenarioRoute } from './studio/StudioScenarioRoute';
 import { StudioPatternRoute } from './studio/StudioPatternRoute';
 import { StudioLayoutRoute } from './studio/StudioLayoutRoute';
-
-// MyScenariosView's existing signature expects an onSelectScenario handler.
-// For the list-at-URL mount we wire selection to navigate into the studio editor.
-import { useNavigate } from 'react-router-dom';
-
-function MyScenariosPage() {
-  const navigate = useNavigate();
-  return (
-    <MyScenariosView
-      onSelectScenario={(s: any) => {
-        if (s?.uniqid) navigate(`/studio/scenarios/${s.uniqid}`);
-      }}
-    />
-  );
-}
+import { GameTypesView } from '../components/GameTypesView';
+import { MySettingsView } from '../components/client/MySettingsView';
 
 // Admin list views (/admin/scenarios etc.) aren't split out yet — Dashboard's
 // existing tab state still owns those. Leaving them as placeholder routes for
@@ -52,10 +45,21 @@ export function AppRouter() {
         </Route>
 
         <Route element={<RequireRole role="client" />}>
-          <Route path="/my/scenarios" element={<MyScenariosPage />} />
-          <Route path="/my/patterns" element={<MyPatternsView />} />
-          <Route path="/my/layouts" element={<MyLayoutsView />} />
-          <Route path="/my/*" element={<ClientDashboard />} />
+          <Route path="/my" element={<ClientLayout />}>
+            <Route index element={<Navigate to="home" replace />} />
+            <Route path="home" element={<MyHomeView />} />
+            <Route path="scenarios" element={<MyScenariosView />} />
+            <Route path="scenarios/:uniqid" element={<ScenarioDetailView />} />
+            <Route path="patterns" element={<MyPatternsView />} />
+            <Route path="layouts" element={<MyLayoutsView />} />
+            <Route path="cards" element={<MyCardsView />} />
+            <Route path="devices" element={<MyDevicesView />} />
+            <Route path="game-types" element={<GameTypesView />} />
+            <Route path="settings" element={<MySettingsView />} />
+            <Route path="account" element={<MyAccountView />} />
+            <Route path="account/security" element={<AccountSecurityView />} />
+            <Route path="*" element={<Navigate to="home" replace />} />
+          </Route>
         </Route>
 
         <Route element={<StudioLayout />}>

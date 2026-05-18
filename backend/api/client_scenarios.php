@@ -172,8 +172,8 @@ try {
 
         if ($isPremium) {
             $scenarios = $db->fetchAll(
-                'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.media_url, s.client_id, s.created_at, s.updated_at,
+                'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.client_id, s.created_at, s.updated_at,
                         s.created_at as granted_at, NULL as granted_by, NULL as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM scenarios s
@@ -182,8 +182,8 @@ try {
             );
         } else {
             $scenarios = $db->fetchAll(
-                'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.media_url, s.client_id, s.created_at, s.updated_at,
+                'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.client_id, s.created_at, s.updated_at,
                         cs.granted_at, cs.granted_by, a.email as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM client_scenarios cs
@@ -191,8 +191,8 @@ try {
                  LEFT JOIN admin_users a ON cs.granted_by = a.id
                  WHERE cs.client_id = ?
                  UNION ALL
-                 SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.media_url, s.client_id, s.created_at, s.updated_at,
+                 SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.client_id, s.created_at, s.updated_at,
                         s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM scenarios s

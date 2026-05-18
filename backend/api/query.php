@@ -62,6 +62,14 @@ $ALLOWED_TABLES = [
     'api_logs',
     'import_logs',
     'si_balises',
+    'client_scenarios',
+];
+
+// Tables only admin tokens may touch through this endpoint. Client tokens get 403
+// before any SQL runs. client_scenarios is admin-only because it's the grant join
+// table — admins manage which clients can access which product scenarios.
+$ADMIN_ONLY_TABLES = [
+    'client_scenarios',
 ];
 
 // Columns a non-admin token may not set/change via this endpoint. A client
@@ -217,6 +225,9 @@ try {
     $op    = $body['op']    ?? '';
     if (!in_array($table, $ALLOWED_TABLES, true)) {
         respond(['error' => "Table not allowed: $table"], 403);
+    }
+    if (in_array($table, $ADMIN_ONLY_TABLES, true) && ($tokenData['user_type'] ?? '') !== 'admin') {
+        respond(['error' => "Table is admin-only: $table"], 403);
     }
     $table = safeIdent($table); // redundant but defensive
 
