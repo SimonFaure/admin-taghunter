@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, AlertTriangle, FileText } from 'lucide-react';
+import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, AlertTriangle, FileText, Smartphone, Monitor, HardDrive, Calendar } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { ScenarioData, adminCardsApi } from '../lib/api';
@@ -7,6 +7,30 @@ import { authFetch } from '../lib/authFetch';
 import { CardsRegistryEditor, CardsEditorApi } from './CardsRegistryEditor';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
+interface ClientDevice {
+  id: number;
+  device_uniq: string;
+  device_label: string | null;
+  display_name: string | null;
+  os: string | null;
+  os_version: string | null;
+  app_version: string | null;
+  cards_file_version: number | null;
+  last_seen_at: string | null;
+  created_at: string | null;
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return '—';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return iso;
+  const diff = Date.now() - then;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+  return `${Math.floor(diff / 86_400_000)}d ago`;
+}
 
 interface ClientDetailViewProps {
   clientId: string;
@@ -33,6 +57,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [removeConfirm, setRemoveConfirm] = useState<{ scenarioId: string; scenarioTitle: string } | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [devices, setDevices] = useState<ClientDevice[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(true);
 
   // Admin-side cards CRUD: same shared editor used by CardsListView's drill-in.
   const clientIdNum = Number(clientId);
@@ -61,14 +87,31 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     notes: '',
     license_type: 'access' as LicenseType,
     billing_up_to_date: true,
-    playground_version: '',
-    creator_version: '',
   });
 
   useEffect(() => {
     loadClient();
     loadScenarios();
+    loadDevices();
   }, [clientId]);
+
+  const loadDevices = async () => {
+    setLoadingDevices(true);
+    try {
+      const response = await authFetch(
+        `${API_BASE_URL}/telemetry_admin.php?action=list_devices&client_id=${clientId}`,
+        { credentials: 'include' }
+      );
+      if (response.ok) {
+        const result = await response.json();
+        setDevices(result.data || []);
+      }
+    } catch (err) {
+      console.error('Error loading devices:', err);
+    } finally {
+      setLoadingDevices(false);
+    }
+  };
 
   const loadScenarios = async () => {
     setLoadingScenarios(true);
@@ -192,8 +235,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         notes: data.notes || '',
         license_type: (data.license_type as LicenseType) || 'access',
         billing_up_to_date: data.billing_up_to_date ?? true,
-        playground_version: data.playground_version || '',
-        creator_version: data.creator_version || '',
       });
     }
     setLoading(false);
@@ -392,18 +433,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 }`}>
                   {client.billing_up_to_date ? 'Billing Current' : 'Billing Overdue'}
                 </span>
-                {client.playground_version && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                    <Package className="w-3.5 h-3.5" />
-                    Playground v{client.playground_version}
-                  </span>
-                )}
-                {client.creator_version && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
-                    <Package className="w-3.5 h-3.5" />
-                    Creator v{client.creator_version}
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -473,31 +502,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Playground Version
-                </label>
-                <input
-                  type="text"
-                  value={formData.playground_version}
-                  onChange={(e) => setFormData({ ...formData, playground_version: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  placeholder="1.0.0"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Creator Version
-                </label>
-                <input
-                  type="text"
-                  value={formData.creator_version}
-                  onChange={(e) => setFormData({ ...formData, creator_version: e.target.value })}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  placeholder="1.0.0"
-                />
-              </div>
             </div>
 
             <div>
@@ -590,6 +594,93 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               </button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <Smartphone className="w-6 h-6 text-slate-700" />
+              <h3 className="text-xl font-bold text-slate-900">Devices</h3>
+            </div>
+            <span className="text-sm text-slate-600">
+              {devices.length} {devices.length === 1 ? 'device' : 'devices'}
+            </span>
+          </div>
+
+          {loadingDevices ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+            </div>
+          ) : devices.length === 0 ? (
+            <div className="text-center py-12 bg-slate-50 rounded-lg">
+              <Smartphone className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+              <p className="text-slate-600">No devices registered</p>
+              <p className="text-sm text-slate-500 mt-1">
+                Playground installs appear here once they connect to this client's account
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {devices.map((device) => (
+                <div
+                  key={device.id}
+                  className="border border-slate-200 rounded-lg p-6 hover:border-slate-300 transition-colors"
+                >
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Smartphone className="w-6 h-6 text-slate-700" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-slate-900 truncate">
+                        {device.display_name || device.device_label || 'Device'}
+                      </h4>
+                      <p
+                        className="text-xs text-slate-500 font-mono truncate"
+                        title={device.device_uniq}
+                      >
+                        {device.device_uniq}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-slate-100">
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Package className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="text-slate-600">
+                        <span className="font-medium text-slate-700">Playground:</span>{' '}
+                        {device.app_version || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Monitor className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="text-slate-600">
+                        <span className="font-medium text-slate-700">OS:</span>{' '}
+                        {device.os
+                          ? `${device.os}${device.os_version ? ' ' + device.os_version : ''}`
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <HardDrive className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="text-slate-600">
+                        <span className="font-medium text-slate-700">Cards:</span>{' '}
+                        v{device.cards_file_version ?? 0}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <span className="text-slate-600">
+                        <span className="font-medium text-slate-700">Last seen:</span>{' '}
+                        {formatRelative(device.last_seen_at)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

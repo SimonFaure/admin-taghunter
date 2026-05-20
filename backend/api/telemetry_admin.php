@@ -6,7 +6,7 @@
 // by clients.php / logs.php (requireAuth on $_SESSION['user_id']).
 //
 // Actions:
-//   list_devices          GET   all devices, with error_count_7d, attached client
+//   list_devices          GET   all devices (or ?client_id=N), with error_count_7d, attached client
 //   device_detail         GET   one device + its recent errors + game launches
 //   list_errors           GET   fleet-wide error feed, grouped by fingerprint
 //
@@ -49,15 +49,26 @@ try {
         case 'list_devices': {
             // One row per device with the most-recent client info and a
             // 7-day error count. Sort by last_seen so freshly-active devices
-            // surface first.
+            // surface first. Optional ?client_id= scopes the list to one
+            // client (used by the Studio client detail page).
+            $clientFilter = isset($_GET['client_id']) ? (int)$_GET['client_id'] : 0;
+            $where = '';
+            $params = [];
+            if ($clientFilter > 0) {
+                $where = 'WHERE d.client_id = ?';
+                $params[] = $clientFilter;
+            }
+
             $rows = $db->fetchAll(
                 "SELECT
                     d.id,
                     d.device_uniq,
                     d.device_label,
+                    d.display_name,
                     d.os,
                     d.os_version,
                     d.playground_version AS app_version,
+                    d.cards_file_version,
                     d.last_seen_at,
                     d.created_at,
                     d.updated_at,
@@ -70,7 +81,9 @@ try {
                     ) AS error_count_7d
                  FROM devices d
                  LEFT JOIN clients c ON c.id = d.client_id
-                 ORDER BY d.last_seen_at DESC, d.created_at DESC"
+                 $where
+                 ORDER BY d.last_seen_at DESC, d.created_at DESC",
+                $params
             );
 
             jsonResponse(['data' => $rows]);

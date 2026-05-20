@@ -170,12 +170,59 @@ try {
         // field→filename maps next to game_meta, so splice them back in here.
         $structuredMedias = !empty($scenario['medias']) ? json_decode($scenario['medias'], true) : null;
         if (is_array($gameData)) {
-            $gameData['game_media_images'] = is_array($structuredMedias['images'] ?? null)
-                ? $structuredMedias['images']
-                : new stdClass();
-            $gameData['game_sounds'] = is_array($structuredMedias['sounds'] ?? null)
-                ? $structuredMedias['sounds']
-                : new stdClass();
+            $mediaImages = is_array($structuredMedias['images'] ?? null) ? $structuredMedias['images'] : [];
+            $mediaSounds = is_array($structuredMedias['sounds'] ?? null) ? $structuredMedias['sounds'] : [];
+
+            // Sibling field→filename maps — the scenario list view + test
+            // modals read `game_media_images` / `game_sounds` directly.
+            $gameData['game_media_images'] = $mediaImages ?: new stdClass();
+            $gameData['game_sounds'] = $mediaSounds ?: new stdClass();
+
+            // Pre-refactor, top-level image filenames (`background_image`,
+            // `malus_image`, `custom_template`, …) lived INSIDE `game_meta`.
+            // The playground's tagquest renderer still resolves sentinel
+            // filenames (`@background`, `@malus_image`, `@template`) against
+            // `game_meta`, so splice the medias-column images back in.
+            if (is_array($gameData['game_meta'] ?? null)) {
+                foreach ($mediaImages as $field => $filename) {
+                    $gameData['game_meta'][$field] = $filename;
+                }
+            }
+
+            // The new shape keeps `quests` INSIDE `game_meta`; the legacy
+            // shape the playground reads has `quests` as a TOP-LEVEL sibling
+            // (see the ZIP `buildZipPayload` contract). Per-quest media
+            // (`main_image`, `image_1..4`, `sound`) also lived INLINE on each
+            // quest object pre-refactor — `cleanGameMetaForData` strips quests
+            // down to {name, points} on save and parks the media in the
+            // `medias` column. Rebuild the full quest objects (base fields +
+            // media, matched by `quest_index`) and expose them top-level so
+            // the playground renders quest names, icons + punch-animation
+            // slot images. Keep `game_meta.quests` in sync for any reader
+            // that still looks there.
+            if (is_array($gameData['game_meta']['quests'] ?? null)) {
+                $quests = array_values($gameData['game_meta']['quests']);
+                $questMediaList = is_array($structuredMedias['quests'] ?? null)
+                    ? $structuredMedias['quests']
+                    : [];
+                foreach ($questMediaList as $pos => $questMedia) {
+                    if (!is_array($questMedia)) {
+                        continue;
+                    }
+                    $idx = $questMedia['quest_index'] ?? $pos;
+                    if (!isset($quests[$idx]) || !is_array($quests[$idx])) {
+                        continue;
+                    }
+                    foreach ($questMedia as $key => $val) {
+                        if ($key === 'quest_index' || $val === '' || $val === null) {
+                            continue;
+                        }
+                        $quests[$idx][$key] = $val;
+                    }
+                }
+                $gameData['quests'] = $quests;
+                $gameData['game_meta']['quests'] = $quests;
+            }
         }
 
         // The `medias` column historically holds a structured object
@@ -477,9 +524,28 @@ try {
             [$userId]
         );
 
-        $productScenarios = $db->fetchAll(
-            'SELECT title, uniqid, version, game_type FROM scenarios WHERE scenario_type = "product" AND status = "published" ORDER BY created_at DESC'
-        );
+        // Product scenarios in the manifest MUST mirror what
+        // playgroundClientCanAccessScenario() will actually allow: premium
+        // clients get every product scenario, everyone else only the ones
+        // granted via client_scenarios. Listing all product scenarios here
+        // (the old behaviour) handed non-premium clients phantom sync items
+        // that get_scenario_game_data then rejected with 403 — surfacing in
+        // the playground as a permanent "1 failed".
+        if (($client['license_type'] ?? '') === 'premium') {
+            $productScenarios = $db->fetchAll(
+                'SELECT title, uniqid, version, game_type FROM scenarios
+                 WHERE scenario_type = "product" AND status = "published"
+                 ORDER BY created_at DESC'
+            );
+        } else {
+            $productScenarios = $db->fetchAll(
+                'SELECT s.title, s.uniqid, s.version, s.game_type FROM scenarios s
+                 JOIN client_scenarios cs ON cs.scenario_id = s.id AND cs.client_id = ?
+                 WHERE s.scenario_type = "product" AND s.status = "published"
+                 ORDER BY s.created_at DESC',
+                [$userId]
+            );
+        }
 
         $defaultPatterns = $db->fetchAll(
             'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'

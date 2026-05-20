@@ -6,17 +6,24 @@
  * neither (legacy free-text) is preserved as its own picker entry. The chosen
  * font becomes the in-game text font (see the playground renderer).
  *
+ * The preview text is editable (authoring convenience only — not persisted)
+ * and defaults to the scenario title plus a glyph sampler.
+ *
  * Plan: C:\Users\faure\.claude\plans\studio-custom-fonts-typography.md
  */
 
+import { useState } from 'react';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { CustomFontsManager } from './CustomFontsManager';
 import { FONT_CATALOG } from '../../../fonts/catalog';
 import { resolveFontFamily } from '../../../fonts/resolveFontFamily';
+import { getLocalized } from '../../i18n/getLocalized';
+import type { Lang } from '../../i18n/types';
 import type { CustomFont } from '../../../types/scenario-data';
 
-const PREVIEW_TEXT = 'The quick brown fox — AaBbCc 0123';
+/** Glyph sampler appended after the scenario title in the default preview. */
+const PREVIEW_SAMPLE = 'AaBbCc 0123 éèàâëù';
 
 export function TypographySection() {
   const editor = useScenarioEditor();
@@ -43,6 +50,21 @@ export function TypographySection() {
   const legacyValue = fontValue && !optionValues.has(fontValue) ? fontValue : null;
 
   const previewStack = resolveFontFamily(fontValue);
+
+  // Preview text — editable, authoring-only (never written to the scenario).
+  // Default = "<scenario title> — AaBbCc 0123 éèàâëù". `customPreviewText`
+  // stays null until the author types, so the default keeps tracking the
+  // title as it is edited; once edited, the author's text is kept.
+  const scenarioTitle = getLocalized(
+    meta.title as never,
+    editor.currentLanguage as Lang,
+    editor.defaultLanguage as Lang,
+  );
+  const defaultPreviewText = scenarioTitle
+    ? `${scenarioTitle} — ${PREVIEW_SAMPLE}`
+    : PREVIEW_SAMPLE;
+  const [customPreviewText, setCustomPreviewText] = useState<string | null>(null);
+  const previewText = customPreviewText ?? defaultPreviewText;
 
   return (
     <CollapsibleSection title="Typography">
@@ -105,18 +127,32 @@ export function TypographySection() {
         </label>
       </div>
 
-      {/* Live preview of the selected font. */}
+      {/* Live preview of the selected font. The input doubles as the preview:
+          it renders in the chosen font and the author can edit the sample. */}
       <div className="mt-3 border border-gray-200 rounded-md px-3 py-2 bg-white">
-        <span className="text-[11px] font-medium text-gray-400 block mb-0.5">Preview</span>
-        <span
-          className="text-lg text-gray-900"
+        <div className="flex items-center justify-between mb-0.5">
+          <span className="text-[11px] font-medium text-gray-400">Preview text</span>
+          {customPreviewText !== null && (
+            <button
+              type="button"
+              onClick={() => setCustomPreviewText(null)}
+              className="text-[11px] text-blue-600 hover:underline"
+            >
+              Reset to default
+            </button>
+          )}
+        </div>
+        <input
+          type="text"
+          value={previewText}
+          onChange={(e) => setCustomPreviewText(e.target.value)}
+          aria-label="Font preview text"
+          className="w-full text-lg text-gray-900 bg-transparent px-0 py-1 border-0 border-b border-dashed border-gray-200 outline-none focus:border-gray-400"
           style={{
             fontFamily: previewStack || undefined,
             color: String(meta.font_color ?? '') || undefined,
           }}
-        >
-          {PREVIEW_TEXT}
-        </span>
+        />
       </div>
 
       <div className="mt-3">

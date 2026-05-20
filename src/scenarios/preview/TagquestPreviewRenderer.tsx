@@ -330,7 +330,7 @@ export function TagquestPreviewRenderer({
                 return (
                   <div key={`${el.id}-${idx}`} style={{ ...styleBase, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {questView === 'pieces' && activeQuest && (
-                      <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                      <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
                         {(['image_1', 'image_2', 'image_3', 'image_4'] as const).map((k) => {
                           const f = activeQuest[k];
                           return (
@@ -338,8 +338,6 @@ export function TagquestPreviewRenderer({
                               width: '100%',
                               height: '100%',
                               background: f ? `center/cover no-repeat url(${resolveMediaUrl(f)})` : 'rgba(255,255,255,0.08)',
-                              borderRadius: 6,
-                              border: '2px solid rgba(255,255,255,0.15)',
                             }} />
                           );
                         })}
