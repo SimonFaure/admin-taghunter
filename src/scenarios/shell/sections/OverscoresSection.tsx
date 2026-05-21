@@ -1,8 +1,9 @@
 /**
  * Overscores section — gated by capabilities.hasOverscores (mystery only).
  *
- * Each overscore is a labeled card with an AssetUploadField for the step
- * image (thumbnail when set, drop-zone when not).
+ * Layout mirrors EnigmasSection: each overscore is a labeled card with a
+ * left column of stacked text inputs (step, score, name) and a right column
+ * with a large image upload field.
  *
  * Slice 3B: `name_overscore_step` is `Localized<string>`; the other three
  * fields stay scalar.
@@ -92,50 +93,55 @@ export function OverscoresSection() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                  <label className="md:col-span-2 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">Step</span>
-                    <input
-                      value={o.overscore_step}
-                      onChange={(e) => updateOverscore(i, { overscore_step: e.target.value })}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                    />
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left: stacked inputs */}
+                  <div className="space-y-3">
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">Step</span>
+                      <input
+                        value={o.overscore_step}
+                        onChange={(e) => updateOverscore(i, { overscore_step: e.target.value })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                      />
+                    </label>
 
-                  <label className="md:col-span-2 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">Score</span>
-                    <input
-                      value={o.overscore_score}
-                      onChange={(e) => updateOverscore(i, { overscore_score: e.target.value })}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                    />
-                  </label>
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">Score</span>
+                      <input
+                        value={o.overscore_score}
+                        onChange={(e) => updateOverscore(i, { overscore_score: e.target.value })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                      />
+                    </label>
 
-                  <label className="md:col-span-8 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      Name ({lang})
-                    </span>
-                    <input
-                      value={getLocalized(o.name_overscore_step as never, lang, defaultLang)}
-                      onChange={(e) =>
-                        updateOverscore(i, {
-                          name_overscore_step: setLocalized(
-                            o.name_overscore_step as never,
-                            lang,
-                            e.target.value,
-                            defaultLang,
-                          ),
-                        })
-                      }
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                    />
-                  </label>
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">
+                        Name ({lang})
+                      </span>
+                      <input
+                        value={getLocalized(o.name_overscore_step as never, lang, defaultLang)}
+                        onChange={(e) =>
+                          updateOverscore(i, {
+                            name_overscore_step: setLocalized(
+                              o.name_overscore_step as never,
+                              lang,
+                              e.target.value,
+                              defaultLang,
+                            ),
+                          })
+                        }
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                      />
+                    </label>
+                  </div>
 
-                  <div className="md:col-span-6">
+                  {/* Right: image upload */}
+                  <div>
                     <AssetUploadField
                       slot={imageSlot}
                       value={o.image_overscore_step ?? ''}
                       onChange={(filename) => updateOverscore(i, { image_overscore_step: filename })}
+                      previewSize="lg"
                     />
                   </div>
                 </div>

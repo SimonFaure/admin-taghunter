@@ -7,11 +7,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Maximize2, Minimize2 } from 'lucide-react';
 import { useScenarioEditor } from '../shell/useScenarioEditor';
 import { getLocalized } from '../i18n/getLocalized';
 import type { Lang } from '../i18n/types';
-import { MysteryPreviewRenderer, type EnigmaView, type PreviewMysteryGameMeta } from './MysteryPreviewRenderer';
+import {
+  MysteryPreviewRenderer,
+  type EnigmaView,
+  type MysteryScreen,
+  type PreviewMysteryGameMeta,
+} from './MysteryPreviewRenderer';
 import { ViewportSelect } from './ViewportSelect';
 import { DEFAULT_VIEWPORT, type ViewportSize } from './viewportTypes';
 import './mystery-preview.css';
@@ -28,6 +33,8 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
   const [overscoreStage, setOverscoreStage] = useState(0);
   const [selectedEnigmaIndex, setSelectedEnigmaIndex] = useState(0);
   const [viewport, setViewport] = useState<ViewportSize>(DEFAULT_VIEWPORT);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [screen, setScreen] = useState<MysteryScreen>('ingame');
 
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
@@ -41,6 +48,8 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
       setGaugePercent(60);
       setOverscoreStage(0);
       setSelectedEnigmaIndex(0);
+      setFullscreen(false);
+      setScreen('ingame');
     }
   }, [open]);
 
@@ -57,17 +66,39 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className={`fixed inset-0 z-50 flex items-center justify-center ${fullscreen ? 'p-0' : 'p-4'}`}
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden"
+        className={`relative bg-white shadow-2xl flex flex-col overflow-hidden ${
+          fullscreen ? 'w-screen h-screen rounded-none' : 'w-[90vw] h-[90vh] rounded-2xl'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-slate-50 flex-wrap">
           <h2 className="text-sm font-semibold text-gray-900 mr-2">Preview</h2>
+
+          {/* Screen selector */}
+          <div className="flex items-center gap-1 border border-gray-300 rounded-md overflow-hidden">
+            {([
+              ['instructions', 'Instructions'],
+              ['ingame', 'In-game'],
+              ['endgame', 'Endgame'],
+            ] as Array<[MysteryScreen, string]>).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setScreen(id)}
+                className={`px-3 py-1 text-xs ${
+                  screen === id ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
           {/* Locked / Revealed toggle */}
           <div className="flex items-center gap-1 border border-gray-300 rounded-md overflow-hidden">
@@ -145,6 +176,15 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
             <ViewportSelect value={viewport} onChange={setViewport} />
             <button
               type="button"
+              onClick={() => setFullscreen((f) => !f)}
+              className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
+              aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {fullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            </button>
+            <button
+              type="button"
               onClick={onClose}
               className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
               aria-label="Close preview"
@@ -164,6 +204,9 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
             gaugePercent={gaugePercent}
             overscoreStage={overscoreStage}
             selectedEnigmaIndex={selectedEnigmaIndex}
+            screen={screen}
+            canonicalWidth={viewport.width}
+            canonicalHeight={viewport.height}
             lang={lang}
             defaultLang={defaultLang}
           />

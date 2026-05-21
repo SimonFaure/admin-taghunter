@@ -18,6 +18,7 @@ import { MOCK_MYSTERY_STATE } from './mockMysteryState';
 type Localized = Record<string, string>;
 
 export type EnigmaView = 'locked' | 'revealed';
+export type MysteryScreen = 'instructions' | 'ingame' | 'endgame';
 
 export interface PreviewMysteryGameMeta {
   background_image?: string;
@@ -38,6 +39,7 @@ export interface PreviewMysteryGameMeta {
   score_full_game?: string;
   enigmas?: Enigma[];
   overscores?: Overscore[];
+  levels?: Record<string, { points?: string; name?: Localized | string; description?: Localized | string }>;
   custom_fonts?: CustomFont[];
   [key: string]: unknown;
 }
@@ -52,6 +54,11 @@ export interface MysteryPreviewRendererProps {
   overscoreStage: number;
   /** Which enigma to feature in the center column (0-based). */
   selectedEnigmaIndex: number;
+  /** Which screen of the game flow to render. */
+  screen: MysteryScreen;
+  /** Canonical viewport — drives the stage aspect ratio. */
+  canonicalWidth: number;
+  canonicalHeight: number;
   /** Active editor language (for admin label resolution). */
   lang: Lang;
   defaultLang: Lang;
@@ -65,6 +72,9 @@ export function MysteryPreviewRenderer({
   gaugePercent,
   overscoreStage,
   selectedEnigmaIndex,
+  screen,
+  canonicalWidth,
+  canonicalHeight,
 }: MysteryPreviewRendererProps) {
   const fitWrapperRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -78,7 +88,8 @@ export function MysteryPreviewRenderer({
   useEffect(() => {
     const wrapper = fitWrapperRef.current;
     if (!wrapper) return;
-    const TARGET = 16 / 9;
+    const TARGET =
+      canonicalWidth > 0 && canonicalHeight > 0 ? canonicalWidth / canonicalHeight : 16 / 9;
 
     function applyFit() {
       if (!wrapper) return;
@@ -100,7 +111,7 @@ export function MysteryPreviewRenderer({
     const ro = new ResizeObserver(applyFit);
     ro.observe(wrapper);
     return () => ro.disconnect();
-  }, []);
+  }, [canonicalWidth, canonicalHeight]);
 
   const backgroundUrl = gameMeta.background_image ? resolveMediaUrl(gameMeta.background_image) : '';
   const enigmas = useMemo(() => gameMeta.enigmas ?? [], [gameMeta.enigmas]);
@@ -113,6 +124,15 @@ export function MysteryPreviewRenderer({
 
   const pointsUnits = gameMeta.points_units ?? 'points';
   const scoreFullGame = gameMeta.score_full_game ?? '100';
+
+  // Gauge geometry — shared by the gradient bar, level icons, and player
+  // icon so they stay perfectly aligned. The inset keeps icons at 0%/100%
+  // inside the gauge frame instead of overflowing the gauge image edges.
+  const gaugeBarHeight = stage.height * 0.08;
+  const gaugeIconHeight = gaugeBarHeight - 14; // same as gradient bar height
+  const gaugeInset = gaugeIconHeight / 2 + 8;
+  const gaugeInsetPx = `${gaugeInset}px`;
+  const gaugeDoubleInsetPx = `${gaugeInset * 2}px`;
 
   const cardStyle: React.CSSProperties = {
     width: '100%',
@@ -169,6 +189,8 @@ export function MysteryPreviewRenderer({
             flexDirection: 'column',
           }}
         >
+          {screen === 'ingame' && (
+          <>
           {/* Top 3-column row */}
           <div
             style={{
@@ -209,31 +231,24 @@ export function MysteryPreviewRenderer({
               </div>
 
               {/* Overscore display — shown when the modal selects a stage. */}
-              <div
-                style={{
-                  flex: 1,
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: overscoreImageUrl ? 'transparent' : 'rgba(255,255,255,0.04)',
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                  minHeight: 0,
-                }}
-              >
-                {overscoreImageUrl ? (
+              {overscoreImageUrl && (
+                <div
+                  style={{
+                    flex: 1,
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: 0,
+                  }}
+                >
                   <img
                     src={overscoreImageUrl}
                     alt=""
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
-                ) : (
-                  <div style={{ fontSize: `${stage.height * 0.018}px`, opacity: 0.5 }}>
-                    Overscore: none
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Center column: ONE big enigma — text on top, image below. */}
@@ -352,7 +367,6 @@ export function MysteryPreviewRenderer({
                         background: 'rgba(255,255,255,0.06)',
                         borderRadius: 4,
                         overflow: 'hidden',
-                        outline: idx === selectedEnigmaIndex ? '2px solid rgba(74,222,128,0.8)' : 'none',
                       }}
                     >
                       {imgSrc && (
@@ -370,18 +384,21 @@ export function MysteryPreviewRenderer({
             </div>
           </div>
 
-          {/* Bottom: level gauge */}
+          {/* Bottom: level gauge. The outer wrapper is taller than the gauge
+              bar itself so level icons + labels that stick out above/below
+              the bar stay visible without clipping. The inner div IS the
+              gauge bar (where the frame, gradient, icons are positioned). */}
           <div
             style={{
               position: 'relative',
-              height: `${stage.height * 0.08}px`,
-              marginTop: `${stage.height * 0.015}px`,
+              height: `${stage.height * 0.18}px`,
+              marginTop: `${stage.height * 0.01}px`,
               display: 'flex',
               alignItems: 'center',
               flexShrink: 0,
             }}
           >
-            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            <div style={{ position: 'relative', width: '100%', height: `${stage.height * 0.08}px` }}>
               {gameMeta.levels_gauge_image && (
                 <img
                   src={resolveMediaUrl(gameMeta.levels_gauge_image)}
@@ -391,17 +408,17 @@ export function MysteryPreviewRenderer({
                     inset: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'contain',
+                    objectFit: 'fill',
                   }}
                 />
               )}
               <div
                 style={{
                   position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: `${Math.max(0, Math.min(100, gaugePercent))}%`,
+                  left: gaugeInsetPx,
+                  top: 7,
+                  bottom: 7,
+                  width: `calc((100% - ${gaugeDoubleInsetPx}) * ${Math.max(0, Math.min(100, gaugePercent)) / 100})`,
                   background: gameMeta.gauge_filling || 'linear-gradient(90deg, #ffc700 0%, #fee300 100%)',
                   opacity: 0.85,
                   borderRadius: 6,
@@ -416,13 +433,343 @@ export function MysteryPreviewRenderer({
                     inset: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'contain',
+                    objectFit: 'fill',
                     pointerEvents: 'none',
                   }}
                 />
               )}
+
+              {/* Level markers — one icon + name per entry in gameMeta.levels,
+                  positioned by level.points / score_full_game. Names alternate
+                  top/bottom (1st on top, 2nd on bottom, …) to avoid overlap. */}
+              {(() => {
+                const fullGame = parseFloat(scoreFullGame) || 0;
+                if (fullGame <= 0) return null;
+                const iconUrl = gameMeta.levels_gauge_level_icon_image
+                  ? resolveMediaUrl(gameMeta.levels_gauge_level_icon_image)
+                  : '';
+                // Same as gradient bar height + same inset, so 0%/100% icons
+                // sit just inside the gauge frame instead of overflowing.
+                const iconHeight = gaugeIconHeight;
+                const fontSize = stage.height * 0.018;
+                const barHeight = stage.height * 0.012;
+                const labelOffset = iconHeight / 2 + barHeight;
+                const levelTextColor = gameMeta.level_font_color || '#ffffff';
+                const entries = Object.entries(gameMeta.levels ?? {});
+                // Emit each marker as 3 sibling elements (icon, bar, label).
+                // No nested 0×0 wrapper — some browsers refuse to render
+                // absolutely-positioned children of a collapsed parent.
+                const nodes: React.ReactNode[] = [];
+                entries.forEach(([key, level], idx) => {
+                  const pts = parseFloat(level?.points ?? '0') || 0;
+                  const clamped = Math.max(0, Math.min(fullGame, pts));
+                  const fraction = clamped / fullGame;
+                  const isTop = idx % 2 === 0;
+                  const name = level?.name
+                    ? readLocalized(level.name as Localized | string | undefined)
+                    : '';
+                  const leftCalc = `calc(${gaugeInsetPx} + (100% - ${gaugeDoubleInsetPx}) * ${fraction})`;
+
+                  // Icon (or fallback dot)
+                  if (iconUrl) {
+                    nodes.push(
+                      <img
+                        key={`lvl-icon-${key}`}
+                        src={iconUrl}
+                        alt=""
+                        style={{
+                          position: 'absolute',
+                          left: leftCalc,
+                          top: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          height: `${iconHeight}px`,
+                          width: 'auto',
+                          pointerEvents: 'none',
+                          zIndex: 2,
+                        }}
+                      />,
+                    );
+                  } else {
+                    nodes.push(
+                      <div
+                        key={`lvl-dot-${key}`}
+                        style={{
+                          position: 'absolute',
+                          left: leftCalc,
+                          top: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: `${iconHeight}px`,
+                          height: `${iconHeight}px`,
+                          borderRadius: '50%',
+                          background: levelTextColor,
+                          opacity: 0.85,
+                          pointerEvents: 'none',
+                          zIndex: 2,
+                        }}
+                      />,
+                    );
+                  }
+
+                  if (name) {
+                    // Connector bar
+                    nodes.push(
+                      <div
+                        key={`lvl-bar-${key}`}
+                        style={{
+                          position: 'absolute',
+                          left: leftCalc,
+                          top: isTop
+                            ? `calc(50% - ${iconHeight / 2 + barHeight}px)`
+                            : `calc(50% + ${iconHeight / 2}px)`,
+                          width: 2,
+                          height: `${barHeight}px`,
+                          transform: 'translateX(-50%)',
+                          background: levelTextColor,
+                          opacity: 0.9,
+                          pointerEvents: 'none',
+                          zIndex: 2,
+                        }}
+                      />,
+                    );
+                    // Label
+                    nodes.push(
+                      <div
+                        key={`lvl-label-${key}`}
+                        style={{
+                          position: 'absolute',
+                          left: leftCalc,
+                          top: isTop
+                            ? `calc(50% - ${labelOffset + fontSize * 1.1}px)`
+                            : `calc(50% + ${labelOffset}px)`,
+                          transform: 'translateX(-50%)',
+                          fontSize: `${fontSize}px`,
+                          whiteSpace: 'nowrap',
+                          textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                          color: levelTextColor,
+                          lineHeight: 1.1,
+                          pointerEvents: 'none',
+                          zIndex: 2,
+                        }}
+                      >
+                        {name}
+                      </div>,
+                    );
+                  }
+                });
+                return nodes;
+              })()}
+
+              {/* Player icon — follows the gauge fill (trailing edge of
+                  gradient). Height matches the gradient bar (gauge container
+                  height minus 14px top+bottom inset). */}
+              {gameMeta.levels_gauge_player_icon_image && (() => {
+                const fraction = Math.max(0, Math.min(100, gaugePercent)) / 100;
+                return (
+                  <img
+                    src={resolveMediaUrl(gameMeta.levels_gauge_player_icon_image)}
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      left: `calc(${gaugeInsetPx} + (100% - ${gaugeDoubleInsetPx}) * ${fraction})`,
+                      top: 7,
+                      height: 'calc(100% - 14px)',
+                      width: 'auto',
+                      transform: 'translateX(-50%)',
+                      pointerEvents: 'none',
+                      zIndex: 3,
+                    }}
+                  />
+                );
+              })()}
             </div>
           </div>
+          </>
+          )}
+
+          {screen === 'instructions' && (() => {
+            const buttonImg = gameMeta.game_instructions_button_image
+              ? resolveMediaUrl(gameMeta.game_instructions_button_image)
+              : '';
+            const buttonHoverImg = gameMeta.game_instructions_button_hover_image
+              ? resolveMediaUrl(gameMeta.game_instructions_button_hover_image)
+              : '';
+            const instrImg = gameMeta.game_instructions_image
+              ? resolveMediaUrl(gameMeta.game_instructions_image)
+              : '';
+            return (
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                }}
+              >
+                {instrImg && (
+                  <img
+                    src={instrImg}
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                    }}
+                  />
+                )}
+                {(buttonImg || buttonHoverImg) && (
+                  <div
+                    className="mystery-preview-instructions-button"
+                    style={{
+                      position: 'absolute',
+                      bottom: `${stage.height * 0.05}px`,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: `${stage.height * 0.18}px`,
+                      height: `${stage.height * 0.18}px`,
+                    }}
+                  >
+                    {buttonImg && (
+                      <img
+                        src={buttonImg}
+                        alt="start"
+                        className="mystery-preview-button-default"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+                      />
+                    )}
+                    {buttonHoverImg && (
+                      <img
+                        src={buttonHoverImg}
+                        alt="start"
+                        className="mystery-preview-button-hover"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: 0 }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {screen === 'endgame' && (() => {
+            const fullGameNum = parseFloat(scoreFullGame) || 100;
+            const currentScore = (Math.max(0, Math.min(100, gaugePercent)) / 100) * fullGameNum;
+            // Highest level whose points threshold is ≤ currentScore.
+            let reachedLevel: { points?: string; name?: Localized | string; description?: Localized | string } | null = null;
+            let reachedPts = -Infinity;
+            for (const lvl of Object.values(gameMeta.levels ?? {})) {
+              const pts = parseFloat(lvl?.points ?? '0') || 0;
+              if (pts <= currentScore && pts > reachedPts) {
+                reachedLevel = lvl;
+                reachedPts = pts;
+              }
+            }
+            const levelName = reachedLevel?.name
+              ? readLocalized(reachedLevel.name as Localized | string | undefined)
+              : '';
+            const levelDesc = reachedLevel?.description
+              ? readLocalized(reachedLevel.description as Localized | string | undefined)
+              : '';
+            const refreshImg = gameMeta.game_refresh_button_image
+              ? resolveMediaUrl(gameMeta.game_refresh_button_image)
+              : '';
+            const refreshHoverImg = gameMeta.game_refresh_button_hover_image
+              ? resolveMediaUrl(gameMeta.game_refresh_button_hover_image)
+              : '';
+            const scoreDisplay = pointsUnits === 'percentage'
+              ? `${Math.round(currentScore)}%`
+              : `${Math.round(currentScore)} / ${scoreFullGame}`;
+            return (
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: `${stage.height * 0.025}px`,
+                  textAlign: 'center',
+                  padding: `${stage.height * 0.04}px ${stage.width * 0.06}px`,
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ fontSize: `${stage.height * 0.04}px`, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                  Your final score:
+                </div>
+                <div
+                  style={{
+                    fontSize: `${stage.height * 0.12}px`,
+                    fontWeight: 'bold',
+                    color: '#4ade80',
+                    textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                    lineHeight: 1,
+                  }}
+                >
+                  {scoreDisplay}
+                </div>
+                {levelName && (
+                  <div
+                    style={{
+                      fontSize: `${stage.height * 0.045}px`,
+                      fontWeight: 'bold',
+                      color: gameMeta.level_font_color || '#ffffff',
+                      textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                    }}
+                  >
+                    {levelName}
+                  </div>
+                )}
+                {levelDesc && (
+                  <div
+                    style={{
+                      fontSize: `${stage.height * 0.022}px`,
+                      maxWidth: `${stage.width * 0.7}px`,
+                      lineHeight: 1.3,
+                      textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                      opacity: 0.95,
+                    }}
+                  >
+                    {levelDesc}
+                  </div>
+                )}
+                {(refreshImg || refreshHoverImg) && (
+                  <div
+                    className="mystery-preview-instructions-button"
+                    style={{
+                      position: 'relative',
+                      width: `${stage.height * 0.14}px`,
+                      height: `${stage.height * 0.14}px`,
+                      marginTop: `${stage.height * 0.02}px`,
+                    }}
+                  >
+                    {refreshImg && (
+                      <img
+                        src={refreshImg}
+                        alt="refresh"
+                        className="mystery-preview-button-default"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+                      />
+                    )}
+                    {refreshHoverImg && (
+                      <img
+                        src={refreshHoverImg}
+                        alt="refresh"
+                        className="mystery-preview-button-hover"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: 0 }}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
         </div>
       )}

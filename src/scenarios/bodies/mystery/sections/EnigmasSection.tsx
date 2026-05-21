@@ -1,8 +1,9 @@
 /**
- * Enigmas section — per-enigma editor: number, text, points, good answer image.
+ * Enigmas section — per-enigma editor.
  *
- * Each enigma is a labeled card. The good-answer image uses AssetUploadField
- * so authors see a thumbnail when present and a drag/drop target when not.
+ * Layout: two columns inside each card. Left column = stacked text inputs
+ * (number, question, good points, wrong points). Right column = image
+ * upload field for the good-answer image. Each takes 50% of the width.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
@@ -88,58 +89,63 @@ export function EnigmasSection() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                  <label className="md:col-span-2 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">Number</span>
-                    <input
-                      value={e.number}
-                      onChange={(ev) => updateEnigma(i, { number: ev.target.value })}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                    />
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left: stacked inputs */}
+                  <div className="space-y-3">
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">Number</span>
+                      <input
+                        value={e.number}
+                        onChange={(ev) => updateEnigma(i, { number: ev.target.value })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                      />
+                    </label>
 
-                  <label className="md:col-span-10 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      Question / text ({lang})
-                    </span>
-                    <input
-                      value={getLocalized(e.text as never, lang, defaultLang)}
-                      onChange={(ev) =>
-                        updateEnigma(i, {
-                          text: setLocalized(e.text as never, lang, ev.target.value, defaultLang),
-                        })
-                      }
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                    />
-                  </label>
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">
+                        Question / text ({lang})
+                      </span>
+                      <input
+                        value={getLocalized(e.text as never, lang, defaultLang)}
+                        onChange={(ev) =>
+                          updateEnigma(i, {
+                            text: setLocalized(e.text as never, lang, ev.target.value, defaultLang),
+                          })
+                        }
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                      />
+                    </label>
 
-                  <label className="md:col-span-3 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      Good answer points
-                    </span>
-                    <input
-                      value={e.good_answer_points}
-                      onChange={(ev) => updateEnigma(i, { good_answer_points: ev.target.value })}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                    />
-                  </label>
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">
+                        Good answer points
+                      </span>
+                      <input
+                        value={e.good_answer_points}
+                        onChange={(ev) => updateEnigma(i, { good_answer_points: ev.target.value })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                      />
+                    </label>
 
-                  <label className="md:col-span-3 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      Wrong answer points
-                    </span>
-                    <input
-                      value={e.wrong_answer_points}
-                      onChange={(ev) => updateEnigma(i, { wrong_answer_points: ev.target.value })}
-                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                    />
-                  </label>
+                    <label className="block">
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">
+                        Wrong answer points
+                      </span>
+                      <input
+                        value={e.wrong_answer_points}
+                        onChange={(ev) => updateEnigma(i, { wrong_answer_points: ev.target.value })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                      />
+                    </label>
+                  </div>
 
-                  <div className="md:col-span-6">
+                  {/* Right: image upload */}
+                  <div>
                     <AssetUploadField
                       slot={imageSlot}
                       value={e.good_answer_image ?? ''}
                       onChange={(filename) => updateEnigma(i, { good_answer_image: filename })}
+                      previewSize="lg"
                     />
                   </div>
                 </div>

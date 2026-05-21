@@ -137,7 +137,7 @@ function questElements(): LayoutElementInput[] {
 }
 
 export const defaultTagquestLayout: DefaultLayout = {
-  version: '3.0',
+  version: '3.1',
   background: '@background',
   elements: [
     // ── Template overlay (covers the whole 16:9 box, on top of background) ──

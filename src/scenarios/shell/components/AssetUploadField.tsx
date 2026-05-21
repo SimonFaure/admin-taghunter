@@ -22,7 +22,19 @@ interface AssetUploadFieldProps {
    * string to reject the file with that error message; return null to allow.
    */
   validate?: (file: File) => Promise<string | null> | string | null;
+  /**
+   * Visual size of the image/video preview. `sm` = 80px (compact grid),
+   * `md` = 160px (default sidebar usage), `lg` = 256px (per-row editors
+   * like enigmas / overscores where the preview is the focal point).
+   */
+  previewSize?: 'sm' | 'md' | 'lg';
 }
+
+const PREVIEW_HEIGHT_CLASS = {
+  sm: 'max-h-20',
+  md: 'max-h-40',
+  lg: 'max-h-64',
+} as const;
 
 function fileMatchesAccept(file: File, accept: string): boolean {
   if (!accept) return true;
@@ -37,7 +49,7 @@ function fileMatchesAccept(file: File, accept: string): boolean {
   });
 }
 
-export function AssetUploadField({ slot, value, onChange, validate }: AssetUploadFieldProps) {
+export function AssetUploadField({ slot, value, onChange, validate, previewSize = 'sm' }: AssetUploadFieldProps) {
   const editor = useScenarioEditor();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -155,7 +167,7 @@ export function AssetUploadField({ slot, value, onChange, validate }: AssetUploa
         <img
           src={editor.getMediaUrl(value)}
           alt={slot.label}
-          className="max-h-20 rounded border border-gray-100"
+          className={`${PREVIEW_HEIGHT_CLASS[previewSize]} rounded border border-gray-100`}
           onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
         />
       )}
@@ -166,7 +178,7 @@ export function AssetUploadField({ slot, value, onChange, validate }: AssetUploa
         <video
           src={editor.getMediaUrl(value)}
           controls
-          className="w-full max-h-48 rounded border border-gray-100"
+          className={`w-full ${PREVIEW_HEIGHT_CLASS[previewSize]} rounded border border-gray-100`}
         />
       )}
       {!value && (

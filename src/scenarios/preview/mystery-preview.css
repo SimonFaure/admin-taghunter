@@ -5,3 +5,21 @@
   filter: blur(1.2rem);
   transition: filter 0.4s ease;
 }
+
+/* Hover swap for instruction + refresh buttons. Default + hover images
+   are stacked; on hover, the hover image fades in and the default fades out. */
+.mystery-preview-scope .mystery-preview-instructions-button {
+  cursor: pointer;
+}
+.mystery-preview-scope .mystery-preview-button-default,
+.mystery-preview-scope .mystery-preview-button-hover {
+  transition: opacity 0.2s ease;
+}
+.mystery-preview-scope .mystery-preview-instructions-button:hover
+  .mystery-preview-button-default {
+  opacity: 0;
+}
+.mystery-preview-scope .mystery-preview-instructions-button:hover
+  .mystery-preview-button-hover {
+  opacity: 1 !important;
+}

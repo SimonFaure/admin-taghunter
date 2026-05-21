@@ -137,11 +137,13 @@ export function TagquestPreviewRenderer({
     registerStudioCustomFonts(gameMeta.custom_fonts, resolveMediaUrl);
   }, [gameMeta.custom_fonts, resolveMediaUrl]);
 
-  // Compute the 16:9 stage box that fits the wrapper, centered.
+  // Compute the stage box that fits the wrapper at the canonical aspect
+  // ratio (driven by the viewport selector), centered.
   useEffect(() => {
     const wrapper = fitWrapperRef.current;
     if (!wrapper) return;
-    const TARGET = 16 / 9;
+    const TARGET =
+      canonicalWidth > 0 && canonicalHeight > 0 ? canonicalWidth / canonicalHeight : 16 / 9;
 
     function applyFit() {
       if (!wrapper) return;
@@ -373,9 +375,13 @@ export function TagquestPreviewRenderer({
             // text
             const { show, text } = textForElement(el);
             if (!show) return null;
-            // fontSize is a fixed pixel value defined in defaultLayout.ts —
-            // no adaptive scaling against stage or element height.
-            const fontSizePx = el.fontSize;
+            // fontSize values in defaultLayout.ts are authored against a
+            // 1920-wide canonical stage. Scale by `stage.width / 1920` so the
+            // text keeps the same proportion against the template artwork at
+            // any actual stage size (modal preview, fullscreen, mobile).
+            const fontSizePx = el.fontSize != null
+              ? el.fontSize * (stage.width / 1920)
+              : undefined;
             return (
               <div
                 key={`${el.id}-${idx}`}

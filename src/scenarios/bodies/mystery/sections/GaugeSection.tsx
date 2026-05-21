@@ -1,6 +1,9 @@
 /**
- * Gauge section — levels_gauge_* image slots + the gauge_filling CSS gradient
- * string.
+ * Gauge section — levels_gauge_* image slots + the gauge_filling CSS gradient.
+ *
+ * The gauge_filling editor is a visual `<GradientBuilder>` (color stops with
+ * alpha + position sliders). It falls back to a raw-CSS textarea when the
+ * incoming value can't be parsed.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
@@ -9,6 +12,7 @@ import { AssetUploadField } from '../../../shell/components/AssetUploadField';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { mysteryMediaSlots } from '../mediaSlots';
+import { GradientBuilder } from './GradientBuilder';
 
 const KEYS = [
   'levels_gauge_image',
@@ -36,19 +40,17 @@ export function GaugeSection() {
           />
         ))}
       </div>
-      <label className="block mt-4">
-        <span className="text-xs font-medium text-gray-700 mb-1 block">Gauge filling (CSS gradient)</span>
-        <textarea
+      <div className="mt-4">
+        <span className="text-xs font-medium text-gray-700 mb-2 block">Gauge filling</span>
+        <GradientBuilder
           value={String(meta.gauge_filling ?? '')}
-          onChange={(e) =>
+          onChange={(next) =>
             editor.setGameMeta(
-              (m) => ({ ...(m as Record<string, unknown>), gauge_filling: e.target.value }) as typeof m,
+              (m) => ({ ...(m as Record<string, unknown>), gauge_filling: next }) as typeof m,
             )
           }
-          rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs font-mono"
         />
-      </label>
+      </div>
     </CollapsibleSection>
   );
 }

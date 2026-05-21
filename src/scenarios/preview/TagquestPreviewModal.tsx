@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2 } from 'lucide-react';
 import { useScenarioEditor } from '../shell/useScenarioEditor';
 import { getLocalized } from '../i18n/getLocalized';
 import type { Lang } from '../i18n/types';
@@ -32,6 +32,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
   const [showMalus, setShowMalus] = useState(false);
   const [showLateMalus, setShowLateMalus] = useState(false);
   const [viewport, setViewport] = useState<ViewportSize>(DEFAULT_VIEWPORT);
+  const [fullscreen, setFullscreen] = useState(false);
   const adminLabels = useAdminTranslations();
 
   const lang = editor.currentLanguage as Lang;
@@ -49,6 +50,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
       setQuestView('pieces');
       setShowMalus(false);
       setShowLateMalus(false);
+      setFullscreen(false);
     }
   }, [open]);
 
@@ -77,12 +79,14 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className={`fixed inset-0 z-50 flex items-center justify-center ${fullscreen ? 'p-0' : 'p-4'}`}
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
-        className="relative bg-white rounded-2xl shadow-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden"
+        className={`relative bg-white shadow-2xl flex flex-col overflow-hidden ${
+          fullscreen ? 'w-screen h-screen rounded-none' : 'w-[90vw] h-[90vh] rounded-2xl'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ----- Header ----- */}
@@ -159,6 +163,15 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
           {/* Spacer */}
           <div className="ml-auto flex items-center gap-3">
             <ViewportSelect value={viewport} onChange={setViewport} />
+            <button
+              type="button"
+              onClick={() => setFullscreen((f) => !f)}
+              className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
+              aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {fullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            </button>
             <button
               type="button"
               onClick={onClose}

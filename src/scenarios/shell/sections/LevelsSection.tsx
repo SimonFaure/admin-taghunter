@@ -1,9 +1,8 @@
 /**
  * Levels section — gated by capabilities.hasLevels (mystery + tagquest).
  *
- * Slice 3B: `name` and `description` are `Localized<string>`; `points` stays
- * a plain numeric-looking string. Per-row form mixes a localized input + a
- * plain input.
+ * Each level is a labeled row: name (translatable), points (scalar), and
+ * description (translatable).
  *
  * Mystery 'level' = enigma difficulty band; Tagquest 'level' = team
  * progression milestone. Same data shape; section copy is neutral.
@@ -67,43 +66,68 @@ export function LevelsSection() {
       {keys.length === 0 ? (
         <p className="text-sm text-gray-500">No levels yet.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-4">
           {keys.map((k) => {
             const lvl = levels[k] ?? { name: {}, points: '', description: {} };
             return (
-              <div key={k} className="grid grid-cols-12 gap-2 items-start border border-gray-100 rounded-md p-2">
-                <div className="col-span-1 text-sm font-medium text-gray-500 pt-2">#{k}</div>
-                <input
-                  placeholder="Name"
-                  value={getLocalized(lvl.name as never, lang, defaultLang)}
-                  onChange={(e) =>
-                    updateLevel(k, { name: setLocalized(lvl.name as never, lang, e.target.value, defaultLang) })
-                  }
-                  className="col-span-4 px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                />
-                <input
-                  placeholder="Points"
-                  value={lvl.points ?? ''}
-                  onChange={(e) => updateLevel(k, { points: e.target.value })}
-                  className="col-span-2 px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                />
-                <input
-                  placeholder="Description"
-                  value={getLocalized(lvl.description as never, lang, defaultLang)}
-                  onChange={(e) =>
-                    updateLevel(k, {
-                      description: setLocalized(lvl.description as never, lang, e.target.value, defaultLang),
-                    })
-                  }
-                  className="col-span-4 px-2 py-1.5 border border-gray-300 rounded-md text-sm"
-                />
-                <button
-                  onClick={() => removeLevel(k)}
-                  className="col-span-1 p-1.5 hover:bg-red-50 rounded text-red-500"
-                  aria-label="Remove level"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              <div key={k} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900">Level {k}</h3>
+                  <button
+                    onClick={() => removeLevel(k)}
+                    className="p-1.5 hover:bg-red-50 rounded text-red-500"
+                    aria-label="Remove level"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                  <label className="md:col-span-7 block">
+                    <span className="text-xs font-medium text-gray-700 mb-1 block">
+                      Name ({lang})
+                    </span>
+                    <input
+                      value={getLocalized(lvl.name as never, lang, defaultLang)}
+                      onChange={(e) =>
+                        updateLevel(k, {
+                          name: setLocalized(lvl.name as never, lang, e.target.value, defaultLang),
+                        })
+                      }
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                    />
+                  </label>
+
+                  <label className="md:col-span-5 block">
+                    <span className="text-xs font-medium text-gray-700 mb-1 block">Points</span>
+                    <input
+                      value={lvl.points ?? ''}
+                      onChange={(e) => updateLevel(k, { points: e.target.value })}
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                    />
+                  </label>
+
+                  <label className="md:col-span-12 block">
+                    <span className="text-xs font-medium text-gray-700 mb-1 block">
+                      Description ({lang})
+                    </span>
+                    <textarea
+                      rows={2}
+                      value={getLocalized(lvl.description as never, lang, defaultLang)}
+                      onChange={(e) =>
+                        updateLevel(k, {
+                          description: setLocalized(
+                            lvl.description as never,
+                            lang,
+                            e.target.value,
+                            defaultLang,
+                          ),
+                        })
+                      }
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                    />
+                  </label>
+                </div>
               </div>
             );
           })}
