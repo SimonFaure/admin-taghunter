@@ -9,7 +9,7 @@ session_start();
 
 $action = $_GET['action'] ?? '';
 
-Logger::log("scenario_files.php - Action: $action");
+error_log("scenario_files.php - Action: $action");
 
 function resolveEmailFromRequest() {
     $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
@@ -26,7 +26,7 @@ function resolveEmailFromRequest() {
 try {
     $dbInstance = Database::getInstance();
     $pdo = $dbInstance->getConnection();
-    Logger::log("scenario_files.php - Database connection established");
+    error_log("scenario_files.php - Database connection established");
 
     switch ($action) {
         case 'upload':
@@ -54,12 +54,12 @@ try {
             break;
 
         default:
-            Logger::log("scenario_files.php - Invalid action: $action", 'ERROR');
+            error_log("scenario_files.php - Invalid action: $action");
             http_response_code(400);
             echo json_encode(['error' => 'Invalid action']);
     }
 } catch (Exception $e) {
-    Logger::log("scenario_files.php - Exception: " . $e->getMessage(), 'ERROR');
+    error_log("scenario_files.php - Exception: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
 }
@@ -80,7 +80,7 @@ function handleGetScenario($pdo) {
     }
 
     $stmt = $pdo->prepare("
-        SELECT s.id, s.title, s.description, s.uniqid, s.medias, s.media_url,
+        SELECT s.id, s.title, s.description, s.uniqid, s.medias,
                s.game_type, s.scenario_type, IFNULL(s.version, '1.0') as version, s.client_id,
                c.email as client_email
         FROM scenarios s
@@ -248,9 +248,9 @@ function handleUploadVideo($pdo) {
         return;
     }
 
-    if ($file['size'] > 200 * 1024 * 1024) {
+    if ($file['size'] > 700 * 1024 * 1024) {
         http_response_code(400);
-        echo json_encode(['error' => 'Video file must be less than 200MB']);
+        echo json_encode(['error' => 'Video file must be less than 700MB']);
         return;
     }
 
@@ -283,17 +283,23 @@ function handleUploadVideo($pdo) {
 }
 
 function handleUpload($pdo) {
-    Logger::log("handleUpload - Starting file upload");
+    error_log("handleUpload - Starting file upload");
 
-    if (!isset($_FILES['file']) || !isset($_POST['scenario_id']) || !isset($_POST['name']) || !isset($_POST['email'])) {
+    $email = resolveEmailFromRequest();
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    if (!isset($_FILES['file']) || !isset($_POST['scenario_id']) || !isset($_POST['name'])) {
         http_response_code(400);
-        echo json_encode(['error' => 'Missing required fields: file, scenario_id, name, email']);
+        echo json_encode(['error' => 'Missing required fields: file, scenario_id, name']);
         return;
     }
 
     $scenarioId = $_POST['scenario_id'];
     $name = $_POST['name'];
-    $email = $_POST['email'];
     $file = $_FILES['file'];
 
     if ($file['error'] !== UPLOAD_ERR_OK) {
@@ -405,16 +411,22 @@ function handleList($pdo) {
 }
 
 function handleDelete($pdo) {
+    $email = resolveEmailFromRequest();
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
     $data = json_decode(file_get_contents('php://input'), true);
 
-    if (!isset($data['id']) || !isset($data['email'])) {
+    if (!isset($data['id'])) {
         http_response_code(400);
-        echo json_encode(['error' => 'Missing required fields: id, email']);
+        echo json_encode(['error' => 'Missing required field: id']);
         return;
     }
 
     $fileId = $data['id'];
-    $email = $data['email'];
 
     $stmt = $pdo->prepare("
         SELECT sf.file_path, s.id as scenario_id, s.client_id, s.created_by,

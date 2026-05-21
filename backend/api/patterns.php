@@ -404,6 +404,8 @@ try {
             $gameType = $data['game_type'] ?? '';
             $patternData = $data['pattern_data'] ?? null;
             $isDefault = $data['is_default'] ?? false;
+            $patternUniqid = $data['pattern_uniqid'] ?? null;
+            $patternSlug = $data['pattern_slug'] ?? null;
 
             if ($userType !== 'admin' && $isDefault) {
                 Logger::log('patterns', 'POST', 'create', $userId, ['user_type' => $userType], ['error' => 'Only admins can create default patterns'], 403);
@@ -432,10 +434,21 @@ try {
                 jsonResponse(['error' => 'Invalid JSON pattern data'], 400);
             }
 
+            // Generate uniqid/slug server-side if frontend didn't provide them.
+            if (empty($patternUniqid)) {
+                $patternUniqid = bin2hex(random_bytes(8));
+            }
+            if (empty($patternSlug)) {
+                $slugBase = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name));
+                $patternSlug = trim($slugBase, '-');
+                if ($patternSlug === '') $patternSlug = $patternUniqid;
+                $patternSlug = substr($patternSlug, 0, 64);
+            }
+
             $db->execute(
-                'INSERT INTO patterns (name, description, version, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email, status)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [$name, $description, $version, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email, 'draft']
+                'INSERT INTO patterns (name, description, version, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email, status, pattern_uniqid, pattern_slug)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$name, $description, $version, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email, 'draft', $patternUniqid, $patternSlug]
             );
 
             $patternId = $db->lastInsertId();

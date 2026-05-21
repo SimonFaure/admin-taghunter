@@ -40,7 +40,7 @@ try {
         'migration.sql',
         'add_roles_migration.sql',
         'add_uniqid_migration.sql',
-        'launched_games_migration.sql',
+        'add_launched_games_migration.sql',
         'client_scenarios_migration.sql',
         'api_logs.sql',
         'add_game_fields_migration.sql',
@@ -58,7 +58,9 @@ try {
         'fix_cards_metadata_client_id_type.sql',
         'default_config_migration.sql',
         'patterns_migration.sql',
-        'add_source_to_api_logs.sql'
+        'add_source_to_api_logs.sql',
+        'game_types_migration.sql',
+        'playground_releases_migration.sql'
     ];
 
     $results = [];

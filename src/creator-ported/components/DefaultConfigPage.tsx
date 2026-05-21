@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Save, Upload, ChevronDown, ChevronUp, Send, Trash2 } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { Alert } from './Alert';
 import { ClientEmailModal } from './ClientEmailModal';
 import { ConfirmDialog, PublishStep } from './ConfirmDialog';
@@ -117,7 +117,7 @@ export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConf
 
   const loadDefaultConfig = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('default_config')
         .select('value, version')
         .eq('meta', `${gameType}_default_data`)
@@ -155,7 +155,7 @@ export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConf
       const fileName = `${field}_${Date.now()}_${file.name}`;
       const storagePath = `default_images/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await db.storage
         .from('game-media')
         .upload(storagePath, file, {
           upsert: true
@@ -163,7 +163,7 @@ export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConf
 
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = db.storage
         .from('game-media')
         .getPublicUrl(storagePath);
 
@@ -276,7 +276,7 @@ export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConf
     try {
       const newVersion = Number((currentVersion + 0.1).toFixed(1));
 
-      const { error } = await supabase
+      const { error } = await db
         .from('default_config')
         .upsert({
           meta: `${gameType}_default_data`,

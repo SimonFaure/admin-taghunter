@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Search, Filter, Download, Eye, Trash2, Pencil, Plus, ChevronLeft, ChevronDown, Calendar, User, Tag, X } from 'lucide-react';
+import { Package, Search, Filter, Download, Eye, Trash2, Pencil, Plus, ChevronLeft, ChevronDown, Calendar, User, Tag, X, FileJson, Upload } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
+import { useAuth } from '../auth/AuthContext';
+import { PatternImport } from '../creator-ported/components/PatternImport';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 interface Pattern {
   id: number;
-  uniqid?: string | null;
+  pattern_uniqid?: string | null;
   name: string;
   description: string;
   game_type: string;
@@ -48,6 +50,7 @@ function formatDate(dateString: string | null) {
 
 export function PatternsView() {
   const navigate = useNavigate();
+  const { userType } = useAuth();
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [filteredPatterns, setFilteredPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,10 +65,12 @@ export function PatternsView() {
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [editingPattern, setEditingPattern] = useState<Pattern | null>(null);
 
   const [statusUpdating, setStatusUpdating] = useState<number | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [defaultUpdating, setDefaultUpdating] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -154,6 +159,34 @@ export function PatternsView() {
     }
   };
 
+  const handleDefaultChange = async (pattern: Pattern, newValue: boolean) => {
+    if (!!pattern.is_default === newValue) return;
+    setDefaultUpdating(pattern.id);
+    setError('');
+    try {
+      const response = await authFetch(
+        `${API_BASE_URL}/patterns.php?action=update&id=${pattern.id}`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: pattern.id, is_default: newValue }),
+        }
+      );
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update default flag');
+      }
+      const updated = result.data ?? { ...pattern, is_default: newValue };
+      setPatterns((prev) => prev.map((p) => (p.id === pattern.id ? updated : p)));
+      if (selectedPattern?.id === pattern.id) setSelectedPattern(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update default flag');
+    } finally {
+      setDefaultUpdating(null);
+    }
+  };
+
   const handleDownload = (pattern: Pattern) => {
     const dataStr = JSON.stringify(JSON.parse(pattern.pattern_data), null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -211,7 +244,12 @@ export function PatternsView() {
     e.preventDefault();
     setError('');
     try {
-      const patternJson = JSON.parse(formData.pattern_data);
+      const patternUniqid = Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
+      const patternSlug = formData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64) || patternUniqid;
       const response = await authFetch(
         `${API_BASE_URL}/patterns.php?action=create`,
         {
@@ -222,8 +260,10 @@ export function PatternsView() {
             name: formData.name,
             description: formData.description,
             game_type: formData.game_type,
-            pattern_data: patternJson,
+            pattern_data: '[]',
             is_default: formData.is_default,
+            pattern_uniqid: patternUniqid,
+            pattern_slug: patternSlug,
           }),
         }
       );
@@ -300,18 +340,24 @@ export function PatternsView() {
               <span>Download</span>
             </button>
             <button
-              onClick={() => {
-                if (selectedPattern.uniqid) {
-                  navigate(`/studio/patterns/${selectedPattern.uniqid}`);
-                } else {
-                  openEdit(selectedPattern);
-                }
-              }}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm"
+              onClick={() => navigate(`/studio/patterns/${selectedPattern.pattern_uniqid}`)}
+              disabled={!selectedPattern.pattern_uniqid}
+              className="flex items-center gap-2 px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              title={selectedPattern.pattern_uniqid ? 'Edit in Studio' : 'Pattern is missing pattern_uniqid'}
             >
               <Pencil className="w-4 h-4" />
               <span>Edit</span>
             </button>
+            {userType === 'admin' && (
+              <button
+                onClick={() => openEdit(selectedPattern)}
+                className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm"
+                title="Edit raw JSON (admin)"
+              >
+                <FileJson className="w-4 h-4" />
+                <span>Raw JSON</span>
+              </button>
+            )}
             <button
               onClick={() => handleDelete(selectedPattern.id)}
               className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm"
@@ -386,6 +432,24 @@ export function PatternsView() {
                 </div>
                 {statusError && <p className="text-xs text-red-500 mt-1">{statusError}</p>}
               </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-100">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!selectedPattern.is_default}
+                    onChange={(e) => handleDefaultChange(selectedPattern, e.target.checked)}
+                    disabled={defaultUpdating === selectedPattern.id}
+                    className="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-sm font-medium text-slate-700">
+                    Make this a default pattern (available to all users)
+                  </span>
+                  {defaultUpdating === selectedPattern.id && (
+                    <span className="text-xs text-slate-400 animate-pulse ml-1">Saving...</span>
+                  )}
+                </label>
+              </div>
             </div>
 
             {selectedPattern.description && (
@@ -451,14 +515,17 @@ export function PatternsView() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Game Type *</label>
-              <input
-                type="text"
+              <select
                 value={formData.game_type}
                 onChange={(e) => setFormData({ ...formData, game_type: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm"
-                placeholder="e.g., TagHunter, Escape Game"
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm bg-white"
                 required
-              />
+              >
+                <option value="" disabled>Select a game type…</option>
+                <option value="tagquest">TagQuest</option>
+                <option value="mystery">Mystery</option>
+                <option value="tracks">Tracks</option>
+              </select>
             </div>
 
             <div>
@@ -471,17 +538,19 @@ export function PatternsView() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Pattern Data (JSON) *</label>
-              <textarea
-                value={formData.pattern_data}
-                onChange={(e) => setFormData({ ...formData, pattern_data: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-xs"
-                rows={12}
-                placeholder='{"key": "value"}'
-                required
-              />
-            </div>
+            {showEditModal && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Pattern Data (JSON) *</label>
+                <textarea
+                  value={formData.pattern_data}
+                  onChange={(e) => setFormData({ ...formData, pattern_data: e.target.value })}
+                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono text-xs"
+                  rows={12}
+                  placeholder='{"key": "value"}'
+                  required
+                />
+              </div>
+            )}
 
             <div className="flex items-center gap-2">
               <input
@@ -567,6 +636,13 @@ export function PatternsView() {
             </select>
           </div>
 
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm whitespace-nowrap"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Import</span>
+          </button>
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm whitespace-nowrap"
@@ -699,18 +775,22 @@ export function PatternsView() {
                           <Download className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (pattern.uniqid) {
-                              navigate(`/studio/patterns/${pattern.uniqid}`);
-                            } else {
-                              openEdit(pattern);
-                            }
-                          }}
-                          className="text-blue-500 hover:text-blue-700 transition-colors"
-                          title="Edit in Studio"
+                          onClick={() => navigate(`/studio/patterns/${pattern.pattern_uniqid}`)}
+                          disabled={!pattern.pattern_uniqid}
+                          className="text-blue-500 hover:text-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={pattern.pattern_uniqid ? 'Edit in Studio' : 'Pattern is missing pattern_uniqid'}
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
+                        {userType === 'admin' && (
+                          <button
+                            onClick={() => openEdit(pattern)}
+                            className="text-slate-400 hover:text-slate-700 transition-colors"
+                            title="Edit raw JSON (admin)"
+                          >
+                            <FileJson className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(pattern.id)}
                           className="text-red-500 hover:text-red-700 transition-colors"
@@ -733,6 +813,16 @@ export function PatternsView() {
       )}
 
       {(showCreateModal || showEditModal) && renderFormModal()}
+
+      {showImportModal && (
+        <PatternImport
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => {
+            setShowImportModal(false);
+            fetchPatterns();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -3,29 +3,13 @@ require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/SecurityHeaders.php';
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/PlaygroundAuth.php';
+require_once __DIR__ . '/../utils/LocalizedCompat.php';
 
 SecurityHeaders::setHeaders();
 setCorsHeaders();
 
 header('Content-Type: application/json');
-
-function jsonResponse($data, $status = 200) {
-    http_response_code($status);
-    echo json_encode($data);
-    exit;
-}
-
-function resolveUser($db, $email) {
-    $client = $db->fetch('SELECT * FROM clients WHERE email = ?', [$email]);
-    if ($client) {
-        return ['type' => 'client', 'data' => $client];
-    }
-    $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
-    if ($admin) {
-        return ['type' => 'admin', 'data' => $admin];
-    }
-    return null;
-}
 
 try {
     $db = Database::getInstance();
@@ -34,6 +18,7 @@ try {
 
     switch ($action) {
     case 'test':
+        // Unauthenticated health check.
         Logger::log('playground', $method, 'test', null, [], ['status' => 'ok'], 200, 'playground');
         jsonResponse([
             'status' => 'ok',
@@ -42,35 +27,26 @@ try {
         ]);
         break;
 
-    case 'get_user_scenarios':
+    case 'auth_state':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        Logger::log('playground', $method, 'auth_state', $client['id'], [], ['success' => true], 200, 'playground');
+        jsonResponseWithAuthState($db, $client['id'], ['success' => true]);
+        break;
 
-        if (!$email) {
-            Logger::log('playground', $method, 'get_user_scenarios', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
+    case 'get_user_scenarios':
+        if ($method !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $user = resolveUser($db, $email);
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
+        $licenseType = $client['license_type'] ?? '';
 
-        if (!$user) {
-            Logger::log('playground', $method, 'get_user_scenarios', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
-        $scenarios = [];
-
-        if ($isAdmin) {
-            $scenarios = $db->fetchAll(
-                'SELECT s.* FROM scenarios s ORDER BY s.created_at DESC'
-            );
-        } elseif (($user['data']['license_type'] ?? '') === 'premium') {
+        if ($licenseType === 'premium') {
             $scenarios = $db->fetchAll(
                 'SELECT s.* FROM scenarios s
                  WHERE s.client_id = ? OR s.scenario_type = "product"
@@ -114,46 +90,28 @@ try {
             $scenario['total_size'] = $totalSize;
         }
 
-        $responseData = [
+        Logger::log('playground', $method, 'get_user_scenarios', $userId, [], ['count' => count($scenarios)], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
             'client' => [
                 'id' => $userId,
-                'email' => $user['data']['email'],
-                'license_type' => $isAdmin ? 'admin' : ($user['data']['license_type'] ?? null),
-                'company_name' => $isAdmin ? null : ($user['data']['company_name'] ?? null)
+                'email' => $client['email'],
+                'license_type' => $licenseType,
             ],
-            'scenarios' => $scenarios
-        ];
-
-        Logger::log('playground', $method, 'get_user_scenarios', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($scenarios)], 200, 'playground');
-        jsonResponse($responseData);
+            'scenarios' => $scenarios,
+        ]);
         break;
 
     case 'get_available_scenarios':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_available_scenarios', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
-        if (!$email) {
-            Logger::log('playground', $method, 'get_available_scenarios', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
-
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_available_scenarios', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
-
-        if ($isAdmin || ($user['data']['license_type'] ?? '') === 'premium') {
-            Logger::log('playground', $method, 'get_available_scenarios', $userId, ['email' => $email, 'user_type' => $user['type']], ['scenarios' => []], 200, 'playground');
-            jsonResponse(['scenarios' => []]);
+        if (($client['license_type'] ?? '') === 'premium') {
+            Logger::log('playground', $method, 'get_available_scenarios', $userId, [], ['scenarios' => []], 200, 'playground');
+            jsonResponseWithAuthState($db, $userId, ['scenarios' => []]);
         }
 
         $availableScenarios = $db->fetchAll(
@@ -166,33 +124,23 @@ try {
             [$userId]
         );
 
-        Logger::log('playground', $method, 'get_available_scenarios', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($availableScenarios)], 200, 'playground');
-        jsonResponse(['scenarios' => $availableScenarios]);
+        Logger::log('playground', $method, 'get_available_scenarios', $userId, [], ['count' => count($availableScenarios)], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, ['scenarios' => $availableScenarios]);
         break;
 
     case 'get_scenario_game_data':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
         $uniqid = $_GET['uniqid'] ?? null;
 
-        if (!$email || !$uniqid) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, $_GET, ['error' => 'Missing parameters', 'email' => $email, 'uniqid' => $uniqid], 400, 'playground');
-            jsonResponse(['error' => 'email and uniqid are required', 'received' => ['email' => $email, 'uniqid' => $uniqid, 'all_params' => $_GET]], 400);
+        if (!$uniqid) {
+            jsonResponse(['error' => 'uniqid is required'], 400);
         }
 
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_scenario_game_data', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
@@ -200,339 +148,358 @@ try {
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
-        $hasAccess = $isAdmin;
-
-        if (!$hasAccess && $scenario['client_id'] == $userId) {
-            $hasAccess = true;
-        } elseif (!$hasAccess && ($user['data']['license_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
-            $hasAccess = true;
-        } elseif (!$hasAccess) {
-            $grantedScenario = $db->fetch(
-                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$userId, $scenario['id']]
-            );
-
-            if ($grantedScenario) {
-                $hasAccess = true;
-            }
-        }
-
-        if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
+        if (!playgroundClientCanAccessScenario($db, $client, $scenario)) {
+            Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario'], 403);
         }
 
-        $gameData = null;
-        if (!empty($scenario['data'])) {
-            $gameData = json_decode($scenario['data'], true);
+        $gameData = !empty($scenario['data']) ? json_decode($scenario['data'], true) : null;
+
+        // Stage 3 (D5) compat layer: studio writes the new shape (per-field
+        // `Localized<string>` maps inline in `game_meta`); the Tauri 2
+        // playground still reads the legacy `translations[lang] = {full
+        // copy}` envelope. Transform on the way out so the playground sees
+        // zero change. Idempotent (legacy data passes through).
+        if (is_array($gameData)) {
+            $gameData = LocalizedCompat::toLegacyShape($gameData);
         }
 
-        $medias = null;
-        if (!empty($scenario['medias'])) {
-            $medias = json_decode($scenario['medias'], true);
+        // Image+sound filenames moved from `data.game_meta` into the
+        // structured `scenarios.medias` column (scenarios refactor). The
+        // playground still wants the legacy `game_media_images` / `game_sounds`
+        // field→filename maps next to game_meta, so splice them back in here.
+        $structuredMedias = !empty($scenario['medias']) ? json_decode($scenario['medias'], true) : null;
+        if (is_array($gameData)) {
+            $mediaImages = is_array($structuredMedias['images'] ?? null) ? $structuredMedias['images'] : [];
+            $mediaSounds = is_array($structuredMedias['sounds'] ?? null) ? $structuredMedias['sounds'] : [];
+
+            // Sibling field→filename maps — the scenario list view + test
+            // modals read `game_media_images` / `game_sounds` directly.
+            $gameData['game_media_images'] = $mediaImages ?: new stdClass();
+            $gameData['game_sounds'] = $mediaSounds ?: new stdClass();
+
+            // Pre-refactor, top-level image filenames (`background_image`,
+            // `malus_image`, `custom_template`, …) lived INSIDE `game_meta`.
+            // The playground's tagquest renderer still resolves sentinel
+            // filenames (`@background`, `@malus_image`, `@template`) against
+            // `game_meta`, so splice the medias-column images back in.
+            if (is_array($gameData['game_meta'] ?? null)) {
+                foreach ($mediaImages as $field => $filename) {
+                    $gameData['game_meta'][$field] = $filename;
+                }
+            }
+
+            // The new shape keeps `quests` INSIDE `game_meta`; the legacy
+            // shape the playground reads has `quests` as a TOP-LEVEL sibling
+            // (see the ZIP `buildZipPayload` contract). Per-quest media
+            // (`main_image`, `image_1..4`, `sound`) also lived INLINE on each
+            // quest object pre-refactor — `cleanGameMetaForData` strips quests
+            // down to {name, points} on save and parks the media in the
+            // `medias` column. Rebuild the full quest objects (base fields +
+            // media, matched by `quest_index`) and expose them top-level so
+            // the playground renders quest names, icons + punch-animation
+            // slot images. Keep `game_meta.quests` in sync for any reader
+            // that still looks there.
+            if (is_array($gameData['game_meta']['quests'] ?? null)) {
+                $quests = array_values($gameData['game_meta']['quests']);
+                $questMediaList = is_array($structuredMedias['quests'] ?? null)
+                    ? $structuredMedias['quests']
+                    : [];
+                foreach ($questMediaList as $pos => $questMedia) {
+                    if (!is_array($questMedia)) {
+                        continue;
+                    }
+                    $idx = $questMedia['quest_index'] ?? $pos;
+                    if (!isset($quests[$idx]) || !is_array($quests[$idx])) {
+                        continue;
+                    }
+                    foreach ($questMedia as $key => $val) {
+                        if ($key === 'quest_index' || $val === '' || $val === null) {
+                            continue;
+                        }
+                        $quests[$idx][$key] = $val;
+                    }
+                }
+                $gameData['quests'] = $quests;
+                $gameData['game_meta']['quests'] = $quests;
+            }
+
+            // Mystery equivalent: the runtime (MysteryGamePage) reads
+            // `game_data.game_enigmas` (top-level), but the modern shape keeps
+            // enigmas at `game_meta.enigmas` with `good_answer_image` parked
+            // in the structured `medias.enigmas[]` list keyed by enigma_number.
+            // Merge them and expose at top-level so the enigmas grid renders.
+            if (
+                ($scenario['game_type'] ?? '') === 'mystery'
+                && is_array($gameData['game_meta']['enigmas'] ?? null)
+            ) {
+                $enigmaMediaByNumber = [];
+                $enigmaMediaList = is_array($structuredMedias['enigmas'] ?? null)
+                    ? $structuredMedias['enigmas']
+                    : [];
+                foreach ($enigmaMediaList as $em) {
+                    if (!is_array($em)) continue;
+                    $num = $em['enigma_number'] ?? null;
+                    if ($num === null || $num === '') continue;
+                    $enigmaMediaByNumber[(string)$num] = $em;
+                }
+                $merged = [];
+                foreach ($gameData['game_meta']['enigmas'] as $e) {
+                    $entry = is_array($e) ? $e : [];
+                    $num = $entry['number'] ?? null;
+                    if ($num !== null && $num !== '' && isset($enigmaMediaByNumber[(string)$num])) {
+                        foreach ($enigmaMediaByNumber[(string)$num] as $k => $v) {
+                            if ($k === 'enigma_number' || $v === '' || $v === null) continue;
+                            $entry[$k] = $v;
+                        }
+                    }
+                    $merged[] = $entry;
+                }
+                $gameData['game_enigmas'] = $merged;
+                $gameData['game_meta']['enigmas'] = $merged;
+            }
         }
 
-        $responseData = [
+        // The `medias` column historically holds a structured object
+        // ({images, quests, sounds, overscores}) — useful for studio admin
+        // but not what the playground client wants. The client needs a flat
+        // list of filenames it can pass to ?action=get_media&filename=...
+        // We scan the on-disk media dir to produce that list authoritatively
+        // (any file that exists on disk is a file the client needs to mirror).
+        $medias = [];
+        $mediaDir = __DIR__ . '/../../media/' . $uniqid;
+        if (is_dir($mediaDir)) {
+            foreach (scandir($mediaDir) as $entry) {
+                if ($entry === '.' || $entry === '..') continue;
+                $path = $mediaDir . '/' . $entry;
+                if (is_file($path)) {
+                    $medias[] = $entry;
+                }
+            }
+        }
+
+        Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['uniqid' => $uniqid], ['success' => true, 'media_count' => count($medias)], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
             'scenario' => [
                 'id' => $scenario['id'],
-                'name' => $scenario['name'],
+                'name' => $scenario['title'] ?? null,
                 'uniqid' => $scenario['uniqid'],
-                'scenario_type' => $scenario['scenario_type']
+                'scenario_type' => $scenario['scenario_type'],
             ],
             'game_data' => $gameData,
-            'medias' => $medias
-        ];
-
-        Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['email' => $email, 'uniqid' => $uniqid, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
-        jsonResponse($responseData);
+            'medias' => $medias,
+        ]);
         break;
 
     case 'get_media':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_media', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
         $uniqid = $_GET['uniqid'] ?? null;
         $filename = $_GET['filename'] ?? null;
 
-        if (!$email || !$uniqid || !$filename) {
-            Logger::log('playground', $method, 'get_media', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
-            jsonResponse(['error' => 'email, uniqid and filename are required'], 400);
+        if (!$uniqid || !$filename) {
+            jsonResponse(['error' => 'uniqid and filename are required'], 400);
         }
 
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_media', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
-        $hasAccess = $isAdmin;
-
-        if (!$hasAccess && $scenario['client_id'] == $userId) {
-            $hasAccess = true;
-        } elseif (!$hasAccess && ($user['data']['license_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
-            $hasAccess = true;
-        } elseif (!$hasAccess) {
-            $grantedScenario = $db->fetch(
-                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$userId, $scenario['id']]
-            );
-
-            if ($grantedScenario) {
-                $hasAccess = true;
-            }
-        }
-
-        if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_media', $userId, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Access denied'], 403, 'playground');
+        if (!playgroundClientCanAccessScenario($db, $client, $scenario)) {
+            Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario media'], 403);
         }
 
         $mediaPath = __DIR__ . '/../../media/' . $uniqid . '/' . $filename;
 
         if (!file_exists($mediaPath)) {
-            Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid, 'filename' => $filename], ['error' => 'File not found'], 404, 'playground');
             jsonResponse(['error' => 'Media file not found'], 404);
         }
 
+        // Binary streaming response — no auth_state wrapper here, this is a file download.
         $mimeType = mime_content_type($mediaPath);
         header('Content-Type: ' . $mimeType);
         header('Content-Length: ' . filesize($mediaPath));
         header('Content-Disposition: inline; filename="' . basename($filename) . '"');
 
-        Logger::log('playground', $method, 'get_media', $userId, ['email' => $email, 'uniqid' => $uniqid, 'filename' => $filename, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
+        Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200, 'playground');
 
         readfile($mediaPath);
         exit;
 
-    case 'get_available_scenario_data':
+    case 'get_game_type_media':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
+        $code = $_GET['code'] ?? '';
+        $variant = $_GET['variant'] ?? 'admin';
+        $version = (int)($_GET['version'] ?? 0);
+        $filename = $_GET['filename'] ?? '';
+        $subtitleLang = $_GET['subtitle_lang'] ?? '';
+
+        $supportedLangs = ['en','fr','es','de','it','pt','nl','pl','ru','ja','zh','ar'];
+
+        if (!$code || !$version || (!$filename && !$subtitleLang)) {
+            jsonResponse(['error' => 'Missing params'], 400);
+        }
+        if (!preg_match('/^[a-z0-9_-]+$/', $code)) {
+            jsonResponse(['error' => 'Invalid code'], 400);
+        }
+
+        if ($variant === 'admin') {
+            $baseDir = __DIR__ . "/../../media/game_types/$code/v$version";
+        } elseif ($variant === 'client') {
+            $baseDir = __DIR__ . "/../../media/game_types/$code/clients/$userId/v$version";
+        } else {
+            jsonResponse(['error' => 'Invalid variant'], 400);
+        }
+
+        if ($subtitleLang) {
+            if (!in_array($subtitleLang, $supportedLangs, true)) {
+                jsonResponse(['error' => 'Invalid lang'], 400);
+            }
+            $path = "$baseDir/subtitles/$subtitleLang.vtt";
+            $mime = 'text/vtt';
+        } else {
+            if (strpos($filename, '..') !== false || strpos($filename, '/') !== false || strpos($filename, '\\') !== false) {
+                jsonResponse(['error' => 'Invalid filename'], 400);
+            }
+            $path = "$baseDir/$filename";
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $mimeMap = ['mp4' => 'video/mp4', 'webm' => 'video/webm', 'ogg' => 'video/ogg', 'mov' => 'video/quicktime'];
+            $mime = $mimeMap[$ext] ?? 'application/octet-stream';
+        }
+
+        if (!is_file($path)) {
+            jsonResponse(['error' => 'File not found'], 404);
+        }
+
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . filesize($path));
+        header('Content-Disposition: inline; filename="' . basename($path) . '"');
+        Logger::log('playground', $method, 'get_game_type_media', $userId, ['code' => $code, 'variant' => $variant, 'version' => $version], ['success' => true], 200, 'playground');
+        readfile($path);
+        exit;
+
+    case 'get_available_scenario_data':
+        if ($method !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
         $uniqid = $_GET['uniqid'] ?? null;
 
-        if (!$email || !$uniqid) {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
-            jsonResponse(['error' => 'email and uniqid are required'], 400);
+        if (!$uniqid) {
+            jsonResponse(['error' => 'uniqid is required'], 400);
         }
 
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_available_scenario_data', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
         $scenario = $db->fetch('SELECT * FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
         if (!$scenario) {
-            Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['uniqid' => $uniqid], ['error' => 'Scenario not found'], 404, 'playground');
             jsonResponse(['error' => 'Scenario not found'], 404);
         }
 
-        $hasAccess = $isAdmin;
-
-        if (!$hasAccess && $scenario['client_id'] == $userId) {
-            $hasAccess = true;
-        } elseif (!$hasAccess && ($user['data']['license_type'] ?? '') === 'premium' && $scenario['scenario_type'] === 'product') {
-            $hasAccess = true;
-        } elseif (!$hasAccess) {
-            $grantedScenario = $db->fetch(
-                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-                [$userId, $scenario['id']]
-            );
-
-            if ($grantedScenario) {
-                $hasAccess = true;
-            }
-        }
-
-        if (!$hasAccess) {
-            Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['email' => $email, 'uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
+        if (!playgroundClientCanAccessScenario($db, $client, $scenario)) {
+            Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['uniqid' => $uniqid], ['error' => 'Access denied'], 403, 'playground');
             jsonResponse(['error' => 'Access denied to this scenario'], 403);
         }
 
-        $medias = null;
-        if (!empty($scenario['medias'])) {
-            $medias = json_decode($scenario['medias'], true);
-        }
+        $medias = !empty($scenario['medias']) ? json_decode($scenario['medias'], true) : null;
 
-        $responseData = [
+        Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['uniqid' => $uniqid], ['success' => true], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
             'scenario' => [
                 'id' => $scenario['id'],
                 'name' => $scenario['name'],
                 'uniqid' => $scenario['uniqid'],
                 'scenario_type' => $scenario['scenario_type'],
-                'available_for_purchase' => true
+                'available_for_purchase' => true,
             ],
-            'medias' => $medias
-        ];
-
-        Logger::log('playground', $method, 'get_available_scenario_data', $userId, ['email' => $email, 'uniqid' => $uniqid, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
-        jsonResponse($responseData);
+            'medias' => $medias,
+        ]);
         break;
 
     case 'get_billing_status':
+        // Kept for backwards compatibility, but auth_state already carries this.
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
-        if (!$email) {
-            Logger::log('playground', $method, 'get_billing_status', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
+        Logger::log('playground', $method, 'get_billing_status', $userId, [], [
+            'billing_up_to_date' => $client['billing_up_to_date'],
+            'license_type' => $client['license_type'],
+        ], 200, 'playground');
 
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_billing_status', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
-
-        if ($isAdmin) {
-            $responseData = ['billing_up_to_date' => true, 'license_type' => 'admin'];
-        } else {
-            $client = $db->fetch(
-                'SELECT id, email, billing_up_to_date, license_type FROM clients WHERE id = ?',
-                [$userId]
-            );
-            $responseData = [
-                'billing_up_to_date' => (bool)$client['billing_up_to_date'],
-                'license_type' => $client['license_type']
-            ];
-        }
-
-        Logger::log('playground', $method, 'get_billing_status', $userId, ['email' => $email, 'user_type' => $user['type']], $responseData, 200, 'playground');
-        jsonResponse($responseData);
+        jsonResponseWithAuthState($db, $userId, [
+            'billing_up_to_date' => (bool)$client['billing_up_to_date'],
+            'license_type' => $client['license_type'],
+        ]);
         break;
 
     case 'get_cards_version':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
-
-        if (!$email) {
-            Logger::log('playground', $method, 'get_cards_version', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
-
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_cards_version', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $userId = $user['data']['id'];
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
         $metadata = $db->fetch(
             'SELECT version, updated_at FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
             [$userId]
         );
 
-        $responseData = [
-            'version' => $metadata ? (int)$metadata['version'] : null,
-            'updated_at' => $metadata ? $metadata['updated_at'] : null
-        ];
-
-        Logger::log('playground', $method, 'get_cards_version', $userId, ['email' => $email, 'user_type' => $user['type']], $responseData, 200, 'playground');
-        jsonResponse($responseData);
+        Logger::log('playground', $method, 'get_cards_version', $userId, [], $metadata ?: [], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
+            // version is DECIMAL(10,2); cast to float so JSON emits a number, not a string.
+            'version' => $metadata ? round((float)$metadata['version'], 2) : null,
+            'updated_at' => $metadata ? $metadata['updated_at'] : null,
+        ]);
         break;
 
     case 'get_patterns':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
-        if (!$email) {
-            Logger::log('playground', $method, 'get_patterns', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
+        $patterns = $db->fetchAll(
+            'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
+             FROM patterns
+             WHERE is_default = TRUE OR (owner_type = ? AND owner_id = ?)
+             ORDER BY game_type, is_default DESC, name',
+            ['client', $userId]
+        );
 
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_patterns', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
-
-        if ($isAdmin) {
-            $patterns = $db->fetchAll(
-                'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
-                 FROM patterns ORDER BY game_type, is_default DESC, name'
-            );
-        } else {
-            $patterns = $db->fetchAll(
-                'SELECT id, name, game_type, version, is_default, owner_type, pattern_uniqid, pattern_slug, description, created_at
-                 FROM patterns
-                 WHERE is_default = TRUE OR (owner_type = ? AND owner_id = ?)
-                 ORDER BY game_type, is_default DESC, name',
-                ['client', $userId]
-            );
-        }
-
-        $responseData = [
+        Logger::log('playground', $method, 'get_patterns', $userId, [], ['count' => count($patterns)], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
             'patterns' => $patterns,
-            'count' => count($patterns)
-        ];
-
-        Logger::log('playground', $method, 'get_patterns', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($patterns)], 200, 'playground');
-        jsonResponse($responseData);
+            'count' => count($patterns),
+        ]);
         break;
 
     case 'get_layouts':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
-
-        if (!$email) {
-            Logger::log('playground', $method, 'get_layouts', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
-
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_layouts', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $userId = $user['data']['id'];
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
         $layouts = $db->fetchAll(
             'SELECT id, game_type, status, version, owner_type, layout_uniqid, scenario_uniqid, created_at
@@ -542,136 +509,86 @@ try {
             ['admin', 'active']
         );
 
-        $responseData = [
+        Logger::log('playground', $method, 'get_layouts', $userId, [], ['count' => count($layouts)], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
             'layouts' => $layouts,
-            'count' => count($layouts)
-        ];
-
-        Logger::log('playground', $method, 'get_layouts', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($layouts)], 200, 'playground');
-        jsonResponse($responseData);
+            'count' => count($layouts),
+        ]);
         break;
 
     case 'get_cards':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
-        if (!$email) {
-            Logger::log('playground', $method, 'get_cards', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
-
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_cards', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $userId = $user['data']['id'];
-
-        $metadata = $db->fetch(
-            'SELECT version FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
+        $cards = $db->fetchAll(
+            'SELECT id, key_number, key_name, color
+             FROM client_cards
+             WHERE client_id = ?
+             ORDER BY key_number ASC, id ASC',
             [$userId]
         );
 
-        if (!$metadata) {
-            $responseData = ['cards' => [], 'version' => null];
-            Logger::log('playground', $method, 'get_cards', $userId, ['email' => $email, 'user_type' => $user['type']], $responseData, 200, 'playground');
-            jsonResponse($responseData);
-            break;
-        }
+        $metadata = $db->fetch(
+            'SELECT version FROM client_cards_metadata WHERE client_id = ?',
+            [$userId]
+        );
+        // version is DECIMAL(10,2) — cast to float so JSON encodes as a number.
+        $version = $metadata ? round((float)$metadata['version'], 2) : 0.0;
 
-        $version = $metadata['version'];
-        $cardsFile = __DIR__ . '/../../cards/' . $userId . '/cards_v' . $version . '.csv';
-
-        if (!file_exists($cardsFile)) {
-            Logger::log('playground', $method, 'get_cards', $userId, ['email' => $email], ['error' => 'Cards file not found', 'version' => $version], 404, 'playground');
-            jsonResponse(['error' => 'Cards file not found'], 404);
-        }
-
-        $cards = [];
-        $handle = fopen($cardsFile, 'r');
-
-        if ($handle !== false) {
-            $headers = fgetcsv($handle);
-
-            while (($row = fgetcsv($handle)) !== false) {
-                if (count($row) >= count($headers)) {
-                    $cards[] = array_combine($headers, array_slice($row, 0, count($headers)));
-                }
-            }
-
-            fclose($handle);
-        }
-
-        $responseData = [
+        Logger::log('playground', $method, 'get_cards', $userId, [], ['count' => count($cards), 'version' => $version], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
             'cards' => $cards,
-            'version' => (int)$version,
-            'count' => count($cards)
-        ];
-
-        Logger::log('playground', $method, 'get_cards', $userId, ['email' => $email, 'user_type' => $user['type']], ['version' => $version, 'count' => count($cards)], 200, 'playground');
-        jsonResponse($responseData);
+            'version' => $version,
+        ]);
         break;
 
     case 'get_user_data_update':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_user_data_update', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
-        if (!$email) {
-            Logger::log('playground', $method, 'get_user_data_update', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
+        $customScenarios = $db->fetchAll(
+            'SELECT title, uniqid, version, game_type FROM scenarios WHERE client_id = ? AND status = "published" ORDER BY created_at DESC',
+            [$userId]
+        );
 
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_user_data_update', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
-
-        if ($isAdmin) {
-            $customScenarios = $db->fetchAll(
-                'SELECT title, uniqid, version, game_type FROM scenarios WHERE status = "published" ORDER BY created_at DESC'
+        // Product scenarios in the manifest MUST mirror what
+        // playgroundClientCanAccessScenario() will actually allow: premium
+        // clients get every product scenario, everyone else only the ones
+        // granted via client_scenarios. Listing all product scenarios here
+        // (the old behaviour) handed non-premium clients phantom sync items
+        // that get_scenario_game_data then rejected with 403 — surfacing in
+        // the playground as a permanent "1 failed".
+        if (($client['license_type'] ?? '') === 'premium') {
+            $productScenarios = $db->fetchAll(
+                'SELECT title, uniqid, version, game_type FROM scenarios
+                 WHERE scenario_type = "product" AND status = "published"
+                 ORDER BY created_at DESC'
             );
         } else {
-            $customScenarios = $db->fetchAll(
-                'SELECT title, uniqid, version, game_type FROM scenarios WHERE client_id = ? AND status = "published" ORDER BY created_at DESC',
+            $productScenarios = $db->fetchAll(
+                'SELECT s.title, s.uniqid, s.version, s.game_type FROM scenarios s
+                 JOIN client_scenarios cs ON cs.scenario_id = s.id AND cs.client_id = ?
+                 WHERE s.scenario_type = "product" AND s.status = "published"
+                 ORDER BY s.created_at DESC',
                 [$userId]
             );
         }
 
-        $productScenarios = $db->fetchAll(
-            'SELECT title, uniqid, version, game_type FROM scenarios WHERE scenario_type = "product" AND status = "published" ORDER BY created_at DESC'
+        $defaultPatterns = $db->fetchAll(
+            'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
         );
-
-        if ($isAdmin) {
-            $defaultPatterns = $db->fetchAll(
-                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
-            );
-            $customPatterns = $db->fetchAll(
-                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = FALSE ORDER BY game_type, name'
-            );
-        } else {
-            $defaultPatterns = $db->fetchAll(
-                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
-            );
-            $customPatterns = $db->fetchAll(
-                'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = FALSE AND owner_type = ? AND owner_id = ? ORDER BY game_type, name',
-                ['client', $userId]
-            );
-        }
+        $customPatterns = $db->fetchAll(
+            'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = FALSE AND owner_type = ? AND owner_id = ? ORDER BY game_type, name',
+            ['client', $userId]
+        );
 
         $cardsMetadata = $db->fetch(
             'SELECT version FROM client_cards_metadata WHERE client_id = ? ORDER BY version DESC LIMIT 1',
@@ -691,65 +608,91 @@ try {
             'SELECT id, version, game_type FROM layouts WHERE owner_type = "admin" AND status = "active" ORDER BY game_type, version DESC'
         );
 
-        if ($isAdmin) {
-            $billingUpToDate = true;
-            $licenseType = 'admin';
-        } else {
-            $clientBilling = $db->fetch(
-                'SELECT billing_up_to_date, license_type FROM clients WHERE id = ?',
-                [$userId]
-            );
-            $billingUpToDate = (bool)($clientBilling['billing_up_to_date'] ?? false);
-            $licenseType = $clientBilling['license_type'] ?? null;
+        // Global admin-managed translation rows. Small enough to ship inline
+        // (value is a few hundred bytes per row). Add new meta keys here to
+        // surface them in the playground.
+        $translations = $db->fetchAll(
+            'SELECT meta AS `key`, value, version FROM default_config WHERE meta IN ("tagquest_translations") ORDER BY meta'
+        );
+        foreach ($translations as &$t) {
+            $t['value'] = json_decode($t['value'], true);
+            $t['version'] = (int)$t['version'];
+        }
+        unset($t);
+
+        $gameTypeRows = $db->fetchAll(
+            'SELECT code, name, supports_tutorial_video, supports_intro_video,
+                    tutorial_video_path, tutorial_video_version, tutorial_subtitles
+             FROM game_types ORDER BY code'
+        );
+        $gameTypes = [];
+        foreach ($gameTypeRows as $row) {
+            $gameTypes[] = [
+                'code' => $row['code'],
+                'name' => $row['name'],
+                'supports_tutorial_video' => (bool)$row['supports_tutorial_video'],
+                'supports_intro_video' => (bool)$row['supports_intro_video'],
+                'tutorial_video_filename' => $row['tutorial_video_path'] ?: null,
+                'tutorial_video_version' => (int)$row['tutorial_video_version'],
+                'tutorial_subtitles' => $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass(),
+            ];
         }
 
-        $responseData = [
-            'custom_scenarios' => $customScenarios,
-            'product_scenarios' => $productScenarios,
-            'default_patterns' => $defaultPatterns,
-            'custom_patterns' => $customPatterns,
-            'cards_version' => $cardsMetadata ? (int)$cardsMetadata['version'] : null,
-            'has_on_demand_cards' => $hasOnDemandCards,
-            'layouts' => $layouts,
-            'billing_up_to_date' => $billingUpToDate,
-            'license_type' => $licenseType
-        ];
+        $overrideRows = $db->fetchAll(
+            'SELECT game_type_code, tutorial_video_path, tutorial_video_version, tutorial_subtitles
+             FROM client_game_type_overrides WHERE client_id = ?',
+            [$userId]
+        );
+        $overrides = [];
+        foreach ($overrideRows as $row) {
+            $overrides[] = [
+                'game_type_code' => $row['game_type_code'],
+                'tutorial_video_filename' => $row['tutorial_video_path'] ?: null,
+                'tutorial_video_version' => (int)$row['tutorial_video_version'],
+                'tutorial_subtitles' => $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass(),
+            ];
+        }
 
-        Logger::log('playground', $method, 'get_user_data_update', $userId, ['email' => $email, 'user_type' => $user['type']], [
+        $clientRow = $db->fetch('SELECT preferences FROM clients WHERE id = ?', [$userId]);
+        $clientPrefs = ($clientRow && $clientRow['preferences'])
+            ? json_decode($clientRow['preferences'], true)
+            : new stdClass();
+
+        Logger::log('playground', $method, 'get_user_data_update', $userId, [], [
             'custom_scenarios_count' => count($customScenarios),
             'product_scenarios_count' => count($productScenarios),
             'default_patterns_count' => count($defaultPatterns),
             'custom_patterns_count' => count($customPatterns),
-            'cards_version' => $cardsMetadata ? (int)$cardsMetadata['version'] : null,
+            'cards_version' => $cardsMetadata ? round((float)$cardsMetadata['version'], 2) : null,
             'has_on_demand_cards' => $hasOnDemandCards,
             'layouts_count' => count($layouts),
-            'billing_up_to_date' => $billingUpToDate,
-            'license_type' => $licenseType
+            'translations_count' => count($translations),
+            'game_types_count' => count($gameTypes),
+            'overrides_count' => count($overrides),
         ], 200, 'playground');
-        jsonResponse($responseData);
+
+        jsonResponseWithAuthState($db, $userId, [
+            'custom_scenarios' => $customScenarios,
+            'product_scenarios' => $productScenarios,
+            'default_patterns' => $defaultPatterns,
+            'custom_patterns' => $customPatterns,
+            'cards_version' => $cardsMetadata ? round((float)$cardsMetadata['version'], 2) : null,
+            'has_on_demand_cards' => $hasOnDemandCards,
+            'layouts' => $layouts,
+            'translations' => $translations,
+            'game_types' => $gameTypes,
+            'client_game_type_overrides' => $overrides,
+            'client_preferences' => $clientPrefs,
+        ]);
         break;
 
     case 'get_on_demand_cards':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'get_on_demand_cards', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
-
-        if (!$email) {
-            Logger::log('playground', $method, 'get_on_demand_cards', null, [], ['error' => 'Missing email'], 400, 'playground');
-            jsonResponse(['error' => 'email is required'], 400);
-        }
-
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'get_on_demand_cards', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $userId = $user['data']['id'];
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
         $cards = $db->fetchAll(
             'SELECT coc.id, coc.pool_card_id, coc.end_date, coc.assigned_at,
@@ -762,42 +705,27 @@ try {
             [$userId]
         );
 
-        $responseData = [
-            'cards' => $cards,
-            'count' => count($cards)
-        ];
+        Logger::log('playground', $method, 'get_on_demand_cards', $userId, [], ['count' => count($cards)], 200, 'playground');
 
-        Logger::log('playground', $method, 'get_on_demand_cards', $userId, ['email' => $email, 'user_type' => $user['type']], ['count' => count($cards)], 200, 'playground');
-
+        // File-style download — no auth_state wrapper (Content-Disposition: attachment).
         http_response_code(200);
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="on_demand_cards.json"');
-        echo json_encode($responseData);
+        echo json_encode(['cards' => $cards, 'count' => count($cards)]);
         exit;
 
     case 'download_pattern':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'download_pattern', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
         $patternUniqid = $_GET['pattern_uniqid'] ?? null;
 
-        if (!$email || !$patternUniqid) {
-            Logger::log('playground', $method, 'download_pattern', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
-            jsonResponse(['error' => 'email and pattern_uniqid are required'], 400);
+        if (!$patternUniqid) {
+            jsonResponse(['error' => 'pattern_uniqid is required'], 400);
         }
-
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'download_pattern', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $isAdmin = $user['type'] === 'admin';
-        $userId = $user['data']['id'];
 
         $pattern = $db->fetch(
             'SELECT id, name, game_type, version, pattern_data, is_default, owner_type, owner_id, pattern_uniqid, pattern_slug, description
@@ -806,15 +734,11 @@ try {
         );
 
         if (!$pattern) {
-            Logger::log('playground', $method, 'download_pattern', $userId, ['pattern_uniqid' => $patternUniqid], ['error' => 'Pattern not found'], 404, 'playground');
             jsonResponse(['error' => 'Pattern not found'], 404);
         }
 
-        $hasAccess = $isAdmin || (bool)$pattern['is_default'];
-
-        if (!$hasAccess && $pattern['owner_type'] === 'client' && (int)$pattern['owner_id'] === (int)$userId) {
-            $hasAccess = true;
-        }
+        $hasAccess = (bool)$pattern['is_default']
+            || ($pattern['owner_type'] === 'client' && (int)$pattern['owner_id'] === $userId);
 
         if (!$hasAccess) {
             Logger::log('playground', $method, 'download_pattern', $userId, ['pattern_uniqid' => $patternUniqid], ['error' => 'Access denied'], 403, 'playground');
@@ -823,7 +747,36 @@ try {
 
         $patternData = !empty($pattern['pattern_data']) ? json_decode($pattern['pattern_data'], true) : null;
 
-        $responseData = [
+        // ZIP-imported patterns store '[]' in pattern_data and put routing in
+        // the denormalized pattern_items table. Rebuild the nested Studio
+        // shape from pattern_items so the playground always sees real data.
+        if (!is_array($patternData) || count($patternData) === 0) {
+            $items = $db->fetchAll(
+                'SELECT item_index, assignment_type, station_key_number
+                 FROM pattern_items WHERE pattern_id = ?
+                 ORDER BY item_index, assignment_type',
+                [$pattern['id']]
+            );
+            if (!empty($items)) {
+                $byIndex = [];
+                foreach ($items as $row) {
+                    $idx = (int)$row['item_index'];
+                    if (!isset($byIndex[$idx])) {
+                        $byIndex[$idx] = ['index' => $idx, 'assignments' => (object)[]];
+                    }
+                    $assignments = (array)$byIndex[$idx]['assignments'];
+                    $assignments[$row['assignment_type']] = $row['station_key_number'] !== null
+                        ? (int)$row['station_key_number']
+                        : null;
+                    $byIndex[$idx]['assignments'] = (object)$assignments;
+                }
+                ksort($byIndex);
+                $patternData = array_values($byIndex);
+            }
+        }
+
+        Logger::log('playground', $method, 'download_pattern', $userId, ['pattern_uniqid' => $patternUniqid], ['success' => true], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, [
             'name' => $pattern['name'],
             'game_type' => $pattern['game_type'],
             'version' => $pattern['version'],
@@ -831,86 +784,23 @@ try {
             'pattern_slug' => $pattern['pattern_slug'],
             'description' => $pattern['description'],
             'is_default' => (bool)$pattern['is_default'],
-            'pattern_data' => $patternData
-        ];
-
-        Logger::log('playground', $method, 'download_pattern', $userId, ['email' => $email, 'pattern_uniqid' => $patternUniqid, 'user_type' => $user['type']], ['success' => true], 200, 'playground');
-        jsonResponse($responseData);
+            'pattern_data' => $patternData,
+        ]);
         break;
-
-    case 'download_cards':
-        if ($method !== 'GET') {
-            Logger::log('playground', $method, 'download_cards', null, [], ['error' => 'Method not allowed'], 405, 'playground');
-            jsonResponse(['error' => 'Method not allowed'], 405);
-        }
-
-        $email = $_GET['email'] ?? null;
-        $cardsVersion = $_GET['version'] ?? null;
-
-        if (!$email || $cardsVersion === null) {
-            Logger::log('playground', $method, 'download_cards', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
-            jsonResponse(['error' => 'email and version are required'], 400);
-        }
-
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'download_cards', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $userId = $user['data']['id'];
-        $cardsVersion = (int)$cardsVersion;
-
-        $metadata = $db->fetch(
-            'SELECT version FROM client_cards_metadata WHERE client_id = ? AND version = ?',
-            [$userId, $cardsVersion]
-        );
-
-        if (!$metadata) {
-            Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion], ['error' => 'Cards version not found'], 404, 'playground');
-            jsonResponse(['error' => 'Cards version not found for this user'], 404);
-        }
-
-        $cardsFile = __DIR__ . '/../../cards/' . $userId . '/cards_v' . $cardsVersion . '.csv';
-
-        if (!file_exists($cardsFile)) {
-            Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion], ['error' => 'Cards file not found on filesystem'], 404, 'playground');
-            jsonResponse(['error' => 'Cards file not found'], 404);
-        }
-
-        Logger::log('playground', $method, 'download_cards', $userId, ['email' => $email, 'version' => $cardsVersion, 'user_type' => $user['type']], ['version' => $cardsVersion], 200, 'playground');
-
-        http_response_code(200);
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="cards_v' . $cardsVersion . '.csv"');
-        header('Content-Length: ' . filesize($cardsFile));
-
-        readfile($cardsFile);
-        exit;
 
     case 'download_layout':
         if ($method !== 'GET') {
-            Logger::log('playground', $method, 'download_layout', null, [], ['error' => 'Method not allowed'], 405, 'playground');
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
 
-        $email = $_GET['email'] ?? null;
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
         $layoutId = $_GET['layout_id'] ?? null;
 
-        if (!$email || !$layoutId) {
-            Logger::log('playground', $method, 'download_layout', null, $_GET, ['error' => 'Missing parameters'], 400, 'playground');
-            jsonResponse(['error' => 'email and layout_id are required'], 400);
+        if (!$layoutId) {
+            jsonResponse(['error' => 'layout_id is required'], 400);
         }
 
-        $user = resolveUser($db, $email);
-
-        if (!$user) {
-            Logger::log('playground', $method, 'download_layout', null, ['email' => $email], ['error' => 'User not found'], 404, 'playground');
-            jsonResponse(['error' => 'User not found'], 404);
-        }
-
-        $userId = $user['data']['id'];
         $layoutId = (int)$layoutId;
 
         $layout = $db->fetch(
@@ -920,7 +810,6 @@ try {
         );
 
         if (!$layout) {
-            Logger::log('playground', $method, 'download_layout', $userId, ['layout_id' => $layoutId], ['error' => 'Layout not found'], 404, 'playground');
             jsonResponse(['error' => 'Layout not found or not active'], 404);
         }
 
@@ -932,18 +821,17 @@ try {
             'game_type' => $layout['game_type'],
             'version' => $layout['version'],
             'scenario_uniqid' => $layout['scenario_uniqid'],
-            'layout_data' => $layoutData
+            'layout_data' => $layoutData,
         ];
 
         $filename = $layout['game_type'] . '_layout_' . $layout['version'] . '.json';
 
-        Logger::log('playground', $method, 'download_layout', $userId, ['email' => $email, 'layout_id' => $layoutId, 'user_type' => $user['type']], ['success' => true, 'layout_id' => $layoutId], 200, 'playground');
+        Logger::log('playground', $method, 'download_layout', $userId, ['layout_id' => $layoutId], ['success' => true], 200, 'playground');
 
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         echo json_encode($layoutJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         exit;
-        break;
 
     default:
         Logger::log('playground', $method, $action ?: 'none', null, [], ['error' => 'Invalid action'], 400, 'playground');
@@ -954,7 +842,6 @@ try {
         'error' => $e->getMessage(),
         'file' => $e->getFile(),
         'line' => $e->getLine(),
-        'trace' => $e->getTraceAsString()
     ];
 
     try {
@@ -966,6 +853,27 @@ try {
     jsonResponse([
         'error' => 'Internal server error',
         'message' => $e->getMessage(),
-        'details' => $errorDetails
     ], 500);
+}
+
+// Shared scenario-access check used by get_scenario_game_data, get_media,
+// get_available_scenario_data. Premium clients access all product scenarios;
+// any client accesses their own; specific grants live in client_scenarios.
+function playgroundClientCanAccessScenario($db, array $client, array $scenario): bool {
+    $userId = (int)$client['id'];
+
+    if ((int)($scenario['client_id'] ?? 0) === $userId) {
+        return true;
+    }
+
+    if (($client['license_type'] ?? '') === 'premium' && ($scenario['scenario_type'] ?? '') === 'product') {
+        return true;
+    }
+
+    $granted = $db->fetch(
+        'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
+        [$userId, $scenario['id']]
+    );
+
+    return (bool)$granted;
 }

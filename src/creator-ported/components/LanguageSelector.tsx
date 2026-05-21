@@ -49,11 +49,19 @@ export function LanguageSelector({
 
       <div className="flex flex-wrap gap-2">
         {availableLanguages.map(lang => (
-          <button
+          <div
             key={lang}
+            role="button"
+            tabIndex={0}
             onClick={() => onLanguageChange(lang)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onLanguageChange(lang);
+              }
+            }}
             className={`
-              flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
+              flex items-center gap-2 px-3 py-2 rounded-lg transition-colors cursor-pointer
               ${currentLanguage === lang
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -66,6 +74,7 @@ export function LanguageSelector({
             </span>
             {availableLanguages.length > 1 && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemoveLanguage(lang);
@@ -82,7 +91,7 @@ export function LanguageSelector({
                 ×
               </button>
             )}
-          </button>
+          </div>
         ))}
       </div>
 

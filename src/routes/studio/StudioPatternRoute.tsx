@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PatternEditor } from '../../creator-ported/components/PatternEditor';
-import { supabase } from '../../creator-ported/lib/db';
+import { db } from '../../creator-ported/lib/db';
 import { useAuth } from '../../auth/AuthContext';
 
 interface PatternRow {
   id: string;
-  uniqid: string;
+  pattern_uniqid: string;
   name: string;
   game_type: string;
 }
@@ -15,7 +15,13 @@ export function StudioPatternRoute() {
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
   const { userType } = useAuth();
-  const roleHome = userType === 'admin' ? '/admin' : '/my/patterns';
+  const goToPatternsList = () => {
+    if (userType === 'admin') {
+      navigate('/admin', { state: { tab: 'patterns' } });
+    } else {
+      navigate('/my/patterns');
+    }
+  };
 
   const [pattern, setPattern] = useState<PatternRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,10 +33,10 @@ export function StudioPatternRoute() {
       setLoading(true);
       setError(null);
       try {
-        const { data, error: e } = await supabase
+        const { data, error: e } = await db
           .from('patterns')
-          .select('id, uniqid, name, game_type')
-          .eq('uniqid', uniqid)
+          .select('id, pattern_uniqid, name, game_type')
+          .eq('pattern_uniqid', uniqid)
           .maybeSingle();
         if (cancelled) return;
         if (e || !data) {
@@ -57,7 +63,7 @@ export function StudioPatternRoute() {
         <p className="text-red-400">{error || 'Pattern not found'}</p>
         <button
           type="button"
-          onClick={() => navigate(roleHome)}
+          onClick={goToPatternsList}
           className="rounded bg-slate-700 px-3 py-1.5 text-sm text-white hover:bg-slate-600"
         >
           Back
@@ -71,7 +77,7 @@ export function StudioPatternRoute() {
       patternId={String(pattern.id)}
       gameType={pattern.game_type}
       patternName={pattern.name}
-      onBack={() => navigate(roleHome)}
+      onBack={goToPatternsList}
     />
   );
 }

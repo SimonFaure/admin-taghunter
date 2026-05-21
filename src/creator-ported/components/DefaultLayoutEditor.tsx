@@ -1,7 +1,7 @@
 // @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, Maximize2, Minimize2, ChevronLeft, ChevronRight, Send, Type, Image, GripVertical, Eye, EyeOff, ChevronDown, ChevronRight as ChevronRightSm, Layers, Download } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { getMediaUrl } from '../utils/mediaUrl';
 import { Alert } from './Alert';
 import { authService } from '../services/authService';
@@ -359,7 +359,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
 
   const loadTemplateScenario = async () => {
     try {
-      let result = await supabase
+      let result = await db
         .from('scenarios')
         .select('id, media, data')
         .eq('scenario_type', scenarioType)
@@ -369,7 +369,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
       if (result.error) throw result.error;
 
       if (!result.data) {
-        const fallback = await supabase
+        const fallback = await db
           .from('scenarios')
           .select('id, media, data')
           .not('media', 'is', null)
@@ -385,7 +385,9 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
       setTemplateScenarioId(data.id);
       const media = data.media as any;
       const gameData = data.data as any;
-      const nQuests = parseInt(gameData?.game_meta?.number_of_quests || '0', 10);
+      const nQuests = scenarioType === 'tagquest'
+        ? 6
+        : parseInt(gameData?.game_meta?.number_of_quests || '0', 10);
       setNumQuests(nQuests);
 
       if (media?.images?.background_image) {
@@ -400,7 +402,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
 
   const loadScenarioData = async (id: string) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('scenarios')
         .select('id, title, media, data')
         .eq('id', id)
@@ -415,7 +417,9 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
       setScenarioTitle(data.title || '');
       const media = data.media as any;
       const gameData = data.data as any;
-      const nQuests = parseInt(gameData?.game_meta?.number_of_quests || '0', 10);
+      const nQuests = scenarioType === 'tagquest'
+        ? 6
+        : parseInt(gameData?.game_meta?.number_of_quests || '0', 10);
       setNumQuests(nQuests);
 
       if (media?.images?.background_image) {
@@ -432,7 +436,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
   const loadDefaultLayout = async () => {
     try {
       if (scenarioId) {
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from('scenarios')
           .select('scenario_layout')
           .eq('id', scenarioId)
@@ -450,7 +454,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
         }
 
         const metaKey = `${scenarioType}_layout`;
-        const { data: defaultData, error: defaultError } = await supabase
+        const { data: defaultData, error: defaultError } = await db
           .from('default_config')
           .select('value, version, layout_uniqid')
           .eq('meta', metaKey)
@@ -473,7 +477,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
         }
       } else {
         const metaKey = getMetaKey();
-        const { data, error } = await supabase
+        const { data, error } = await db
           .from('default_config')
           .select('value, version, layout_uniqid')
           .eq('meta', metaKey)
@@ -891,7 +895,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
       const metaKey = getMetaKey();
       const layoutData = { elements };
 
-      const { data: existingConfig, error: fetchError } = await supabase
+      const { data: existingConfig, error: fetchError } = await db
         .from('default_config')
         .select('version, layout_uniqid')
         .eq('meta', metaKey)
@@ -905,7 +909,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
       const existingUniqid = (existingConfig as any)?.layout_uniqid || layoutUniqid;
       const uniqid = existingUniqid || `layout_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-      const { error } = await supabase
+      const { error } = await db
         .from('default_config')
         .upsert({ meta: metaKey, value: layoutData, version: newVersion, layout_uniqid: uniqid, updated_at: new Date().toISOString() }, { onConflict: 'meta' });
 

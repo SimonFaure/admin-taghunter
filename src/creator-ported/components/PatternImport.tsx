@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { Upload, FileArchive, CheckCircle, X, AlertCircle } from 'lucide-react';
 import JSZip from 'jszip';
 import { parseCSV } from '../utils/csvParser';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
+import { authService } from '../services/authService';
 import { Alert } from './Alert';
 
 interface PatternImportProps {
@@ -221,11 +222,11 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
           const assignments: Record<string, number | null> = {};
 
           if (data.good_answers.length > 0) {
-            assignments['good_answer'] = parseInt(data.good_answers[0]);
+            assignments['good_answer_station'] = parseInt(data.good_answers[0]);
           }
 
           if (data.wrong_answers.length > 0) {
-            assignments['wrong_answer'] = parseInt(data.wrong_answers[0]);
+            assignments['wrong_answer_station'] = parseInt(data.wrong_answers[0]);
           }
 
           return {
@@ -254,20 +255,48 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
     }
   };
 
+  const generatePatternUniqid = () =>
+    Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+
   const handleImport = async () => {
     if (!parsedPattern) return;
 
     setIsProcessing(true);
     try {
-      const now = new Date().toISOString();
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
       const normalizedGameType = parsedPattern.game_type === 'survival' ? 'mystery' : parsedPattern.game_type;
 
-      const { data: pattern, error: patternError } = await supabase
+      const { data: existing } = await db
+        .from('patterns')
+        .select('id')
+        .eq('name', parsedPattern.name)
+        .eq('game_type', normalizedGameType);
+      if (Array.isArray(existing) && existing.length > 0) {
+        setAlert({
+          show: true,
+          type: 'error',
+          message: `A pattern named "${parsedPattern.name}" already exists for game type "${normalizedGameType}". Rename or delete the existing one before re-importing.`,
+        });
+        setIsProcessing(false);
+        return;
+      }
+
+      const patternUniqid = parsedPattern.pattern_uniqid?.trim() || generatePatternUniqid();
+      const ownerEmail = authService.getEmail() ?? '';
+      const ownerId = authService.getClientId();
+
+      const { data: pattern, error: patternError } = await db
         .from('patterns')
         .insert({
           name: parsedPattern.name,
           game_type: normalizedGameType,
-          slug: parsedPattern.slug,
+          pattern_slug: parsedPattern.slug,
+          pattern_uniqid: patternUniqid,
+          pattern_data: '[]',
+          owner_type: 'admin',
+          owner_id: ownerId,
+          created_by_email: ownerEmail,
+          is_default: 1,
           created_at: now,
           updated_at: now,
         })
@@ -291,7 +320,7 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
       }
 
       if (patternItems.length > 0) {
-        const { error: itemsError } = await supabase
+        const { error: itemsError } = await db
           .from('pattern_items')
           .insert(patternItems);
 

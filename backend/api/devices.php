@@ -141,6 +141,20 @@ try {
                 $updateParams[] = $data['cards_file_version'];
             }
 
+            if (array_key_exists('display_name', $data)) {
+                $dn = $data['display_name'];
+                if ($dn !== null) {
+                    $dn = trim((string)$dn);
+                    if ($dn === '') {
+                        $dn = null;
+                    } elseif (mb_strlen($dn) > 120) {
+                        jsonResponse(['error' => 'display_name max 120 chars'], 400);
+                    }
+                }
+                $updateFields[] = 'display_name = ?';
+                $updateParams[] = $dn;
+            }
+
             if (empty($updateFields)) {
                 jsonResponse(['error' => 'No fields to update'], 400);
             }

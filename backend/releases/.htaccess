@@ -1,0 +1,9 @@
+# Release artifacts are served only through backend/api/playground_update.php
+# (action=download), never directly. Block all direct web access.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

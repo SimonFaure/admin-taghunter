@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { Database, RefreshCw, ChevronDown, ChevronUp, Filter, X, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -31,7 +31,7 @@ export function ApiLogs() {
   const loadLogs = async () => {
     try {
       setLoading(true);
-      let query = supabase
+      let query = db
         .from('api_logs')
         .select('*')
         .order('created_at', { ascending: false })
@@ -76,7 +76,7 @@ export function ApiLogs() {
   const handleClearLogs = async () => {
     try {
       setClearing(true);
-      const { error } = await supabase
+      const { error } = await db
         .from('api_logs')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records

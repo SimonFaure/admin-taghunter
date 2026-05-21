@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface JsonViewerProps {
@@ -111,9 +111,9 @@ export function JsonViewer({ data, title = 'JSON Data' }: JsonViewerProps) {
           </div>
           {expanded && !isEmpty && (
             <div className="mt-1">
-              {value.map((item, index) =>
-                renderValue(item, `[${index}]`, currentPath, depth + 1)
-              )}
+              {value.map((item, index) => (
+                <Fragment key={index}>{renderValue(item, `[${index}]`, currentPath, depth + 1)}</Fragment>
+              ))}
             </div>
           )}
         </div>
@@ -146,7 +146,9 @@ export function JsonViewer({ data, title = 'JSON Data' }: JsonViewerProps) {
           </div>
           {expanded && !isEmpty && (
             <div className="mt-1">
-              {keys.map((k) => renderValue(value[k], k, currentPath, depth + 1))}
+              {keys.map((k) => (
+                <Fragment key={k}>{renderValue(value[k], k, currentPath, depth + 1)}</Fragment>
+              ))}
             </div>
           )}
         </div>
@@ -184,7 +186,9 @@ export function JsonViewer({ data, title = 'JSON Data' }: JsonViewerProps) {
       </div>
       <div className="p-4 overflow-auto max-h-[600px] font-mono text-sm">
         {typeof data === 'object' && data !== null ? (
-          Object.keys(data).map((key) => renderValue(data[key], key, 'root', 0))
+          Object.keys(data).map((key) => (
+            <Fragment key={key}>{renderValue(data[key], key, 'root', 0)}</Fragment>
+          ))
         ) : (
           <div className="text-slate-400">No data available</div>
         )}

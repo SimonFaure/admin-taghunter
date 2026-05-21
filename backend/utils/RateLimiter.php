@@ -66,7 +66,7 @@ class RateLimiter {
         $db->execute(
             'INSERT INTO login_attempts (email, ip_address, success, failure_reason)
              VALUES (?, ?, ?, ?)',
-            [$email, $ipAddress, $success, $failureReason]
+            [$email, $ipAddress, (int)$success, $failureReason]
         );
     }
 

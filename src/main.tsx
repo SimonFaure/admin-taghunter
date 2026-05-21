@@ -2,6 +2,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { registerCatalogFonts } from './fonts/registerCatalogFonts';
+
+// Make the bundled curated fonts available to the Typography picker preview
+// and the scenario preview renderer.
+registerCatalogFonts();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

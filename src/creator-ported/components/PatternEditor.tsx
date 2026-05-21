@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Save, Plus, Trash2, X, ChevronDown, Search, Upload } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { Alert } from './Alert';
 import { authService } from '../services/authService';
 import { ClientSelector } from './ClientSelector';
@@ -205,14 +205,15 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
   const [publishSteps, setPublishSteps] = useState<PublishStep[]>([]);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  const isMystery = gameType === 'mystery' || gameType === 'survival';
-  const assignmentTypes = isMystery
-    ? ['good_answer_station', 'wrong_answer_station']
-    : ['image_1', 'image_2', 'image_3', 'image_4'];
-
-  const columnLabels = isMystery
-    ? ['Good Answer Station', 'Wrong Answer Station']
-    : ['Image 1 Station', 'Image 2 Station', 'Image 3 Station', 'Image 4 Station'];
+  const PATTERN_SHAPES: Record<string, { types: string[]; labels: string[] }> = {
+    mystery:  { types: ['good_answer_station', 'wrong_answer_station'], labels: ['Good Answer Station', 'Wrong Answer Station'] },
+    survival: { types: ['good_answer_station', 'wrong_answer_station'], labels: ['Good Answer Station', 'Wrong Answer Station'] },
+    tagquest: { types: ['image_1', 'image_2', 'image_3', 'image_4'],    labels: ['Image 1 Station', 'Image 2 Station', 'Image 3 Station', 'Image 4 Station'] },
+    tracks:   { types: ['station'],                                      labels: ['Station'] },
+  };
+  const shape = PATTERN_SHAPES[gameType] ?? PATTERN_SHAPES.tagquest;
+  const assignmentTypes = shape.types;
+  const columnLabels = shape.labels;
 
   useEffect(() => {
     const loadData = async () => {
@@ -232,16 +233,16 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
 
   const loadPatternInfo = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('patterns')
-        .select('version, slug, name')
+        .select('version, pattern_slug, name')
         .eq('id', patternId)
         .single();
 
       if (error) throw error;
       if (data) {
         setVersion(data.version);
-        const currentSlug = data.slug || generatePatternSlug(data.name);
+        const currentSlug = data.pattern_slug || generatePatternSlug(data.name);
         setSlug(currentSlug);
       }
     } catch (error) {
@@ -251,7 +252,7 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
 
   const loadStations = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('si_balises')
         .select('id, station_name, station_function')
         .order('id', { ascending: true });
@@ -264,10 +265,27 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
     }
   };
 
+  const hydrateRowsFromItems = (items: Array<{ item_index: number; assignment_type: string; station_key_number: number | null }>): PatternRow[] => {
+    const rowMap = new Map<number, Record<string, number | null>>();
+    items.forEach(item => {
+      if (!rowMap.has(item.item_index)) {
+        const assignments: Record<string, number | null> = {};
+        assignmentTypes.forEach(t => { assignments[t] = null; });
+        rowMap.set(item.item_index, assignments);
+      }
+      const row = rowMap.get(item.item_index)!;
+      if (assignmentTypes.includes(item.assignment_type)) {
+        row[item.assignment_type] = item.station_key_number;
+      }
+    });
+    const sortedIndices = Array.from(rowMap.keys()).sort((a, b) => a - b);
+    return sortedIndices.map(idx => ({ index: idx, assignments: rowMap.get(idx)! }));
+  };
+
   const loadPatternItems = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('pattern_items')
         .select('id, item_index, assignment_type, station_key_number')
         .eq('pattern_id', patternId)
@@ -276,28 +294,37 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const rowMap = new Map<number, Record<string, number | null>>();
-        data.forEach((item: any) => {
-          if (!rowMap.has(item.item_index)) {
-            const assignments: Record<string, number | null> = {};
-            assignmentTypes.forEach(t => { assignments[t] = null; });
-            rowMap.set(item.item_index, assignments);
-          }
-          const row = rowMap.get(item.item_index)!;
-          row[item.assignment_type] = item.station_key_number;
-        });
-
-        const loadedRows: PatternRow[] = [];
-        const sortedIndices = Array.from(rowMap.keys()).sort((a, b) => a - b);
-        sortedIndices.forEach(idx => {
-          loadedRows.push({ index: idx, assignments: rowMap.get(idx)! });
-        });
-        setRows(loadedRows);
-      } else {
-        const emptyAssignments: Record<string, number | null> = {};
-        assignmentTypes.forEach(t => { emptyAssignments[t] = null; });
-        setRows([{ index: 1, assignments: { ...emptyAssignments } }]);
+        setRows(hydrateRowsFromItems(data as any));
+        return;
       }
+
+      // No pattern_items rows — try lazy backfill from legacy pattern_data JSON.
+      const legacy = await db
+        .from('patterns')
+        .select('pattern_data')
+        .eq('id', patternId)
+        .single();
+      const raw = legacy?.data?.pattern_data;
+      if (raw) {
+        try {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.pattern_data) ? parsed.pattern_data : null;
+          if (Array.isArray(items) && items.length > 0 && items.every(it => typeof it?.item_index === 'number' && typeof it?.assignment_type === 'string')) {
+            const hydrated = hydrateRowsFromItems(items);
+            if (hydrated.length > 0) {
+              setRows(hydrated);
+              setAlert({ type: 'success', message: 'Loaded from legacy JSON. Save to migrate into pattern_items.' });
+              return;
+            }
+          }
+        } catch {
+          // fall through to empty default
+        }
+      }
+
+      const emptyAssignments: Record<string, number | null> = {};
+      assignmentTypes.forEach(t => { emptyAssignments[t] = null; });
+      setRows([{ index: 1, assignments: { ...emptyAssignments } }]);
     } catch (error) {
       console.error('Error loading pattern items:', error);
       setAlert({ type: 'error', message: 'Failed to load pattern items.' });
@@ -343,7 +370,7 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
     try {
       setSaving(true);
 
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await db
         .from('pattern_items')
         .delete()
         .eq('pattern_id', patternId);
@@ -371,7 +398,7 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
       });
 
       if (itemsToInsert.length > 0) {
-        const { error: insertError } = await supabase
+        const { error: insertError } = await db
           .from('pattern_items')
           .insert(itemsToInsert);
 
@@ -379,9 +406,9 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
       }
 
       const newSlug = generatePatternSlug(name);
-      const { error: updateError } = await supabase
+      const { error: updateError } = await db
         .from('patterns')
-        .update({ name: name, slug: newSlug, updated_at: new Date().toISOString() })
+        .update({ name: name, pattern_slug: newSlug, updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ') })
         .eq('id', patternId);
 
       if (updateError) throw updateError;

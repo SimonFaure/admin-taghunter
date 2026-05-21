@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LayoutEditor } from '../../creator-ported/components/LayoutEditor';
-import { supabase } from '../../creator-ported/lib/db';
+import { db } from '../../creator-ported/lib/db';
 import { useAuth } from '../../auth/AuthContext';
 
 // /studio/layouts/:uniqid treats :uniqid as the *scenario* uniqid — LayoutEditor
@@ -24,7 +24,7 @@ export function StudioLayoutRoute() {
       setLoading(true);
       setError(null);
       try {
-        const { data, error: e } = await supabase
+        const { data, error: e } = await db
           .from('scenarios')
           .select('id')
           .eq('uniqid', uniqid)

@@ -343,7 +343,7 @@ image_overscore_step_1,bronze.png`}
               <div className="mt-4 bg-amber-900/20 border-l-4 border-amber-500 p-3 rounded">
                 <p className="text-sm text-amber-300">
                   <strong>Important:</strong> All image filenames in CSV must match files in the <code className="bg-slate-800 px-1 rounded">media/</code> folder.
-                  During import, files are uploaded to Supabase Storage at path <code className="bg-slate-800 px-1 rounded">{'{'}scenario_id{'}'}/{'{'}filename{'}'}</code>
+                  During import, files are uploaded to media storage at path <code className="bg-slate-800 px-1 rounded">{'{'}scenario_id{'}'}/{'{'}filename{'}'}</code>
                 </p>
               </div>
             </div>

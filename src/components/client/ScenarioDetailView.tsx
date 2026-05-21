@@ -1,17 +1,13 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, Loader2, AlertCircle, CheckCircle, Pencil } from 'lucide-react';
 import { secureAuth } from '../../lib/secureAuth';
+import { authFetch } from '../../lib/authFetch';
 import { getGameVisualUrl } from './MyScenariosView';
 import type { ClientScenario } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
-
-interface ScenarioDetailViewProps {
-  scenario: ClientScenario;
-  onBack: () => void;
-}
 
 function parseMedias(medias: string | Record<string, unknown> | null | undefined) {
   if (!medias) return {};
@@ -43,19 +39,62 @@ function getExtraImages(medias: string | Record<string, unknown> | null | undefi
     });
 }
 
-export function ScenarioDetailView({ scenario, onBack }: ScenarioDetailViewProps) {
-  const gameVisual = getGameVisualUrl(scenario.medias, scenario.uniqid);
-  const extraImages = getExtraImages(scenario.medias, scenario.uniqid);
+export function ScenarioDetailView() {
+  const { uniqid = '' } = useParams();
+  const navigate = useNavigate();
+  const onBack = () => navigate('/my/scenarios');
+
+  // TODO: replace with a single-row endpoint (e.g. client_scenarios.php?action=get&uniqid=)
+  // when one is available. For now we fetch the full list and find the matching row.
+  const [scenario, setScenario] = useState<ClientScenario | null>(null);
+  const [loadingScenario, setLoadingScenario] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingScenario(true);
+      setLoadError(null);
+      try {
+        const res = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=list`);
+        const body = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setLoadError(body?.error || 'Failed to load scenario');
+        } else {
+          const list = (body?.data as ClientScenario[]) || [];
+          const found = list.find((s) => s.uniqid === uniqid) || null;
+          if (!found) setLoadError('Scenario not found');
+          setScenario(found);
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Network error');
+      } finally {
+        if (!cancelled) setLoadingScenario(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [uniqid]);
+
+  const gameVisual = getGameVisualUrl(scenario?.medias, scenario?.uniqid);
+  const extraImages = getExtraImages(scenario?.medias, scenario?.uniqid);
   const allImages = [...(gameVisual ? [gameVisual] : []), ...extraImages];
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [videoUrl, setVideoUrl] = useState<string | null>(getVideoUrl(scenario.medias, scenario.uniqid));
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoUploadError, setVideoUploadError] = useState<string | null>(null);
   const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setVideoUrl(getVideoUrl(scenario?.medias, scenario?.uniqid));
+    setActiveImageIndex(0);
+  }, [scenario]);
 
   const getAuthHeaders = (): Record<string, string> => {
     const token = secureAuth.getStoredToken();
@@ -79,6 +118,7 @@ export function ScenarioDetailView({ scenario, onBack }: ScenarioDetailViewProps
     setVideoUploadSuccess(false);
 
     const formData = new FormData();
+    if (!scenario) return;
     formData.append('video', file);
     formData.append('uniqid', scenario.uniqid);
 
@@ -107,6 +147,7 @@ export function ScenarioDetailView({ scenario, onBack }: ScenarioDetailViewProps
   };
 
   const handleDownloadZip = async () => {
+    if (!scenario) return;
     setDownloadingZip(true);
     setDownloadError(null);
 
@@ -139,7 +180,30 @@ export function ScenarioDetailView({ scenario, onBack }: ScenarioDetailViewProps
     }
   };
 
-  const navigate = useNavigate();
+  if (loadingScenario) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (loadError || !scenario) {
+    return (
+      <div className="space-y-3">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          <span className="text-sm font-medium">Back to Scenarios</span>
+        </button>
+        <div className="bg-red-50 p-6 rounded-xl border border-red-200">
+          <p className="text-red-600">{loadError || 'Scenario not found'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

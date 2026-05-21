@@ -1,6 +1,5 @@
-// Media adapter that mimics the subset of Supabase Storage used by the Creator,
-// routing calls to /backend/api/media.php on the admin backend. Returned shapes
-// match Supabase (`{ data, error }`) so existing call sites don't need to change.
+// Media adapter — routes storage calls to /backend/api/media.php on the admin
+// backend. Returns `{ data, error }` shapes.
 
 import { authService } from '../services/authService';
 
@@ -14,7 +13,6 @@ function authHeaders(): Record<string, string> {
 }
 
 class MediaBucket {
-  // Supabase call: supabase.storage.from('game-media').upload(path, file, opts?)
   async upload(
     path: string,
     file: Blob | File,
@@ -43,7 +41,6 @@ class MediaBucket {
     }
   }
 
-  // Supabase call: supabase.storage.from('game-media').download(path)
   async download(path: string): Promise<StorageResult<Blob>> {
     try {
       const response = await fetch(`${MEDIA_BASE_URL}/media/${path}`, {
@@ -58,7 +55,6 @@ class MediaBucket {
     }
   }
 
-  // Supabase call: supabase.storage.from('game-media').remove([paths])
   async remove(paths: string[]): Promise<StorageResult<{ deleted: string[] }>> {
     try {
       const response = await fetch(`${API_BASE_URL}/media.php?action=delete_path`, {
@@ -76,7 +72,6 @@ class MediaBucket {
     }
   }
 
-  // Supabase call: supabase.storage.from('game-media').list(prefix)
   async list(prefix: string): Promise<StorageResult<Array<{ name: string; size: number; updated_at: string }>>> {
     try {
       const response = await fetch(
@@ -93,7 +88,6 @@ class MediaBucket {
     }
   }
 
-  // Supabase call: supabase.storage.from('game-media').getPublicUrl(path) (synchronous)
   getPublicUrl(path: string): { data: { publicUrl: string } } {
     return { data: { publicUrl: `${MEDIA_BASE_URL}/media/${path}` } };
   }

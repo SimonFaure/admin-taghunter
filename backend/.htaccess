@@ -1,6 +1,12 @@
 RewriteEngine On
 RewriteBase /backend/
 
+# Forward the Authorization header to PHP. Apache strips it from the CGI
+# environment by default; without this rule $_SERVER['HTTP_AUTHORIZATION']
+# is always empty and bearer-token endpoints reject every request as 401.
+RewriteCond %{HTTP:Authorization} ^(.+)
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%1]
+
 # Set CORS headers for all requests
 Header always set Access-Control-Allow-Origin "*"
 Header always set Access-Control-Allow-Methods "POST, GET, PUT, DELETE, OPTIONS"

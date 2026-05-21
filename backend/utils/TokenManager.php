@@ -4,6 +4,7 @@ class TokenManager {
     private const TOKEN_LENGTH = 64;
     private const TOKEN_EXPIRY_HOURS = 24;
     private const LONG_LIVED_TOKEN_EXPIRY_DAYS = 30;
+    private const PLAYGROUND_TOKEN_EXPIRY_DAYS = 3650;
 
     public static function generateSecureToken(): string {
         return bin2hex(random_bytes(self::TOKEN_LENGTH));
@@ -136,6 +137,31 @@ class TokenManager {
         self::revokeToken($db, $oldToken);
 
         return self::createToken($db, $tokenData['user_id'], $ipAddress, $userAgent, $tokenData['user_type']);
+    }
+
+    public static function createPlaygroundToken(
+        object $db,
+        string $userId,
+        int $deviceId,
+        string $ipAddress,
+        string $userAgent
+    ): array {
+        $token = self::generateSecureToken();
+        $hashedToken = self::hashToken($token);
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+' . self::PLAYGROUND_TOKEN_EXPIRY_DAYS . ' days'));
+
+        $db->execute(
+            'INSERT INTO auth_tokens (user_id, user_type, device_id, token, expires_at, ip_address, user_agent, long_lived)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 1)',
+            [$userId, 'client', $deviceId, $hashedToken, $expiresAt, $ipAddress, $userAgent]
+        );
+
+        return [
+            'token' => $token,
+            'expires_at' => $expiresAt,
+            'long_lived' => true,
+            'device_id' => $deviceId,
+        ];
     }
 
     public static function hasValidLongLivedToken(object $db, string $userId, string $userType = 'client'): ?string {

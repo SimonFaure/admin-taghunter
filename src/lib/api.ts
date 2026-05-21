@@ -1,3 +1,5 @@
+import { CardsConflictError } from './cardsApi';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 interface ApiResponse<T> {
@@ -159,7 +161,6 @@ export interface ScenarioData {
   client_id?: number;
   title: string;
   description: string;
-  media_url?: string;
   game_data?: string;
   game_type?: string;
   scenario_type?: string;
@@ -231,54 +232,119 @@ export const dashboardApi = {
   },
 };
 
-export interface ClientCardMetadata {
+// Row-based admin cards endpoints. These THROW on error so that 409
+// conflicts can surface their error_code via CardsConflictError; the rest
+// of the admin API uses ApiResponse<T>. The legacy CSV-based admin
+// endpoints were retired in Unit 7.
+
+export const adminCardsApi = {
+  async listAllDb(): Promise<ClientCardSummary[]> {
+    const body = await adminCardsThrowingRequest<{ success: boolean; data: ClientCardSummary[] }>(
+      'admin_list_all_db'
+    );
+    return body.data;
+  },
+
+  async listCards(clientId: number): Promise<{ cards: AdminCardRow[]; version: number }> {
+    return adminCardsThrowingRequest(`admin_list_cards&client_id=${clientId}`);
+  },
+
+  async createCard(clientId: number, card: AdminNewCardInput): Promise<{ version: number }> {
+    return adminCardsThrowingRequest('admin_create_card', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: clientId, ...card }),
+    });
+  },
+
+  async updateCard(
+    clientId: number,
+    id: number,
+    fields: AdminCardUpdateInput
+  ): Promise<{ version: number }> {
+    return adminCardsThrowingRequest('admin_update_card', {
+      method: 'PUT',
+      body: JSON.stringify({ client_id: clientId, id, ...fields }),
+    });
+  },
+
+  async deleteCard(clientId: number, id: number): Promise<{ version: number }> {
+    return adminCardsThrowingRequest(
+      `admin_delete_card&client_id=${clientId}&id=${id}`,
+      { method: 'DELETE' }
+    );
+  },
+
+  async importCsv(clientId: number, file: File): Promise<AdminImportCsvResponse> {
+    const formData = new FormData();
+    formData.append('client_id', String(clientId));
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/cards.php?action=admin_import_csv`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.error || `import failed (${response.status})`);
+    }
+    return data as AdminImportCsvResponse;
+  },
+};
+
+async function adminCardsThrowingRequest<T>(action: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}/cards.php?action=${action}`, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...(init.headers as Record<string, string> | undefined) },
+    ...init,
+  });
+  const body = await response.json().catch(() => ({}));
+  if (response.status === 409 && body.error_code) {
+    throw new CardsConflictError(body.error_code, body.error || body.error_code);
+  }
+  if (!response.ok) {
+    throw new Error(body.error || `${action} failed (${response.status})`);
+  }
+  return body as T;
+}
+
+export interface AdminCardRow {
+  id: number;
+  key_number: number;
+  key_name: string;
+  color: string | null;
+}
+
+export interface AdminNewCardInput {
+  id: number;
+  key_number: number;
+  key_name: string;
+  color?: string | null;
+}
+
+export interface AdminCardUpdateInput {
+  key_number?: number;
+  key_name?: string;
+  color?: string | null;
+}
+
+export interface ClientCardSummary {
   id: number;
   email: string;
   name: string;
   version: number | null;
   created_at: string | null;
   updated_at: string | null;
-  has_file: boolean;
-  file_size: number;
   card_count: number;
 }
 
-export interface CardData {
-  [key: string]: string;
-}
-
-export interface ClientCardsDataResponse {
+export interface AdminImportCsvResponse {
   success: boolean;
-  data: CardData[];
-  headers: string[];
-  count: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+  version: number;
 }
-
-export const adminCardsApi = {
-  async listAll(): Promise<ApiResponse<{ data: ClientCardMetadata[] }>> {
-    return apiRequest('/cards.php?action=admin_list_all', {
-      method: 'GET',
-    });
-  },
-
-  async getCardsData(clientId: number): Promise<ApiResponse<ClientCardsDataResponse>> {
-    return apiRequest(`/cards.php?action=admin_get_data&client_id=${clientId}`, {
-      method: 'GET',
-    });
-  },
-
-  async downloadCardsFile(clientId: number): Promise<Blob> {
-    const response = await fetch(`${API_BASE_URL}/cards.php?action=admin_download&client_id=${clientId}`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to download cards file');
-    }
-    return response.blob();
-  },
-};
 
 export interface OnDemandPoolCard {
   id: string;
@@ -353,5 +419,72 @@ export const onDemandCardsApi = {
       method: 'POST',
       body: JSON.stringify({ client_id: clientId }),
     });
+  },
+};
+
+export interface ImportSummary {
+  total: number;
+  created: number;
+  skipped: number;
+  failed: number;
+}
+
+export interface ImportCreatedRow {
+  slug: string;
+  uniqid: string;
+  title: string;
+  id: number;
+  game_type: string;
+  media_count: number;
+}
+
+export interface ImportSkippedRow {
+  slug: string;
+  uniqid: string;
+  reason: string;
+  existing_id?: number;
+}
+
+export interface ImportFailedRow {
+  slug: string;
+  error: string;
+}
+
+export interface ImportResult {
+  success: boolean;
+  summary: ImportSummary;
+  created: ImportCreatedRow[];
+  skipped: ImportSkippedRow[];
+  failed: ImportFailedRow[];
+}
+
+export const scenarioImportApi = {
+  async importZip(
+    file: File,
+    ownership: 'product' | 'client',
+    clientId: number | null
+  ): Promise<ApiResponse<ImportResult>> {
+    const fd = new FormData();
+    fd.append('zip_file', file);
+    fd.append('ownership', ownership);
+    if (ownership === 'client' && clientId !== null) {
+      fd.append('client_id', String(clientId));
+    }
+    const token = (() => {
+      try { return localStorage.getItem('auth_token') || ''; } catch { return ''; }
+    })();
+    try {
+      const response = await fetch(`${API_BASE_URL}/scenario_import.php?action=import`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { 'X-Auth-Token': token } : {},
+        body: fd,
+      });
+      const data = await response.json();
+      if (!response.ok) return { error: data.error || 'Import failed' };
+      return { data };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Network error' };
+    }
   },
 };

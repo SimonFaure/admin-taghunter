@@ -1,7 +1,7 @@
 // @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, Send, Maximize2, Minimize2, ChevronLeft, ChevronRight, LayoutGrid as Layout, Type, Image, Eye, EyeOff, ChevronDown, ChevronRight as ChevronRightSm, Layers, Download } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { getMediaUrl } from '../utils/mediaUrl';
 import { Alert } from './Alert';
 import { authService } from '../services/authService';
@@ -208,7 +208,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       const email = authService.getEmail() || '';
       setUserEmail(email);
 
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('scenarios')
         .select('media, data, scenario_type, scenario_layout, uniqid')
         .eq('id', scenarioId)
@@ -226,9 +226,6 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       const hasMysteryStructure = gameData?.game_meta?.enigmas && Array.isArray(gameData.game_meta.enigmas);
       setIsMysteryGame(hasMysteryStructure);
 
-      const numQuests = parseInt(gameData?.game_meta?.number_of_quests || '0', 10);
-      setQuestCount(numQuests);
-
       let actualGameType = '';
       if (hasMysteryStructure) {
         actualGameType = 'mystery';
@@ -238,13 +235,18 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         actualGameType = data.scenario_type || '';
       }
 
+      const numQuests = actualGameType === 'tagquest'
+        ? 6
+        : parseInt(gameData?.game_meta?.number_of_quests || '0', 10);
+      setQuestCount(numQuests);
+
       setScenarioType(actualGameType);
 
       if (actualGameType) {
         const metaKey = (actualGameType === 'mystery' || actualGameType === 'tracks')
           ? `${actualGameType}_layout_${initialLayoutMode || 'instruction'}`
           : `${actualGameType}_layout`;
-        const { data: configData } = await supabase
+        const { data: configData } = await db
           .from('default_config')
           .select('version')
           .eq('meta', metaKey)
@@ -749,7 +751,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         throw new Error('Meta key is empty. Cannot save layout without a valid key.');
       }
 
-      const { data: existingConfig, error: fetchError } = await supabase
+      const { data: existingConfig, error: fetchError } = await db
         .from('default_config')
         .select('version, layout_uniqid')
         .eq('meta', metaKey)
@@ -763,7 +765,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       const existingUniqid = (existingConfig as any)?.layout_uniqid || layoutUniqid;
       const uniqid = existingUniqid || `layout_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-      const { error: upsertError } = await supabase
+      const { error: upsertError } = await db
         .from('default_config')
         .upsert({
           meta: metaKey,
@@ -797,7 +799,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     try {
       await saveLayout();
 
-      const { data: existingConfig } = await supabase
+      const { data: existingConfig } = await db
         .from('default_config')
         .select('version')
         .eq('meta', scenarioType === 'mystery' || scenarioType === 'tracks' ? `${scenarioType}_layout_${layoutMode}` : `${scenarioType}_layout`)

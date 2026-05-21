@@ -1,7 +1,7 @@
 // @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Download, Calendar, Layers, X, Upload, ChevronDown } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { Alert } from './Alert';
 import { PatternImport } from './PatternImport';
 import { generatePatternSlug } from '../utils/patterns';
@@ -13,7 +13,7 @@ interface Pattern {
   name: string;
   game_type: string;
   version: number;
-  slug: string | null;
+  pattern_slug: string | null;
   status: PatternStatus;
   created_at: string;
   updated_at: string;
@@ -76,14 +76,14 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
 
   const loadPatterns = async () => {
     try {
-      const { data: patternsData, error: patternsError } = await supabase
+      const { data: patternsData, error: patternsError } = await db
         .from('patterns')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (patternsError) throw patternsError;
 
-      const { data: itemCounts, error: countError } = await supabase
+      const { data: itemCounts, error: countError } = await db
         .from('pattern_items')
         .select('pattern_id');
 
@@ -144,14 +144,14 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
 
     setIsCreating(true);
     try {
-      const now = new Date().toISOString();
+      const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
       const trimmedName = createForm.name.trim();
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('patterns')
         .insert({
           name: trimmedName,
           game_type: createForm.gameType,
-          slug: generatePatternSlug(trimmedName),
+          pattern_slug: generatePatternSlug(trimmedName),
           created_at: now,
           updated_at: now,
         })
@@ -178,14 +178,14 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
     setDeleteDialog((prev) => ({ ...prev, isDeleting: true }));
 
     try {
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await db
         .from('pattern_items')
         .delete()
         .eq('pattern_id', deleteDialog.pattern.id);
 
       if (itemsError) throw itemsError;
 
-      const { error } = await supabase
+      const { error } = await db
         .from('patterns')
         .delete()
         .eq('id', deleteDialog.pattern.id);
@@ -205,9 +205,9 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
   const handleStatusChange = async (pattern: Pattern, newStatus: PatternStatus) => {
     setStatusDropdown(null);
     try {
-      const { error } = await supabase
+      const { error } = await db
         .from('patterns')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: newStatus, updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ') })
         .eq('id', pattern.id);
 
       if (error) throw error;
@@ -225,7 +225,7 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
 
   const handleExportJSON = async (pattern: Pattern) => {
     try {
-      const { data: items, error: itemsError } = await supabase
+      const { data: items, error: itemsError } = await db
         .from('pattern_items')
         .select('*')
         .eq('pattern_id', pattern.id)
@@ -238,7 +238,7 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
         game_type: pattern.game_type,
         version: String(pattern.version),
         pattern_uniqid: pattern.id,
-        pattern_slug: pattern.slug ?? null,
+        pattern_slug: pattern.pattern_slug ?? null,
         description: null,
         is_default: false,
         pattern_data: items || [],
@@ -248,7 +248,7 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `pattern_${pattern.id}_${pattern.slug ?? pattern.name.replace(/\s+/g, '_')}.json`;
+      a.download = `pattern_${pattern.id}_${pattern.pattern_slug ?? pattern.name.replace(/\s+/g, '_')}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -485,6 +485,26 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1.5">
                     Number of enigmas
+                  </label>
+                  <input
+                    type="number"
+                    value={createForm.numberOfItems}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        numberOfItems: parseInt(e.target.value) || 1,
+                      }))
+                    }
+                    min={1}
+                    className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  />
+                </div>
+              )}
+
+              {createForm.gameType === 'tracks' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                    Number of steps
                   </label>
                   <input
                     type="number"

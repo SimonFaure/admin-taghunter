@@ -1,7 +1,7 @@
 // @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useEffect } from 'react';
 import { Plus, CreditCard as Edit, Trash2, Eye, FileArchive, Book } from 'lucide-react';
-import { supabase } from '../lib/db';
+import { db } from '../lib/db';
 import { getMediaUrl } from '../utils/mediaUrl';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -55,7 +55,7 @@ export function ScenarioList({ onCreateNew, onEdit, onConfigure, onImport, onVie
 
   const loadScenarios = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('scenarios')
         .select('*')
         .order('game_type', { ascending: true })
@@ -87,16 +87,16 @@ export function ScenarioList({ onCreateNew, onEdit, onConfigure, onImport, onVie
       const scenarioId = deleteDialog.scenario.id;
       const storageKey = deleteDialog.scenario.uniqid || scenarioId;
 
-      const { data: mediaFiles } = await supabase.storage
+      const { data: mediaFiles } = await db.storage
         .from('game-media')
         .list(storageKey);
 
       if (mediaFiles && mediaFiles.length > 0) {
         const filesToDelete = mediaFiles.map(file => `${storageKey}/${file.name}`);
-        await supabase.storage.from('game-media').remove(filesToDelete);
+        await db.storage.from('game-media').remove(filesToDelete);
       }
 
-      const { error } = await supabase
+      const { error } = await db
         .from('scenarios')
         .delete()
         .eq('id', scenarioId);
