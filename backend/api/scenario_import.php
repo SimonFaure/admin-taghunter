@@ -80,6 +80,42 @@ function ti_detect_delimiter($firstLine) {
     return strpos($firstLine, ';') !== false ? ';' : ',';
 }
 
+/** Wrap a plain string in a Localized<fr> map; returns [] for empty/non-string. */
+function ti_loc_fr($s) {
+    if (!is_string($s) || $s === '') return [];
+    return ['fr' => $s];
+}
+
+/**
+ * Mystery only: map known game_user_meta.csv keys to text_* fields. Returns
+ * `[mapped, skipped]` where `mapped` is keyed by text_* field (Localized<fr>)
+ * and `skipped` is a list of the original keys that have no unambiguous home.
+ */
+function ti_map_mystery_user_meta($tempDir, $slug) {
+    $path = ti_find_game_file($tempDir, $slug, 'game_user_meta.csv');
+    if (!$path) return [[], []];
+    $rows = ti_parse_csv_file($path);
+    $mapping = [
+        'start_team' => 'text_player_starts',
+        'late_malus' => 'text_late_malus',
+        'game_ended' => 'text_team_ended',
+        'all_teams_ended' => 'text_all_team_ended',
+    ];
+    $mapped = [];
+    $skipped = [];
+    foreach ($rows as $r) {
+        $key = $r['meta'] ?? '';
+        $val = $r['value'] ?? '';
+        if ($key === '') continue;
+        if (isset($mapping[$key])) {
+            $mapped[$mapping[$key]] = ti_loc_fr($val);
+        } else {
+            $skipped[] = $key;
+        }
+    }
+    return [$mapped, $skipped];
+}
+
 function ti_parse_csv_line($line, $delimiter) {
     $result = [];
     $current = '';
@@ -215,6 +251,61 @@ function ti_list_mystery_media($tempDir, $slug) {
     return $files;
 }
 
+/**
+ * Mystery: locate a media binary by its legacy id + intended file_name.
+ *
+ * The Spatie MediaLibrary export layout is `games/{slug}/media/{id}/{file}`,
+ * but flatter layouts (`games/{slug}/media/{file}`) and accent-stripped
+ * filenames also appear in the wild. Try in this order, returning the first
+ * hit:
+ *   1. exact `media/{id}/{file_name}`
+ *   2. any file inside `media/{id}/` (Spatie's per-id folder, regardless of name)
+ *   3. flat `media/{file_name}`
+ *   4. recursive search for any file whose basename matches `file_name` (or its
+ *      sanitized form).
+ */
+function ti_find_mystery_media_file($tempDir, $slug, $legacyId, $fileName) {
+    $bases = [
+        "$tempDir/games/$slug/media",
+        "$tempDir/$slug/media",
+    ];
+    if ($legacyId !== '') {
+        foreach ($bases as $base) {
+            $idDir = $base . DIRECTORY_SEPARATOR . $legacyId;
+            if ($fileName !== '') {
+                $exact = $idDir . DIRECTORY_SEPARATOR . $fileName;
+                if (is_file($exact)) return $exact;
+            }
+            if (is_dir($idDir)) {
+                foreach (scandir($idDir) as $entry) {
+                    if ($entry === '.' || $entry === '..') continue;
+                    $full = $idDir . DIRECTORY_SEPARATOR . $entry;
+                    if (is_file($full)) return $full;
+                }
+            }
+        }
+    }
+    if ($fileName === '') return null;
+    foreach ($bases as $base) {
+        $flat = $base . DIRECTORY_SEPARATOR . $fileName;
+        if (is_file($flat)) return $flat;
+    }
+    // Recursive fallback: any file with matching basename (raw or sanitized).
+    $targets = [strtolower($fileName), strtolower(ti_sanitize_filename($fileName))];
+    foreach ($bases as $base) {
+        if (!is_dir($base)) continue;
+        $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base, RecursiveDirectoryIterator::SKIP_DOTS));
+        foreach ($iter as $f) {
+            if (!$f->isFile()) continue;
+            $bn = strtolower($f->getFilename());
+            if (in_array($bn, $targets, true) || in_array(strtolower(ti_sanitize_filename($f->getFilename())), $targets, true)) {
+                return $f->getPathname();
+            }
+        }
+    }
+    return null;
+}
+
 /** Copy a source file into media/{uniqid}/ with a sanitized name. Returns final filename or null. */
 function ti_copy_media($sourcePath, $destDir, $copiedFiles) {
     if (!is_file($sourcePath)) return null;
@@ -281,6 +372,8 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
     $quests = [];
     $mediaIds = [];           // tagquest id-folder lookups
     $soundFieldMappings = []; // tagquest meta-key sound mappings
+    $userMetaMapped = [];     // mystery: game_user_meta.csv → text_* Localized
+    $skippedUserMetaKeys = [];
 
     if ($type === 'mystery') {
         for ($idx = 1; isset($meta["overscore_step_$idx"]) && $meta["overscore_step_$idx"] !== ''; $idx++) {
@@ -303,6 +396,31 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 ];
             }
         }
+        // Mystery sounds live in game_sounds.csv (rows where `image_number` is
+        // the legacy slot name + `sound_id` is the legacy media id). Modern
+        // gameMeta keys differ slightly (top_1 → top_1_sound, full_image →
+        // final_image_sound); rename to the new schema as we ingest.
+        $soundsPath = ti_find_game_file($tempDir, $slug, 'game_sounds.csv');
+        if ($soundsPath) {
+            $mysterySoundMap = [
+                'enigma_success' => 'enigma_success',
+                'enigma_error' => 'enigma_error',
+                'enigma_no_answer' => 'enigma_no_answer',
+                'full_image' => 'final_image_sound',
+                'top_1' => 'top_1_sound',
+                'top_3' => 'top_3_sound',
+                'top_10' => 'top_10_sound',
+            ];
+            foreach (ti_parse_csv_file($soundsPath) as $s) {
+                $slot = $s['image_number'] ?? '';
+                $soundId = $s['sound_id'] ?? '';
+                if ($soundId === '' || $slot === '') continue;
+                if (isset($mysterySoundMap[$slot])) {
+                    $soundFieldMappings[$mysterySoundMap[$slot]] = $soundId;
+                }
+            }
+        }
+        [$userMetaMapped, $skippedUserMetaKeys] = ti_map_mystery_user_meta($tempDir, $slug);
     } elseif ($type === 'tagquest') {
         $imagesPath = ti_find_game_file($tempDir, $slug, 'game_images.csv')
             ?: ti_find_game_file($tempDir, $slug, 'game_media_images.csv');
@@ -433,10 +551,34 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 }
             }
         } else {
+            // Mystery / survival: every media reference in game_meta and
+            // game_enigmas is a legacy id (e.g. background_image=3739). We
+            // must end up with $mediaMapping[<legacy-id>] = <sanitized name>.
+            // The source of truth for id → file_name is game_media_images.csv.
+            $mediaCsvPath = ti_find_game_file($tempDir, $slug, 'game_media_images.csv')
+                ?: ti_find_game_file($tempDir, $slug, 'game_images.csv');
+            if ($mediaCsvPath) {
+                foreach (ti_parse_csv_file($mediaCsvPath) as $row) {
+                    $legacyId = isset($row['id']) ? trim((string)$row['id']) : '';
+                    $fileName = isset($row['file_name']) ? trim((string)$row['file_name']) : '';
+                    if ($legacyId === '' && $fileName === '') continue;
+                    $src = ti_find_mystery_media_file($tempDir, $slug, $legacyId, $fileName);
+                    if (!$src) continue;
+                    $finalName = ti_copy_media($src, $mediaDir, []);
+                    if ($finalName !== null) {
+                        if ($legacyId !== '') $mediaMapping[$legacyId] = $finalName;
+                        $mediaCount++;
+                    }
+                }
+            }
+            // Fallback: also copy anything else found under media/ that the
+            // CSV didn't catalogue, so authors don't lose orphan assets.
             foreach (ti_list_mystery_media($tempDir, $slug) as $src) {
+                $bn = basename($src);
+                $sanitized = ti_sanitize_filename($bn);
+                if (file_exists($mediaDir . DIRECTORY_SEPARATOR . $sanitized)) continue;
                 $finalName = ti_copy_media($src, $mediaDir, []);
                 if ($finalName !== null) {
-                    $mediaMapping[basename($src)] = $finalName;
                     $mediaCount++;
                 }
             }
@@ -533,37 +675,130 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             $decoded = json_decode($meta['levels'], true);
             if (is_array($decoded)) $levels = $decoded;
         }
-        $gameMeta = array_merge([
-            'title' => $title,
-            'scenario' => $description,
-            'scenario_version' => $meta['scenario_version'] ?? ($meta['game_version'] ?? '1.0'),
-            'game_public' => $meta['game_public'] ?? 'kids',
-            'font' => $meta['font'] ?? 'Arial',
-            'font_color' => $meta['font_color'] ?? '#000000',
-            'level_font_color' => $meta['level_font_color'] ?? '#000000',
-            'gauge_filling' => $meta['gauge_filling'] ?? '',
-            'default_time' => $meta['default_time'] ?? '60',
-            'default_time_malus' => $meta['default_time_malus'] ?? '0',
-            'points_units' => $meta['points_units'] ?? 'points',
-            'number_of_enigmas' => $meta['number_of_enigmas'] ?? (string)count($enigmas),
-            'score_full_game' => $meta['score_full_game'] ?? '100',
-            'overscore_steps' => $meta['overscore_steps'] ?? (string)count($overscores),
-            'animation_image_duration' => $meta['animation_image_duration'] ?? '1',
-            'animation_enigma_duration' => $meta['animation_enigma_duration'] ?? '1',
-            'animation_message_duration' => $meta['animation_message_duration'] ?? '2',
-            'combo_2_quests' => $meta['bonus_images_2'] ?? '',
-            'combo_4_quests' => $meta['bonus_images_4'] ?? '',
-            'combo_6_quests' => $meta['bonus_images_6'] ?? '',
-            'malus_points' => $meta['malus_value'] ?? '',
-            'late_malus_points' => $meta['malus_late_value'] ?? '',
-            'custom_fonts' => [],
-        ], $soundFieldMappingsMapped, [
-            'overscores' => $overscores,
-            'enigmas' => $enigmas,
-            'quests' => $quests,
-            'levels' => $levels,
-        ]);
-        $data = ['game_meta' => $gameMeta];
+
+        // Mystery is on the new shape: title/story/enigma.text/level.name+description/
+        // overscore.name_overscore_step are `Localized<string>` maps inline in
+        // game_meta; data has a default_language + available_languages envelope.
+        // Legacy product scenarios are always French (locale hardcoded).
+        if ($type === 'mystery') {
+            $remap = function ($legacyId) use ($mediaMapping) {
+                if (!is_string($legacyId) || $legacyId === '') return '';
+                return $mediaMapping[$legacyId] ?? '';
+            };
+            $enigmasOut = array_map(function ($e) use ($remap) {
+                return [
+                    'number' => $e['number'] ?? '',
+                    'text' => ti_loc_fr($e['text'] ?? ''),
+                    'good_answer_points' => $e['good_answer_points'] ?? '10',
+                    'wrong_answer_points' => $e['wrong_answer_points'] ?? '0',
+                    'good_answer_image' => $remap($e['good_answer_image'] ?? ''),
+                ];
+            }, $enigmas);
+            $overscoresOut = array_map(function ($o) use ($remap) {
+                return [
+                    'overscore_step' => $o['overscore_step'] ?? '',
+                    'overscore_score' => $o['overscore_score'] ?? '',
+                    'name_overscore_step' => ti_loc_fr($o['name_overscore_step'] ?? ''),
+                    'image_overscore_step' => $remap($o['image_overscore_step'] ?? ''),
+                ];
+            }, $overscores);
+            $levelsOut = [];
+            if (is_array($levels)) {
+                foreach ($levels as $k => $lvl) {
+                    $entry = is_array($lvl) ? $lvl : [];
+                    if (isset($entry['name'])) {
+                        $entry['name'] = ti_loc_fr(is_string($entry['name']) ? $entry['name'] : '');
+                    }
+                    if (isset($entry['description'])) {
+                        $entry['description'] = ti_loc_fr(is_string($entry['description']) ? $entry['description'] : '');
+                    }
+                    $levelsOut[(string)$k] = $entry;
+                }
+            }
+            // Modern mystery reads image+gauge fields from gameMeta directly
+            // (then extractFileName at serialize time). Map legacy ids to
+            // sanitized filenames so the editor + buildMediasColumn see a real
+            // filename, not the legacy "3739".
+            $mysteryImageMetaFields = [
+                'background_image', 'game_visual',
+                'game_instructions_image',
+                'game_instructions_button_image', 'game_instructions_button_hover_image',
+                'game_refresh_button_image', 'game_refresh_button_hover_image',
+                'time_background_image', 'score_background_image', 'enigmas_header_image',
+                'steps_container_image',
+                'top_1_image', 'top_3_image', 'top_10_image',
+                'team_name_background_image',
+                'levels_gauge_image', 'levels_gauge_image_with_content',
+                'levels_gauge_player_icon_image', 'levels_gauge_level_icon_image',
+            ];
+            $imageFieldsRemapped = [];
+            foreach ($mysteryImageMetaFields as $f) {
+                if (!empty($meta[$f]) && isset($mediaMapping[$meta[$f]])) {
+                    $imageFieldsRemapped[$f] = $mediaMapping[$meta[$f]];
+                }
+            }
+            $gameMeta = array_merge([
+                'title' => ti_loc_fr($title),
+                'story' => ti_loc_fr($description),
+                'scenario_version' => $meta['scenario_version'] ?? ($meta['game_version'] ?? '1.0'),
+                'game_public' => $meta['game_public'] ?? 'kids',
+                'font' => $meta['font'] ?? 'Arial',
+                'font_color' => $meta['font_color'] ?? '#000000',
+                'level_font_color' => $meta['level_font_color'] ?? '#000000',
+                'gauge_filling' => $meta['gauge_filling'] ?? '',
+                'default_time' => $meta['default_time'] ?? '60',
+                'default_time_malus' => $meta['default_time_malus'] ?? '0',
+                'points_units' => $meta['points_units'] ?? 'points',
+                'number_of_enigmas' => $meta['number_of_enigmas'] ?? (string)count($enigmas),
+                'score_full_game' => $meta['score_full_game'] ?? '100',
+                'overscore_steps' => $meta['overscore_steps'] ?? (string)count($overscores),
+                'animation_image_duration' => $meta['animation_image_duration'] ?? '1',
+                'animation_enigma_duration' => $meta['animation_enigma_duration'] ?? '1',
+                'animation_message_duration' => $meta['animation_message_duration'] ?? '2',
+                'custom_fonts' => [],
+            ], $imageFieldsRemapped, $userMetaMapped, $soundFieldMappingsMapped, [
+                'overscores' => $overscoresOut,
+                'enigmas' => $enigmasOut,
+                'levels' => (object)$levelsOut,
+            ]);
+            $data = [
+                'game_meta' => $gameMeta,
+                'default_language' => 'fr',
+                'available_languages' => ['fr'],
+            ];
+        } else {
+            $gameMeta = array_merge([
+                'title' => $title,
+                'scenario' => $description,
+                'scenario_version' => $meta['scenario_version'] ?? ($meta['game_version'] ?? '1.0'),
+                'game_public' => $meta['game_public'] ?? 'kids',
+                'font' => $meta['font'] ?? 'Arial',
+                'font_color' => $meta['font_color'] ?? '#000000',
+                'level_font_color' => $meta['level_font_color'] ?? '#000000',
+                'gauge_filling' => $meta['gauge_filling'] ?? '',
+                'default_time' => $meta['default_time'] ?? '60',
+                'default_time_malus' => $meta['default_time_malus'] ?? '0',
+                'points_units' => $meta['points_units'] ?? 'points',
+                'number_of_enigmas' => $meta['number_of_enigmas'] ?? (string)count($enigmas),
+                'score_full_game' => $meta['score_full_game'] ?? '100',
+                'overscore_steps' => $meta['overscore_steps'] ?? (string)count($overscores),
+                'animation_image_duration' => $meta['animation_image_duration'] ?? '1',
+                'animation_enigma_duration' => $meta['animation_enigma_duration'] ?? '1',
+                'animation_message_duration' => $meta['animation_message_duration'] ?? '2',
+                'combo_2_quests' => $meta['bonus_images_2'] ?? '',
+                'combo_4_quests' => $meta['bonus_images_4'] ?? '',
+                'combo_6_quests' => $meta['bonus_images_6'] ?? '',
+                'malus_points' => $meta['malus_value'] ?? '',
+                'late_malus_points' => $meta['malus_late_value'] ?? '',
+                'custom_fonts' => [],
+            ], $soundFieldMappingsMapped, [
+                'overscores' => $overscores,
+                'enigmas' => $enigmas,
+                'quests' => $quests,
+                'levels' => $levels,
+            ]);
+            $data = ['game_meta' => $gameMeta];
+        }
 
         $scenarioType = $ownership === 'product' ? 'product' : 'custom';
         $rowClientId = $ownership === 'product' ? null : (int)$clientId;
@@ -588,7 +823,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
 
         $pdo->commit();
 
-        return [
+        $ret = [
             'status' => 'created',
             'slug' => $slug,
             'uniqid' => $uniqid,
@@ -597,6 +832,10 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             'game_type' => $type,
             'media_count' => $mediaCount,
         ];
+        if ($type === 'mystery' && !empty($skippedUserMetaKeys)) {
+            $ret['skipped_user_meta_keys'] = array_values(array_unique($skippedUserMetaKeys));
+        }
+        return $ret;
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         if ($mediaDirCreated && $mediaDir) {
@@ -703,6 +942,10 @@ try {
         }
         $gRows = ti_parse_csv_file($gcsv);
         $gType = isset($gRows[0]['type']) ? strtolower(trim($gRows[0]['type'])) : '';
+        // Legacy: "survival" was the original product label for what we now
+        // call "mystery" (same data shape, same enigmas table). Normalize so
+        // the downstream import pipeline treats both as mystery.
+        if ($gType === 'survival') $gType = 'mystery';
         $games[] = ['slug' => $rowSlug, 'type' => $gType, 'error' => null];
     }
 

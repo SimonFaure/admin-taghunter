@@ -223,6 +223,41 @@ try {
                 $gameData['quests'] = $quests;
                 $gameData['game_meta']['quests'] = $quests;
             }
+
+            // Mystery equivalent: the runtime (MysteryGamePage) reads
+            // `game_data.game_enigmas` (top-level), but the modern shape keeps
+            // enigmas at `game_meta.enigmas` with `good_answer_image` parked
+            // in the structured `medias.enigmas[]` list keyed by enigma_number.
+            // Merge them and expose at top-level so the enigmas grid renders.
+            if (
+                ($scenario['game_type'] ?? '') === 'mystery'
+                && is_array($gameData['game_meta']['enigmas'] ?? null)
+            ) {
+                $enigmaMediaByNumber = [];
+                $enigmaMediaList = is_array($structuredMedias['enigmas'] ?? null)
+                    ? $structuredMedias['enigmas']
+                    : [];
+                foreach ($enigmaMediaList as $em) {
+                    if (!is_array($em)) continue;
+                    $num = $em['enigma_number'] ?? null;
+                    if ($num === null || $num === '') continue;
+                    $enigmaMediaByNumber[(string)$num] = $em;
+                }
+                $merged = [];
+                foreach ($gameData['game_meta']['enigmas'] as $e) {
+                    $entry = is_array($e) ? $e : [];
+                    $num = $entry['number'] ?? null;
+                    if ($num !== null && $num !== '' && isset($enigmaMediaByNumber[(string)$num])) {
+                        foreach ($enigmaMediaByNumber[(string)$num] as $k => $v) {
+                            if ($k === 'enigma_number' || $v === '' || $v === null) continue;
+                            $entry[$k] = $v;
+                        }
+                    }
+                    $merged[] = $entry;
+                }
+                $gameData['game_enigmas'] = $merged;
+                $gameData['game_meta']['enigmas'] = $merged;
+            }
         }
 
         // The `medias` column historically holds a structured object

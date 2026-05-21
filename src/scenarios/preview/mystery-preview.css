@@ -1,0 +1,7 @@
+/* Mystery preview — scoped blur for the locked-enigma state.
+   Matches the runtime's `.blur` rule (see taghunter_playground/src/mystery.css). */
+
+.mystery-preview-scope .mystery-preview-blur {
+  filter: blur(1.2rem);
+  transition: filter 0.4s ease;
+}

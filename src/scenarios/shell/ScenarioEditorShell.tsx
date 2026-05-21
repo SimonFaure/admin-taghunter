@@ -91,6 +91,9 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
               sounds?: Record<string, string>;
               video?: string;
               quests?: Array<Record<string, string | number | undefined>>;
+              enigmas?: Array<Record<string, string | undefined>>;
+              overscores?: Array<Record<string, string | undefined>>;
+              levels?: Record<string, string>;
             }
           | null;
         const parsedLayout = parseCol((data as { scenario_layout: unknown }).scenario_layout);
@@ -136,6 +139,52 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
               if (typeof v === 'string' && v) inMerged[i][k] = v;
             }
           });
+        }
+
+        // Mystery equivalent: medias.enigmas[] is the source of truth for
+        // per-enigma good_answer_image (cleanGameMetaForData strips it off
+        // gameMeta.enigmas on save). Match by enigma_number — the medias array
+        // only contains entries that HAVE an image, so indices may not align.
+        if (parsedMedia?.enigmas && Array.isArray(merged.enigmas)) {
+          const inMerged = merged.enigmas as Array<Record<string, unknown>>;
+          const byNumber = new Map<string, Record<string, string | undefined>>();
+          for (const em of parsedMedia.enigmas) {
+            if (!em) continue;
+            const n = em.enigma_number;
+            if (typeof n === 'string' && n !== '') byNumber.set(n, em);
+          }
+          inMerged.forEach((e) => {
+            const n = e.number;
+            if (typeof n !== 'string' || n === '') return;
+            const m = byNumber.get(n);
+            if (m?.good_answer_image) e.good_answer_image = m.good_answer_image;
+          });
+        }
+
+        // Same for overscores → image_overscore_step (matched by overscore_step).
+        if (parsedMedia?.overscores && Array.isArray(merged.overscores)) {
+          const inMerged = merged.overscores as Array<Record<string, unknown>>;
+          const byStep = new Map<string, Record<string, string | undefined>>();
+          for (const om of parsedMedia.overscores) {
+            if (!om) continue;
+            const s = om.overscore_step;
+            if (typeof s === 'string' && s !== '') byStep.set(s, om);
+          }
+          inMerged.forEach((o) => {
+            const s = o.overscore_step;
+            if (typeof s !== 'string' || s === '') return;
+            const m = byStep.get(s);
+            if (m?.image_overscore_step) o.image_overscore_step = m.image_overscore_step;
+          });
+        }
+
+        // Mystery's level gauge images live in medias.levels (legacy
+        // "levels" overload — these are 4 image fields, not gameplay levels).
+        // Hydrate them onto gameMeta the same way as medias.images.
+        if (parsedMedia?.levels) {
+          for (const [k, v] of Object.entries(parsedMedia.levels)) {
+            if (typeof v === 'string' && v) merged[k] = v;
+          }
         }
 
         const defaultLanguage = parsedData?.default_language ?? 'fr';

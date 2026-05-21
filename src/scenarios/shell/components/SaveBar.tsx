@@ -8,16 +8,18 @@ import { useState } from 'react';
 import { Save, Send, Download, Eye, ChevronsDownUp, ChevronsUpDown, LayoutGrid as Layout } from 'lucide-react';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { TagquestPreviewModal } from '../../preview/TagquestPreviewModal';
+import { MysteryPreviewModal } from '../../preview/MysteryPreviewModal';
 import { useCollapseAll } from './CollapsibleSection';
 
 export function SaveBar() {
   const editor = useScenarioEditor();
   const busy = editor.isSaving || editor.isPublishing;
   const [previewOpen, setPreviewOpen] = useState(false);
-  const previewSupported = editor.gameType === 'tagquest';
+  const previewSupported = editor.gameType === 'tagquest' || editor.gameType === 'mystery';
   const { allCollapsed, toggleAll } = useCollapseAll();
-  // Layout editor button is hidden for tagquest (legacy; not used anymore).
-  const showLayoutButton = editor.gameType !== 'tagquest';
+  // Layout editor button is hidden for game types that don't use a layout JSON
+  // (tagquest renders via defaultTagquestLayout; mystery has fixed CSS).
+  const showLayoutButton = editor.gameType !== 'tagquest' && editor.gameType !== 'mystery';
 
   return (
     <div className="sticky bottom-0 z-10 bg-white border-t border-gray-200 px-6 py-3 flex items-center gap-2">
@@ -80,8 +82,11 @@ export function SaveBar() {
         </button>
       )}
 
-      {previewSupported && (
+      {previewSupported && editor.gameType === 'tagquest' && (
         <TagquestPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
+      )}
+      {previewSupported && editor.gameType === 'mystery' && (
+        <MysteryPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
       )}
     </div>
   );
