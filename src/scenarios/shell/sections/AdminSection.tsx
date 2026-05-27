@@ -7,6 +7,7 @@
 
 import { useScenarioEditor } from '../useScenarioEditor';
 import { CollapsibleSection } from '../components/CollapsibleSection';
+import { AUDIENCE_OPTIONS, normalizeAudience } from '../../../types/audience';
 
 export function AdminSection() {
   const editor = useScenarioEditor();
@@ -29,12 +30,13 @@ export function AdminSection() {
         <label className="block">
           <span className="text-xs font-medium text-gray-700 mb-1 block">Audience (game_public)</span>
           <select
-            value={String(meta.game_public ?? 'kids')}
+            value={normalizeAudience(String(meta.game_public ?? 'kids'))}
             onChange={(e) => setKey('game_public', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
           >
-            <option value="kids">Kids</option>
-            <option value="adults">Adults</option>
+            {AUDIENCE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
           </select>
         </label>
         <label className="block">

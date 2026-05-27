@@ -67,7 +67,7 @@ class DeviceManager {
 
     public static function listForClient(object $db, int $clientId): array {
         return $db->fetchAll(
-            'SELECT d.id, d.device_uniq, d.device_label, d.os, d.os_version,
+            'SELECT d.id, d.device_uniq, d.device_label, d.display_name, d.os, d.os_version,
                     d.playground_version AS app_version,
                     d.created_at, d.updated_at, d.last_seen_at,
                     (SELECT COUNT(*) FROM auth_tokens t
@@ -121,6 +121,36 @@ class DeviceManager {
         }
 
         $db->execute('DELETE FROM devices WHERE id = ?', [$deviceId]);
+        return true;
+    }
+
+    // Sets the user-chosen display name for a device. Pass a $clientId to scope
+    // the update to that client's own devices (playground / "my devices"); pass
+    // null to update by id only (admin acting on any client's device).
+    // Returns true if a matching device row existed.
+    public static function setDisplayName(
+        object $db,
+        int $deviceId,
+        ?string $displayName,
+        ?int $clientId = null
+    ): bool {
+        if ($clientId !== null) {
+            $existing = $db->fetch(
+                'SELECT id FROM devices WHERE id = ? AND client_id = ?',
+                [$deviceId, $clientId]
+            );
+        } else {
+            $existing = $db->fetch('SELECT id FROM devices WHERE id = ?', [$deviceId]);
+        }
+
+        if (!$existing) {
+            return false;
+        }
+
+        $db->execute(
+            'UPDATE devices SET display_name = ?, updated_at = NOW() WHERE id = ?',
+            [$displayName, $deviceId]
+        );
         return true;
     }
 

@@ -11,20 +11,22 @@ import { invalidateAdminTranslations } from '../../scenarios/preview/useAdminTra
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const META_KEY = 'tagquest_translations';
 
-const LABEL_KEYS: readonly AdminLabelKey[] = ['score', 'malus', 'late_malus', 'combo_points'];
+const LABEL_KEYS: readonly AdminLabelKey[] = ['score', 'malus', 'late_malus', 'combo_points', 'next_malus'];
 
 const KEY_LABEL_TEXT: Record<AdminLabelKey, string> = {
   score: 'Score',
   malus: 'Malus',
   late_malus: 'Late Malus',
   combo_points: 'Combo Points',
+  next_malus: 'Next Malus  ({s} = seconds)',
 };
 
-const DEFAULT_KEY_PROP: Record<AdminLabelKey, 'score' | 'malus' | 'lateMalus' | 'comboPoints'> = {
+const DEFAULT_KEY_PROP: Record<AdminLabelKey, 'score' | 'malus' | 'lateMalus' | 'comboPoints' | 'nextMalus'> = {
   score: 'score',
   malus: 'malus',
   late_malus: 'lateMalus',
   combo_points: 'comboPoints',
+  next_malus: 'nextMalus',
 };
 
 function seedFromDefaults(): PreviewLabelsMap {

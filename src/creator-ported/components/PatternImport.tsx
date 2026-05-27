@@ -234,6 +234,62 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
             assignments,
           };
         });
+      } else if (game_type === 'maximus') {
+        // Legacy maximus patterns share the survival balise CSV shape
+        // (enigma_id / good_answers / wrong_answers) but map to the `tracks`
+        // game type. A tracks checkpoint is a binary "reached or not" hit, so
+        // we keep a single `station` assignment per checkpoint (matching the
+        // studio tracks editor's PATTERN_SHAPES) from good_answers[0] and
+        // ignore wrong_answers entirely. The enigma_id is preserved as the
+        // 1-based item_index — the playground runtime matches a checkpoint to
+        // its station by the checkpoint's ordinal position.
+        const baliseCsvPath = `${csvPath}patterns_maximus_balises.csv`;
+        const baliseCsvFile = zip.files[baliseCsvPath];
+
+        if (!baliseCsvFile) {
+          throw new Error(`patterns_maximus_balises.csv not found at ${baliseCsvPath}`);
+        }
+
+        const baliseCsvContent = await baliseCsvFile.async('text');
+        const baliseData = parseCSV(baliseCsvContent);
+
+        const groupedByCheckpoint: Record<number, { station: number | null }> = {};
+        baliseData.forEach(row => {
+          const enigma_id = parseInt(row.enigma_id);
+          const good_answers = row.good_answers || '[]';
+
+          let goodAnswersArray: string[] = [];
+          try {
+            const cleanGood = good_answers.replace(/""/g, '"').replace(/^"|"$/g, '');
+            goodAnswersArray = JSON.parse(cleanGood);
+          } catch (e) {
+            console.warn('Error parsing good_answers:', e);
+          }
+
+          if (goodAnswersArray.length > 1) {
+            console.warn(
+              `Checkpoint ${enigma_id} declares ${goodAnswersArray.length} stations; ` +
+                'tracks supports one station per checkpoint, using the first.'
+            );
+          }
+
+          groupedByCheckpoint[enigma_id] = {
+            station: goodAnswersArray.length > 0 ? parseInt(goodAnswersArray[0]) : null,
+          };
+        });
+
+        items = Object.entries(groupedByCheckpoint).map(([enigma_id, data]) => {
+          const assignments: Record<string, number | null> = {};
+
+          if (data.station !== null && !Number.isNaN(data.station)) {
+            assignments['station'] = data.station;
+          }
+
+          return {
+            index: parseInt(enigma_id),
+            assignments,
+          };
+        });
       } else {
         throw new Error(`Unsupported game type: ${game_type}`);
       }
@@ -264,7 +320,12 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
     setIsProcessing(true);
     try {
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-      const normalizedGameType = parsedPattern.game_type === 'survival' ? 'mystery' : parsedPattern.game_type;
+      const normalizedGameType =
+        parsedPattern.game_type === 'survival'
+          ? 'mystery'
+          : parsedPattern.game_type === 'maximus'
+            ? 'tracks'
+            : parsedPattern.game_type;
 
       const { data: existing } = await db
         .from('patterns')
@@ -438,8 +499,9 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
   {pattern-slug}/
     csv/
       pattern.csv
-      patterns_balises.csv        (tagquest)
-      patterns_survival_balises.csv  (mystery)`}
+      patterns_balises.csv          (tagquest)
+      patterns_survival_balises.csv (mystery)
+      patterns_maximus_balises.csv  (tracks)`}
                 </pre>
                 <p className="text-xs text-slate-500">The folder name is used as the pattern slug.</p>
               </div>

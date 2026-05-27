@@ -30,6 +30,12 @@ export interface PreviewLabels {
    * supply local conventions (`点`, `分`, `نقطة`).
    */
   ptsSuffix: string;
+  /**
+   * Shown in the tagquest in-game timer once the game clock hits 0, counting
+   * down to the next late-malus tick. The `{s}` placeholder is replaced with
+   * the seconds remaining (e.g. `Next malus in 42 s`).
+   */
+  nextMalus: string;
 }
 
 export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
@@ -39,6 +45,7 @@ export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
     lateMalus: 'MALUS RETARD',
     comboPoints: 'POINTS COMBO',
     ptsSuffix: 'pts',
+    nextMalus: 'Prochain malus dans {s} s',
   },
   en: {
     score: 'SCORE',
@@ -46,6 +53,7 @@ export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
     lateMalus: 'LATE PENALTY',
     comboPoints: 'COMBO POINTS',
     ptsSuffix: 'pts',
+    nextMalus: 'Next malus in {s} s',
   },
   es: {
     score: 'PUNTUACIÓN',
@@ -53,6 +61,7 @@ export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
     lateMalus: 'PENALIZACIÓN TARDÍA',
     comboPoints: 'PUNTOS COMBO',
     ptsSuffix: 'pts',
+    nextMalus: 'Próxima penalización en {s} s',
   },
   de: {
     score: 'PUNKTE',
@@ -60,6 +69,7 @@ export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
     lateMalus: 'VERSPÄTUNGSSTRAFE',
     comboPoints: 'KOMBO-PUNKTE',
     ptsSuffix: 'pts',
+    nextMalus: 'Nächste Strafe in {s} s',
   },
   it: {
     score: 'PUNTEGGIO',
@@ -67,6 +77,7 @@ export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
     lateMalus: 'PENALITÀ IN RITARDO',
     comboPoints: 'PUNTI COMBO',
     ptsSuffix: 'pts',
+    nextMalus: 'Prossima penalità tra {s} s',
   },
   pt: {
     score: 'PONTUAÇÃO',
@@ -74,6 +85,7 @@ export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
     lateMalus: 'PENALIDADE TARDIA',
     comboPoints: 'PONTOS COMBO',
     ptsSuffix: 'pts',
+    nextMalus: 'Próxima penalidade em {s} s',
   },
 };
 
@@ -103,7 +115,7 @@ export function getPreviewLabels(
  * specific layout elements in the renderer (e.g. `score_label`) — adding a
  * new key here requires a corresponding layout element + renderer mapping.
  */
-export type AdminLabelKey = 'score' | 'malus' | 'late_malus' | 'combo_points';
+export type AdminLabelKey = 'score' | 'malus' | 'late_malus' | 'combo_points' | 'next_malus';
 
 /**
  * Shape of the `tagquest_translations` admin row's `value` JSON. Each
@@ -118,6 +130,7 @@ const DEFAULT_KEY_MAP: Record<AdminLabelKey, keyof PreviewLabels> = {
   malus: 'malus',
   late_malus: 'lateMalus',
   combo_points: 'comboPoints',
+  next_malus: 'nextMalus',
 };
 
 /**

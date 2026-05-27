@@ -206,6 +206,120 @@ export const TagquestGameMetaSchema = BaseGameMetaSchema.extend({
 });
 
 /* -------------------------------------------------------------------------- */
+/* Tracks (legacy `maximus`) — checkpoint-based course gameplay.              */
+/*                                                                            */
+/* Design plan: C:\Users\faure\.claude\plans\tracks-game-type-design.md       */
+/*                                                                            */
+/* Checkpoints, routes, displays, play_modes, and score_types are NESTED      */
+/* shapes that diverge from the flat-string-bag convention of mystery/        */
+/* tagquest because they carry orthogonal multi-toggle state.                 */
+/* -------------------------------------------------------------------------- */
+
+const ToggleSchema = z.looseObject({ enabled: z.boolean() });
+const ToggleWithDefaultSchema = z.looseObject({
+  enabled: z.boolean(),
+  default: z.boolean(),
+});
+
+export const CheckpointSchema = z.looseObject({
+  id: z.string(),
+  title: LocalizedStringSchema.optional(),
+  description: LocalizedStringSchema.optional(),
+  image: z.string().optional(),
+  position: z
+    .looseObject({ top: z.number(), left: z.number() })
+    .optional(),
+  points: z.number().optional(),
+});
+
+export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
+  // Map background
+  map_image: z.string().optional(),
+
+  // HUD frame images (renderered by the layout editor; positions live in
+  // scenarios.scenario_layout, NOT here)
+  team_name_background_image: z.string().optional(),
+  timer_background_image: z.string().optional(),
+  score_background_image: z.string().optional(),
+  time_background_image: z.string().optional(),
+
+  // Feedback cue images (legacy maximus wrong_order_image / absent_image).
+  // Shown full-screen at scoring time: a wrong-order break in itinerary mode,
+  // and a run that reached no checkpoints.
+  wrong_order_image: z.string().optional(),
+  missing_checkpoint_image: z.string().optional(),
+
+  // Checkpoints array
+  checkpoints: z.array(CheckpointSchema).optional(),
+
+  // Checkpoint icon mode: 0 = per-checkpoint (each row carries its own image),
+  // 1 = common (single icon shared across all checkpoints, stored in
+  // `checkpoints_unique_image_id`). Stored as boolean here (was 0/1 in legacy).
+  checkpoints_unique_image: z.boolean().optional(),
+  checkpoints_unique_image_id: z.string().optional(),
+  checkpoint_image_width_percentage: z.string().optional(),
+
+  // Routes (parcours) — 5 fixed presets, multi-enable at scenario level.
+  // Legacy key renames: half_first → first_half, half_last → last_half,
+  // half_one_out_of_two → odd, half_one_out_of_two_plus → even.
+  routes: z
+    .looseObject({
+      default: ToggleSchema.optional(),
+      first_half: ToggleSchema.optional(),
+      last_half: ToggleSchema.optional(),
+      odd: ToggleSchema.optional(),
+      even: ToggleSchema.optional(),
+    })
+    .optional(),
+
+  // Display modes — full / map / simple (operator picks one at launch from
+  // the enabled set).
+  displays: z
+    .looseObject({
+      full: ToggleSchema.optional(),
+      map: ToggleSchema.optional(),
+      simple: ToggleSchema.optional(),
+    })
+    .optional(),
+
+  // Play modes — itinerary (ordered) vs free (any order).
+  play_modes: z
+    .looseObject({
+      itinerary: ToggleSchema.optional(),
+      free: ToggleSchema.optional(),
+    })
+    .optional(),
+
+  // Score types — one is pre-selected at launch via the `default` flag.
+  score_types: z
+    .looseObject({
+      percentage: ToggleWithDefaultSchema.optional(),
+      points: ToggleWithDefaultSchema.optional(),
+    })
+    .optional(),
+
+  // Display options (scenario-locked, NOT exposed at launch)
+  display_score: z.boolean().optional(),
+  clues_page: z
+    .looseObject({
+      enabled: z.boolean(),
+      show_title: z.boolean(),
+      show_text: z.boolean(),
+      show_image: z.boolean(),
+    })
+    .optional(),
+
+  // Sounds (top-level field names, like mystery's enigma_* sounds)
+  checkpoint_success: z.string().optional(),
+  checkpoint_error: z.string().optional(),
+  checkpoint_no_answer: z.string().optional(),
+
+  // Pattern inheritance (theme bundle: ado_adultes / kids / mini_kids).
+  // Renamed from legacy `game_default_pattern`.
+  scenario_default_pattern: z.string().nullable().optional(),
+});
+
+/* -------------------------------------------------------------------------- */
 /* Top-level scenarios.data wrapper                                           */
 /*                                                                            */
 /* Slice 3C: strict — extra top-level keys log as drift. The legacy           */
@@ -227,6 +341,12 @@ export const TagquestScenarioDataSchema = z.strictObject({
   available_languages: z.array(z.string()),
 });
 
+export const TracksScenarioDataSchema = z.strictObject({
+  game_meta: TracksGameMetaSchema,
+  default_language: z.string(),
+  available_languages: z.array(z.string()),
+});
+
 /* -------------------------------------------------------------------------- */
 /* scenarios.medias column                                                    */
 /* -------------------------------------------------------------------------- */
@@ -244,13 +364,16 @@ export type Level = z.infer<typeof LevelSchema>;
 export type Overscore = z.infer<typeof OverscoreSchema>;
 export type Enigma = z.infer<typeof EnigmaSchema>;
 export type Quest = z.infer<typeof QuestSchema>;
+export type Checkpoint = z.infer<typeof CheckpointSchema>;
 
 export type MysteryGameMeta = z.infer<typeof MysteryGameMetaSchema>;
 export type TagquestGameMeta = z.infer<typeof TagquestGameMetaSchema>;
+export type TracksGameMeta = z.infer<typeof TracksGameMetaSchema>;
 
 export type MysteryScenarioData = z.infer<typeof MysteryScenarioDataSchema>;
 export type TagquestScenarioData = z.infer<typeof TagquestScenarioDataSchema>;
-export type ScenarioData = MysteryScenarioData | TagquestScenarioData;
+export type TracksScenarioData = z.infer<typeof TracksScenarioDataSchema>;
+export type ScenarioData = MysteryScenarioData | TagquestScenarioData | TracksScenarioData;
 
 export type MediasField = z.infer<typeof MediasSchema>;
 
@@ -261,7 +384,7 @@ export type MediasField = z.infer<typeof MediasSchema>;
 /* Always returns the original data unchanged; never blocks the save.         */
 /* -------------------------------------------------------------------------- */
 
-export type ScenarioGameType = 'mystery' | 'tagquest';
+export type ScenarioGameType = 'mystery' | 'tagquest' | 'tracks';
 
 export function validateScenarioData(
   gameType: string | undefined,
@@ -273,6 +396,8 @@ export function validateScenarioData(
     schema = MysteryScenarioDataSchema;
   } else if (gameType === 'tagquest') {
     schema = TagquestScenarioDataSchema;
+  } else if (gameType === 'tracks') {
+    schema = TracksScenarioDataSchema;
   } else {
     return;
   }

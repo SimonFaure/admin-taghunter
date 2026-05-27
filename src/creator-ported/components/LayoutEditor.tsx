@@ -5,7 +5,7 @@ import { db } from '../lib/db';
 import { getMediaUrl } from '../utils/mediaUrl';
 import { Alert } from './Alert';
 import { authService } from '../services/authService';
-import { buildGroups, getGroupForElement, getQuestIndexFromElementId, getCounterpartId, getQuestItemRole, type GroupDef } from '../utils/layoutGroups';
+import { buildGroups, buildTracksGroups, TRACKS_HUD_ITEMS, TRACKS_HUD_MOCK_TEXT, getGroupForElement, getQuestIndexFromElementId, getCounterpartId, getQuestItemRole, type GroupDef } from '../utils/layoutGroups';
 import { alignQuestMainImagesVertically, clampQuestInnerElement } from '../utils/questSync';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
@@ -75,6 +75,9 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const [containerHeightPx, setContainerHeightPx] = useState(0);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [questCount, setQuestCount] = useState<number>(0);
+  const [isTracksGame, setIsTracksGame] = useState(false);
+  const [checkpointCount, setCheckpointCount] = useState<number>(0);
+  const [tracksIconSize, setTracksIconSize] = useState<number>(3);
   const [naturalAspects, setNaturalAspects] = useState<Record<string, number>>({});
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -86,10 +89,21 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef(zoom);
   const panOffsetRef = useRef(panOffset);
+  // Tracks-only: full scenario `data` JSON (for syncing checkpoint positions
+  // back to game_meta on save) + per-checkpoint seed positions (icon CENTER, in
+  // % of the map, mirroring gameMeta.checkpoints[].position).
+  const scenarioDataRef = useRef<any>(null);
+  const tracksSeedRef = useRef<Record<string, { left: number; top: number }>>({});
 
   const instructionLayoutImages = ['game_instructions_image', 'game_instructions_button_image', 'game_refresh_button_image'];
+  const TRACKS_HUD_IDS = TRACKS_HUD_ITEMS.map((i) => i.id);
+  const isCheckpointElement = (id: string) => isTracksGame && /^checkpoint_\d+$/.test(id);
 
-  const groups: GroupDef[] = isTagquestGame ? buildGroups(questCount) : [];
+  const groups: GroupDef[] = isTagquestGame
+    ? buildGroups(questCount)
+    : isTracksGame
+      ? buildTracksGroups(checkpointCount)
+      : [];
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => {
@@ -126,6 +140,14 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
     const containerWidth = containerRef.current.offsetWidth;
     const cHeight = containerRef.current.offsetHeight;
+    // No (or not-yet-loaded) background: fall back to the full container so drag
+    // math stays finite — otherwise a NaN aspect makes elements undraggable
+    // horizontally and renders them at the left edge.
+    if (!img.naturalWidth || !img.naturalHeight) {
+      setContainerHeightPx(cHeight);
+      setImageBounds({ x: 0, y: 0, width: 100, height: 100 });
+      return;
+    }
     const imgAspectRatio = img.naturalWidth / img.naturalHeight;
     const containerAspectRatio = containerWidth / cHeight;
 
@@ -208,27 +230,47 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       const email = authService.getEmail() || '';
       setUserEmail(email);
 
+      // NOTE: the canonical column is `medias` (the legacy creator used `media`,
+      // singular — selecting that errored and silently blanked the whole editor).
       const { data, error } = await db
         .from('scenarios')
-        .select('media, data, scenario_type, scenario_layout, uniqid')
+        .select('medias, data, scenario_type, scenario_layout, uniqid')
         .eq('id', scenarioId)
         .maybeSingle();
 
       if (error) throw error;
       if (!data) return;
 
-      setScenarioUniqid((data as any).uniqid || '');
+      // Media is served under the scenario UNIQID, not the numeric id — use this
+      // for every getMediaUrl() in this function (state isn't set synchronously).
+      const uniqid = (data as any).uniqid || '';
+      setScenarioUniqid(uniqid);
 
-      const media = data.media as any;
-      const gameData = data.data as any;
-      const scenarioLayout = data.scenario_layout as any;
+      // query.php returns JSON columns as raw strings; parse them (objects pass
+      // through unchanged for backends that already decode).
+      const parseCol = (v: any) => {
+        if (v == null) return v;
+        if (typeof v === 'string') {
+          try { return JSON.parse(v); } catch { return null; }
+        }
+        return v;
+      };
+
+      const media = parseCol((data as any).medias);
+      const gameData = parseCol((data as any).data);
+      const scenarioLayout = parseCol((data as any).scenario_layout);
+      scenarioDataRef.current = gameData;
 
       const hasMysteryStructure = gameData?.game_meta?.enigmas && Array.isArray(gameData.game_meta.enigmas);
+      const hasTracksStructure = gameData?.game_meta?.checkpoints && Array.isArray(gameData.game_meta.checkpoints);
       setIsMysteryGame(hasMysteryStructure);
+      setIsTracksGame(hasTracksStructure);
 
       let actualGameType = '';
       if (hasMysteryStructure) {
         actualGameType = 'mystery';
+      } else if (hasTracksStructure) {
+        actualGameType = 'tracks';
       } else if (gameData?.game_meta || gameData?.game) {
         actualGameType = 'tagquest';
       } else {
@@ -257,10 +299,90 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       const isTagquest = actualGameType === 'tagquest';
       setIsTagquestGame(isTagquest);
 
+      // ── Tracks: checkpoints (one icon per checkpoint, seeded from
+      // gameMeta.checkpoints[].position) + HUD frames, placed over the MAP.
+      // Built separately from the tagquest/mystery catalog below.
+      if (actualGameType === 'tracks') {
+        const gm = gameData?.game_meta ?? {};
+        const cps: any[] = Array.isArray(gm.checkpoints) ? gm.checkpoints : [];
+        const commonMode = !!gm.checkpoints_unique_image;
+        const iconSize = Number(gm.checkpoint_image_width_percentage) || 3;
+        setTracksIconSize(iconSize);
+        setCheckpointCount(cps.length);
+
+        // Background = the map (checkpoints sit on it); fall back to the
+        // generic background image when no map is set.
+        const mapFile = media?.images?.map_image || media?.images?.background_image;
+        if (mapFile) setBackgroundImage(getMediaUrl(uniqid, mapFile));
+
+        // Per-checkpoint image filenames live in medias.checkpoints[]; common
+        // mode shares one icon (medias.images.checkpoints_unique_image_id).
+        const cpImgByNumber = new Map<number, string>();
+        const cpImgById = new Map<string, string>();
+        (Array.isArray(media?.checkpoints) ? media.checkpoints : []).forEach((cm: any) => {
+          if (!cm || typeof cm.image !== 'string') return;
+          const n = Number(cm.checkpoint_number);
+          if (n) cpImgByNumber.set(n, cm.image);
+          if (typeof cm.checkpoint_id === 'string') cpImgById.set(cm.checkpoint_id, cm.image);
+        });
+        const commonIcon = media?.images?.checkpoints_unique_image_id || '';
+
+        const imagesList: { id: string; name: string; filename: string }[] = [];
+        const seeds: Record<string, { left: number; top: number }> = {};
+        const checkpointEls: LayoutElement[] = [];
+        cps.forEach((cp: any, i: number) => {
+          const n = i + 1;
+          const id = `checkpoint_${n}`;
+          const filename = commonMode
+            ? commonIcon
+            : (typeof cp?.id === 'string' ? cpImgById.get(cp.id) : '') || cpImgByNumber.get(n) || '';
+          imagesList.push({ id, name: `Checkpoint ${n}`, filename });
+          const pos = cp?.position ?? { top: 50, left: 50 };
+          const left = Number(pos.left);
+          const top = Number(pos.top);
+          seeds[id] = { left: isFinite(left) ? left : 50, top: isFinite(top) ? top : 50 };
+          checkpointEls.push({
+            type: 'image', id, name: `Checkpoint ${n}`, filename,
+            x: seeds[id].left, y: seeds[id].top, width: iconSize, height: iconSize,
+          });
+        });
+
+        // HUD frame images (only those present on this scenario).
+        TRACKS_HUD_ITEMS.forEach((item) => {
+          const filename = media?.images?.[item.id];
+          if (filename) imagesList.push({ id: item.id, name: item.name, filename });
+        });
+
+        tracksSeedRef.current = seeds;
+        setAvailableImages(imagesList);
+
+        // HUD frame elements: reuse saved positions from scenario_layout when
+        // present, otherwise drop them into a default top strip so they show.
+        const savedHud = (Array.isArray(scenarioLayout?.elements) ? scenarioLayout.elements : [])
+          .filter((el: any) => TRACKS_HUD_IDS.includes(el.id));
+        const savedHudIds = new Set(savedHud.map((el: any) => el.id));
+        const DEFAULT_HUD_POS: Record<string, { x: number; y: number; width: number; height: number }> = {
+          team_name_background_image: { x: 4, y: 3, width: 22, height: 9 },
+          timer_background_image: { x: 39, y: 3, width: 22, height: 9 },
+          score_background_image: { x: 74, y: 3, width: 22, height: 9 },
+          time_background_image: { x: 74, y: 13, width: 22, height: 9 },
+        };
+        const seededHud: LayoutElement[] = [];
+        TRACKS_HUD_ITEMS.forEach((item) => {
+          const filename = media?.images?.[item.id];
+          if (!filename || savedHudIds.has(item.id)) return;
+          const p = DEFAULT_HUD_POS[item.id] || { x: 5, y: 5, width: 20, height: 10 };
+          seededHud.push({ type: 'image', id: item.id, name: item.name, filename, ...p });
+        });
+
+        setElements([...checkpointEls, ...savedHud, ...seededHud]);
+        return;
+      }
+
       if (media?.images?.background_image) {
-        setBackgroundImage(getMediaUrl(scenarioId, media.images.background_image));
+        setBackgroundImage(getMediaUrl(uniqid, media.images.background_image));
       } else if (media?.game_media_images?.background_image) {
-        setBackgroundImage(getMediaUrl(scenarioId, media.game_media_images.background_image));
+        setBackgroundImage(getMediaUrl(uniqid, media.game_media_images.background_image));
       }
 
       const imagesList: { id: string; name: string; filename: string }[] = [];
@@ -540,10 +662,18 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     if (itemDef.type === 'image') {
       const imgInfo = availableImages.find(img => img.id === itemId);
       if (!imgInfo) return currentElements;
-      const newEl: ImageElement = {
-        type: 'image', id: imgInfo.id, name: imgInfo.name, filename: imgInfo.filename,
-        x: 5, y: 5, width: 20, height: 20
-      };
+      // Tracks checkpoints restore to their map position (icon CENTER) at the
+      // configured icon size; HUD frames and everything else use a default box.
+      const seed = isCheckpointElement(itemId) ? tracksSeedRef.current[itemId] : undefined;
+      const newEl: ImageElement = seed
+        ? {
+            type: 'image', id: imgInfo.id, name: imgInfo.name, filename: imgInfo.filename,
+            x: seed.left, y: seed.top, width: tracksIconSize, height: tracksIconSize,
+          }
+        : {
+            type: 'image', id: imgInfo.id, name: imgInfo.name, filename: imgInfo.filename,
+            x: 5, y: 5, width: 20, height: 20,
+          };
       return [...currentElements, newEl];
     } else {
       const newEl: TextElement = {
@@ -728,6 +858,51 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     URL.revokeObjectURL(url);
   };
 
+  // Tracks layouts are PER-SCENARIO (unlike tagquest/mystery, which save a
+  // type-level template to default_config): checkpoint counts and positions
+  // vary per scenario. Checkpoint icon CENTERS sync back to
+  // gameMeta.checkpoints[].position (the runtime reads those); HUD frame boxes
+  // persist to the scenario's scenario_layout (also bundled to the playground).
+  const saveTracksLayout = async () => {
+    const { data: row, error: fetchErr } = await db
+      .from('scenarios')
+      .select('data')
+      .eq('id', scenarioId)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+
+    // Re-read `data` fresh so we don't clobber concurrent edits to the rest of
+    // it. JSON columns come back as strings from query.php — parse before patching.
+    const parseCol = (v: any) => {
+      if (v == null) return v;
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return null; }
+      }
+      return v;
+    };
+    const data = parseCol(row?.data) ?? scenarioDataRef.current ?? {};
+    const gm = (data.game_meta = data.game_meta || {});
+    const cps: any[] = Array.isArray(gm.checkpoints) ? gm.checkpoints : [];
+
+    elements.forEach((el) => {
+      const m = /^checkpoint_(\d+)$/.exec(el.id);
+      if (!m) return;
+      const idx = parseInt(m[1], 10) - 1;
+      if (idx >= 0 && idx < cps.length) {
+        cps[idx] = { ...cps[idx], position: { left: el.x, top: el.y } };
+      }
+    });
+
+    const { error: updErr } = await db
+      .from('scenarios')
+      .update({ data, scenario_layout: { elements } })
+      .eq('id', scenarioId);
+    if (updErr) throw updErr;
+
+    scenarioDataRef.current = data;
+    setAlert({ type: 'success', message: `Tracks layout saved (${cps.length} checkpoints + HUD frames).` });
+  };
+
   const saveLayout = async () => {
     try {
       setSaving(true);
@@ -735,6 +910,11 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       if (!scenarioType) {
         setAlert({ type: 'error', message: 'Cannot save: Game type not detected. Please reload the scenario.' });
         setSaving(false);
+        return;
+      }
+
+      if (scenarioType === 'tracks') {
+        await saveTracksLayout();
         return;
       }
 
@@ -799,10 +979,18 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     try {
       await saveLayout();
 
+      // Tracks layouts are per-scenario (saveLayout already wrote scenario_layout
+      // + synced checkpoint positions, and that's what bundles to the playground).
+      // There is no type-level template to publish, so Save IS the publish.
+      if (scenarioType === 'tracks') {
+        setPublishing(false);
+        return;
+      }
+
       const { data: existingConfig } = await db
         .from('default_config')
         .select('version')
-        .eq('meta', scenarioType === 'mystery' || scenarioType === 'tracks' ? `${scenarioType}_layout_${layoutMode}` : `${scenarioType}_layout`)
+        .eq('meta', scenarioType === 'mystery' ? `${scenarioType}_layout_${layoutMode}` : `${scenarioType}_layout`)
         .maybeSingle();
       const newVersion = Number(((existingConfig?.version || 1.0) + 0.1).toFixed(1));
 
@@ -1018,7 +1206,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                             <div className="px-3 pt-2 pb-1">
                               <div className="w-full h-16 bg-gray-800 rounded overflow-hidden">
                                 <img
-                                  src={getMediaUrl(scenarioId, mainImgInfo.filename)}
+                                  src={getMediaUrl(scenarioUniqid, mainImgInfo.filename)}
                                   alt={mainImgInfo.name}
                                   className="w-full h-full object-contain"
                                 />
@@ -1235,11 +1423,20 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
             {visibleElements.map(element => {
               if (element.hidden) return null;
+              // Tracks checkpoints are anchored by their CENTER (matching the
+              // runtime's translate(-50%,-50%)) and keep natural aspect; they
+              // are move-only (size is the global icon-size field). Everything
+              // else is a corner-anchored, resizable box.
+              const isCp = isCheckpointElement(element.id);
+              const hudMock = isTracksGame ? TRACKS_HUD_MOCK_TEXT[element.id] : undefined;
               const elLeft = imageBounds.x + (element.x / 100) * imageBounds.width;
               const elTop = imageBounds.y + (element.y / 100) * imageBounds.height;
               const elWidth = (element.width / 100) * imageBounds.width;
               const elHeight = (element.height / 100) * imageBounds.height;
               const elHeightPx = containerHeightPx * (elHeight / 100);
+              const wrapperStyle = isCp
+                ? { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, transform: 'translate(-50%, -50%)' }
+                : { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, height: `${elHeight}%` };
               return (
               <div
                 key={element.id}
@@ -1252,19 +1449,16 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       ? 'border-transparent hover:border-emerald-400'
                       : 'border-transparent hover:border-blue-400'
                 }`}
-                style={{
-                  left: `${elLeft}%`,
-                  top: `${elTop}%`,
-                  width: `${elWidth}%`,
-                  height: `${elHeight}%`
-                }}
+                style={wrapperStyle}
                 onMouseDown={(e) => handleMouseDown(e, element.id)}
               >
                 {element.type === 'image' ? (
+                  <>
+                  {element.filename ? (
                   <img
-                    src={getMediaUrl(scenarioId, element.filename)}
+                    src={getMediaUrl(scenarioUniqid, element.filename)}
                     alt={element.name}
-                    className="w-full h-full object-fill pointer-events-none"
+                    className={`${isCp ? 'w-full h-auto' : 'w-full h-full object-fill'} pointer-events-none`}
                     draggable={false}
                     onLoad={(e) => {
                       const img = e.currentTarget;
@@ -1273,6 +1467,30 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       }
                     }}
                   />
+                  ) : (
+                    // Checkpoint with no uploaded icon — grabbable circle placeholder.
+                    <div
+                      className="w-full rounded-full border-2 border-blue-400/70 bg-blue-400/25 pointer-events-none"
+                      style={{ paddingBottom: '100%' }}
+                    />
+                  )}
+                  {hudMock && (
+                    // Mock value preview, centered on the HUD frame (render-only).
+                    <div
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden"
+                      style={{
+                        color: '#ffffff',
+                        fontWeight: 700,
+                        fontSize: `${Math.max(8, elHeightPx * 0.4)}px`,
+                        textShadow: '0 1px 3px rgba(0,0,0,0.85)',
+                        letterSpacing: '0.04em',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {hudMock}
+                    </div>
+                  )}
+                  </>
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center pointer-events-none select-none overflow-hidden"
@@ -1313,14 +1531,16 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       style={{ background: element.type === 'text' ? '#10b981' : '#3b82f6' }}
                     />
 
-                    <div
-                      className={`absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize flex items-center justify-center ${
-                        element.type === 'text' ? 'bg-emerald-500' : 'bg-blue-500'
-                      }`}
-                      onMouseDown={(e) => handleResizeMouseDown(e, element.id)}
-                    >
-                      <Maximize2 className="w-3 h-3 text-white" />
-                    </div>
+                    {!isCp && (
+                      <div
+                        className={`absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize flex items-center justify-center ${
+                          element.type === 'text' ? 'bg-emerald-500' : 'bg-blue-500'
+                        }`}
+                        onMouseDown={(e) => handleResizeMouseDown(e, element.id)}
+                      >
+                        <Maximize2 className="w-3 h-3 text-white" />
+                      </div>
+                    )}
                   </>
                 )}
               </div>

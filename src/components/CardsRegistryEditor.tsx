@@ -10,6 +10,8 @@ import {
   Pencil,
   X,
   Save,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import {
   CardRow,
@@ -31,6 +33,10 @@ interface Props {
   api: CardsEditorApi;
   title?: string;
   description?: string;
+  /** When true, the section header acts as a toggle that shows/hides the body. */
+  collapsible?: boolean;
+  /** Initial collapsed state when `collapsible` is set. Defaults to expanded. */
+  defaultCollapsed?: boolean;
 }
 
 interface Toast {
@@ -51,7 +57,14 @@ function suggestNextKeyNumber(cards: CardRow[]): number {
   return Math.max(...cards.map((c) => c.key_number)) + 1;
 }
 
-export function CardsRegistryEditor({ api, title = 'Cards', description }: Props) {
+export function CardsRegistryEditor({
+  api,
+  title = 'Cards',
+  description,
+  collapsible = false,
+  defaultCollapsed = false,
+}: Props) {
+  const [collapsed, setCollapsed] = useState(collapsible ? defaultCollapsed : false);
   const [cards, setCards] = useState<CardRow[]>([]);
   const [version, setVersion] = useState<number>(0);
   const [loading, setLoading] = useState(true);
@@ -279,45 +292,64 @@ export function CardsRegistryEditor({ api, title = 'Cards', description }: Props
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
+        <div className={`flex items-start justify-between flex-wrap gap-4 ${collapsed ? '' : 'mb-6'}`}>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <CreditCard className="w-6 h-6" />
-              <span>{title}</span>
-            </h2>
+            {collapsible ? (
+              <button
+                type="button"
+                onClick={() => setCollapsed((c) => !c)}
+                aria-expanded={!collapsed}
+                className="flex items-center gap-2 text-xl font-bold text-slate-900 hover:text-slate-700 transition-colors"
+              >
+                {collapsed ? (
+                  <ChevronRight className="w-5 h-5 text-slate-500" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-slate-500" />
+                )}
+                <CreditCard className="w-6 h-6" />
+                <span>{title}</span>
+              </button>
+            ) : (
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <CreditCard className="w-6 h-6" />
+                <span>{title}</span>
+              </h2>
+            )}
             {description && <p className="text-slate-600 mt-1">{description}</p>}
             <div className="mt-2 text-xs text-slate-500">
               {cards.length} card{cards.length === 1 ? '' : 's'} · version {version.toFixed(2)}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={onFileChange}
-              className="hidden"
-            />
-            <button
-              onClick={openImport}
-              disabled={busy}
-              className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm disabled:opacity-50"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Import CSV</span>
-            </button>
-            <button
-              onClick={openRegister}
-              disabled={busy || editState.kind !== 'none'}
-              className="inline-flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm disabled:opacity-50"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Register card</span>
-            </button>
-          </div>
+          {!collapsed && (
+            <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={onFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={openImport}
+                disabled={busy}
+                className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm disabled:opacity-50"
+              >
+                <Upload className="w-4 h-4" />
+                <span>Import CSV</span>
+              </button>
+              <button
+                onClick={openRegister}
+                disabled={busy || editState.kind !== 'none'}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm disabled:opacity-50"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Register card</span>
+              </button>
+            </div>
+          )}
         </div>
 
-        {editState.kind === 'register' && (
+        {!collapsed && editState.kind === 'register' && (
           <div className="mb-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Register a new card</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -382,7 +414,7 @@ export function CardsRegistryEditor({ api, title = 'Cards', description }: Props
           </div>
         )}
 
-        {loading ? (
+        {!collapsed && (loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900"></div>
           </div>
@@ -507,7 +539,7 @@ export function CardsRegistryEditor({ api, title = 'Cards', description }: Props
               </tbody>
             </table>
           </div>
-        )}
+        ))}
       </div>
 
       {importState.open && (

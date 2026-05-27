@@ -44,7 +44,7 @@ export interface Capabilities {
   hasLevels: boolean;
   hasOverscores: boolean;
   supportsProductTemplate: boolean;
-  hasTranslatableArrays: readonly ('quests' | 'enigmas' | 'levels' | 'overscores')[];
+  hasTranslatableArrays: readonly ('quests' | 'enigmas' | 'levels' | 'overscores' | 'checkpoints')[];
 }
 
 /**

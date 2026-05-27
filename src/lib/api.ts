@@ -422,6 +422,112 @@ export const onDemandCardsApi = {
   },
 };
 
+// Team-name pools: curated fun team names by audience (mini_kids/kids/ado_adultes) x
+// language. `scope` is 'global' (admin catalog, everyone gets it) or a numeric
+// client_id (that client's private pool). The playground draws a name from the
+// merged (global ∪ client) set at team creation. See team_name_pools.php.
+// Canonical audience trio — mirrors src/types/audience.ts (game_meta.game_public).
+export type TeamNameAudience = 'mini_kids' | 'kids' | 'ado_adultes';
+
+export type TeamNamePoolScope = 'global' | number;
+
+export interface TeamNamePoolEntry {
+  id: string;
+  name: string;
+}
+
+// pools[audience][language] -> entries. Keys present only where names exist.
+export type TeamNamePools = Partial<Record<TeamNameAudience, Record<string, TeamNamePoolEntry[]>>>;
+
+export interface TeamNamePoolMeta {
+  current_version: number;
+  counts: Partial<Record<TeamNameAudience, Record<string, number>>>;
+  updated_at: string | null;
+}
+
+function teamNamePoolScopeParam(scope: TeamNamePoolScope): string {
+  return scope === 'global' ? 'global' : String(scope);
+}
+
+export const teamNamePoolsApi = {
+  async getPoolMeta(scope: TeamNamePoolScope): Promise<ApiResponse<{ data: TeamNamePoolMeta }>> {
+    return apiRequest(`/team_name_pools.php?action=get_pool_meta&scope=${teamNamePoolScopeParam(scope)}`, { method: 'GET' });
+  },
+
+  async getPool(scope: TeamNamePoolScope): Promise<ApiResponse<{ pools: TeamNamePools; version: number }>> {
+    return apiRequest(`/team_name_pools.php?action=get_pool&scope=${teamNamePoolScopeParam(scope)}`, { method: 'GET' });
+  },
+
+  async addNames(
+    scope: TeamNamePoolScope,
+    audience: TeamNameAudience,
+    language: string,
+    names: string[],
+  ): Promise<ApiResponse<{ success: boolean; added: number; skipped: number; version: number }>> {
+    return apiRequest('/team_name_pools.php?action=add_names', {
+      method: 'POST',
+      body: JSON.stringify({ scope: teamNamePoolScopeParam(scope), audience, language, names }),
+    });
+  },
+
+  async deleteNames(
+    scope: TeamNamePoolScope,
+    ids: string[],
+  ): Promise<ApiResponse<{ success: boolean; deleted: number; version: number }>> {
+    return apiRequest('/team_name_pools.php?action=delete_names', {
+      method: 'POST',
+      body: JSON.stringify({ scope: teamNamePoolScopeParam(scope), ids }),
+    });
+  },
+
+  async uploadCsv(
+    scope: TeamNamePoolScope,
+    file: File,
+  ): Promise<ApiResponse<{ success: boolean; added: number; skipped: number; version: number }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('scope', teamNamePoolScopeParam(scope));
+    const response = await fetch(`${API_BASE_URL}/team_name_pools.php?action=upload_csv`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) return { error: data.error || 'Upload failed' };
+    return { data };
+  },
+};
+
+// Offline PIN-recovery codes (per-client). The admin issues a pool here; codes
+// sync to the client's playground devices and are validated offline. See
+// backend/api/recovery_codes.php.
+export interface RecoveryCodeEntry {
+  code_index: number;
+  code: string;
+  used_at: string | null;
+  used_device_label: string | null;
+}
+
+export interface RecoveryCodePool {
+  success: boolean;
+  version: number;
+  pool_size: number;
+  codes: RecoveryCodeEntry[];
+}
+
+export const recoveryCodesApi = {
+  async getPool(clientId: number): Promise<ApiResponse<RecoveryCodePool>> {
+    return apiRequest(`/recovery_codes.php?action=get_pool&client_id=${clientId}`, { method: 'GET' });
+  },
+
+  async regenerate(clientId: number): Promise<ApiResponse<RecoveryCodePool>> {
+    return apiRequest('/recovery_codes.php?action=regenerate', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: clientId }),
+    });
+  },
+};
+
 export interface ImportSummary {
   total: number;
   created: number;

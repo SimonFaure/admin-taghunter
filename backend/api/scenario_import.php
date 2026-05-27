@@ -370,6 +370,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
     $enigmas = [];
     $overscores = [];
     $quests = [];
+    $checkpoints = [];        // tracks: parsed game_checkpoints rows
     $mediaIds = [];           // tagquest id-folder lookups
     $soundFieldMappings = []; // tagquest meta-key sound mappings
     $userMetaMapped = [];     // mystery: game_user_meta.csv → text_* Localized
@@ -505,6 +506,55 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 if (!empty($q[$k])) $mediaIds[$q[$k]] = true;
             }
         }
+    } elseif ($type === 'tracks') {
+        // Tracks (legacy maximus) — parse game_checkpoints.csv + game_sounds.csv.
+        // Media lookup uses Mystery's per-id-folder + flat-fallback path
+        // (see ti_find_mystery_media_file usage below).
+        $cpPath = ti_find_game_file($tempDir, $slug, 'game_checkpoints.csv');
+        if ($cpPath) {
+            foreach (ti_parse_csv_file($cpPath) as $r) {
+                $posJson = $r['checkpoint_position'] ?? '';
+                $pos = ['top' => 50.0, 'left' => 50.0];
+                if ($posJson !== '') {
+                    $decoded = json_decode($posJson, true);
+                    if (is_array($decoded)) {
+                        if (isset($decoded['top'])) $pos['top'] = (float)$decoded['top'];
+                        if (isset($decoded['left'])) $pos['left'] = (float)$decoded['left'];
+                    }
+                }
+                $checkpoints[] = [
+                    'legacy_id' => $r['id'] ?? '',
+                    'number' => $r['number'] ?? '',
+                    'title' => $r['title'] ?? '',
+                    'description' => $r['description'] ?? '',
+                    'good_answer_image' => $r['good_answer_image'] ?? '',
+                    'position' => $pos,
+                    'points' => isset($r['points']) ? (int)$r['points'] : 1,
+                ];
+            }
+        }
+        // Tracks sounds: legacy file uses enigma_success/error/no_answer keys
+        // (misleading names that we rename here to checkpoint_*). top_X sounds
+        // use the shared `top_X_sound` fields. See plan §7 (sound-slot table).
+        $soundsPath = ti_find_game_file($tempDir, $slug, 'game_sounds.csv');
+        if ($soundsPath) {
+            $tracksSoundMap = [
+                'enigma_success' => 'checkpoint_success',
+                'enigma_error' => 'checkpoint_error',
+                'enigma_no_answer' => 'checkpoint_no_answer',
+                'top_1' => 'top_1_sound',
+                'top_3' => 'top_3_sound',
+                'top_10' => 'top_10_sound',
+            ];
+            foreach (ti_parse_csv_file($soundsPath) as $s) {
+                $slot = $s['image_number'] ?? '';
+                $soundId = $s['sound_id'] ?? '';
+                if ($soundId === '' || $slot === '') continue;
+                if (isset($tracksSoundMap[$slot])) {
+                    $soundFieldMappings[$tracksSoundMap[$slot]] = $soundId;
+                }
+            }
+        }
     } else {
         throw new Exception("Unsupported game type: $type");
     }
@@ -620,6 +670,22 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             }
             if (count($entry) > 1) $medias['quests'][] = $entry;
         }
+        // Tracks: per-checkpoint reveal/marker images. Indexed by checkpoint
+        // number, with checkpoint_id (new uuid) generated below in the data
+        // build; the medias entry uses the legacy id for now and is re-linked
+        // there.
+        if ($type === 'tracks') {
+            $medias['checkpoints'] = [];
+            foreach ($checkpoints as $idx => $c) {
+                if (!empty($c['good_answer_image']) && isset($mediaMapping[$c['good_answer_image']])) {
+                    $medias['checkpoints'][] = [
+                        'checkpoint_number' => $c['number'] !== '' ? $c['number'] : (string)($idx + 1),
+                        'legacy_id' => $c['legacy_id'],
+                        'image' => $mediaMapping[$c['good_answer_image']],
+                    ];
+                }
+            }
+        }
 
         $imageFields = [
             'game_visual', 'background_image', 'game_instructions_image',
@@ -628,9 +694,16 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             'steps_container_image', 'enigmas_header_image',
             'time_background_image', 'score_background_image',
             'top_1_image', 'top_3_image', 'top_10_image',
-            'team_name_background_image', 'levels_gauge_image',
+            'team_name_background_image', 'timer_background_image',
+            'levels_gauge_image',
             'levels_gauge_image_with_content', 'levels_gauge_player_icon_image',
             'levels_gauge_level_icon_image', 'malus_container', 'malus_image', 'late_malus_image',
+            // Tracks-only: map background (legacy main_enigma_image), the
+            // common-checkpoint icon when checkpoints_unique_image=1, and the
+            // two feedback cue images (legacy names; `absent_image` is renamed
+            // to `missing_checkpoint_image` further below).
+            'main_enigma_image', 'checkpoints_unique_image_id',
+            'wrong_order_image', 'absent_image',
         ];
         $imagesOut = [];
         foreach ($imageFields as $f) {
@@ -761,6 +834,217 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 'enigmas' => $enigmasOut,
                 'levels' => (object)$levelsOut,
             ]);
+            $data = [
+                'game_meta' => $gameMeta,
+                'default_language' => 'fr',
+                'available_languages' => ['fr'],
+            ];
+        } elseif ($type === 'tracks') {
+            // -------------------------------------------------------------
+            // Tracks (legacy maximus) — checkpoint-based course gameplay.
+            // Plan: C:\Users\faure\.claude\plans\tracks-game-type-design.md
+            // -------------------------------------------------------------
+
+            // Helper: legacy media id → sanitized filename (or '' on miss).
+            $remap = function ($legacyId) use ($mediaMapping) {
+                if (!is_string($legacyId) || $legacyId === '') return '';
+                return $mediaMapping[$legacyId] ?? '';
+            };
+
+            // Decode the legacy nested-JSON meta keys.
+            $legacyTracks = is_string($meta['tracks'] ?? null)
+                ? (json_decode($meta['tracks'], true) ?: [])
+                : [];
+            $legacyDisplayMode = is_string($meta['display_mode'] ?? null)
+                ? (json_decode($meta['display_mode'], true) ?: [])
+                : [];
+            // `modes` is the canonical key; `play_mode` is a legacy duplicate.
+            $legacyModesRaw = is_string($meta['modes'] ?? null)
+                ? $meta['modes']
+                : (is_string($meta['play_mode'] ?? null) ? $meta['play_mode'] : null);
+            $legacyModes = is_string($legacyModesRaw)
+                ? (json_decode($legacyModesRaw, true) ?: [])
+                : [];
+            $legacyScore = is_string($meta['score'] ?? null)
+                ? (json_decode($meta['score'], true) ?: [])
+                : [];
+            $legacyDisplayScore = is_string($meta['display_score'] ?? null)
+                ? (json_decode($meta['display_score'], true) ?: [])
+                : [];
+            $legacyDisplayClues = is_string($meta['display_clues'] ?? null)
+                ? (json_decode($meta['display_clues'], true) ?: [])
+                : [];
+            $legacyHideClues = is_string($meta['hide_clues_elements'] ?? null)
+                ? (json_decode($meta['hide_clues_elements'], true) ?: [])
+                : [];
+            $legacyResetTimer = is_string($meta['display_reset_timer'] ?? null)
+                ? (json_decode($meta['display_reset_timer'], true) ?: [])
+                : [];
+
+            // Map nested legacy route keys to clean new keys.
+            $routeKeyMap = [
+                'default' => 'default',
+                'half_first' => 'first_half',
+                'half_last' => 'last_half',
+                'half_one_out_of_two' => 'odd',
+                'half_one_out_of_two_plus' => 'even',
+            ];
+            $routesOut = [];
+            foreach ($routeKeyMap as $legacyK => $newK) {
+                $enabled = !empty($legacyTracks[$legacyK]['enabled']);
+                $routesOut[$newK] = ['enabled' => $enabled];
+            }
+
+            // Display modes — flatten {full,map,simple}.{name,enabled} →
+            // {full,map,simple}.{enabled}. The legacy "simple" sub-toggle
+            // (mode_simple_full vs mode_simple) is dropped per Q4a.
+            $displaysOut = [];
+            foreach (['full', 'map', 'simple'] as $k) {
+                $displaysOut[$k] = ['enabled' => !empty($legacyDisplayMode[$k]['enabled'])];
+            }
+
+            // Play modes — itinerary / free.
+            $playModesOut = [];
+            foreach (['itinerary', 'free'] as $k) {
+                $playModesOut[$k] = ['enabled' => !empty($legacyModes[$k]['enabled'])];
+            }
+
+            // Score types — preserve `default` flag; rename legacy keys.
+            $scoreTypesOut = [
+                'percentage' => [
+                    'enabled' => !empty($legacyScore['score_type_percentage']['enabled']),
+                    'default' => !empty($legacyScore['score_type_percentage']['default']),
+                ],
+                'points' => [
+                    'enabled' => !empty($legacyScore['score_type_points']['enabled']),
+                    'default' => !empty($legacyScore['score_type_points']['default']),
+                ],
+            ];
+
+            // Clues page — flatten one-key wrapper + invert hide_* → show_*.
+            $cluesEnabled = !empty($legacyDisplayClues['display_clues']['enabled']);
+            $cluesOut = [
+                'enabled' => $cluesEnabled,
+                'show_title' => empty($legacyHideClues['hide_clues_title']['enabled']),
+                'show_text' => empty($legacyHideClues['hide_clues_text']['enabled']),
+                'show_image' => empty($legacyHideClues['hide_clues_image']['enabled']),
+            ];
+
+            // display_score — flatten one-key wrapper.
+            $displayScore = !empty($legacyDisplayScore['display_score']['enabled']);
+
+            // auto_reset — flatten one-key wrapper (was display_reset_timer).
+            $autoReset = !empty($legacyResetTimer['display_reset_timer']['enabled']);
+
+            // Checkpoints — generate new uuids + Localized<fr> wraps.
+            $checkpointsOut = [];
+            $checkpointIdsByLegacy = [];
+            $checkpointIdByNumber = [];
+            foreach ($checkpoints as $idx => $c) {
+                $newId = bin2hex(random_bytes(8));
+                $checkpointIdsByLegacy[$c['legacy_id']] = $newId;
+                $cpNumber = $c['number'] !== '' ? $c['number'] : (string)($idx + 1);
+                $checkpointIdByNumber[$cpNumber] = $newId;
+                $checkpointsOut[] = [
+                    'id' => $newId,
+                    'title' => ti_loc_fr($c['title']),
+                    'description' => ti_loc_fr($c['description']),
+                    'image' => $remap($c['good_answer_image']),
+                    'position' => $c['position'],
+                    'points' => $c['points'],
+                ];
+            }
+
+            // Re-link medias.checkpoints[].legacy_id → checkpoint_id (new uuid).
+            // The legacy_id was a temporary placeholder so we could attach the
+            // image map; the editor reads checkpoint_id.
+            if (isset($medias['checkpoints']) && is_array($medias['checkpoints'])) {
+                $medias['checkpoints'] = array_values(array_map(function ($m) use ($checkpointIdsByLegacy, $checkpointIdByNumber) {
+                    $cpId = $checkpointIdsByLegacy[$m['legacy_id'] ?? ''] ?? null;
+                    if (!$cpId && isset($m['checkpoint_number'])) {
+                        $cpId = $checkpointIdByNumber[$m['checkpoint_number']] ?? null;
+                    }
+                    return [
+                        'checkpoint_id' => $cpId,
+                        'checkpoint_number' => $m['checkpoint_number'] ?? '',
+                        'image' => $m['image'] ?? '',
+                    ];
+                }, $medias['checkpoints']));
+            }
+
+            // Rename legacy `main_enigma_image` → `map_image` inside
+            // medias.images so the new editor reads the field under its new
+            // name. Same for the common-checkpoint icon field (no rename, but
+            // we keep it explicit for clarity).
+            if (isset($medias['images']) && is_array($medias['images']) && !empty($medias['images']['main_enigma_image'])) {
+                $medias['images']['map_image'] = $medias['images']['main_enigma_image'];
+                unset($medias['images']['main_enigma_image']);
+            }
+            // Rename legacy `absent_image` → `missing_checkpoint_image` inside
+            // medias.images (wrong_order_image keeps its name).
+            if (isset($medias['images']) && is_array($medias['images']) && !empty($medias['images']['absent_image'])) {
+                $medias['images']['missing_checkpoint_image'] = $medias['images']['absent_image'];
+                unset($medias['images']['absent_image']);
+            }
+
+            // Tracks-specific top-level image fields, remapped to filenames.
+            $tracksImageMetaFields = [
+                'background_image', 'game_visual',
+                'team_name_background_image', 'timer_background_image',
+                'score_background_image', 'time_background_image',
+                'top_1_image', 'top_3_image', 'top_10_image',
+                'checkpoints_unique_image_id',
+                // Feedback cue image kept under its legacy name.
+                'wrong_order_image',
+            ];
+            $imageFieldsRemapped = [];
+            foreach ($tracksImageMetaFields as $f) {
+                if (!empty($meta[$f]) && isset($mediaMapping[$meta[$f]])) {
+                    $imageFieldsRemapped[$f] = $mediaMapping[$meta[$f]];
+                }
+            }
+            // map_image is the rename target of legacy main_enigma_image.
+            if (!empty($meta['main_enigma_image']) && isset($mediaMapping[$meta['main_enigma_image']])) {
+                $imageFieldsRemapped['map_image'] = $mediaMapping[$meta['main_enigma_image']];
+            }
+            // missing_checkpoint_image is the rename target of legacy absent_image.
+            if (!empty($meta['absent_image']) && isset($mediaMapping[$meta['absent_image']])) {
+                $imageFieldsRemapped['missing_checkpoint_image'] = $mediaMapping[$meta['absent_image']];
+            }
+
+            $gameMeta = array_merge([
+                'title' => ti_loc_fr($title),
+                'description' => [],
+                'story' => ti_loc_fr($description),
+                'scenario_version' => $meta['scenario_version'] ?? ($meta['game_version'] ?? '1.0'),
+                'game_public' => $meta['game_public'] ?? 'adults',
+                'font' => $meta['font'] ?? 'Arial',
+                'font_color' => $meta['font_color'] ?? '#000000',
+                'default_time' => $meta['default_time'] ?? '60',
+                'default_time_malus' => $meta['default_time_malus'] ?? '1',
+
+                // Tracks-specific scalars
+                'display_score' => $displayScore,
+                'auto_reset' => $autoReset,
+                'delay_auto_reset' => '5',
+                'checkpoints_unique_image' => !empty($meta['checkpoints_unique_image']) && (int)$meta['checkpoints_unique_image'] === 1,
+                'checkpoint_image_width_percentage' => $meta['checkpoint_image_width_percentage'] ?? '3',
+
+                // Renamed: game_default_pattern → scenario_default_pattern
+                'scenario_default_pattern' => $meta['game_default_pattern'] ?? null,
+
+                // Nested toggle objects
+                'routes' => $routesOut,
+                'displays' => $displaysOut,
+                'play_modes' => $playModesOut,
+                'score_types' => $scoreTypesOut,
+                'clues_page' => $cluesOut,
+
+                // Checkpoints + custom fonts
+                'checkpoints' => $checkpointsOut,
+                'custom_fonts' => [],
+            ], $imageFieldsRemapped, $soundFieldMappingsMapped);
+
             $data = [
                 'game_meta' => $gameMeta,
                 'default_language' => 'fr',
@@ -946,6 +1230,9 @@ try {
         // call "mystery" (same data shape, same enigmas table). Normalize so
         // the downstream import pipeline treats both as mystery.
         if ($gType === 'survival') $gType = 'mystery';
+        // Legacy: "maximus" was the original product label for what we now
+        // call "tracks" (checkpoint-based course gameplay).
+        if ($gType === 'maximus') $gType = 'tracks';
         $games[] = ['slug' => $rowSlug, 'type' => $gType, 'error' => null];
     }
 
@@ -964,7 +1251,7 @@ try {
             $failed[] = ['slug' => $slug, 'error' => $g['error']];
             continue;
         }
-        if ($g['type'] !== 'mystery' && $g['type'] !== 'tagquest') {
+        if ($g['type'] !== 'mystery' && $g['type'] !== 'tagquest' && $g['type'] !== 'tracks') {
             $skipped[] = ['slug' => $slug, 'uniqid' => '', 'reason' => 'unsupported_game_type'];
             continue;
         }

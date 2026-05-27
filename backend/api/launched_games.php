@@ -60,6 +60,55 @@ function requireTeamOwned($db, int $teamId, int $clientId): array {
     return $row;
 }
 
+// Draw an unused team name from the configured pool, or null if no name should
+// be drawn (pool disabled, missing audience/language, empty/exhausted pool, or
+// tables not migrated). Candidate set = global catalog ∪ this client's pool for
+// (audience, language); names already used by any team in this game are
+// excluded so concurrent multi-station bips never collide. Uniqueness holds
+// because both the read of used-names and the INSERT happen server-side.
+function drawTeamNameFromPool($db, int $launchedGameId, int $clientId): ?string {
+    try {
+        $metaRows = $db->fetchAll(
+            'SELECT meta_name, meta_value FROM launched_game_meta WHERE launched_game_id = ?',
+            [$launchedGameId]
+        );
+        $meta = [];
+        foreach ($metaRows as $r) { $meta[$r['meta_name']] = $r['meta_value']; }
+        if (($meta['useNamePool'] ?? '') !== 'true') return null;
+        // Normalize legacy game_public values onto the canonical trio
+        // (mirror of src/types/audience.ts normalizeAudience).
+        $audience = strtolower(trim($meta['namePoolAudience'] ?? ''));
+        if (in_array($audience, ['adults', 'adult', 'adultes', 'teens', 'ado'], true)) {
+            $audience = 'ado_adultes';
+        }
+        $language = strtolower($meta['language'] ?? '');
+        if (!in_array($audience, ['mini_kids', 'kids', 'ado_adultes'], true) || $language === '') return null;
+
+        $candidates = $db->fetchAll(
+            'SELECT name FROM team_name_pools
+             WHERE (client_id IS NULL OR client_id = ?) AND audience = ? AND language = ?',
+            [$clientId, $audience, $language]
+        );
+        if (empty($candidates)) return null;
+
+        $used = [];
+        $usedRows = $db->fetchAll(
+            'SELECT team_name FROM teams WHERE launched_game_id = ? AND team_name IS NOT NULL',
+            [$launchedGameId]
+        );
+        foreach ($usedRows as $u) { $used[mb_strtolower(trim($u['team_name']))] = true; }
+
+        $free = [];
+        foreach ($candidates as $c) {
+            if (!isset($used[mb_strtolower(trim($c['name']))])) $free[] = $c['name'];
+        }
+        if (empty($free)) return null;
+        return $free[random_int(0, count($free) - 1)];
+    } catch (Exception $e) {
+        return null; // tables not migrated / any failure -> keep caller's fallback
+    }
+}
+
 try {
     $db = Database::getInstance();
     $method = $_SERVER['REQUEST_METHOD'];
@@ -415,8 +464,29 @@ try {
         $teamName = isset($data['team_name']) ? (string)$data['team_name'] : null;
         $pattern = isset($data['pattern']) ? (int)$data['pattern'] : 0;
         $keyId = isset($data['key_id']) && $data['key_id'] !== null ? (int)$data['key_id'] : null;
+        $drawFromPool = !empty($data['draw_from_pool']);
         if ($teamNumber <= 0) jsonResponse(['error' => 'team_number is required'], 400);
         requireLaunchedGameOwned($db, $launchedGameId, $clientId);
+        // Name pool: when the launch enabled it, replace the key_name fallback
+        // with a drawn pooled name (server-side for cross-station uniqueness).
+        if ($drawFromPool) {
+            $drawn = drawTeamNameFromPool($db, $launchedGameId, $clientId);
+            if ($drawn !== null) { $teamName = $drawn; }
+        }
+        // Multi-station safety: at most one active (end_time IS NULL) team per
+        // (launched_game, key_id). A concurrent add_team for a card that already
+        // has an active run returns that team instead of inserting a duplicate.
+        // (key_id null skips the guard — never deduped.)
+        if ($keyId !== null) {
+            $existing = $db->fetch(
+                'SELECT id FROM teams WHERE launched_game_id = ? AND key_id = ? AND end_time IS NULL LIMIT 1',
+                [$launchedGameId, $keyId]
+            );
+            if ($existing) {
+                jsonResponseWithAuthState($db, $clientId, ['id' => (int)$existing['id'], 'deduped' => true]);
+                break;
+            }
+        }
         $db->execute(
             'INSERT INTO teams (launched_game_id, team_number, team_name, pattern, score, key_id)
              VALUES (?, ?, ?, ?, 0, ?)',

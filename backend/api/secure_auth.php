@@ -1105,6 +1105,56 @@ try {
             jsonResponse(['success' => true]);
             break;
 
+        case 'playground-rename-device':
+            // Set the user-chosen display_name for one of the caller's own devices.
+            // device_label is left untouched (the playground keeps overwriting it
+            // from the OS hostname); display_name is the name the user picks.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $rawToken = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+            if (strpos($rawToken, 'Bearer ') === 0) {
+                $rawToken = substr($rawToken, 7);
+            }
+
+            if (empty($rawToken)) {
+                jsonResponse(['error' => 'Token required'], 401);
+            }
+
+            $tokenData = TokenManager::validateToken($db, $rawToken);
+            if (!$tokenData || $tokenData['user_type'] !== 'client') {
+                jsonResponse(['error' => 'Invalid token'], 401);
+            }
+
+            $clientId = (int)$tokenData['user_id'];
+            $data = getRequestData();
+            $deviceId = isset($data['device_id']) ? (int)$data['device_id'] : 0;
+
+            if ($deviceId <= 0) {
+                jsonResponse(['error' => 'device_id is required'], 400);
+            }
+
+            // Normalise: trim, empty → null (clears the name), enforce max length.
+            $displayName = $data['display_name'] ?? null;
+            if ($displayName !== null) {
+                $displayName = trim((string)$displayName);
+                if ($displayName === '') {
+                    $displayName = null;
+                } elseif (mb_strlen($displayName) > 120) {
+                    jsonResponse(['error' => 'display_name max 120 chars'], 400);
+                }
+            }
+
+            $ok = DeviceManager::setDisplayName($db, $deviceId, $displayName, $clientId);
+            if (!$ok) {
+                jsonResponse(['error' => 'Device not found'], 404);
+            }
+
+            Logger::log('secure_auth', 'POST', 'playground-rename-device', $clientId, ['device_id' => $deviceId], ['success' => true], 200);
+            jsonResponse(['success' => true]);
+            break;
+
         default:
             jsonResponse(['error' => 'Invalid action'], 400);
     }

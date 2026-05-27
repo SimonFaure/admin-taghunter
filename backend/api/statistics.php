@@ -1,4 +1,18 @@
 <?php
+// Game statistics, read from game_summaries (per-game played-stats pushed up
+// from playgrounds via telemetry). Serves both audiences off one endpoint:
+//   - admin (session OR admin token): fleet-wide, optional ?client_id filter
+//   - client (token):                 auto-scoped to their own client_id
+//
+// Actions (all GET):
+//   overview  → totals (games/teams/players) + games-per-day + top scenarios
+//               (+ top clients for admin)
+//   list      → paginated per-game rows (the table)
+//   filters   → distinct game_types / scenarios (+ clients for admin) for the
+//               filter dropdowns, within the caller's scope
+//
+// Filters (query params): from, to (dates), game_type, scenario_uniqid,
+// and client_id (admin only).
 
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
@@ -8,6 +22,7 @@ session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -15,141 +30,214 @@ function jsonResponse($data, $statusCode = 200) {
     exit;
 }
 
-function requireAuth() {
-    if (!isset($_SESSION['user_id'])) {
-        jsonResponse(['error' => 'Unauthorized'], 401);
+// Token (studio web UI / admin) OR PHP session (legacy admin). Clients are
+// scoped to their own client_id; admins see everything.
+function requireStatsAuth($db): array {
+    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+    if (!empty($token)) {
+        $tokenData = TokenManager::validateToken($db, $token);
+        if ($tokenData) {
+            $type = ($tokenData['user_type'] ?? '') === 'admin' ? 'admin' : 'client';
+            return ['id' => (int)$tokenData['user_id'], 'type' => $type];
+        }
     }
-    return $_SESSION['user_id'];
+    if (isset($_SESSION['user_id'])) {
+        return ['id' => (int)$_SESSION['user_id'], 'type' => 'admin'];
+    }
+    jsonResponse(['error' => 'Unauthorized'], 401);
+}
+
+// Build WHERE conditions (alias gs) from the caller's scope + query filters.
+// $scopeOnly limits to the client/admin scope (used by the `filters` action so
+// the option lists aren't narrowed by the very filters they populate).
+function summaryConditions(array $auth, bool $scopeOnly = false): array {
+    $conds = [];
+    $args = [];
+
+    if ($auth['type'] === 'client') {
+        $conds[] = 'gs.client_id = ?';
+        $args[] = $auth['id'];
+    } elseif (!empty($_GET['client_id'])) {
+        $conds[] = 'gs.client_id = ?';
+        $args[] = (int)$_GET['client_id'];
+    }
+
+    if ($scopeOnly) {
+        return [$conds, $args];
+    }
+
+    if (!empty($_GET['game_type'])) {
+        $conds[] = 'gs.game_type = ?';
+        $args[] = (string)$_GET['game_type'];
+    }
+    if (!empty($_GET['scenario_uniqid'])) {
+        $conds[] = 'gs.scenario_uniqid = ?';
+        $args[] = (string)$_GET['scenario_uniqid'];
+    }
+    if (!empty($_GET['from']) && ($ts = strtotime((string)$_GET['from'])) !== false) {
+        $conds[] = 'gs.played_at >= ?';
+        $args[] = date('Y-m-d 00:00:00', $ts);
+    }
+    if (!empty($_GET['to']) && ($ts = strtotime((string)$_GET['to'])) !== false) {
+        $conds[] = 'gs.played_at <= ?';
+        $args[] = date('Y-m-d 23:59:59', $ts);
+    }
+
+    return [$conds, $args];
+}
+
+function whereOf(array $conds): string {
+    return empty($conds) ? '' : (' WHERE ' . implode(' AND ', $conds));
 }
 
 try {
-    $userId = requireAuth();
     $db = Database::getInstance();
+    $auth = requireStatsAuth($db);
+    $isAdmin = $auth['type'] === 'admin';
     $action = $_GET['action'] ?? 'overview';
 
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        jsonResponse(['error' => 'Method not allowed'], 405);
+    }
+
     switch ($action) {
-        case 'overview':
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                $response = ['error' => 'Method not allowed'];
-                Logger::log('statistics', $_SERVER['REQUEST_METHOD'], 'overview', $userId, [], $response, 405);
-                jsonResponse($response, 405);
-            }
+        case 'overview': {
+            [$conds, $args] = summaryConditions($auth);
 
-            // Total games launched
-            $totalGames = $db->fetch('SELECT COUNT(*) as count FROM launched_games');
+            $totals = $db->fetch(
+                'SELECT COUNT(*) AS games,
+                        COALESCE(SUM(teams_played), 0) AS teams,
+                        COALESCE(SUM(players_played), 0) AS players
+                 FROM game_summaries gs' . whereOf($conds),
+                $args
+            );
 
-            // Total unique clients who launched games
-            $uniqueClients = $db->fetch('SELECT COUNT(DISTINCT client_id) as count FROM launched_games');
+            $perDayConds = array_merge($conds, ['gs.played_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)']);
+            $gamesPerDay = $db->fetchAll(
+                'SELECT DATE(gs.played_at) AS date, COUNT(*) AS count
+                 FROM game_summaries gs' . whereOf($perDayConds) .
+                ' GROUP BY DATE(gs.played_at)
+                 ORDER BY date DESC',
+                $args
+            );
 
-            // Average duration
-            $avgDuration = $db->fetch('SELECT AVG(duration_minutes) as avg FROM launched_games WHERE duration_minutes > 0');
-
-            // Completion rate
-            $completionStats = $db->fetch('
-                SELECT
-                    COUNT(*) as total,
-                    SUM(CASE WHEN completed = 1 THEN 1 ELSE 0 END) as completed
-                FROM launched_games
-            ');
-            $completionRate = $completionStats['total'] > 0
-                ? round(($completionStats['completed'] / $completionStats['total']) * 100, 1)
-                : 0;
-
-            // Games launched per day (last 30 days)
-            $gamesPerDay = $db->fetchAll('
-                SELECT
-                    DATE(launched_at) as date,
-                    COUNT(*) as count
-                FROM launched_games
-                WHERE launched_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                GROUP BY DATE(launched_at)
-                ORDER BY date DESC
-            ');
-
-            // Top scenarios
-            $topScenarios = $db->fetchAll('
-                SELECT
-                    s.id,
-                    s.title,
-                    COUNT(lg.id) as launches
-                FROM scenarios s
-                LEFT JOIN launched_games lg ON s.id = lg.scenario_id
-                GROUP BY s.id, s.title
-                ORDER BY launches DESC
-                LIMIT 10
-            ');
-
-            // Top clients
-            $topClients = $db->fetchAll('
-                SELECT
-                    c.id,
-                    c.name,
-                    c.email,
-                    COUNT(lg.id) as launches
-                FROM clients c
-                LEFT JOIN launched_games lg ON c.id = lg.client_id
-                GROUP BY c.id, c.name, c.email
-                ORDER BY launches DESC
-                LIMIT 10
-            ');
+            $topScenarios = $db->fetchAll(
+                'SELECT gs.scenario_uniqid,
+                        COALESCE(s.title, gs.scenario_uniqid) AS title,
+                        COUNT(*) AS launches,
+                        COALESCE(SUM(gs.players_played), 0) AS players
+                 FROM game_summaries gs
+                 LEFT JOIN scenarios s ON s.uniqid = gs.scenario_uniqid' . whereOf($conds) .
+                ' GROUP BY gs.scenario_uniqid, title
+                 ORDER BY launches DESC
+                 LIMIT 10',
+                $args
+            );
 
             $response = [
                 'overview' => [
-                    'total_games' => (int)$totalGames['count'],
-                    'unique_clients' => (int)$uniqueClients['count'],
-                    'avg_duration' => round($avgDuration['avg'] ?? 0, 1),
-                    'completion_rate' => $completionRate
+                    'total_games' => (int)$totals['games'],
+                    'total_teams' => (int)$totals['teams'],
+                    'total_players' => (int)$totals['players'],
                 ],
                 'games_per_day' => $gamesPerDay,
                 'top_scenarios' => $topScenarios,
-                'top_clients' => $topClients
+                'is_admin' => $isAdmin,
             ];
-            Logger::log('statistics', 'GET', 'overview', $userId, [], $response, 200);
-            jsonResponse($response);
-            break;
 
-        case 'recent':
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                $response = ['error' => 'Method not allowed'];
-                Logger::log('statistics', $_SERVER['REQUEST_METHOD'], 'recent', $userId, [], $response, 405);
-                jsonResponse($response, 405);
+            if ($isAdmin) {
+                $response['top_clients'] = $db->fetchAll(
+                    'SELECT gs.client_id, c.name, c.email, COUNT(*) AS launches
+                     FROM game_summaries gs
+                     LEFT JOIN clients c ON c.id = gs.client_id' . whereOf($conds) .
+                    ' GROUP BY gs.client_id, c.name, c.email
+                     ORDER BY launches DESC
+                     LIMIT 10',
+                    $args
+                );
             }
 
-            $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
-            $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-
-            $recentGames = $db->fetchAll('
-                SELECT
-                    lg.*,
-                    c.name as client_name,
-                    c.email as client_email,
-                    s.title as scenario_title
-                FROM launched_games lg
-                LEFT JOIN clients c ON lg.client_id = c.id
-                LEFT JOIN scenarios s ON lg.scenario_id = s.id
-                ORDER BY lg.launched_at DESC
-                LIMIT ? OFFSET ?
-            ', [$limit, $offset]);
-
-            $total = $db->fetch('SELECT COUNT(*) as count FROM launched_games');
-
-            $response = [
-                'games' => $recentGames,
-                'total' => (int)$total['count'],
-                'limit' => $limit,
-                'offset' => $offset
-            ];
-            Logger::log('statistics', 'GET', 'recent', $userId, ['limit' => $limit, 'offset' => $offset], $response, 200);
             jsonResponse($response);
             break;
+        }
+
+        case 'list': {
+            [$conds, $args] = summaryConditions($auth);
+            $limit = isset($_GET['limit']) ? max(1, min(500, (int)$_GET['limit'])) : 100;
+            $offset = isset($_GET['offset']) ? max(0, (int)$_GET['offset']) : 0;
+
+            $rows = $db->fetchAll(
+                'SELECT gs.summary_uuid, gs.name, gs.game_type, gs.scenario_uniqid,
+                        gs.played_at, gs.teams_launched, gs.teams_played, gs.players_played,
+                        gs.created_at, gs.client_id,
+                        c.name AS client_name, c.email AS client_email,
+                        COALESCE(s.title, gs.scenario_uniqid) AS scenario_title
+                 FROM game_summaries gs
+                 LEFT JOIN clients c ON c.id = gs.client_id
+                 LEFT JOIN scenarios s ON s.uniqid = gs.scenario_uniqid' . whereOf($conds) .
+                ' ORDER BY gs.played_at DESC, gs.id DESC
+                 LIMIT ? OFFSET ?',
+                array_merge($args, [$limit, $offset])
+            );
+
+            $total = $db->fetch(
+                'SELECT COUNT(*) AS count FROM game_summaries gs' . whereOf($conds),
+                $args
+            );
+
+            jsonResponse([
+                'games' => $rows,
+                'total' => (int)$total['count'],
+                'limit' => $limit,
+                'offset' => $offset,
+                'is_admin' => $isAdmin,
+            ]);
+            break;
+        }
+
+        case 'filters': {
+            [$conds, $args] = summaryConditions($auth, true);
+            $scopeWhere = whereOf($conds);
+
+            $gameTypes = $db->fetchAll(
+                'SELECT DISTINCT gs.game_type FROM game_summaries gs' . $scopeWhere .
+                ' ORDER BY gs.game_type',
+                $args
+            );
+
+            $scenarioConds = array_merge($conds, ['gs.scenario_uniqid IS NOT NULL']);
+            $scenarios = $db->fetchAll(
+                'SELECT DISTINCT gs.scenario_uniqid,
+                        COALESCE(s.title, gs.scenario_uniqid) AS title
+                 FROM game_summaries gs
+                 LEFT JOIN scenarios s ON s.uniqid = gs.scenario_uniqid' . whereOf($scenarioConds) .
+                ' ORDER BY title',
+                $args
+            );
+
+            $response = [
+                'game_types' => array_map(fn($r) => $r['game_type'], $gameTypes),
+                'scenarios' => $scenarios,
+            ];
+
+            if ($isAdmin) {
+                $response['clients'] = $db->fetchAll(
+                    'SELECT DISTINCT gs.client_id, c.name, c.email
+                     FROM game_summaries gs
+                     LEFT JOIN clients c ON c.id = gs.client_id' . $scopeWhere .
+                    ' ORDER BY c.name',
+                    $args
+                );
+            }
+
+            jsonResponse($response);
+            break;
+        }
 
         default:
-            $response = ['error' => 'Invalid action'];
-            Logger::log('statistics', $_SERVER['REQUEST_METHOD'], $action, $userId, [], $response, 400);
-            jsonResponse($response, 400);
+            jsonResponse(['error' => 'Invalid action'], 400);
     }
 } catch (Exception $e) {
-    $response = ['error' => 'Server error: ' . $e->getMessage()];
-    Logger::log('statistics', $_SERVER['REQUEST_METHOD'], $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], $response, 500);
-    jsonResponse($response, 500);
+    Logger::log('statistics', $_SERVER['REQUEST_METHOD'] ?? 'GET', $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], ['error' => $e->getMessage()], 500);
+    jsonResponse(['error' => 'Server error: ' . $e->getMessage()], 500);
 }

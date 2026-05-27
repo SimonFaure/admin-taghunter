@@ -26,6 +26,8 @@ interface LegacyTranslationEntry {
   enigmas?: any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   overscores?: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  checkpoints?: any[];
 }
 
 /**
@@ -80,6 +82,14 @@ export function synthesizeLegacyTranslations(
       entry.overscores = (gameMeta.overscores as Array<Record<string, unknown>>).map((o) => ({
         overscore_step: o.overscore_step,
         name_overscore_step: getLocalized(o.name_overscore_step as never, lang, dl),
+      }));
+    }
+
+    if (capabilities.hasTranslatableArrays.includes('checkpoints') && Array.isArray(gameMeta?.checkpoints)) {
+      entry.checkpoints = (gameMeta.checkpoints as Array<Record<string, unknown>>).map((c) => ({
+        ...c,
+        title: getLocalized(c.title as never, lang, dl),
+        description: getLocalized(c.description as never, lang, dl),
       }));
     }
 

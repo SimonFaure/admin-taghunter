@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench, LayoutGrid as Layout, Gamepad2 } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench, LayoutGrid as Layout, Gamepad2, Rocket, UploadCloud, Database, AlertTriangle, ExternalLink, Server, Monitor, BookOpen } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -20,7 +20,12 @@ interface ApiSection {
   endpoints: Endpoint[];
 }
 
-export default function ApiDocsView() {
+interface ApiDocsViewProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
+  const [docTab, setDocTab] = useState<'guides' | 'reference'>('guides');
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | null>(null);
 
   const scrollToPlayground = () => {
@@ -961,12 +966,43 @@ export default function ApiDocsView() {
 
   return (
     <div className="max-w-7xl mx-auto p-8">
+      {/* Top-level tab switch: conceptual guides vs the endpoint reference. */}
+      <div className="border-b border-gray-200 mb-8">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setDocTab('guides')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              docTab === 'guides'
+                ? 'border-gray-900 text-gray-900'
+                : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            Guides
+          </button>
+          <button
+            onClick={() => setDocTab('reference')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              docTab === 'reference'
+                ? 'border-gray-900 text-gray-900'
+                : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            <Code className="w-4 h-4" />
+            API Reference
+          </button>
+        </div>
+      </div>
+
+      {docTab === 'guides' && <DeploymentGuide onNavigate={onNavigate} />}
+
+      {docTab === 'reference' && (
+        <>
       <div className="mb-8">
         <div className="flex items-start justify-between gap-4 mb-2">
-          <div className="flex items-center gap-3">
-            <Code className="w-8 h-8 text-gray-700" />
-            <h1 className="text-3xl font-bold text-gray-900">API Documentation</h1>
-          </div>
+          <p className="text-gray-600 text-lg">
+            Complete reference for TagHunter Admin API endpoints
+          </p>
           <button
             onClick={scrollToPlayground}
             className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium transition-colors flex-shrink-0"
@@ -975,9 +1011,6 @@ export default function ApiDocsView() {
             Playground Endpoints
           </button>
         </div>
-        <p className="text-gray-600 text-lg">
-          Complete reference for TagHunter Admin API endpoints
-        </p>
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
@@ -1233,6 +1266,294 @@ export default function ApiDocsView() {
             <span className="text-gray-700">Server Error - Internal server error</span>
           </div>
         </div>
+      </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Guides tab: how TagHunter ships to production and how playground versions
+// are cut. App-release scope only (studio web deploy + playground builds).
+// ---------------------------------------------------------------------------
+
+function GuideSection({
+  icon,
+  color,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  color: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-10">
+      <div className="flex items-center gap-3 mb-4">
+        <div className={`${color} p-2 rounded-lg text-white`}>{icon}</div>
+        <h3 className="text-xl font-bold text-gray-900">{title}</h3>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-semibold flex items-center justify-center">
+        {n}
+      </span>
+      <div className="flex-1 text-sm text-gray-700 space-y-2 pt-0.5">{children}</div>
+    </div>
+  );
+}
+
+function Mono({ children }: { children: React.ReactNode }) {
+  return (
+    <code className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-[0.8em] font-mono break-all">
+      {children}
+    </code>
+  );
+}
+
+function CodeBlock({ children }: { children: string }) {
+  return (
+    <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre">
+      {children}
+    </pre>
+  );
+}
+
+function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-2">
+        <Rocket className="w-7 h-7 text-gray-700" />
+        <h2 className="text-2xl font-bold text-gray-900">Deployment &amp; Versioning</h2>
+      </div>
+      <p className="text-gray-600 mb-8 max-w-3xl">
+        How TagHunter ships to production. The studio web app and the playground app follow two very
+        different release models — read the concepts first, then jump to the runbook for whatever
+        you're shipping.
+      </p>
+
+      {/* Concepts */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-10">
+        <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+          <FileJson className="w-4 h-4" />
+          Concepts to know first
+        </h3>
+        <ul className="space-y-3 text-sm text-slate-700">
+          <li>
+            <strong>Studio web app (this admin) — unversioned.</strong> There's no version number;
+            whatever files sit on the server are what's live. You ship by building locally and
+            uploading the result. It's continuous deployment, done by hand.
+          </li>
+          <li>
+            <strong>Playground app (desktop + mobile) — semver-versioned.</strong> The version lives
+            in <Mono>taghunter_playground/src-tauri/tauri.conf.json</Mono> (<Mono>version</Mono>, e.g.{' '}
+            <Mono>1.1.0</Mono>). Every build is a discrete release tracked in the{' '}
+            <strong>Releases</strong> tab.
+          </li>
+          <li>
+            <strong>“latest”.</strong> Exactly one release per platform is flagged latest — that's the
+            build the auto-updater offers to everyone.
+          </li>
+          <li>
+            <strong>Minimum supported version (the “floor”).</strong> A hard block: any client older
+            than the floor is forced to update before it can run. Raise it only for breaking changes.
+          </li>
+          <li>
+            <strong>Updater signature.</strong> Every desktop build ships with a <Mono>.sig</Mono> file.
+            The app verifies it against the public key baked into <Mono>tauri.conf.json</Mono>, so only
+            builds you signed can install.
+          </li>
+        </ul>
+      </div>
+
+      {/* Runbook 1 — studio web deploy */}
+      <GuideSection
+        icon={<Server className="w-5 h-5" />}
+        color="bg-blue-500"
+        title="Deploying the studio web app"
+      >
+        <div className="space-y-4 mb-4">
+          <Step n={1}>
+            <p>
+              <strong>Build the frontend.</strong> From <Mono>studio-taghunter/</Mono> run{' '}
+              <Mono>npm run build</Mono>. Vite writes the production bundle to <Mono>dist/</Mono>.
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Upload over SFTP.</strong> Copy the <em>contents</em> of <Mono>dist/</Mono> to the
+              web root, and any changed PHP under <Mono>backend/</Mono> to the matching path on the
+              server. The server layout mirrors the repo: built frontend at the root,{' '}
+              <Mono>backend/</Mono> alongside it (so the API stays at <Mono>/backend/api</Mono>).
+            </p>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Apply DB changes by hand.</strong> There is no migration runner on the PHP side.
+              If your change added a file under <Mono>backend/database/*.sql</Mono>, run it in
+              phpMyAdmin against the production database. (This is unlike the playground, whose SQLite
+              schema is managed by tracked sqlx migrations.)
+            </p>
+          </Step>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4" />
+            Never overwrite these — they hold live data or prod-only config
+          </h4>
+          <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
+            <li>
+              <Mono>media/</Mono> — scenario media uploads
+            </li>
+            <li>
+              <Mono>cards/</Mono> — per-client CSV card files
+            </li>
+            <li>
+              <Mono>backend/releases/</Mono> — uploaded playground build artifacts
+            </li>
+            <li>
+              <Mono>backend/config/database.php</Mono> and any prod <Mono>.env</Mono> / <Mono>.htaccess</Mono>
+            </li>
+          </ul>
+          <p className="text-sm text-red-800 mt-2">
+            Configure your SFTP client to skip these paths, or upload only the specific files you
+            changed.
+          </p>
+        </div>
+      </GuideSection>
+
+      {/* Runbook 2 — playground desktop release */}
+      <GuideSection
+        icon={<Monitor className="w-5 h-5" />}
+        color="bg-emerald-500"
+        title="Releasing a new playground desktop version"
+      >
+        <div className="space-y-4">
+          <Step n={1}>
+            <p>
+              <strong>Bump the version.</strong> Edit <Mono>version</Mono> in{' '}
+              <Mono>taghunter_playground/src-tauri/tauri.conf.json</Mono> to the new semver{' '}
+              (<Mono>x.y.z</Mono>). This is the number clients compare against.
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Build &amp; sign.</strong> The signing key must be in the environment so{' '}
+              <Mono>tauri build</Mono> emits the <Mono>.sig</Mono> next to the artifact:
+            </p>
+            <CodeBlock>{`# PowerShell
+$env:TAURI_SIGNING_PRIVATE_KEY = Get-Content -Raw "$HOME\\.tauri\\playground_updater.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""   # key was generated without a password
+npm run tauri:build`}</CodeBlock>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Publish in studio.</strong> Open <strong>Releases → New desktop release</strong>.
+              Upload the updater artifact and its <Mono>.sig</Mono>, set the version, the minimum
+              supported floor, and release notes, then mark it latest.
+            </p>
+          </Step>
+          <Step n={4}>
+            <p>
+              <strong>Clients self-update</strong> on next launch (or via Settings → Updates). The
+              manifest the app polls is served by <Mono>backend/api/playground_update.php</Mono>;
+              artifacts are stored under <Mono>backend/releases/</Mono>.
+            </p>
+          </Step>
+        </div>
+        <button
+          onClick={() => onNavigate?.('releases')}
+          className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          <UploadCloud className="w-4 h-4" />
+          Go to Releases
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      </GuideSection>
+
+      {/* Runbook 3 — playground mobile release */}
+      <GuideSection
+        icon={<Smartphone className="w-5 h-5" />}
+        color="bg-cyan-500"
+        title="Releasing a playground mobile version"
+      >
+        <p className="text-sm text-gray-700 mb-4">
+          Mobile builds (Android / iOS) can't self-install — they show the same update screens but
+          deep-link to the app store instead of downloading an artifact.
+        </p>
+        <div className="space-y-4">
+          <Step n={1}>
+            <p>
+              <strong>Publish the build to the store</strong> (Google Play / App Store) the usual way —
+              this happens outside studio.
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Register it in studio.</strong> Open <strong>Releases → New mobile release</strong>{' '}
+              and set the version, platform, the store URL, the minimum supported floor, and notes.
+            </p>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Outdated clients</strong> are then pointed at that store link when they're below
+              the floor or behind latest.
+            </p>
+          </Step>
+        </div>
+      </GuideSection>
+
+      {/* Caveats */}
+      <GuideSection
+        icon={<AlertTriangle className="w-5 h-5" />}
+        color="bg-amber-500"
+        title="Caveats &amp; known gaps"
+      >
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-5 space-y-4 text-sm text-amber-900">
+          <div>
+            <p className="font-semibold mb-1">The updater key has no password.</p>
+            <p>
+              The signing key was generated without one. Before real distribution, regenerate it{' '}
+              <em>with</em> a password (<Mono>tauri signer generate -p &lt;password&gt;</Mono>), update{' '}
+              <Mono>pubkey</Mono> in <Mono>tauri.conf.json</Mono>, and ship that build manually —
+              auto-update only rolls forward from a build that already carries the new public key.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">
+              <Mono>1.1.0</Mono> is the first updater-capable build.
+            </p>
+            <p>
+              The original <Mono>1.0.0</Mono> has no updater plugin and can't auto-update; existing{' '}
+              <Mono>1.0.0</Mono> users must install <Mono>1.1.0</Mono> by hand. Every build from{' '}
+              <Mono>1.1.0</Mono> onward updates itself.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">Not OS-code-signed yet.</p>
+            <p>
+              Windows SmartScreen and macOS Gatekeeper warn on first install and on each update. The
+              Tauri updater signature still proves the artifact's authenticity — the OS just doesn't
+              recognise the publisher. Acquiring OS code-signing certificates is a deferred follow-up.
+            </p>
+          </div>
+        </div>
+      </GuideSection>
+
+      <div className="flex items-start gap-2 text-xs text-gray-500 border-t border-gray-200 pt-4">
+        <Database className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <p>
+          Scope: app releases and web deploy. Content versioning (scenario / pattern / layout / cards
+          version bumps that drive client re-sync) is a separate workflow and isn't covered here.
+        </p>
       </div>
     </div>
   );

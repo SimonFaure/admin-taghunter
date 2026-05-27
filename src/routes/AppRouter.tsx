@@ -18,6 +18,8 @@ import { StudioPatternRoute } from './studio/StudioPatternRoute';
 import { StudioLayoutRoute } from './studio/StudioLayoutRoute';
 import { GameTypesView } from '../components/GameTypesView';
 import { MySettingsView } from '../components/client/MySettingsView';
+import { ClientStatisticsView } from '../components/client/ClientStatisticsView';
+import { MyHelpView } from '../components/client/MyHelpView';
 
 // Admin list views (/admin/scenarios etc.) aren't split out yet — Dashboard's
 // existing tab state still owns those. Leaving them as placeholder routes for
@@ -55,7 +57,9 @@ export function AppRouter() {
             <Route path="cards" element={<MyCardsView />} />
             <Route path="devices" element={<MyDevicesView />} />
             <Route path="game-types" element={<GameTypesView />} />
+            <Route path="statistics" element={<ClientStatisticsView />} />
             <Route path="settings" element={<MySettingsView />} />
+            <Route path="help" element={<MyHelpView />} />
             <Route path="account" element={<MyAccountView />} />
             <Route path="account/security" element={<AccountSecurityView />} />
             <Route path="*" element={<Navigate to="home" replace />} />

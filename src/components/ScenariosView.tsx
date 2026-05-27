@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { ImportLegacyZipModal } from './ImportLegacyZipModal';
 import { ScenarioListControls } from './scenarios/ScenarioListControls';
+import { AUDIENCE_OPTIONS, getAudienceLabel, normalizeAudience } from '../types/audience';
+import { listRegisteredAdapters } from '../scenarios';
+// Side-effect import: registers every shipped adapter so the game-type filter
+// chips below can be derived from the registry even when the editor route
+// hasn't been visited yet.
+import '../scenarios/bootstrap';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -32,12 +38,37 @@ function getGameVersion(scenario: Scenario): string | null {
   return scenario.version || null;
 }
 
-type ScenarioFilter = 'all' | 'products' | 'client-authored' | 'drafts';
+// Reads the audience (`game_meta.game_public`) out of a scenario's `data`
+// column, tolerating both the flat (`game_meta.…`) and wrapped (`data.game_meta.…`)
+// envelopes the same way the detail view does.
+function getScenarioAudience(scenario: Scenario): string {
+  const dataSource = scenario.data || scenario.game_data;
+  if (!dataSource) return '';
+  try {
+    const obj = typeof dataSource === 'string' ? JSON.parse(dataSource) : dataSource;
+    const gp = obj?.game_meta?.game_public ?? obj?.data?.game_meta?.game_public;
+    return typeof gp === 'string' ? gp : '';
+  } catch {
+    return '';
+  }
+}
+
+// The base provenance/status filters plus, dynamically, one entry per
+// registered game type (its `kind`, e.g. 'mystery' | 'tagquest' | 'tracks').
+// The `(string & {})` keeps literal autocomplete while accepting any game-type kind.
+type ScenarioFilter = 'all' | 'products' | 'client-authored' | 'drafts' | (string & {});
 
 export function ScenariosView() {
   const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [filter, setFilter] = useState<ScenarioFilter>('all');
+  // One filter chip per registered game type. Driven by the adapter registry,
+  // so adding a game type (a `registerAdapter(...)` line in bootstrap.ts) makes
+  // its chip appear here automatically.
+  const gameTypeFilters = useMemo(
+    () => listRegisteredAdapters().map((a) => ({ key: a.kind, label: a.label })),
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -680,10 +711,10 @@ export function ScenariosView() {
                   <span>Published by {selectedScenario.creator_name}</span>
                 </div>
               )}
-              {gamePublic !== null && (
+              {typeof gamePublic === 'string' && gamePublic !== '' && (
                 <div className="flex items-center space-x-2">
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                    {typeof gamePublic === 'string' ? gamePublic.charAt(0).toUpperCase() + gamePublic.slice(1) : gamePublic ? 'Public' : 'Private'}
+                    {getAudienceLabel(gamePublic)}
                   </span>
                 </div>
               )}
@@ -923,10 +954,17 @@ export function ScenariosView() {
   }
 
   const filteredScenarios = scenarios.filter((s) => {
+    if (filter === 'all') return true;
     if (filter === 'products') return s.scenario_type === 'product' || s.client_id === null;
     if (filter === 'client-authored') return s.scenario_type === 'custom' || s.client_id !== null;
     if (filter === 'drafts') return (s.status || 'draft') === 'draft';
-    return true;
+    // Audience pills carry an `audience:` prefix so their values can't collide
+    // with game-type kinds (e.g. 'audience:kids').
+    if (filter.startsWith('audience:')) {
+      return normalizeAudience(getScenarioAudience(s)) === filter.slice('audience:'.length);
+    }
+    // Otherwise `filter` is a game-type kind (e.g. 'mystery' | 'tagquest' | 'tracks').
+    return s.game_type === filter;
   });
 
   const groupedScenarios = filteredScenarios.reduce((acc, scenario) => {
@@ -1013,6 +1051,7 @@ export function ScenariosView() {
 
   const renderScenarioCard = (scenario: Scenario) => {
     const thumbnailUrl = getScenarioThumbnail(scenario);
+    const audience = getScenarioAudience(scenario);
 
     return (
       <div
@@ -1069,17 +1108,25 @@ export function ScenariosView() {
                 <span className="truncate">Client: {scenario.client_name}</span>
               </div>
             )}
-            {scenario.status && (
-              <div className="flex items-center space-x-2">
-                <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
-                  scenario.status === 'published'
-                    ? 'bg-green-100 text-green-700'
-                    : scenario.status === 'archived'
-                    ? 'bg-slate-200 text-slate-600'
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {scenario.status}
-                </span>
+            {(audience || scenario.status) && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {audience && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50 capitalize">
+                    <User className="w-3 h-3" />
+                    {getAudienceLabel(audience)}
+                  </span>
+                )}
+                {scenario.status && (
+                  <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+                    scenario.status === 'published'
+                      ? 'bg-green-100 text-green-700'
+                      : scenario.status === 'archived'
+                      ? 'bg-slate-200 text-slate-600'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {scenario.status}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -1136,6 +1183,18 @@ export function ScenariosView() {
           ) : (
             <span className="text-slate-300 text-xs">—</span>
           )}
+        </td>
+        <td className="px-4 py-3">
+          {(() => {
+            const audience = getScenarioAudience(scenario);
+            return audience ? (
+              <span className="px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50 capitalize">
+                {getAudienceLabel(audience)}
+              </span>
+            ) : (
+              <span className="text-slate-300 text-xs">—</span>
+            );
+          })()}
         </td>
         <td className="px-4 py-3">
           {version ? (
@@ -1244,7 +1303,12 @@ export function ScenariosView() {
       />
 
       <div className="flex items-center gap-2 flex-wrap">
-        {(['all', 'products', 'client-authored', 'drafts'] as const).map((key) => (
+        {([
+          { key: 'all', label: 'All' },
+          { key: 'products', label: 'Products' },
+          { key: 'client-authored', label: 'Client-authored' },
+          { key: 'drafts', label: 'Drafts' },
+        ] as const).map(({ key, label }) => (
           <button
             key={key}
             type="button"
@@ -1255,9 +1319,50 @@ export function ScenariosView() {
                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
             }`}
           >
-            {key === 'all' ? 'All' : key === 'client-authored' ? 'Client-authored' : key[0].toUpperCase() + key.slice(1)}
+            {label}
           </button>
         ))}
+
+        {gameTypeFilters.length > 0 && (
+          <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+        )}
+
+        {gameTypeFilters.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFilter(key)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              filter === key
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <Film className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+
+        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+
+        {AUDIENCE_OPTIONS.map(({ value, label }) => {
+          const key = `audience:${value}`;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFilter(key)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                filter === key
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {filteredScenarios.length === 0 ? (
@@ -1298,6 +1403,7 @@ export function ScenariosView() {
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Title</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Game Type</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Audience</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Version</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>

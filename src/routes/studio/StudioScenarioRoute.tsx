@@ -68,7 +68,11 @@ export function StudioScenarioRoute() {
        ? navigate('/admin', { state: { tab: 'scenarios' } })
        : navigate('/my/scenarios');
   const openLayoutEditor = (scenarioUniqid: string) =>
-    navigate(`/studio/layouts/${scenarioUniqid}`);
+    // Remember we came from the editor so the layout editor's Back returns here
+    // rather than to the role home (StudioLayoutRoute reads location.state.from).
+    navigate(`/studio/layouts/${scenarioUniqid}`, {
+      state: { from: `/studio/scenarios/${scenarioUniqid}` },
+    });
 
   if (isNew) {
     return (

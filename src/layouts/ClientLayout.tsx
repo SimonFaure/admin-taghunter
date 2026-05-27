@@ -1,6 +1,7 @@
-import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, LayoutGrid, Gamepad2, Settings } from 'lucide-react';
+import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, LayoutGrid, Gamepad2, Settings, BarChart3, HelpCircle } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { HelpProvider, studioOpenPdf } from '../help';
 
 const NAV_ITEMS = [
   { to: '/my/home', label: 'Home', icon: Home, end: true },
@@ -10,8 +11,10 @@ const NAV_ITEMS = [
   { to: '/my/cards', label: 'My Cards', icon: CreditCard, end: false },
   { to: '/my/devices', label: 'My Devices', icon: Smartphone, end: false },
   { to: '/my/game-types', label: 'Game Types', icon: Gamepad2, end: false },
+  { to: '/my/statistics', label: 'Statistics', icon: BarChart3, end: false },
   { to: '/my/settings', label: 'Settings', icon: Settings, end: false },
   { to: '/my/account', label: 'My Account', icon: User, end: false },
+  { to: '/my/help', label: 'Help', icon: HelpCircle, end: false },
 ];
 
 export function ClientLayout() {
@@ -24,6 +27,7 @@ export function ClientLayout() {
   };
 
   return (
+    <HelpProvider audience="client" navigateToDocs={() => navigate('/my/help')} openPdfFile={studioOpenPdf}>
     <div className="min-h-screen bg-slate-50">
       <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col">
         <div className="p-6 border-b border-slate-800 flex-shrink-0">
@@ -87,5 +91,6 @@ export function ClientLayout() {
         </div>
       </main>
     </div>
+    </HelpProvider>
   );
 }

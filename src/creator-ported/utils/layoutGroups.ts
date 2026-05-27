@@ -98,6 +98,45 @@ export function buildGroups(numQuests: number): GroupDef[] {
   return groups;
 }
 
+/**
+ * Tracks HUD frame elements — the four background frames for the in-game HUD.
+ * Ids match `gameMeta.*_background_image` (also mirrored to medias.images).
+ */
+export const TRACKS_HUD_ITEMS: GroupItemDef[] = [
+  { id: 'team_name_background_image', name: 'Team name frame', type: 'image' },
+  { id: 'timer_background_image', name: 'Timer frame', type: 'image' },
+  { id: 'score_background_image', name: 'Score frame', type: 'image' },
+  { id: 'time_background_image', name: 'Time frame', type: 'image' },
+];
+
+/**
+ * Mock preview text overlaid on the HUD frames in the layout editor so the
+ * designer can see how the live values sit on each frame. Render-only — never
+ * persisted to the layout.
+ */
+export const TRACKS_HUD_MOCK_TEXT: Record<string, string> = {
+  team_name_background_image: 'TEAM 1',
+  timer_background_image: '00:25:02',
+  score_background_image: '1500',
+};
+
+/**
+ * Tracks groups — a Checkpoints group (one draggable icon per checkpoint) and
+ * an HUD frames group. `mainImageId` is intentionally left empty: tracks groups
+ * have no "move the whole group" semantics (unlike tagquest quests), so each
+ * element drags independently.
+ */
+export function buildTracksGroups(checkpointCount: number): GroupDef[] {
+  const checkpointItems: GroupItemDef[] = [];
+  for (let i = 1; i <= checkpointCount; i++) {
+    checkpointItems.push({ id: `checkpoint_${i}`, name: `Checkpoint ${i}`, type: 'image' });
+  }
+  return [
+    { id: 'tracks_checkpoints', name: 'Checkpoints', mainImageId: '', items: checkpointItems },
+    { id: 'tracks_hud', name: 'HUD frames', mainImageId: '', items: TRACKS_HUD_ITEMS },
+  ];
+}
+
 export function getGroupForElement(elementId: string, groups: GroupDef[]): GroupDef | undefined {
   return groups.find(g => g.items.some(item => item.id === elementId));
 }

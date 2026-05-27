@@ -20,11 +20,16 @@ header('Content-Type: application/json');
 session_start();
 
 require_once __DIR__ . '/../database/Database.php';
+require_once __DIR__ . '/../utils/DeviceManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
     echo json_encode($data);
     exit;
+}
+
+function getRequestData(): array {
+    return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
 function requireAdminAuth(): int {
@@ -38,15 +43,16 @@ try {
     $db = Database::getInstance();
     $action = $_GET['action'] ?? '';
 
-    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-        jsonResponse(['error' => 'Method not allowed'], 405);
-    }
-
+    // Every action requires an authenticated admin. Per-action method checks
+    // live in each case below: the read actions are GET, rename_device is POST.
     requireAdminAuth();
 
     switch ($action) {
 
         case 'list_devices': {
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
             // One row per device with the most-recent client info and a
             // 7-day error count. Sort by last_seen so freshly-active devices
             // surface first. Optional ?client_id= scopes the list to one
@@ -75,7 +81,7 @@ try {
                     c.id AS client_id,
                     c.email AS client_email,
                     c.name AS client_name,
-                    (SELECT COUNT(*) FROM error_reports e
+                    (SELECT COUNT(DISTINCT e.fingerprint_hash) FROM error_reports e
                        WHERE e.device_id = d.id
                          AND e.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
                     ) AS error_count_7d
@@ -91,6 +97,9 @@ try {
         }
 
         case 'device_detail': {
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
             $deviceId = isset($_GET['device_id']) ? (int)$_GET['device_id'] : 0;
             if ($deviceId <= 0) {
                 jsonResponse(['error' => 'device_id is required'], 400);
@@ -98,7 +107,7 @@ try {
 
             $device = $db->fetch(
                 "SELECT
-                    d.id, d.device_uniq, d.device_label, d.os, d.os_version,
+                    d.id, d.device_uniq, d.device_label, d.display_name, d.os, d.os_version,
                     d.playground_version AS app_version,
                     d.last_seen_at, d.created_at, d.updated_at,
                     d.cards_file_version,
@@ -152,6 +161,9 @@ try {
         }
 
         case 'list_errors': {
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
             // Fleet-wide error feed, grouped by client + fingerprint so a bug
             // affecting many devices collapses to one row showing total count
             // and how many devices saw it.
@@ -177,6 +189,41 @@ try {
             );
 
             jsonResponse(['data' => $rows]);
+            break;
+        }
+
+        case 'rename_device': {
+            // Admin sets the display_name of any client's device. Unlike the
+            // playground/client rename (devices.php / secure_auth), this is not
+            // scoped to the caller — an admin may rename any device by id.
+            // device_label (the OS hostname) is left untouched.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $data = getRequestData();
+            $deviceId = isset($data['device_id']) ? (int)$data['device_id'] : 0;
+            if ($deviceId <= 0) {
+                jsonResponse(['error' => 'device_id is required'], 400);
+            }
+
+            // Normalise: trim, empty → null (clears the name), enforce max length.
+            $displayName = $data['display_name'] ?? null;
+            if ($displayName !== null) {
+                $displayName = trim((string)$displayName);
+                if ($displayName === '') {
+                    $displayName = null;
+                } elseif (mb_strlen($displayName) > 120) {
+                    jsonResponse(['error' => 'display_name max 120 chars'], 400);
+                }
+            }
+
+            $ok = DeviceManager::setDisplayName($db, $deviceId, $displayName);
+            if (!$ok) {
+                jsonResponse(['error' => 'Device not found'], 404);
+            }
+
+            jsonResponse(['success' => true, 'display_name' => $displayName]);
             break;
         }
 

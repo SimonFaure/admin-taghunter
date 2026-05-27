@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, LayoutGrid as Layout, Monitor, AlertTriangle, Languages, Gamepad2, Rocket } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, LayoutGrid as Layout, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ClientsView } from './ClientsView';
@@ -22,6 +22,49 @@ import { GameTypesView } from './GameTypesView';
 import { ReleasesView } from './ReleasesView';
 import AdminTranslationsView from './admin/AdminTranslationsView';
 import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
+import { HelpProvider, DocsShell, studioOpenPdf } from '../help';
+
+type MenuItem = { id: string; label: string; icon: typeof Home; route?: string };
+type NavGroup = { id: string; label: string; icon: typeof Home; items: MenuItem[]; storageKey: string };
+
+// Top-level nav entries (day-to-day content management).
+const mainMenuItems: MenuItem[] = [
+  { id: 'home', label: 'Dashboard', icon: Home },
+  { id: 'clients', label: 'Clients', icon: Users },
+  { id: 'scenarios', label: 'Scenarios', icon: Film },
+  { id: 'patterns', label: 'Patterns', icon: Package },
+  { id: 'cards', label: 'Cards', icon: CreditCard },
+  { id: 'layouts', label: 'Layouts', icon: Layout },
+  { id: 'devices', label: 'Devices', icon: Monitor },
+  { id: 'statistics', label: 'Statistics', icon: TrendingUp },
+  { id: 'admin-users', label: 'Admin Users', icon: Shield },
+  { id: 'translations', label: 'Translations', icon: Languages },
+  { id: 'help', label: 'Help', icon: HelpCircle },
+];
+
+// Media assets, grouped under the collapsible "Media" section.
+const mediaMenuItems: MenuItem[] = [
+  { id: 'media', label: 'Library', icon: Image },
+  { id: 'game-types', label: 'Videos', icon: Video },
+];
+
+// Developer / operations tools, grouped under the collapsible "Dev" section.
+const devMenuItems: MenuItem[] = [
+  { id: 'logs', label: 'API Logs', icon: FileText },
+  { id: 'api-docs', label: 'Docs', icon: Code },
+  { id: 'activity-history', label: 'Activity History', icon: Clock },
+  { id: 'recent-errors', label: 'Recent Errors', icon: AlertTriangle },
+  { id: 'releases', label: 'Releases', icon: Rocket },
+  { id: 'settings', label: 'Settings', icon: Settings },
+];
+
+// Collapsible nav sections, rendered after the top-level entries.
+const navGroups: NavGroup[] = [
+  { id: 'media', label: 'Media', icon: FolderOpen, items: mediaMenuItems, storageKey: 'studioMediaNavOpen' },
+  { id: 'dev', label: 'Dev', icon: Terminal, items: devMenuItems, storageKey: 'studioDevNavOpen' },
+];
+
+const allMenuItems: MenuItem[] = [...mainMenuItems, ...mediaMenuItems, ...devMenuItems];
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -30,6 +73,23 @@ export function Dashboard() {
   const navigate = useNavigate();
   const initialTab = (location.state as { tab?: string } | null)?.tab ?? 'home';
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const state: Record<string, boolean> = {};
+    for (const group of navGroups) {
+      const saved = localStorage.getItem(group.storageKey);
+      // Default: expanded when landing directly on one of the group's tabs.
+      state[group.id] = saved !== null ? saved === '1' : group.items.some((item) => item.id === initialTab);
+    }
+    return state;
+  });
+
+  const toggleGroup = (group: NavGroup) => {
+    setOpenGroups((prev) => {
+      const next = !prev[group.id];
+      localStorage.setItem(group.storageKey, next ? '1' : '0');
+      return { ...prev, [group.id]: next };
+    });
+  };
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activities, setActivities] = useState<DashboardActivity[]>([]);
@@ -67,6 +127,14 @@ export function Dashboard() {
     }
   }, [activeTab]);
 
+  // Keep a collapsible group expanded whenever the active tab lives inside it,
+  // so navigating there from elsewhere (quick actions, notifications) reveals it.
+  useEffect(() => {
+    const group = navGroups.find((g) => g.items.some((item) => item.id === activeTab));
+    if (!group) return;
+    setOpenGroups((prev) => (prev[group.id] ? prev : { ...prev, [group.id]: true }));
+  }, [activeTab]);
+
   const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -80,28 +148,63 @@ export function Dashboard() {
     return `${diffDays}d ago`;
   };
 
-  const menuItems = [
-    { id: 'home', label: 'Dashboard', icon: Home },
-    { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'scenarios', label: 'Scenarios', icon: Film },
-    { id: 'patterns', label: 'Patterns', icon: Package },
-    { id: 'cards', label: 'Cards', icon: CreditCard },
-    { id: 'layouts', label: 'Layouts', icon: Layout },
-    { id: 'media', label: 'Media', icon: Image },
-    { id: 'devices', label: 'Devices', icon: Monitor },
-    { id: 'releases', label: 'Releases', icon: Rocket },
-    { id: 'recent-errors', label: 'Recent Errors', icon: AlertTriangle },
-    { id: 'statistics', label: 'Statistics', icon: TrendingUp },
-    { id: 'activity-history', label: 'Activity History', icon: Clock },
-    { id: 'admin-users', label: 'Admin Users', icon: Shield },
-    { id: 'translations', label: 'Translations', icon: Languages },
-    { id: 'game-types', label: 'Game Types', icon: Gamepad2 },
-    { id: 'logs', label: 'API Logs', icon: FileText },
-    { id: 'api-docs', label: 'API Docs', icon: Code },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
+  const renderMenuButton = (item: MenuItem) => {
+    const Icon = item.icon;
+    return (
+      <button
+        key={item.id}
+        onClick={() => {
+          if (item.route) {
+            navigate(item.route);
+            return;
+          }
+          setActiveTab(item.id);
+        }}
+        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+          activeTab === item.id
+            ? 'bg-slate-800 text-white'
+            : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+        }`}
+      >
+        <Icon className="w-5 h-5" />
+        <span className="font-medium">{item.label}</span>
+      </button>
+    );
+  };
+
+  const renderCollapsibleGroup = (group: NavGroup) => {
+    const GroupIcon = group.icon;
+    const open = openGroups[group.id];
+    const groupActive = group.items.some((item) => item.id === activeTab);
+    return (
+      <div key={group.id} className="pt-2">
+        <button
+          onClick={() => toggleGroup(group)}
+          aria-expanded={open}
+          className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all ${
+            groupActive && !open
+              ? 'bg-slate-800 text-white'
+              : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+          }`}
+        >
+          <span className="flex items-center space-x-3">
+            <GroupIcon className="w-5 h-5" />
+            <span className="font-medium">{group.label}</span>
+          </span>
+          {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+
+        {open && (
+          <div className="mt-2 ml-3 pl-3 border-l border-slate-800 space-y-2">
+            {group.items.map(renderMenuButton)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
+    <HelpProvider audience="admin" navigateToDocs={() => setActiveTab('help')} openPdfFile={studioOpenPdf}>
     <div className="min-h-screen bg-slate-50">
       <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col z-40">
         <div className="p-6 border-b border-slate-800 flex-shrink-0">
@@ -119,29 +222,8 @@ export function Dashboard() {
         </div>
 
         <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  if ('route' in item && item.route) {
-                    navigate(item.route);
-                    return;
-                  }
-                  setActiveTab(item.id);
-                }}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
-                  activeTab === item.id
-                    ? 'bg-slate-800 text-white'
-                    : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            );
-          })}
+          {mainMenuItems.map(renderMenuButton)}
+          {navGroups.map(renderCollapsibleGroup)}
         </nav>
 
         <div className="p-4 border-t border-slate-800 flex-shrink-0">
@@ -172,7 +254,7 @@ export function Dashboard() {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-slate-900 mb-2">
-              {menuItems.find((item) => item.id === activeTab)?.label}
+              {allMenuItems.find((item) => item.id === activeTab)?.label}
             </h2>
             <p className="text-slate-600">
               {activeTab === 'home' ? "Welcome back! Here's what's happening today." : ''}
@@ -214,7 +296,13 @@ export function Dashboard() {
 
           {activeTab === 'logs' && <LogsView />}
 
-          {activeTab === 'api-docs' && <ApiDocsView />}
+          {activeTab === 'api-docs' && <ApiDocsView onNavigate={setActiveTab} />}
+
+          {activeTab === 'help' && (
+            <div className="h-[calc(100vh-220px)] overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <DocsShell />
+            </div>
+          )}
 
           {activeTab === 'settings' && <SettingsView />}
 
@@ -373,5 +461,6 @@ export function Dashboard() {
         </div>
       </main>
     </div>
+    </HelpProvider>
   );
 }

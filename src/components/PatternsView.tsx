@@ -4,6 +4,7 @@ import { Package, Search, Filter, Download, Eye, Trash2, Pencil, Plus, ChevronLe
 import { authFetch } from '../lib/authFetch';
 import { useAuth } from '../auth/AuthContext';
 import { PatternImport } from '../creator-ported/components/PatternImport';
+import { PatternCorrespondence } from './PatternCorrespondence';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -348,16 +349,6 @@ export function PatternsView() {
               <Pencil className="w-4 h-4" />
               <span>Edit</span>
             </button>
-            {userType === 'admin' && (
-              <button
-                onClick={() => openEdit(selectedPattern)}
-                className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm"
-                title="Edit raw JSON (admin)"
-              >
-                <FileJson className="w-4 h-4" />
-                <span>Raw JSON</span>
-              </button>
-            )}
             <button
               onClick={() => handleDelete(selectedPattern.id)}
               className="flex items-center gap-2 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm"
@@ -461,16 +452,11 @@ export function PatternsView() {
           </div>
 
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-                <h4 className="text-sm font-semibold text-slate-700">Pattern Data (JSON)</h4>
-              </div>
-              <div className="p-5 overflow-auto max-h-[60vh]">
-                <pre className="bg-slate-50 p-4 rounded-lg text-xs border border-slate-200 overflow-auto leading-relaxed">
-                  {JSON.stringify(JSON.parse(selectedPattern.pattern_data), null, 2)}
-                </pre>
-              </div>
-            </div>
+            <PatternCorrespondence
+              patternId={selectedPattern.id}
+              gameType={selectedPattern.game_type}
+              patternData={selectedPattern.pattern_data}
+            />
           </div>
         </div>
 

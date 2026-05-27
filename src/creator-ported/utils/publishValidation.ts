@@ -100,3 +100,60 @@ export function validateMysteryConfig(config: any, scenarioTitle: string, scenar
     warnings: issues.filter((i) => i.severity === 'warning'),
   };
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function validateTracksConfig(config: any, scenarioTitle: string, scenarioDescription: string): ValidationResult {
+  const issues: ValidationIssue[] = [];
+
+  check(issues, !!scenarioTitle?.trim(), 'title', 'Scenario title is required', 'error');
+  check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
+  check(issues, !!config.background_image, 'background_image', 'Background image is required', 'error');
+  check(issues, !!config.game_visual, 'game_visual', 'Game visual image is required', 'error');
+  check(issues, !!config.map_image, 'map_image', 'Map image is required', 'error');
+  check(issues, !!config.team_name_background_image, 'team_name_background_image', 'Team name frame is required', 'warning');
+  check(issues, !!config.timer_background_image, 'timer_background_image', 'Timer frame is required', 'warning');
+  check(issues, !!config.score_background_image, 'score_background_image', 'Score frame is required', 'warning');
+  check(issues, !!config.time_background_image, 'time_background_image', 'Time frame is required', 'warning');
+  check(issues, !!config.top_1_image, 'top_1_image', 'Top 1 image is required', 'warning');
+  check(issues, !!config.top_3_image, 'top_3_image', 'Top 3 image is required', 'warning');
+  check(issues, !!config.top_10_image, 'top_10_image', 'Top 10 image is required', 'warning');
+
+  const checkpointCount = config.checkpoints?.length ?? 0;
+  check(issues, checkpointCount > 0, 'checkpoints', 'At least one checkpoint is required', 'error');
+
+  if (checkpointCount > 0 && config.checkpoints_unique_image !== true) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    config.checkpoints.forEach((c: any, i: number) => {
+      check(issues, !!c.image, `checkpoints[${i}].image`, `Checkpoint ${i + 1}: image is required when per-checkpoint icons are on`, 'warning');
+    });
+  }
+  if (checkpointCount > 0 && config.checkpoints_unique_image === true) {
+    check(issues, !!config.checkpoints_unique_image_id, 'checkpoints_unique_image_id', 'Common checkpoint icon is required when common-icon mode is on', 'error');
+  }
+
+  const routes = config.routes ?? {};
+  const anyRoute = Object.values(routes).some((r) => (r as { enabled?: boolean })?.enabled);
+  check(issues, anyRoute, 'routes', 'At least one route must be enabled', 'error');
+
+  const displays = config.displays ?? {};
+  const anyDisplay = Object.values(displays).some((d) => (d as { enabled?: boolean })?.enabled);
+  check(issues, anyDisplay, 'displays', 'At least one display mode must be enabled', 'error');
+
+  const playModes = config.play_modes ?? {};
+  const anyPlayMode = Object.values(playModes).some((p) => (p as { enabled?: boolean })?.enabled);
+  check(issues, anyPlayMode, 'play_modes', 'At least one play mode must be enabled', 'error');
+
+  const scoreTypes = config.score_types ?? {};
+  const enabledScores = Object.entries(scoreTypes).filter(([, v]) => (v as { enabled?: boolean })?.enabled);
+  check(issues, enabledScores.length > 0, 'score_types', 'At least one score type must be enabled', 'error');
+  const hasDefault = enabledScores.some(([, v]) => (v as { default?: boolean })?.default);
+  check(issues, enabledScores.length === 0 || hasDefault, 'score_types', 'One enabled score type must be marked as default', 'warning');
+
+  check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
+
+  return {
+    valid: issues.filter((i) => i.severity === 'error').length === 0,
+    errors: issues.filter((i) => i.severity === 'error'),
+    warnings: issues.filter((i) => i.severity === 'warning'),
+  };
+}

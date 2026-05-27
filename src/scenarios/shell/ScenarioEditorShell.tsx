@@ -94,6 +94,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
               enigmas?: Array<Record<string, string | undefined>>;
               overscores?: Array<Record<string, string | undefined>>;
               levels?: Record<string, string>;
+              checkpoints?: Array<Record<string, string | number | undefined>>;
             }
           | null;
         const parsedLayout = parseCol((data as { scenario_layout: unknown }).scenario_layout);
@@ -158,6 +159,37 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
             if (typeof n !== 'string' || n === '') return;
             const m = byNumber.get(n);
             if (m?.good_answer_image) e.good_answer_image = m.good_answer_image;
+          });
+        }
+
+        // Tracks: medias.checkpoints[] is the source of truth for per-checkpoint
+        // images (cleanGameMetaForData strips checkpoint.image; buildMediasColumn
+        // emits {checkpoint_id, checkpoint_number, image}). Match by
+        // checkpoint_id first (new uuid), then by checkpoint_number for legacy
+        // imports where the editor's local id hasn't been written yet.
+        if (parsedMedia?.checkpoints && Array.isArray(merged.checkpoints)) {
+          const inMerged = merged.checkpoints as Array<Record<string, unknown>>;
+          type CpMedia = Record<string, string | number | undefined>;
+          const byId = new Map<string, CpMedia>();
+          const byNumber = new Map<string, CpMedia>();
+          for (const cm of parsedMedia.checkpoints) {
+            if (!cm) continue;
+            if (typeof cm.checkpoint_id === 'string' && cm.checkpoint_id !== '') {
+              byId.set(cm.checkpoint_id, cm);
+            }
+            const n =
+              typeof cm.checkpoint_number === 'string'
+                ? cm.checkpoint_number
+                : typeof cm.checkpoint_number === 'number'
+                  ? String(cm.checkpoint_number)
+                  : '';
+            if (n !== '') byNumber.set(n, cm);
+          }
+          inMerged.forEach((c, idx) => {
+            const id = typeof c.id === 'string' ? c.id : '';
+            const fallbackKey = String(idx + 1);
+            const m = (id && byId.get(id)) || byNumber.get(fallbackKey);
+            if (m && typeof m.image === 'string' && m.image !== '') c.image = m.image;
           });
         }
 
@@ -256,8 +288,13 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     const nextVersion = (Math.round((safeCurrent + 0.1) * 10) / 10).toFixed(1);
     const bumpedMeta = { ...meta, scenario_version: nextVersion };
     dispatch({ type: 'SET_GAME_META', payload: bumpedMeta });
-    const payload: SavePayload = { ...buildPayload(), gameMeta: bumpedMeta };
+    // Publishing flips the row's status draft -> published (the save path leaves
+    // status untouched).
+    const payload: SavePayload = { ...buildPayload(), gameMeta: bumpedMeta, status: 'published' };
     const result = await performSave(payload);
+    if (result.ok) {
+      dispatch({ type: 'HYDRATE', payload: { scenarioStatus: 'published' } });
+    }
     dispatch({
       type: 'END_PUBLISHING',
       payload: result.ok

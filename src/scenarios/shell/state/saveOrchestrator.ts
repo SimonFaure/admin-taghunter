@@ -36,6 +36,12 @@ export interface SavePayload<TGameMeta = any> {
   scenarioType: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   scenarioLayout: any;
+  /**
+   * Row-level `scenarios.status` to write. Only set by the publish path
+   * (`'published'`). When omitted, the existing status is left untouched so a
+   * regular save never silently demotes/promotes a scenario.
+   */
+  status?: string;
 }
 
 export interface SaveResult {
@@ -70,6 +76,9 @@ function buildCanonicalUpdate<TGameMeta>(payload: SavePayload<TGameMeta>) {
       available_languages: payload.availableLanguages,
     },
     medias,
+    // Only written when the publish path supplies it; a plain save omits
+    // `status` so the existing row value is preserved.
+    ...(payload.status !== undefined ? { status: payload.status } : {}),
     updated_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
   };
 }

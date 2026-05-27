@@ -11,7 +11,7 @@
 //     events: [
 //       {
 //         event_uuid: "<uuid v4>",
-//         event_type: "heartbeat" | "error" | "launch",
+//         event_type: "heartbeat" | "error" | "launch" | "game_summary" | "recovery_code_used",
 //         occurred_at: "<ISO 8601>",
 //         payload: {...event-type-specific...}
 //       },
@@ -148,6 +148,98 @@ function ingestLaunch(
     return true;
 }
 
+function ingestGameSummary(
+    object $db,
+    int $clientId,
+    ?int $authDeviceId,
+    array $payload
+): bool {
+    $summaryUuid = trim((string)($payload['summary_uuid'] ?? ''));
+    $gameType = trim((string)($payload['game_type'] ?? ''));
+    if ($summaryUuid === '' || strlen($summaryUuid) > 36 || $gameType === '') {
+        return false;
+    }
+
+    // Upsert keyed on summary_uuid (the playground's stable per-game id):
+    // last-write-wins, so a post-game score edit that re-emits refreshes the
+    // same row rather than duplicating it.
+    $db->execute(
+        'INSERT INTO game_summaries
+           (summary_uuid, client_id, device_id, name, game_type, scenario_uniqid,
+            played_at, teams_launched, teams_played, players_played)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           device_id = VALUES(device_id),
+           name = VALUES(name),
+           game_type = VALUES(game_type),
+           scenario_uniqid = VALUES(scenario_uniqid),
+           played_at = VALUES(played_at),
+           teams_launched = VALUES(teams_launched),
+           teams_played = VALUES(teams_played),
+           players_played = VALUES(players_played)',
+        [
+            $summaryUuid,
+            $clientId,
+            $authDeviceId,
+            isset($payload['name']) ? (string)$payload['name'] : null,
+            $gameType,
+            $payload['scenario_uniqid'] ?? null,
+            normalizeDatetime($payload['played_at'] ?? null),
+            isset($payload['teams_launched']) && $payload['teams_launched'] !== null
+                ? (int)$payload['teams_launched'] : null,
+            (int)($payload['teams_played'] ?? 0),
+            (int)($payload['players_played'] ?? 0),
+        ]
+    );
+
+    return true;
+}
+
+function ingestRecoveryCodeUsed(
+    object $db,
+    int $clientId,
+    string $occurredAt,
+    array $payload
+): bool {
+    $codeIndex = (int)($payload['code_index'] ?? 0);
+    if ($codeIndex <= 0) {
+        return false;
+    }
+    $poolVersion = isset($payload['pool_version']) ? (int)$payload['pool_version'] : null;
+    $deviceLabel = isset($payload['device_label']) && $payload['device_label'] !== null
+        ? substr((string)$payload['device_label'], 0, 255)
+        : null;
+
+    // Defensive: the tables may not be migrated yet on older installs. Treat a
+    // missing table as "nothing to record" (ack so the outbox drops the row).
+    try {
+        // Only stamp if the device's pool matches the current studio pool — a
+        // report against a since-regenerated pool would otherwise mark a fresh,
+        // unused code as used. A null reported version skips the gate (legacy).
+        if ($poolVersion !== null) {
+            $meta = $db->fetch('SELECT current_version FROM recovery_codes_meta WHERE client_id = ?', [$clientId]);
+            $currentVersion = (int)($meta['current_version'] ?? 0);
+            if ($poolVersion !== $currentVersion) {
+                return true; // stale report — ack and drop, no change.
+            }
+        }
+
+        // Idempotent: the used_at IS NULL guard means a retry (same code) or a
+        // second device reporting the same index is a no-op after the first.
+        $usedAt = normalizeDatetime($occurredAt) ?? date('Y-m-d H:i:s');
+        $db->execute(
+            'UPDATE recovery_codes
+                SET used_at = ?, used_device_label = ?
+              WHERE client_id = ? AND code_index = ? AND used_at IS NULL',
+            [$usedAt, $deviceLabel, $clientId, $codeIndex]
+        );
+    } catch (Exception $e) {
+        error_log('[telemetry.recovery_code_used] ' . $e->getMessage());
+    }
+
+    return true;
+}
+
 function normalizeDatetime($value): ?string {
     if ($value === null || $value === '') return null;
     $ts = strtotime((string)$value);
@@ -215,6 +307,12 @@ try {
                     break;
                 case 'launch':
                     $ok = ingestLaunch($db, $clientId, $authDeviceId, $uuid, $payload);
+                    break;
+                case 'game_summary':
+                    $ok = ingestGameSummary($db, $clientId, $authDeviceId, $payload);
+                    break;
+                case 'recovery_code_used':
+                    $ok = ingestRecoveryCodeUsed($db, $clientId, $occurredAt, $payload);
                     break;
                 default:
                     $ok = false;

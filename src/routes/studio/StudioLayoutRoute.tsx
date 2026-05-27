@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { LayoutEditor } from '../../creator-ported/components/LayoutEditor';
 import { db } from '../../creator-ported/lib/db';
 import { useAuth } from '../../auth/AuthContext';
@@ -11,8 +11,12 @@ import { useAuth } from '../../auth/AuthContext';
 export function StudioLayoutRoute() {
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userType } = useAuth();
   const roleHome = userType === 'admin' ? '/admin' : '/my/layouts';
+  // Honor the origin passed by the scenario editor ("Open layout editor"); fall
+  // back to the role home for entries from a layouts list.
+  const backTo = (location.state as { from?: string } | null)?.from || roleHome;
 
   const [scenarioId, setScenarioId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,7 +58,7 @@ export function StudioLayoutRoute() {
         <p className="text-red-400">{error || 'Layout not found'}</p>
         <button
           type="button"
-          onClick={() => navigate(roleHome)}
+          onClick={() => navigate(backTo)}
           className="rounded bg-slate-700 px-3 py-1.5 text-sm text-white hover:bg-slate-600"
         >
           Back
@@ -63,5 +67,5 @@ export function StudioLayoutRoute() {
     );
   }
 
-  return <LayoutEditor scenarioId={scenarioId} onBack={() => navigate(roleHome)} />;
+  return <LayoutEditor scenarioId={scenarioId} onBack={() => navigate(backTo)} />;
 }

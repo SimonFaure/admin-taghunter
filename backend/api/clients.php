@@ -8,6 +8,7 @@ session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/RecoveryCodes.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -148,6 +149,15 @@ try {
 
             $sql = "INSERT INTO clients ($columns) VALUES (" . implode(', ', $placeholders) . ")";
             $clientId = $db->execute($sql, $values);
+
+            // Issue an offline PIN-recovery pool for the new client so their
+            // devices sync codes from day one. Best-effort: a failure here must
+            // never block client creation (it self-heals on first pool view).
+            try {
+                RecoveryCodes::ensureForClient($db, (int)$clientId);
+            } catch (Exception $e) {
+                error_log('[clients.create] recovery codes provisioning failed: ' . $e->getMessage());
+            }
 
             $client = $db->fetch(
                 'SELECT * FROM clients WHERE id = ?',

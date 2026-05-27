@@ -172,19 +172,28 @@ try {
         if (is_array($gameData)) {
             $mediaImages = is_array($structuredMedias['images'] ?? null) ? $structuredMedias['images'] : [];
             $mediaSounds = is_array($structuredMedias['sounds'] ?? null) ? $structuredMedias['sounds'] : [];
+            // Mystery's level-gauge images live in `medias.levels` (a legacy
+            // overload of the name — these are images, not gameplay levels;
+            // see studio mystery/mediaSlots.ts). `cleanGameMetaForData` strips
+            // them out of game_meta on save, so they only survive here.
+            $mediaLevels = is_array($structuredMedias['levels'] ?? null) ? $structuredMedias['levels'] : [];
 
             // Sibling field→filename maps — the scenario list view + test
-            // modals read `game_media_images` / `game_sounds` directly.
-            $gameData['game_media_images'] = $mediaImages ?: new stdClass();
+            // modals read `game_media_images` / `game_sounds` directly. The
+            // gauge images are image fields too, so fold them into the same map.
+            $allImages = array_merge($mediaImages, $mediaLevels);
+            $gameData['game_media_images'] = $allImages ?: new stdClass();
             $gameData['game_sounds'] = $mediaSounds ?: new stdClass();
 
             // Pre-refactor, top-level image filenames (`background_image`,
             // `malus_image`, `custom_template`, …) lived INSIDE `game_meta`.
             // The playground's tagquest renderer still resolves sentinel
             // filenames (`@background`, `@malus_image`, `@template`) against
-            // `game_meta`, so splice the medias-column images back in.
+            // `game_meta`, and the mystery renderer reads `levels_gauge_image`
+            // / `levels_gauge_player_icon_image` / … from game_meta — so splice
+            // both the medias-column images AND the gauge images back in.
             if (is_array($gameData['game_meta'] ?? null)) {
-                foreach ($mediaImages as $field => $filename) {
+                foreach ($allImages as $field => $filename) {
                     $gameData['game_meta'][$field] = $filename;
                 }
             }
@@ -604,6 +613,30 @@ try {
             $hasOnDemandCards = true;
         }
 
+        // Team-name pools version = max(global catalog, this client's pool).
+        // Defensive: the team_name_pools tables may not be migrated yet on
+        // older installs, so a missing table just yields version 0.
+        $teamNamesVersion = 0;
+        try {
+            $gv = $db->fetch("SELECT current_version FROM team_name_pools_meta WHERE scope_key = 'global'");
+            $cv = $db->fetch('SELECT current_version FROM team_name_pools_meta WHERE scope_key = ?', ['client:' . $userId]);
+            // current_version is DECIMAL(10,2); cast to float so JSON emits a number.
+            $teamNamesVersion = round(max((float)($gv['current_version'] ?? 0), (float)($cv['current_version'] ?? 0)), 2);
+        } catch (Exception $e) {
+            $teamNamesVersion = 0;
+        }
+
+        // Offline PIN-recovery codes version (per-client). Defensive: the
+        // recovery_codes tables may not be migrated yet on older installs, so
+        // a missing table just yields version 0 (no download advertised).
+        $recoveryCodesVersion = 0;
+        try {
+            $rv = $db->fetch('SELECT current_version FROM recovery_codes_meta WHERE client_id = ?', [$userId]);
+            $recoveryCodesVersion = (int)($rv['current_version'] ?? 0);
+        } catch (Exception $e) {
+            $recoveryCodesVersion = 0;
+        }
+
         $layouts = $db->fetchAll(
             'SELECT id, version, game_type FROM layouts WHERE owner_type = "admin" AND status = "active" ORDER BY game_type, version DESC'
         );
@@ -665,6 +698,8 @@ try {
             'custom_patterns_count' => count($customPatterns),
             'cards_version' => $cardsMetadata ? round((float)$cardsMetadata['version'], 2) : null,
             'has_on_demand_cards' => $hasOnDemandCards,
+            'team_names_version' => $teamNamesVersion,
+            'recovery_codes_version' => $recoveryCodesVersion,
             'layouts_count' => count($layouts),
             'translations_count' => count($translations),
             'game_types_count' => count($gameTypes),
@@ -678,6 +713,8 @@ try {
             'custom_patterns' => $customPatterns,
             'cards_version' => $cardsMetadata ? round((float)$cardsMetadata['version'], 2) : null,
             'has_on_demand_cards' => $hasOnDemandCards,
+            'team_names_version' => $teamNamesVersion,
+            'recovery_codes_version' => $recoveryCodesVersion,
             'layouts' => $layouts,
             'translations' => $translations,
             'game_types' => $gameTypes,
@@ -712,6 +749,89 @@ try {
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="on_demand_cards.json"');
         echo json_encode(['cards' => $cards, 'count' => count($cards)]);
+        exit;
+
+    case 'get_team_names':
+        // Merged team-name pools (global catalog ∪ this client's pool), grouped
+        // audience -> language -> [names], deduped case-insensitively. The
+        // playground draws from this at team creation (auto-register / reuse).
+        if ($method !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
+
+        $version = 0;
+        $pools = [];
+        try {
+            $gv = $db->fetch("SELECT current_version FROM team_name_pools_meta WHERE scope_key = 'global'");
+            $cv = $db->fetch('SELECT current_version FROM team_name_pools_meta WHERE scope_key = ?', ['client:' . $userId]);
+            // current_version is DECIMAL(10,2); cast to float so JSON emits a number.
+            $version = round(max((float)($gv['current_version'] ?? 0), (float)($cv['current_version'] ?? 0)), 2);
+            $rows = $db->fetchAll(
+                'SELECT audience, language, name FROM team_name_pools
+                 WHERE client_id IS NULL OR client_id = ?
+                 ORDER BY audience ASC, language ASC, name ASC',
+                [$userId]
+            );
+            $seen = [];
+            foreach ($rows as $r) {
+                $a = $r['audience'];
+                $l = $r['language'];
+                $key = $a . '|' . $l . '|' . mb_strtolower(trim($r['name']));
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $pools[$a][$l][] = $r['name'];
+            }
+        } catch (Exception $e) {
+            // tables not migrated yet -> empty pools, version 0
+            $version = 0;
+            $pools = [];
+        }
+
+        Logger::log('playground', $method, 'get_team_names', $userId, [], ['version' => $version], 200, 'playground');
+
+        http_response_code(200);
+        header('Content-Type: application/json');
+        header('Content-Disposition: attachment; filename="team_names.json"');
+        echo json_encode(['version' => $version, 'pools' => (object)$pools]);
+        exit;
+
+    case 'get_recovery_codes':
+        // This client's offline PIN-recovery codes, plaintext, in code_index
+        // order (so the device's local index lines up with studio's for the
+        // best-effort report-up). Codes travel over TLS and are stored on the
+        // device only as salted hashes. Per-client only; no global pool.
+        if ($method !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
+
+        $version = 0;
+        $codes = [];
+        try {
+            $rv = $db->fetch('SELECT current_version FROM recovery_codes_meta WHERE client_id = ?', [$userId]);
+            $version = (int)($rv['current_version'] ?? 0);
+            $rows = $db->fetchAll(
+                'SELECT code FROM recovery_codes WHERE client_id = ? ORDER BY code_index ASC',
+                [$userId]
+            );
+            foreach ($rows as $r) {
+                $codes[] = $r['code'];
+            }
+        } catch (Exception $e) {
+            // tables not migrated yet -> empty pool, version 0
+            $version = 0;
+            $codes = [];
+        }
+
+        Logger::log('playground', $method, 'get_recovery_codes', $userId, [], ['version' => $version, 'count' => count($codes)], 200, 'playground');
+
+        http_response_code(200);
+        header('Content-Type: application/json');
+        header('Content-Disposition: attachment; filename="recovery_codes.json"');
+        echo json_encode(['version' => $version, 'codes' => $codes]);
         exit;
 
     case 'download_pattern':

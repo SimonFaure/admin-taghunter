@@ -13,8 +13,17 @@ try {
     $statements = array_filter(array_map('trim', explode(';', $sql)));
 
     foreach ($statements as $statement) {
-        if (!empty($statement) && !preg_match('/^--/', $statement)) {
-            $db->query($statement);
+        // Strip full-line `--` comments before deciding whether the chunk has
+        // any SQL. A statement that merely *begins* with a comment header (the
+        // first chunk does) must still run — checking `^--` on the whole chunk
+        // skipped the error_reports CREATE entirely.
+        $codeLines = array_filter(
+            preg_split('/\r?\n/', $statement),
+            fn($line) => !preg_match('/^\s*--/', $line)
+        );
+        $code = trim(implode("\n", $codeLines));
+        if ($code !== '') {
+            $db->query($code);
         }
     }
 

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, AlertTriangle, FileText, Smartphone, Monitor, HardDrive, Calendar } from 'lucide-react';
+import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, AlertTriangle, FileText, Smartphone, Monitor, HardDrive, Calendar, ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { ScenarioData, adminCardsApi } from '../lib/api';
 import { authFetch } from '../lib/authFetch';
 import { CardsRegistryEditor, CardsEditorApi } from './CardsRegistryEditor';
+import { RecoveryCodesPanel } from './RecoveryCodesPanel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -37,6 +38,48 @@ interface ClientDetailViewProps {
   onBack: () => void;
 }
 
+interface CollapsibleSectionProps {
+  icon: React.ReactNode;
+  title: string;
+  headerRight?: React.ReactNode;
+  defaultCollapsed?: boolean;
+  children: React.ReactNode;
+}
+
+function CollapsibleSection({
+  icon,
+  title,
+  headerRight,
+  defaultCollapsed = false,
+  children,
+}: CollapsibleSectionProps) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
+      <div className="p-8">
+        <div className={`flex items-center justify-between ${collapsed ? '' : 'mb-6'}`}>
+          <button
+            type="button"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-expanded={!collapsed}
+            className="flex items-center space-x-3 text-left group"
+          >
+            {collapsed ? (
+              <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-slate-700 transition-colors" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-slate-500 group-hover:text-slate-700 transition-colors" />
+            )}
+            {icon}
+            <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+          </button>
+          {headerRight && <div className="flex items-center gap-3">{headerRight}</div>}
+        </div>
+        {!collapsed && children}
+      </div>
+    </div>
+  );
+}
+
 export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,6 +102,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [removing, setRemoving] = useState(false);
   const [devices, setDevices] = useState<ClientDevice[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
+  const [detailsCollapsed, setDetailsCollapsed] = useState(true);
 
   // Admin-side cards CRUD: same shared editor used by CardsListView's drill-in.
   const clientIdNum = Number(clientId);
@@ -447,6 +491,24 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
             </div>
           )}
 
+          <div className={`flex items-center justify-between border-t border-slate-200 pt-6 ${detailsCollapsed ? '' : 'mb-6'}`}>
+            <button
+              type="button"
+              onClick={() => setDetailsCollapsed((c) => !c)}
+              aria-expanded={!detailsCollapsed}
+              className="flex items-center space-x-3 text-left group"
+            >
+              {detailsCollapsed ? (
+                <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-slate-700 transition-colors" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-slate-500 group-hover:text-slate-700 transition-colors" />
+              )}
+              <User className="w-6 h-6 text-slate-700" />
+              <h3 className="text-xl font-bold text-slate-900">Client Details</h3>
+            </button>
+          </div>
+
+          {!detailsCollapsed && (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -594,21 +656,20 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               </button>
             </div>
           </form>
+          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
-        <div className="p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <Smartphone className="w-6 h-6 text-slate-700" />
-              <h3 className="text-xl font-bold text-slate-900">Devices</h3>
-            </div>
-            <span className="text-sm text-slate-600">
-              {devices.length} {devices.length === 1 ? 'device' : 'devices'}
-            </span>
-          </div>
-
+      <CollapsibleSection
+        icon={<Smartphone className="w-6 h-6 text-slate-700" />}
+        title="Devices"
+        defaultCollapsed
+        headerRight={
+          <span className="text-sm text-slate-600">
+            {devices.length} {devices.length === 1 ? 'device' : 'devices'}
+          </span>
+        }
+      >
           {loadingDevices ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
@@ -681,16 +742,21 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               ))}
             </div>
           )}
-        </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
-        <div className="p-8">
-          <div className="flex items-center space-x-3 mb-6">
-            <Key className="w-6 h-6 text-slate-700" />
-            <h3 className="text-xl font-bold text-slate-900">Change Password</h3>
-          </div>
+      <CollapsibleSection
+        icon={<ShieldCheck className="w-6 h-6 text-slate-700" />}
+        title="Recovery codes"
+        defaultCollapsed
+      >
+        <RecoveryCodesPanel clientId={clientIdNum} />
+      </CollapsibleSection>
 
+      <CollapsibleSection
+        icon={<Key className="w-6 h-6 text-slate-700" />}
+        title="Change Password"
+        defaultCollapsed
+      >
           <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -757,40 +823,39 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               {changingPassword ? 'Changing...' : 'Change Password'}
             </button>
           </form>
-        </div>
-      </div>
+      </CollapsibleSection>
 
       <div className="mt-6">
         <CardsRegistryEditor
           api={cardsApi}
           title="Cards"
           description="Register, edit, delete, or bulk-import cards for this client."
+          collapsible
+          defaultCollapsed
         />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
-        <div className="p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <ShoppingCart className="w-6 h-6 text-slate-700" />
-              <h3 className="text-xl font-bold text-slate-900">Product Scenarios</h3>
-            </div>
-            <div className="flex items-center gap-3">
-              {client?.license_type === 'access' && (
-                <button
-                  onClick={openAddScenarioModal}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Product Scenario
-                </button>
-              )}
-              <span className="text-sm text-slate-600">
-                {boughtScenarios.filter(s => s.scenario_type === 'product').length} total
-              </span>
-            </div>
-          </div>
-
+      <CollapsibleSection
+        icon={<ShoppingCart className="w-6 h-6 text-slate-700" />}
+        title="Product Scenarios"
+        defaultCollapsed
+        headerRight={
+          <>
+            {client?.license_type === 'access' && (
+              <button
+                onClick={openAddScenarioModal}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Add Product Scenario
+              </button>
+            )}
+            <span className="text-sm text-slate-600">
+              {boughtScenarios.filter(s => s.scenario_type === 'product').length} total
+            </span>
+          </>
+        }
+      >
           {loadingScenarios ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
@@ -882,21 +947,18 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               )}
             </div>
           )}
-        </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mt-6">
-        <div className="p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <FileText className="w-6 h-6 text-slate-700" />
-              <h3 className="text-xl font-bold text-slate-900">Custom Scenarios</h3>
-            </div>
-            <span className="text-sm text-slate-600">
-              {boughtScenarios.filter(s => s.scenario_type === 'custom').length} total
-            </span>
-          </div>
-
+      <CollapsibleSection
+        icon={<FileText className="w-6 h-6 text-slate-700" />}
+        title="Custom Scenarios"
+        defaultCollapsed
+        headerRight={
+          <span className="text-sm text-slate-600">
+            {boughtScenarios.filter(s => s.scenario_type === 'custom').length} total
+          </span>
+        }
+      >
           {loadingScenarios ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
@@ -965,8 +1027,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               ))}
             </div>
           )}
-        </div>
-      </div>
+      </CollapsibleSection>
 
       {removeConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

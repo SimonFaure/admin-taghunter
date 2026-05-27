@@ -1,13 +1,28 @@
-import { useEffect, useState } from 'react';
-import { Monitor, RefreshCw, ArrowLeft, AlertTriangle, Activity, Calendar } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Monitor,
+  RefreshCw,
+  ArrowLeft,
+  AlertTriangle,
+  Activity,
+  Calendar,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  Pencil,
+  Check,
+  X,
+} from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+const MAX_DISPLAY_NAME = 120;
 
 interface DeviceRow {
   id: number;
   device_uniq: string;
   device_label: string | null;
+  display_name: string | null;
   os: string | null;
   os_version: string | null;
   app_version: string | null;
@@ -18,6 +33,22 @@ interface DeviceRow {
   client_email: string | null;
   client_name: string | null;
   error_count_7d: number;
+}
+
+// The name shown to humans: the user/admin-chosen display_name wins, falling
+// back to the OS hostname (device_label) the playground keeps fresh.
+function deviceName(d: { display_name: string | null; device_label: string | null }): string {
+  return d.display_name || d.device_label || '';
+}
+
+function clientName(d: DeviceRow): string {
+  return d.client_name || d.client_email || (d.client_id != null ? `#${d.client_id}` : '');
+}
+
+type SortKey = 'device' | 'client' | 'last_seen' | 'errors';
+interface SortState {
+  key: SortKey;
+  dir: 'asc' | 'desc';
 }
 
 interface DeviceErrorGroup {
@@ -46,6 +77,19 @@ interface DeviceDetailPayload {
   launches: DeviceLaunch[];
 }
 
+async function renameDeviceAdmin(deviceId: number, displayName: string | null): Promise<void> {
+  const res = await authFetch(`${API_BASE_URL}/telemetry_admin.php?action=rename_device`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_id: deviceId, display_name: displayName }),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error || 'Failed to rename device');
+  }
+}
+
 function formatRelative(iso: string | null): string {
   if (!iso) return '—';
   const then = new Date(iso).getTime();
@@ -62,6 +106,42 @@ export function DevicesView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [sort, setSort] = useState<SortState>({ key: 'last_seen', dir: 'desc' });
+
+  const sortedDevices = useMemo(() => {
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const rows = [...devices];
+    rows.sort((a, b) => {
+      switch (sort.key) {
+        case 'device':
+          return deviceName(a).localeCompare(deviceName(b)) * dir;
+        case 'client':
+          return clientName(a).localeCompare(clientName(b)) * dir;
+        case 'errors':
+          return (a.error_count_7d - b.error_count_7d) * dir;
+        case 'last_seen':
+        default: {
+          const ta = a.last_seen_at ? new Date(a.last_seen_at).getTime() : 0;
+          const tb = b.last_seen_at ? new Date(b.last_seen_at).getTime() : 0;
+          return (ta - tb) * dir;
+        }
+      }
+    });
+    return rows;
+  }, [devices, sort]);
+
+  // Text columns read more naturally ascending; numeric/time columns descending.
+  const toggleSort = (key: SortKey) => {
+    setSort((prev) =>
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: key === 'device' || key === 'client' ? 'asc' : 'desc' }
+    );
+  };
+
+  const applyRename = (id: number, displayName: string | null) => {
+    setDevices((prev) => prev.map((d) => (d.id === id ? { ...d, display_name: displayName } : d)));
+  };
 
   const fetchDevices = async () => {
     try {
@@ -85,7 +165,13 @@ export function DevicesView() {
   }, []);
 
   if (selectedId !== null) {
-    return <DeviceDetail deviceId={selectedId} onBack={() => setSelectedId(null)} />;
+    return (
+      <DeviceDetail
+        deviceId={selectedId}
+        onBack={() => setSelectedId(null)}
+        onRenamed={applyRename}
+      />
+    );
   }
 
   return (
@@ -123,28 +209,26 @@ export function DevicesView() {
           <table className="w-full">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">Device</th>
-                <th className="text-left px-4 py-3 font-medium">Client</th>
+                <SortHeader label="Device" sortKey="device" sort={sort} onSort={toggleSort} />
+                <SortHeader label="Client" sortKey="client" sort={sort} onSort={toggleSort} />
                 <th className="text-left px-4 py-3 font-medium">App version</th>
                 <th className="text-left px-4 py-3 font-medium">OS</th>
-                <th className="text-left px-4 py-3 font-medium">Last seen</th>
-                <th className="text-left px-4 py-3 font-medium">Errors (7d)</th>
+                <SortHeader label="Last seen" sortKey="last_seen" sort={sort} onSort={toggleSort} />
+                <SortHeader label="Errors (7d)" sortKey="errors" sort={sort} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {devices.map((d) => (
+              {sortedDevices.map((d) => (
                 <tr
                   key={d.id}
                   onClick={() => setSelectedId(d.id)}
                   className="cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{d.device_label || '(unnamed)'}</div>
+                    <div className="font-medium text-slate-900">{deviceName(d) || '(unnamed)'}</div>
                     <div className="text-xs text-slate-400 font-mono">{d.device_uniq.slice(0, 13)}…</div>
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    {d.client_name || d.client_email || `#${d.client_id ?? '?'}`}
-                  </td>
+                  <td className="px-4 py-3 text-sm">{clientName(d) || '—'}</td>
                   <td className="px-4 py-3 text-sm font-mono">{d.app_version || '—'}</td>
                   <td className="px-4 py-3 text-sm">
                     {d.os ? `${d.os}${d.os_version ? ' ' + d.os_version : ''}` : '—'}
@@ -173,13 +257,52 @@ export function DevicesView() {
 interface DeviceDetailProps {
   deviceId: number;
   onBack: () => void;
+  onRenamed: (id: number, displayName: string | null) => void;
 }
 
-function DeviceDetail({ deviceId, onBack }: DeviceDetailProps) {
+function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
   const [data, setData] = useState<DeviceDetailPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<'info' | 'errors' | 'launches'>('info');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => {
+    if (!data) return;
+    setDraft(data.device.display_name ?? data.device.device_label ?? '');
+    setError('');
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setDraft('');
+  };
+
+  const saveEdit = async () => {
+    if (!data) return;
+    const trimmed = draft.trim();
+    if (trimmed.length > MAX_DISPLAY_NAME) {
+      setError(`Name must be ${MAX_DISPLAY_NAME} characters or fewer`);
+      return;
+    }
+    const next = trimmed === '' ? null : trimmed;
+    setSaving(true);
+    setError('');
+    try {
+      await renameDeviceAdmin(data.device.id, next);
+      setData((prev) => (prev ? { ...prev, device: { ...prev.device, display_name: next } } : prev));
+      onRenamed(data.device.id, next);
+      setEditing(false);
+      setDraft('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rename device');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -230,9 +353,60 @@ function DeviceDetail({ deviceId, onBack }: DeviceDetailProps) {
           <div className="bg-white p-6 rounded-xl border border-slate-200 mb-6">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">
-                  {data.device.device_label || '(unnamed device)'}
-                </h3>
+                {editing ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          void saveEdit();
+                        } else if (e.key === 'Escape') {
+                          e.preventDefault();
+                          cancelEdit();
+                        }
+                      }}
+                      maxLength={MAX_DISPLAY_NAME + 1}
+                      placeholder={data.device.device_label ?? 'Device name'}
+                      className="border border-slate-300 rounded px-2 py-1 text-lg font-bold text-slate-900 w-64"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void saveEdit()}
+                      disabled={saving}
+                      title="Save"
+                      className="p-1.5 rounded hover:bg-green-50 text-green-600 disabled:opacity-50"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={saving}
+                      title="Cancel"
+                      className="p-1.5 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-50"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <h3 className="text-xl font-bold text-slate-900">
+                      {deviceName(data.device) || '(unnamed device)'}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={startEdit}
+                      title="Rename device"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-opacity"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
                 <p className="text-xs text-slate-400 font-mono mt-1">{data.device.device_uniq}</p>
                 <p className="text-sm text-slate-500 mt-2">
                   {data.device.client_name || data.device.client_email || '—'}
@@ -263,7 +437,8 @@ function DeviceDetail({ deviceId, onBack }: DeviceDetailProps) {
           {tab === 'info' && (
             <div className="bg-white rounded-xl border border-slate-200 p-6">
               <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                <Detail label="Device label" value={data.device.device_label} />
+                <Detail label="Display name" value={data.device.display_name} />
+                <Detail label="Device label (OS hostname)" value={data.device.device_label} />
                 <Detail label="Device UUID" value={data.device.device_uniq} mono />
                 <Detail label="OS" value={data.device.os} />
                 <Detail label="OS version" value={data.device.os_version} />
@@ -286,6 +461,42 @@ function DeviceDetail({ deviceId, onBack }: DeviceDetailProps) {
         </>
       )}
     </div>
+  );
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: SortState;
+  onSort: (key: SortKey) => void;
+}) {
+  const active = sort.key === sortKey;
+  return (
+    <th className="text-left px-4 py-3 font-medium">
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={`group inline-flex items-center gap-1 uppercase transition-colors ${
+          active ? 'text-slate-900' : 'hover:text-slate-700'
+        }`}
+      >
+        {label}
+        {active ? (
+          sort.dir === 'asc' ? (
+            <ChevronUp className="w-3.5 h-3.5" />
+          ) : (
+            <ChevronDown className="w-3.5 h-3.5" />
+          )
+        ) : (
+          <ChevronsUpDown className="w-3.5 h-3.5 opacity-0 group-hover:opacity-50" />
+        )}
+      </button>
+    </th>
   );
 }
 
