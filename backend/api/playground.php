@@ -267,6 +267,48 @@ try {
                 $gameData['game_enigmas'] = $merged;
                 $gameData['game_meta']['enigmas'] = $merged;
             }
+
+            // Tracks equivalent: per-checkpoint images live in the structured
+            // `medias.checkpoints[]` list (keyed by `checkpoint_id`, with
+            // `checkpoint_number` / position as fallbacks). The playground
+            // runtime reads `game_meta.checkpoints[].image`, so splice each
+            // filename back onto its checkpoint — otherwise checkpoints render
+            // as blank/placeholder markers.
+            if (
+                ($scenario['game_type'] ?? '') === 'tracks'
+                && is_array($gameData['game_meta']['checkpoints'] ?? null)
+            ) {
+                $cpMediaById = [];
+                $cpMediaByNumber = [];
+                $cpMediaList = is_array($structuredMedias['checkpoints'] ?? null)
+                    ? $structuredMedias['checkpoints']
+                    : [];
+                foreach ($cpMediaList as $pos => $cm) {
+                    if (!is_array($cm)) continue;
+                    if (isset($cm['checkpoint_id']) && $cm['checkpoint_id'] !== '') {
+                        $cpMediaById[(string)$cm['checkpoint_id']] = $cm;
+                    }
+                    $num = $cm['checkpoint_number'] ?? ($pos + 1);
+                    $cpMediaByNumber[(string)$num] = $cm;
+                }
+                $mergedCps = [];
+                $i = 0;
+                foreach ($gameData['game_meta']['checkpoints'] as $cp) {
+                    $entry = is_array($cp) ? $cp : [];
+                    $i++;
+                    $cm = null;
+                    if (isset($entry['id']) && isset($cpMediaById[(string)$entry['id']])) {
+                        $cm = $cpMediaById[(string)$entry['id']];
+                    } elseif (isset($cpMediaByNumber[(string)$i])) {
+                        $cm = $cpMediaByNumber[(string)$i];
+                    }
+                    if (is_array($cm) && isset($cm['image']) && $cm['image'] !== '') {
+                        $entry['image'] = $cm['image'];
+                    }
+                    $mergedCps[] = $entry;
+                }
+                $gameData['game_meta']['checkpoints'] = $mergedCps;
+            }
         }
 
         // The `medias` column historically holds a structured object

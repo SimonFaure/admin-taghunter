@@ -84,6 +84,31 @@ function buildCanonicalUpdate<TGameMeta>(payload: SavePayload<TGameMeta>) {
 }
 
 /**
+ * Bump `scenarios.version` by +0.1 (the studio's semantic-versioning step),
+ * mutating the given update object in place (reads the current value first).
+ * Playgrounds re-download a scenario when the sync manifest version differs from
+ * the local one, so every content save MUST advance it — otherwise edits stay
+ * invisible to already-synced playgrounds. The playground compares versions as
+ * floats, so a 0.1 step is enough. Shared by the editor save and layout save.
+ */
+export async function bumpScenarioVersion(
+  scenarioId: number | string,
+  update: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const { data } = await db
+      .from('scenarios')
+      .select('version')
+      .eq('id', scenarioId)
+      .single();
+    const cur = Number((data as { version?: unknown } | null)?.version) || 0;
+    update.version = String(Number((cur + 0.1).toFixed(1)));
+  } catch {
+    // Leave version untouched if the read fails — better than writing a bad value.
+  }
+}
+
+/**
  * Regular save — canonical shape, same DB write for save/publish/zip-prelude.
  * Lifted from TagquestConfig.tsx:706 / MysteryConfig.tsx:619 (the careful
  * cleanup version, not the raw-config publish path).
@@ -91,6 +116,9 @@ function buildCanonicalUpdate<TGameMeta>(payload: SavePayload<TGameMeta>) {
 export async function performSave<TGameMeta>(payload: SavePayload<TGameMeta>): Promise<SaveResult> {
   try {
     const update = buildCanonicalUpdate(payload);
+    // Bump the row version (+0.1) so already-synced playgrounds re-download the
+    // edited scenario. Read-then-increment.
+    await bumpScenarioVersion(payload.scenarioId, update);
     const { data, error } = await db
       .from('scenarios')
       .update(update)

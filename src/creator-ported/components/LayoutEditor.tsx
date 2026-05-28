@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, Send, Maximize2, Minimize2, ChevronLeft, ChevronRight, LayoutGrid as Layout, Type, Image, Eye, EyeOff, ChevronDown, ChevronRight as ChevronRightSm, Layers, Download } from 'lucide-react';
 import { db } from '../lib/db';
+import { bumpScenarioVersion } from '../../scenarios/shell/state/saveOrchestrator';
 import { getMediaUrl } from '../utils/mediaUrl';
 import { Alert } from './Alert';
 import { authService } from '../services/authService';
@@ -893,9 +894,12 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       }
     });
 
+    // Bump the row version so playgrounds re-sync the new checkpoint positions.
+    const update: Record<string, unknown> = { data, scenario_layout: { elements } };
+    await bumpScenarioVersion(scenarioId, update);
     const { error: updErr } = await db
       .from('scenarios')
-      .update({ data, scenario_layout: { elements } })
+      .update(update)
       .eq('id', scenarioId);
     if (updErr) throw updErr;
 
