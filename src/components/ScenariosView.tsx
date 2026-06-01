@@ -6,6 +6,7 @@ import { ImportLegacyZipModal } from './ImportLegacyZipModal';
 import { ScenarioListControls } from './scenarios/ScenarioListControls';
 import { AUDIENCE_OPTIONS, getAudienceLabel, normalizeAudience } from '../types/audience';
 import { listRegisteredAdapters } from '../scenarios';
+import { HelpButton } from '../help';
 // Side-effect import: registers every shipped adapter so the game-type filter
 // chips below can be derived from the registry even when the editor route
 // hasn't been visited yet.
@@ -1257,10 +1258,13 @@ export function ScenariosView() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <p className="text-slate-600">
-          {filteredScenarios.length} {filteredScenarios.length === 1 ? 'scenario' : 'scenarios'}
-          {filter !== 'all' && ` (${scenarios.length} total)`}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-slate-600">
+            {filteredScenarios.length} {filteredScenarios.length === 1 ? 'scenario' : 'scenarios'}
+            {filter !== 'all' && ` (${scenarios.length} total)`}
+          </p>
+          <HelpButton chapter="scenarios" className="text-slate-400 hover:text-slate-700" />
+        </div>
         <ScenarioListControls
           viewMode={viewMode}
           onViewModeChange={setViewMode}

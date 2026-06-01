@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { recencyKey } from './scenarioSort';
 import { ScenarioListControls } from '../scenarios/ScenarioListControls';
 import type { ClientScenario } from './types';
+import { HelpButton } from '../../help';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -160,7 +161,10 @@ export function MyScenariosView() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <p className="text-slate-600">View and manage your available game scenarios</p>
+        <div className="flex items-center gap-2">
+          <p className="text-slate-600">View and manage your available game scenarios</p>
+          <HelpButton chapter="scenarios" className="text-slate-400 hover:text-slate-700" />
+        </div>
         {user?.license_type === 'premium' && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-sm font-medium">
             <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
