@@ -5,6 +5,7 @@ import { authFetch } from '../lib/authFetch';
 import { useAuth } from '../auth/AuthContext';
 import { PatternImport } from '../creator-ported/components/PatternImport';
 import { PatternCorrespondence } from './PatternCorrespondence';
+import { HelpButton } from '../help';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -586,7 +587,10 @@ export function PatternsView() {
       )}
 
       <div className="mb-6">
-        <p className="text-slate-600 mb-4">Manage and review all game patterns</p>
+        <div className="flex items-center gap-2 mb-4">
+          <p className="text-slate-600">Manage and review all game patterns</p>
+          <HelpButton chapter="patterns" className="text-slate-400 hover:text-slate-700" />
+        </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { Package, Search, Filter, Download, Eye, Trash2, Plus } from 'lucide-react';
+import { HelpButton } from '../../help';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -207,6 +208,10 @@ export function MyPatternsView() {
           {error}
         </div>
       )}
+
+      <div className="flex justify-end">
+        <HelpButton chapter="patterns" className="text-slate-400 hover:text-slate-700" />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
