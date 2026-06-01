@@ -8,6 +8,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { getLocalized } from '../../i18n/getLocalized';
 import type { Lang } from '../../i18n/types';
+import { HelpButton } from '../../../help';
 
 export function ScenarioHeader() {
   const editor = useScenarioEditor();
@@ -34,11 +35,14 @@ export function ScenarioHeader() {
           </h1>
         </div>
       </div>
-      {editor.isDirty && (
-        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
-          Unsaved changes
-        </span>
-      )}
+      <div className="flex items-center gap-2">
+        <HelpButton chapter="scenario-editor" label="Help" className="text-slate-500 hover:text-slate-800" />
+        {editor.isDirty && (
+          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
+            Unsaved changes
+          </span>
+        )}
+      </div>
     </div>
   );
 }

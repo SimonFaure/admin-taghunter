@@ -21,6 +21,7 @@ import { resolveFontFamily } from '../../../fonts/resolveFontFamily';
 import { getLocalized } from '../../i18n/getLocalized';
 import type { Lang } from '../../i18n/types';
 import type { CustomFont } from '../../../types/scenario-data';
+import { HelpDot } from '../../../help';
 
 /** Glyph sampler appended after the scenario title in the default preview. */
 const PREVIEW_SAMPLE = 'AaBbCc 0123 éèàâëù';
@@ -67,7 +68,7 @@ export function TypographySection() {
   const previewText = customPreviewText ?? defaultPreviewText;
 
   return (
-    <CollapsibleSection title="Typography">
+    <CollapsibleSection title="Typography" headerExtra={<HelpDot topic="editor.typography" />}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <label className="block">
           <span className="text-xs font-medium text-gray-700 mb-1 block">Font family</span>

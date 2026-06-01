@@ -10,6 +10,7 @@ import { useScenarioEditor } from '../useScenarioEditor';
 import { LocalizedField } from '../components/LocalizedField';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import type { Localized } from '../../i18n/types';
+import { HelpDot } from '../../../help';
 
 const TEXT_KEYS = [
   'text_player_starts',
@@ -35,7 +36,7 @@ export function TextStringsSection() {
   const meta = editor.gameMeta as Record<string, unknown>;
 
   return (
-    <CollapsibleSection title="UI text strings">
+    <CollapsibleSection title="UI text strings" headerExtra={<HelpDot topic="editor.translations" />}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {TEXT_KEYS.map((key) => (
           <LocalizedField

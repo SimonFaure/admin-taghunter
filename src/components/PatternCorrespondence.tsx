@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { db } from '../creator-ported/lib/db';
+import { HelpDot } from '../help';
 
 interface Station {
   id: number;
@@ -183,6 +184,7 @@ export function PatternCorrespondence({ patternId, gameType, patternData }: Patt
         <div className="flex items-center gap-2">
           <MapPin className="w-4 h-4 text-slate-400" />
           <h4 className="text-sm font-semibold text-slate-700">Station correspondences</h4>
+          <HelpDot topic="patterns.assignments" />
         </div>
         {rows && rows.length > 0 && (
           <span className="text-xs text-slate-400">
