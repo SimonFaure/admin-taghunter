@@ -20,6 +20,7 @@ import {
   ImportCsvResponse,
   CardsConflictError,
 } from '../lib/cardsApi';
+import { HelpButton } from '../help';
 
 export interface CardsEditorApi {
   list: () => Promise<{ cards: CardRow[]; version: number }>;
@@ -313,6 +314,7 @@ export function CardsRegistryEditor({
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <CreditCard className="w-6 h-6" />
                 <span>{title}</span>
+                <HelpButton chapter="cards" className="ml-1 text-slate-400 hover:text-slate-700" />
               </h2>
             )}
             {description && <p className="text-slate-600 mt-1">{description}</p>}

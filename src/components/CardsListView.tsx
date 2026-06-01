@@ -20,6 +20,7 @@ import { OnDemandPoolModal } from './OnDemandPoolModal';
 import { AssignOnDemandCardsModal } from './AssignOnDemandCardsModal';
 import { TeamNamePoolModal } from './TeamNamePoolModal';
 import type { TeamNamePoolScope } from '../lib/api';
+import { HelpButton } from '../help';
 
 export function CardsListView() {
   const [clients, setClients] = useState<ClientCardSummary[]>([]);
@@ -120,6 +121,7 @@ export function CardsListView() {
             All clients and their registered cards
           </p>
           <div className="flex items-center gap-2">
+            <HelpButton chapter="cards" label="Help" className="mr-1 text-slate-500 hover:text-slate-800" />
             <button
               onClick={() => { setNamePoolClientName(undefined); setNamePoolScope('global'); }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
