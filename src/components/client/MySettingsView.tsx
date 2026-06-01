@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
 import { Settings, Gamepad2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { HelpButton } from '../../help';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -102,6 +103,7 @@ export function MySettingsView() {
       <div className="flex items-center gap-3">
         <Settings className="w-6 h-6 text-slate-700" />
         <h2 className="text-2xl font-bold text-slate-900">Settings</h2>
+        <HelpButton chapter="settings" className="text-slate-400 hover:text-slate-700 ml-1" />
       </div>
 
       <div className="flex gap-2 border-b border-slate-200">

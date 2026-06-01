@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Database, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
+import { HelpButton } from '../help';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -71,6 +72,9 @@ export function SettingsView() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <HelpButton chapter="settings" className="text-slate-400 hover:text-slate-700" />
+      </div>
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <div className="flex items-center space-x-3 mb-6">
           <div className="p-3 bg-blue-100 rounded-lg">
