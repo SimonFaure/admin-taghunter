@@ -1,6 +1,7 @@
 import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X } from 'lucide-react';
 import { useState, useEffect, KeyboardEvent } from 'react';
 import { getDevices, deleteDevice, updateDevice, Device } from '../../lib/devicesApi';
+import { HelpButton } from '../../help';
 
 const MAX_DISPLAY_NAME = 120;
 
@@ -120,6 +121,7 @@ export function MyDevicesView() {
             <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
               <Smartphone className="w-6 h-6" />
               <span>My Devices</span>
+              <HelpButton chapter="devices" className="text-slate-400 hover:text-slate-700 ml-1" />
             </h2>
             <p className="text-slate-600 mt-1">
               Manage your registered devices

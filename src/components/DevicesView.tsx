@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
+import { HelpButton } from '../help';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MAX_DISPLAY_NAME = 120;
@@ -177,9 +178,12 @@ export function DevicesView() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-slate-600">
-          {devices.length} device{devices.length === 1 ? '' : 's'}, sorted by most-recent activity.
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-slate-600">
+            {devices.length} device{devices.length === 1 ? '' : 's'}, sorted by most-recent activity.
+          </p>
+          <HelpButton chapter="devices" className="text-slate-400 hover:text-slate-700" />
+        </div>
         <button
           onClick={fetchDevices}
           className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
