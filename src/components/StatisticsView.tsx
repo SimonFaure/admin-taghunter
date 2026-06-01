@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BarChart3, Users, TrendingUp, Gamepad2, UserCircle } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
+import { HelpButton } from '../help';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -120,6 +121,9 @@ export function StatisticsView() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <HelpButton chapter="statistics" className="text-slate-400 hover:text-slate-700" />
+      </div>
       {/* Filter bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-3">
         <div>
