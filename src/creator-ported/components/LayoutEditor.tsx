@@ -1,13 +1,33 @@
 // @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
-import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Save, Send, Maximize2, Minimize2, ChevronLeft, ChevronRight, LayoutGrid as Layout, Type, Image, Eye, EyeOff, ChevronDown, ChevronRight as ChevronRightSm, Layers, Download } from 'lucide-react';
+import { Fragment, useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Save, Send, Maximize2, Minimize2, ChevronLeft, ChevronRight, LayoutGrid as Layout, Type, Image, Eye, EyeOff, ChevronDown, ChevronRight as ChevronRightSm, Layers, Download, MapPin } from 'lucide-react';
 import { db } from '../lib/db';
 import { bumpScenarioVersion } from '../../scenarios/shell/state/saveOrchestrator';
 import { getMediaUrl } from '../utils/mediaUrl';
 import { Alert } from './Alert';
 import { authService } from '../services/authService';
-import { buildGroups, buildTracksGroups, TRACKS_HUD_ITEMS, TRACKS_HUD_MOCK_TEXT, getGroupForElement, getQuestIndexFromElementId, getCounterpartId, getQuestItemRole, type GroupDef } from '../utils/layoutGroups';
+import { buildGroups, buildTracksGroups, buildClashGroups, TRACKS_HUD_ITEMS, TRACKS_HUD_MOCK_TEXT, getGroupForElement, getQuestIndexFromElementId, getCounterpartId, getQuestItemRole, type GroupDef, type GroupItemDef } from '../utils/layoutGroups';
+import { defaultClashTerritories } from '../../scenarios/bodies/clash/defaults';
 import { alignQuestMainImagesVertically, clampQuestInnerElement } from '../utils/questSync';
+import { TracksTextFit } from '../../scenarios/bodies/tracks/TracksTextFit';
+import {
+  TEXT_ELEMENT_DEFAULT_POSITION,
+  TEXT_ELEMENT_DEFAULT_ALIGN,
+} from '../../scenarios/bodies/tracks/textElementStyle';
+import {
+  TypographyEditor,
+  resolveTypography,
+  type ResolvedTypography,
+} from '../../scenarios/bodies/tracks/TypographyEditor';
+import { resolveFontFamily } from '../../fonts/resolveFontFamily';
+import { registerStudioCustomFonts } from '../../fonts/registerStudioCustomFonts';
+import { getLocalized } from '../../scenarios/i18n/getLocalized';
+import type {
+  CustomFont,
+  TextCategory,
+  TextCategoryTypography,
+  TextElement as ScenarioTextSource,
+} from '../../types/scenario-data';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -36,7 +56,48 @@ interface TextElement {
   hidden?: boolean;
 }
 
-type LayoutElement = ImageElement | TextElement;
+/**
+ * Tracks-only: author-defined translatable text overlays. Position lives here
+ * (in the LayoutEditor's elements state) AND mirrors back to
+ * gameMeta.text_elements[i].position on save. Content + style live exclusively
+ * in gameMeta.text_elements[i] — looked up by `id` at render time.
+ */
+interface ScenarioTextElement {
+  type: 'scenario_text';
+  id: string;       // matches gameMeta.text_elements[i].id
+  name: string;     // author-facing preview string
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  hidden?: boolean;
+}
+
+type LayoutElement = ImageElement | TextElement | ScenarioTextElement;
+
+/** Title preview snippet length used in sidebar labels for scenario text. */
+const SCENARIO_TEXT_NAME_LIMIT = 30;
+
+function buildScenarioTextName(
+  src: ScenarioTextSource | undefined,
+  index: number,
+  lang: string,
+  defaultLang: string,
+): string {
+  if (!src) return `Text ${index + 1}`;
+  const value = getLocalized(
+    (src.text ?? {}) as never,
+    lang as never,
+    defaultLang as never,
+  );
+  const trimmed = (value || '').trim();
+  if (!trimmed) return `Text ${index + 1}`;
+  const snippet =
+    trimmed.length > SCENARIO_TEXT_NAME_LIMIT
+      ? `${trimmed.slice(0, SCENARIO_TEXT_NAME_LIMIT - 1)}…`
+      : trimmed;
+  return `Text ${index + 1} — “${snippet}”`;
+}
 
 interface LayoutEditorProps {
   scenarioId: string;
@@ -74,9 +135,26 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageBounds, setImageBounds] = useState({ x: 0, y: 0, width: 100, height: 100 });
   const [containerHeightPx, setContainerHeightPx] = useState(0);
+  const [containerWidthPx, setContainerWidthPx] = useState(0);
+  // Tracks-only: the scenario's text_elements[] as authored. Looked up by id
+  // when rendering 'scenario_text' layout elements (content + style live here,
+  // position lives in the layout element). Scenario font + color provide the
+  // fallback when an element leaves font/font_color unset.
+  const [scenarioTextElements, setScenarioTextElements] = useState<ScenarioTextSource[]>([]);
+  const [scenarioTextCategories, setScenarioTextCategories] = useState<TextCategory[]>([]);
+  const [scenarioCustomFonts, setScenarioCustomFonts] = useState<CustomFont[]>([]);
+  const [scenarioFont, setScenarioFont] = useState<string>('');
+  const [scenarioFontColor, setScenarioFontColor] = useState<string>('');
+  const [scenarioDefaultLanguage, setScenarioDefaultLanguage] = useState<string>('en');
+  // Tracks-only: which text-category group header is currently selected for
+  // typography editing. Mutually exclusive with selectedElement — selecting
+  // either clears the other.
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [questCount, setQuestCount] = useState<number>(0);
   const [isTracksGame, setIsTracksGame] = useState(false);
+  const [isClashGame, setIsClashGame] = useState(false);
+  const [territoryCount, setTerritoryCount] = useState<number>(0);
   const [checkpointCount, setCheckpointCount] = useState<number>(0);
   const [tracksIconSize, setTracksIconSize] = useState<number>(3);
   const [naturalAspects, setNaturalAspects] = useState<Record<string, number>>({});
@@ -100,11 +178,43 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const TRACKS_HUD_IDS = TRACKS_HUD_ITEMS.map((i) => i.id);
   const isCheckpointElement = (id: string) => isTracksGame && /^checkpoint_\d+$/.test(id);
 
+  // Sidebar items for the text-elements groups, partitioned by category id.
+  // Uncategorized items go under the empty-string key. Names use the
+  // scenario default language preview so the sidebar stays stable when the
+  // author opens the LayoutEditor — translations are previewed live on the
+  // canvas via getLocalized's fallback chain.
+  const tracksTextItemsByCategory: Map<string, GroupItemDef[]> = (isTracksGame || isClashGame)
+    ? (() => {
+        const map = new Map<string, GroupItemDef[]>();
+        scenarioTextElements.forEach((te, i) => {
+          const key = te.category ?? '';
+          const item: GroupItemDef = {
+            id: te.id,
+            name: buildScenarioTextName(te, i, scenarioDefaultLanguage, scenarioDefaultLanguage),
+            type: 'scenario_text' as const,
+          };
+          if (!map.has(key)) map.set(key, []);
+          map.get(key)!.push(item);
+        });
+        return map;
+      })()
+    : new Map<string, GroupItemDef[]>();
+
   const groups: GroupDef[] = isTagquestGame
     ? buildGroups(questCount)
     : isTracksGame
-      ? buildTracksGroups(checkpointCount)
-      : [];
+      ? buildTracksGroups(
+          checkpointCount,
+          scenarioTextCategories.map((c) => ({ id: c.id, name: c.name })),
+          tracksTextItemsByCategory,
+        )
+      : isClashGame
+        ? buildClashGroups(
+            territoryCount,
+            scenarioTextCategories.map((c) => ({ id: c.id, name: c.name })),
+            tracksTextItemsByCategory,
+          )
+        : [];
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => {
@@ -116,6 +226,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
   const selectAndExpandElement = (elementId: string) => {
     setSelectedElement(elementId);
+    setSelectedCategoryId(null);
     const ownerGroup = groups.find(g => g.items.some(item => item.id === elementId));
     if (ownerGroup) {
       setExpandedGroups(prev => {
@@ -125,6 +236,65 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         return next;
       });
     }
+  };
+
+  /**
+   * Tracks-only: handle a click on a category group header. Expanding a
+   * collapsed category also "selects" it for typography editing; collapsing
+   * an expanded+selected category deselects. Uncategorized's header just
+   * toggles expand (no typography to edit).
+   */
+  const handleTextCategoryHeaderClick = (group: GroupDef) => {
+    const wasExpanded = expandedGroups.has(group.id);
+    toggleGroup(group.id);
+    if (group.categoryId == null) {
+      // Uncategorized → no selection
+      return;
+    }
+    if (wasExpanded) {
+      if (selectedCategoryId === group.categoryId) setSelectedCategoryId(null);
+    } else {
+      setSelectedCategoryId(group.categoryId);
+      setSelectedElement(null);
+    }
+  };
+
+  /** Tracks-only: replace a category's typography (full 8-field object). */
+  const updateCategoryTypography = (categoryId: string, next: TextCategoryTypography) => {
+    setScenarioTextCategories((cats) =>
+      cats.map((c) => (c.id === categoryId ? { ...c, typography: next } : c)),
+    );
+  };
+
+  /**
+   * Tracks-only: replace the per-element typography override fields on a
+   * scenario_text source. Undefined fields in `next` clear the corresponding
+   * override (the runtime then falls back to category → scenario).
+   */
+  const updateElementOverride = (elementId: string, next: TextCategoryTypography) => {
+    setScenarioTextElements((els) =>
+      els.map((e) => {
+        if (e.id !== elementId) return e;
+        const merged: ScenarioTextSource = { ...e };
+        // Replace each of the 8 typography fields — defined values set,
+        // undefined values delete the property entirely.
+        (['font', 'font_color', 'bold', 'italic', 'underline', 'align', 'shadow', 'background'] as const).forEach(
+          (k) => {
+            const v = (next as Record<string, unknown>)[k];
+            if (v === undefined) delete (merged as Record<string, unknown>)[k];
+            else (merged as Record<string, unknown>)[k] = v;
+          },
+        );
+        return merged;
+      }),
+    );
+  };
+
+  /** Helper: look up an element's resolved category (or undefined if Uncategorized / orphan). */
+  const findCategoryForElement = (elementId: string): TextCategory | undefined => {
+    const el = scenarioTextElements.find((e) => e.id === elementId);
+    if (!el || !el.category) return undefined;
+    return scenarioTextCategories.find((c) => c.id === el.category);
   };
 
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
@@ -185,7 +355,9 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   useEffect(() => {
     const updateHeight = () => {
       if (containerRef.current) {
-        setContainerHeightPx(containerRef.current.getBoundingClientRect().height);
+        const rect = containerRef.current.getBoundingClientRect();
+        setContainerHeightPx(rect.height);
+        setContainerWidthPx(rect.width);
       }
     };
     const delayed = () => setTimeout(updateHeight, 50);
@@ -235,7 +407,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       // singular — selecting that errored and silently blanked the whole editor).
       const { data, error } = await db
         .from('scenarios')
-        .select('medias, data, scenario_type, scenario_layout, uniqid')
+        .select('medias, data, scenario_type, scenario_layout, uniqid, game_type')
         .eq('id', scenarioId)
         .maybeSingle();
 
@@ -262,16 +434,29 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       const scenarioLayout = parseCol((data as any).scenario_layout);
       scenarioDataRef.current = gameData;
 
-      const hasMysteryStructure = gameData?.game_meta?.enigmas && Array.isArray(gameData.game_meta.enigmas);
-      const hasTracksStructure = gameData?.game_meta?.checkpoints && Array.isArray(gameData.game_meta.checkpoints);
+      // Prefer the row's game_type column (set at creation) so a freshly-made
+      // scenario detects correctly before its first save populates data.game_meta.
+      const gameTypeCol = (data as { game_type?: string }).game_type;
+      const hasMysteryStructure =
+        gameTypeCol === 'mystery' ||
+        (gameData?.game_meta?.enigmas && Array.isArray(gameData.game_meta.enigmas));
+      const hasTracksStructure =
+        gameTypeCol === 'tracks' ||
+        (gameData?.game_meta?.checkpoints && Array.isArray(gameData.game_meta.checkpoints));
+      const hasClashStructure =
+        gameTypeCol === 'clash' ||
+        (Array.isArray(gameData?.game_meta?.territories) && Array.isArray(gameData?.game_meta?.clans));
       setIsMysteryGame(hasMysteryStructure);
       setIsTracksGame(hasTracksStructure);
+      setIsClashGame(hasClashStructure);
 
       let actualGameType = '';
       if (hasMysteryStructure) {
         actualGameType = 'mystery';
       } else if (hasTracksStructure) {
         actualGameType = 'tracks';
+      } else if (hasClashStructure) {
+        actualGameType = 'clash';
       } else if (gameData?.game_meta || gameData?.game) {
         actualGameType = 'tagquest';
       } else {
@@ -310,6 +495,38 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         const iconSize = Number(gm.checkpoint_image_width_percentage) || 3;
         setTracksIconSize(iconSize);
         setCheckpointCount(cps.length);
+
+        // Scenario-level typography defaults — per-element overrides fall back
+        // to these. registerStudioCustomFonts ensures author-uploaded fonts
+        // are loaded so the canvas measurement in TracksTextFit uses correct
+        // metrics (otherwise it falls back to sans-serif).
+        setScenarioFont(typeof gm.font === 'string' ? gm.font : '');
+        setScenarioFontColor(typeof gm.font_color === 'string' ? gm.font_color : '');
+        setScenarioDefaultLanguage(
+          typeof gameData?.default_language === 'string' ? gameData.default_language : 'en',
+        );
+        const customFonts: CustomFont[] = Array.isArray(gm.custom_fonts)
+          ? (gm.custom_fonts as CustomFont[])
+          : [];
+        setScenarioCustomFonts(customFonts);
+        if (customFonts.length > 0) {
+          registerStudioCustomFonts(customFonts, (filename: string) =>
+            getMediaUrl(uniqid, filename),
+          );
+        }
+
+        const textEls: ScenarioTextSource[] = Array.isArray(gm.text_elements)
+          ? (gm.text_elements as ScenarioTextSource[])
+          : [];
+        setScenarioTextElements(textEls);
+
+        // Hydrate author-defined categories. Section is the source of truth;
+        // LayoutEditor reads them to render category groups + edit their
+        // typography. (Categories are not created/renamed/deleted here.)
+        const cats: TextCategory[] = Array.isArray(gm.text_categories)
+          ? (gm.text_categories as TextCategory[])
+          : [];
+        setScenarioTextCategories(cats);
 
         // Background = the map (checkpoints sit on it); fall back to the
         // generic background image when no map is set.
@@ -376,7 +593,131 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
           seededHud.push({ type: 'image', id: item.id, name: item.name, filename, ...p });
         });
 
-        setElements([...checkpointEls, ...savedHud, ...seededHud]);
+        // Scenario text elements with a saved position are placed on the
+        // canvas immediately; unplaced entries stay in the sidebar only.
+        const placedTextEls: LayoutElement[] = textEls
+          .filter((te) => te?.id && te.position)
+          .map((te, idx) => ({
+            type: 'scenario_text',
+            id: te.id,
+            name: buildScenarioTextName(
+              te,
+              idx,
+              gameData?.default_language || 'en',
+              gameData?.default_language || 'en',
+            ),
+            x: Number(te.position.left) || 0,
+            y: Number(te.position.top) || 0,
+            width: Number(te.position.width) || TEXT_ELEMENT_DEFAULT_POSITION.width,
+            height: Number(te.position.height) || TEXT_ELEMENT_DEFAULT_POSITION.height,
+          }));
+
+        setElements([...checkpointEls, ...savedHud, ...seededHud, ...placedTextEls]);
+        return;
+      }
+
+      // ── Clash: territory sigil markers (seeded from gameMeta.territories[].
+      // position) + translatable text elements, placed over the MAP. No HUD
+      // frames, no tagquest catalog.
+      if (actualGameType === 'clash') {
+        const gm = gameData?.game_meta ?? {};
+        const terrs: any[] = Array.isArray(gm.territories) ? gm.territories : [];
+        // Clash is a fixed 4-territory skeleton — seed 4 markers even if the
+        // scenario hasn't been saved yet (so the author always sees them).
+        const terrCount = terrs.length > 0 ? terrs.length : 4;
+        setTerritoryCount(terrCount);
+
+        setScenarioFont(typeof gm.font === 'string' ? gm.font : '');
+        setScenarioFontColor(typeof gm.font_color === 'string' ? gm.font_color : '');
+        setScenarioDefaultLanguage(
+          typeof gameData?.default_language === 'string' ? gameData.default_language : 'en',
+        );
+        const customFonts: CustomFont[] = Array.isArray(gm.custom_fonts)
+          ? (gm.custom_fonts as CustomFont[])
+          : [];
+        setScenarioCustomFonts(customFonts);
+        if (customFonts.length > 0) {
+          registerStudioCustomFonts(customFonts, (filename: string) => getMediaUrl(uniqid, filename));
+        }
+
+        const textEls: ScenarioTextSource[] = Array.isArray(gm.text_elements)
+          ? (gm.text_elements as ScenarioTextSource[])
+          : [];
+        setScenarioTextElements(textEls);
+        const cats: TextCategory[] = Array.isArray(gm.text_categories)
+          ? (gm.text_categories as TextCategory[])
+          : [];
+        setScenarioTextCategories(cats);
+
+        // Background = the territory map (the runtime renders sigils over it).
+        const mapFile = media?.images?.map_image || media?.images?.background_image;
+        if (mapFile) setBackgroundImage(getMediaUrl(uniqid, mapFile));
+
+        // One move-only marker per territory so the author sees where a
+        // controlling clan's sigil will sit at runtime. Markers reuse the clan
+        // seal images, cycling when there are fewer clans than territories
+        // (e.g. 2 clans → T1=clan1, T2=clan2, T3=clan1, T4=clan2). With no clan
+        // images uploaded, the marker falls back to a map-pin icon (rendered in
+        // the canvas when filename is empty).
+        // Clan seals live inline in data.game_meta.clans[].seal (kept inline by
+        // the clash adapter); fall back to the medias bucket just in case.
+        const clanSeals: string[] = (Array.isArray(gm.clans) ? gm.clans : [])
+          .map((c: any, ci: number) => {
+            const inline = typeof c?.seal === 'string' ? c.seal : '';
+            if (inline) return inline;
+            const fromMedia = media?.clans?.[ci]?.seal;
+            return typeof fromMedia === 'string' ? fromMedia : '';
+          })
+          .filter((s: string) => s.length > 0);
+        // Spread defaults so unplaced markers don't stack at dead-centre.
+        const CLASH_DEFAULT_POS = [
+          { left: 30, top: 35 }, { left: 70, top: 30 },
+          { left: 65, top: 70 }, { left: 28, top: 72 },
+        ];
+        const imagesList: { id: string; name: string; filename: string }[] = [];
+        const seeds: Record<string, { left: number; top: number }> = {};
+        const territoryEls: LayoutElement[] = [];
+        const SIGIL_SIZE = 8;
+        const SIZE_BY_INDEX = ['Large', 'Medium', 'Medium', 'Small'];
+        for (let i = 0; i < terrCount; i++) {
+          const t = terrs[i];
+          const n = i + 1;
+          const id = `territory_${n}`;
+          const size = SIZE_BY_INDEX[i];
+          const name = size ? `Territory ${n} (${size})` : `Territory ${n}`;
+          const filename = clanSeals.length > 0 ? clanSeals[i % clanSeals.length] : '';
+          imagesList.push({ id, name, filename });
+          const dft = CLASH_DEFAULT_POS[i % CLASH_DEFAULT_POS.length];
+          const pos = t?.position ?? dft;
+          const left = Number(pos.left);
+          const top = Number(pos.top);
+          seeds[id] = { left: isFinite(left) ? left : dft.left, top: isFinite(top) ? top : dft.top };
+          territoryEls.push({
+            type: 'image', id, name, filename,
+            x: seeds[id].left, y: seeds[id].top, width: SIGIL_SIZE, height: SIGIL_SIZE,
+          });
+        }
+        tracksSeedRef.current = seeds;
+        setAvailableImages(imagesList);
+
+        const placedTextEls: LayoutElement[] = textEls
+          .filter((te) => te?.id && te.position)
+          .map((te, idx) => ({
+            type: 'scenario_text',
+            id: te.id,
+            name: buildScenarioTextName(
+              te,
+              idx,
+              gameData?.default_language || 'en',
+              gameData?.default_language || 'en',
+            ),
+            x: Number(te.position.left) || 0,
+            y: Number(te.position.top) || 0,
+            width: Number(te.position.width) || TEXT_ELEMENT_DEFAULT_POSITION.width,
+            height: Number(te.position.height) || TEXT_ELEMENT_DEFAULT_POSITION.height,
+          }));
+
+        setElements([...territoryEls, ...placedTextEls]);
         return;
       }
 
@@ -676,6 +1017,21 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
             x: 5, y: 5, width: 20, height: 20,
           };
       return [...currentElements, newEl];
+    } else if (itemDef.type === 'scenario_text') {
+      // First placement uses the shared default; saved position is restored
+      // at hydration time, not here. Removing + re-adding always drops a
+      // fresh box at the default — intentional, matches the "Add to layout"
+      // semantics from the design.
+      const newEl: ScenarioTextElement = {
+        type: 'scenario_text',
+        id: itemDef.id,
+        name: itemDef.name,
+        x: TEXT_ELEMENT_DEFAULT_POSITION.left,
+        y: TEXT_ELEMENT_DEFAULT_POSITION.top,
+        width: TEXT_ELEMENT_DEFAULT_POSITION.width,
+        height: TEXT_ELEMENT_DEFAULT_POSITION.height,
+      };
+      return [...currentElements, newEl];
     } else {
       const newEl: TextElement = {
         type: 'text', id: itemDef.id, name: itemDef.name, previewText: itemDef.previewText || '',
@@ -885,6 +1241,10 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     const gm = (data.game_meta = data.game_meta || {});
     const cps: any[] = Array.isArray(gm.checkpoints) ? gm.checkpoints : [];
 
+    // On-map checkpoint icon size (% of map width). Edited here in the layout
+    // editor; the runtime reads it off game_meta to size every checkpoint marker.
+    gm.checkpoint_image_width_percentage = tracksIconSize;
+
     elements.forEach((el) => {
       const m = /^checkpoint_(\d+)$/.exec(el.id);
       if (!m) return;
@@ -894,8 +1254,77 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       }
     });
 
-    // Bump the row version so playgrounds re-sync the new checkpoint positions.
-    const update: Record<string, unknown> = { data, scenario_layout: { elements } };
+    // Scenario text elements: position lives ONLY in gameMeta.text_elements[i]
+    // (single source of truth — see plan). Placed entries write their box;
+    // unplaced entries have any prior position cleared so the runtime skips
+    // them. Per-element typography overrides also write here — we authoritatively
+    // replace each element from our in-memory scenarioTextElements state
+    // (which is what TypographyEditor mutates) before splicing the position.
+    // Orphans (source deleted in scenario editor) are ignored because we rebuild
+    // from the fresh DB text_elements array, intersected with our in-memory
+    // overrides by id.
+    const texts: any[] = Array.isArray(gm.text_elements) ? gm.text_elements : [];
+    const placedTextById = new Map<string, ScenarioTextElement>();
+    elements.forEach((el) => {
+      if (el.type === 'scenario_text') {
+        placedTextById.set(el.id, el as ScenarioTextElement);
+      }
+    });
+    const overrideById = new Map<string, ScenarioTextSource>();
+    scenarioTextElements.forEach((te) => overrideById.set(te.id, te));
+    gm.text_elements = texts.map((te) => {
+      if (!te || typeof te !== 'object' || !te.id) return te;
+      // Merge in our typography overrides (font/color/B/I/U/align/shadow/bg).
+      // Other persisted fields (text, category) win from the DB row — those
+      // are owned by the scenario editor section, not us.
+      const overrides = overrideById.get(te.id);
+      let merged: Record<string, unknown> = { ...te };
+      if (overrides) {
+        for (const k of ['font', 'font_color', 'bold', 'italic', 'underline', 'align', 'shadow', 'background'] as const) {
+          const v = (overrides as Record<string, unknown>)[k];
+          if (v === undefined) delete merged[k];
+          else merged[k] = v;
+        }
+      }
+      const placed = placedTextById.get(te.id);
+      if (placed) {
+        merged.position = {
+          left: placed.x,
+          top: placed.y,
+          width: placed.width,
+          height: placed.height,
+        };
+      } else if (merged.position) {
+        delete merged.position;
+      }
+      return merged;
+    });
+
+    // Category typography also flows from our in-memory state. Replace the
+    // typography of each category by id; preserve everything else (name +
+    // any future fields). Categories not in our state survive untouched —
+    // the scenario editor section is the source of truth for add/rename/
+    // delete + ordering, we just mutate typography here.
+    const dbCats: any[] = Array.isArray(gm.text_categories) ? gm.text_categories : [];
+    const catTypographyById = new Map<string, TextCategoryTypography>();
+    scenarioTextCategories.forEach((c) => catTypographyById.set(c.id, c.typography ?? {}));
+    gm.text_categories = dbCats.map((dbc) => {
+      if (!dbc || typeof dbc !== 'object' || !dbc.id) return dbc;
+      const typo = catTypographyById.get(dbc.id);
+      if (typo === undefined) return dbc;
+      return { ...dbc, typography: typo };
+    });
+
+    // scenario_layout stores HUD-frame + image positions only. Scenario text
+    // elements would be redundant here (the runtime reads them out of
+    // gameMeta) and risk drift, so strip them before writing.
+    const layoutElements = elements.filter((el) => el.type !== 'scenario_text');
+
+    // Bump the row version so playgrounds re-sync the new positions.
+    const update: Record<string, unknown> = {
+      data,
+      scenario_layout: { elements: layoutElements },
+    };
     await bumpScenarioVersion(scenarioId, update);
     const { error: updErr } = await db
       .from('scenarios')
@@ -904,7 +1333,110 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     if (updErr) throw updErr;
 
     scenarioDataRef.current = data;
-    setAlert({ type: 'success', message: `Tracks layout saved (${cps.length} checkpoints + HUD frames).` });
+    const placedTextCount = placedTextById.size;
+    setAlert({
+      type: 'success',
+      message: `Tracks layout saved (${cps.length} checkpoints + HUD frames${
+        placedTextCount > 0 ? ` + ${placedTextCount} text element${placedTextCount === 1 ? '' : 's'}` : ''
+      }).`,
+    });
+  };
+
+  // Clash: territory sigil CENTERS sync back to gameMeta.territories[].position
+  // (the runtime reads those); text elements sync to gameMeta.text_elements[i].
+  // No HUD frames. Mirrors saveTracksLayout.
+  const saveClashLayout = async () => {
+    const { data: row, error: fetchErr } = await db
+      .from('scenarios')
+      .select('data')
+      .eq('id', scenarioId)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+
+    const parseCol = (v: any) => {
+      if (v == null) return v;
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return null; }
+      }
+      return v;
+    };
+    const data = parseCol(row?.data) ?? scenarioDataRef.current ?? {};
+    const gm = (data.game_meta = data.game_meta || {});
+    // Seed the fixed 4-territory skeleton if the saved data has none, so dragged
+    // positions always have a territory to write into (even pre-first-save).
+    const terrs: any[] =
+      Array.isArray(gm.territories) && gm.territories.length > 0
+        ? gm.territories
+        : defaultClashTerritories();
+    gm.territories = terrs;
+
+    elements.forEach((el) => {
+      const m = /^territory_(\d+)$/.exec(el.id);
+      if (!m) return;
+      const idx = parseInt(m[1], 10) - 1;
+      if (idx >= 0 && idx < terrs.length) {
+        terrs[idx] = { ...terrs[idx], position: { left: el.x, top: el.y } };
+      }
+    });
+
+    // Scenario text elements — same single-source-of-truth handling as tracks.
+    const texts: any[] = Array.isArray(gm.text_elements) ? gm.text_elements : [];
+    const placedTextById = new Map<string, ScenarioTextElement>();
+    elements.forEach((el) => {
+      if (el.type === 'scenario_text') placedTextById.set(el.id, el as ScenarioTextElement);
+    });
+    const overrideById = new Map<string, ScenarioTextSource>();
+    scenarioTextElements.forEach((te) => overrideById.set(te.id, te));
+    gm.text_elements = texts.map((te) => {
+      if (!te || typeof te !== 'object' || !te.id) return te;
+      const overrides = overrideById.get(te.id);
+      const merged: Record<string, unknown> = { ...te };
+      if (overrides) {
+        for (const k of ['font', 'font_color', 'bold', 'italic', 'underline', 'align', 'shadow', 'background'] as const) {
+          const v = (overrides as Record<string, unknown>)[k];
+          if (v === undefined) delete merged[k];
+          else merged[k] = v;
+        }
+      }
+      const placed = placedTextById.get(te.id);
+      if (placed) {
+        merged.position = { left: placed.x, top: placed.y, width: placed.width, height: placed.height };
+      } else if (merged.position) {
+        delete merged.position;
+      }
+      return merged;
+    });
+
+    const dbCats: any[] = Array.isArray(gm.text_categories) ? gm.text_categories : [];
+    const catTypographyById = new Map<string, TextCategoryTypography>();
+    scenarioTextCategories.forEach((c) => catTypographyById.set(c.id, c.typography ?? {}));
+    gm.text_categories = dbCats.map((dbc) => {
+      if (!dbc || typeof dbc !== 'object' || !dbc.id) return dbc;
+      const typo = catTypographyById.get(dbc.id);
+      if (typo === undefined) return dbc;
+      return { ...dbc, typography: typo };
+    });
+
+    const layoutElements = elements.filter((el) => el.type !== 'scenario_text');
+    const update: Record<string, unknown> = {
+      data,
+      scenario_layout: { elements: layoutElements },
+    };
+    await bumpScenarioVersion(scenarioId, update);
+    const { error: updErr } = await db
+      .from('scenarios')
+      .update(update)
+      .eq('id', scenarioId);
+    if (updErr) throw updErr;
+
+    scenarioDataRef.current = data;
+    const placedTextCount = placedTextById.size;
+    setAlert({
+      type: 'success',
+      message: `Clash layout saved (${terrs.length} territories${
+        placedTextCount > 0 ? ` + ${placedTextCount} text element${placedTextCount === 1 ? '' : 's'}` : ''
+      }).`,
+    });
   };
 
   const saveLayout = async () => {
@@ -919,6 +1451,11 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
       if (scenarioType === 'tracks') {
         await saveTracksLayout();
+        return;
+      }
+
+      if (scenarioType === 'clash') {
+        await saveClashLayout();
         return;
       }
 
@@ -981,53 +1518,13 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     }
     setPublishing(true);
     try {
+      // saveLayout() writes the live layout to its authoritative store:
+      // scenario_layout (+ synced checkpoint positions) for tracks/clash, or
+      // default_config for mystery/tagquest — and that's what reaches the
+      // playground. There is no separate publish target anymore (the old
+      // `layouts` table pipeline was retired), so Save IS the publish.
       await saveLayout();
-
-      // Tracks layouts are per-scenario (saveLayout already wrote scenario_layout
-      // + synced checkpoint positions, and that's what bundles to the playground).
-      // There is no type-level template to publish, so Save IS the publish.
-      if (scenarioType === 'tracks') {
-        setPublishing(false);
-        return;
-      }
-
-      const { data: existingConfig } = await db
-        .from('default_config')
-        .select('version')
-        .eq('meta', scenarioType === 'mystery' ? `${scenarioType}_layout_${layoutMode}` : `${scenarioType}_layout`)
-        .maybeSingle();
-      const newVersion = Number(((existingConfig?.version || 1.0) + 0.1).toFixed(1));
-
-      const authToken = authService.getToken();
-
-      const payload = {
-        email: userEmail,
-        name: scenarioType,
-        game_type: scenarioType,
-        layout_data: { elements },
-        status: layoutStatus,
-        version: String(newVersion),
-        scenario_uniqid: scenarioUniqid || null,
-        layout_uniqid: layoutUniqid || null,
-      };
-
-      const publishUrl = `${API_BASE_URL}/layouts.php?action=upload`;
-      const response = await fetch(publishUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken?.token ? { 'Authorization': `Bearer ${authToken.token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok || !responseData.success) {
-        throw new Error(responseData.error || `Failed to publish layout (${response.status})`);
-      }
-
-      setAlert({ type: 'success', message: responseData.message || 'Layout published successfully' });
+      setAlert({ type: 'success', message: 'Layout published successfully' });
     } catch (error) {
       console.error('Error publishing layout:', error);
       setAlert({ type: 'error', message: error instanceof Error ? error.message : 'Failed to publish layout' });
@@ -1056,31 +1553,10 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
           <div className="w-px h-5 bg-gray-700 flex-shrink-0" />
           <h1 className="text-sm font-semibold text-white truncate max-w-[200px] flex-shrink-0">Layout Editor</h1>
 
-          {isMysteryGame && (
-            <>
-              <div className="w-px h-5 bg-gray-700 flex-shrink-0" />
-              <div className="flex items-center gap-1 bg-gray-900 rounded p-0.5 border border-gray-700 flex-shrink-0">
-                <button
-                  onClick={() => setLayoutMode('instruction')}
-                  className={`px-2.5 py-1 rounded text-xs transition flex items-center gap-1.5 ${
-                    layoutMode === 'instruction' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                  }`}
-                >
-                  <Layout size={12} />
-                  Instruction
-                </button>
-                <button
-                  onClick={() => setLayoutMode('game')}
-                  className={`px-2.5 py-1 rounded text-xs transition flex items-center gap-1.5 ${
-                    layoutMode === 'game' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-800'
-                  }`}
-                >
-                  <Layout size={12} />
-                  Game
-                </button>
-              </div>
-            </>
-          )}
+          {/* Mystery "Game" layout mode retired — the in-game board is now
+              positioned by the dedicated In-game layout editor (game_meta
+              .ingame_layout, consumed directly by MysteryGameRenderer). This
+              editor handles only the mystery Instruction layout. */}
 
           <div className="w-px h-5 bg-gray-700 flex-shrink-0" />
 
@@ -1167,32 +1643,91 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
               </p>
             )}
 
+            {isTracksGame && (
+              <div className="mb-4 rounded-lg border border-gray-800 bg-gray-900 p-3">
+                <label className="block">
+                  <span className="text-[11px] font-medium text-gray-300 mb-1 block">
+                    Icon size on map (% of map width)
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={20}
+                    step={0.5}
+                    value={tracksIconSize}
+                    onChange={(ev) => {
+                      const next = Number(ev.target.value);
+                      if (!Number.isFinite(next)) return;
+                      setTracksIconSize(next);
+                      // Live-resize the placed checkpoint markers so the author
+                      // sees the new size immediately (persisted on Save).
+                      setElements((els) =>
+                        els.map((el) =>
+                          isCheckpointElement(el.id) ? { ...el, width: next, height: next } : el,
+                        ),
+                      );
+                    }}
+                    className="w-28 px-2 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-gray-100 focus:outline-none focus:border-gray-500"
+                  />
+                </label>
+              </div>
+            )}
+
             {/* Groups */}
             {groups.length === 0 ? (
               <p className="text-xs text-gray-600 italic">No elements available for this scenario type.</p>
             ) : (
               <div className="space-y-2">
-                {groups.map(group => {
+                {groups.map((group, gIdx) => {
+                  const firstTextCatIdx = groups.findIndex((g) => g.kind === 'text_category');
+                  const showTextElementsSeparator = gIdx === firstTextCatIdx && firstTextCatIdx >= 0;
                   const isExpanded = expandedGroups.has(group.id);
                   const groupItems = group.items.filter(item => {
                     if (item.parentId && !availableImages.find(img => img.id === item.parentId)) return false;
                     if (item.type === 'image') return !!availableImages.find(img => img.id === item.id);
                     return true;
                   });
-                  if (groupItems.length === 0) return null;
+                  // Empty groups are normally hidden; text_category groups
+                  // (non-Uncategorized) render even when empty so the author
+                  // can still edit the category's typography from its header.
+                  const renderEmpty =
+                    group.kind === 'text_category' && group.categoryId != null;
+                  if (groupItems.length === 0 && !renderEmpty) return null;
                   const placedCount = groupItems.filter(item => !!elements.find(el => el.id === item.id)).length;
                   const allPlaced = placedCount === groupItems.length;
                   const mainImgInfo = availableImages.find(img => img.id === group.mainImageId);
+                  const isCategoryGroup = group.kind === 'text_category';
+                  const isCatSelected = isCategoryGroup && group.categoryId != null && selectedCategoryId === group.categoryId;
                   return (
-                    <div key={group.id} className="rounded-lg border border-gray-800 overflow-hidden">
+                    <Fragment key={group.id}>
+                      {showTextElementsSeparator && (
+                        <div className="pt-2 pb-1 px-1 flex items-center gap-2 select-none">
+                          <span className="flex-1 h-px bg-gray-800" />
+                          <span className="text-[10px] uppercase tracking-wider text-gray-500">
+                            Text elements
+                          </span>
+                          <span className="flex-1 h-px bg-gray-800" />
+                        </div>
+                      )}
+                      <div className={`rounded-lg border ${isCatSelected ? 'border-violet-700' : 'border-gray-800'} overflow-hidden`}>
                       <button
-                        onClick={() => toggleGroup(group.id)}
-                        className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-800 hover:bg-gray-750 transition-colors"
+                        onClick={() => {
+                          if (isCategoryGroup) handleTextCategoryHeaderClick(group);
+                          else toggleGroup(group.id);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 transition-colors ${
+                          isCatSelected ? 'bg-violet-900/40' : 'bg-gray-800 hover:bg-gray-750'
+                        }`}
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <Layers size={13} className="flex-shrink-0 text-blue-400" />
+                          <Layers size={13} className={`flex-shrink-0 ${isCategoryGroup ? 'text-violet-400' : 'text-blue-400'}`} />
                           <span className="text-xs font-semibold text-white truncate">{group.name}</span>
-                          <span className="text-xs text-gray-500 flex-shrink-0">{placedCount}/{groupItems.length}</span>
+                          {groupItems.length > 0 && (
+                            <span className="text-xs text-gray-500 flex-shrink-0">{placedCount}/{groupItems.length}</span>
+                          )}
+                          {isCategoryGroup && groupItems.length === 0 && (
+                            <span className="text-[10px] italic text-gray-500 flex-shrink-0">empty</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           {isExpanded ? <ChevronDown size={13} className="text-gray-400" /> : <ChevronRightSm size={13} className="text-gray-400" />}
@@ -1201,6 +1736,37 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
                       {isExpanded && (
                         <div className="bg-gray-900 border-t border-gray-800">
+                          {isCatSelected && group.categoryId && (() => {
+                            const cat = scenarioTextCategories.find((c) => c.id === group.categoryId);
+                            if (!cat) return null;
+                            const catTypography: TextCategoryTypography = cat.typography ?? {};
+                            const inheritedFromScenario: ResolvedTypography = {
+                              font: scenarioFont || '',
+                              font_color: scenarioFontColor || '#ffffff',
+                              bold: false,
+                              italic: false,
+                              underline: false,
+                              align: TEXT_ELEMENT_DEFAULT_ALIGN,
+                              shadow: false,
+                              background: false,
+                            };
+                            return (
+                              <div className="px-2 pt-2 pb-1">
+                                <p className="text-[10px] uppercase tracking-wider text-violet-400 mb-1 px-0.5">
+                                  Category typography
+                                </p>
+                                <TypographyEditor
+                                  value={catTypography}
+                                  onChange={(next) =>
+                                    updateCategoryTypography(group.categoryId!, next)
+                                  }
+                                  mode="category"
+                                  inheritedFrom={inheritedFromScenario}
+                                  customFonts={scenarioCustomFonts}
+                                />
+                              </div>
+                            );
+                          })()}
                           {group.questIndex === 1 && questCount > 1 && (
                             <div className="px-3 pt-2 pb-1">
                               <p className="text-xs text-amber-500/80 italic">Changes propagate to all {questCount} quests</p>
@@ -1258,10 +1824,13 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                     className="flex items-center gap-2 px-2 py-1.5 cursor-pointer"
                                     onClick={() => element && selectAndExpandElement(item.id)}
                                   >
-                                    {item.type === 'text'
-                                      ? <Type size={11} className="flex-shrink-0 text-emerald-400" />
-                                      : <Image size={11} className="flex-shrink-0 text-blue-400" />
-                                    }
+                                    {item.type === 'image' ? (
+                                      <Image size={11} className="flex-shrink-0 text-blue-400" />
+                                    ) : item.type === 'scenario_text' ? (
+                                      <Type size={11} className="flex-shrink-0 text-violet-400" />
+                                    ) : (
+                                      <Type size={11} className="flex-shrink-0 text-emerald-400" />
+                                    )}
                                     <span className={`text-xs flex-1 truncate ${!placed ? 'text-gray-500' : isSelected ? 'text-white' : 'text-gray-300'}`}>
                                       {item.name}
                                     </span>
@@ -1293,13 +1862,15 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                     <div className="px-2 pb-2 space-y-1">
                                       <div className="flex items-center gap-2 pl-5">
                                         <span className="text-xs text-gray-500">{element.width.toFixed(1)}% × {element.height.toFixed(1)}%{element.type === 'text' && <span className="ml-1">· {element.fontSize}%</span>}</span>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); fitElementContent(element.id); }}
-                                          className="text-xs px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded transition-colors"
-                                          title="Fit height to content"
-                                        >
-                                          Fit
-                                        </button>
+                                        {element.type !== 'scenario_text' && (
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); fitElementContent(element.id); }}
+                                            className="text-xs px-1.5 py-0.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded transition-colors"
+                                            title="Fit height to content"
+                                          >
+                                            Fit
+                                          </button>
+                                        )}
                                       </div>
                                       {element.type === 'text' && (
                                         <div className="flex items-center gap-2 pl-5">
@@ -1325,6 +1896,55 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                           <button onClick={(e) => { e.stopPropagation(); updateFontSize(element.id, 0.5); }} className="w-5 h-5 bg-gray-700 hover:bg-gray-600 rounded text-xs flex items-center justify-center">+</button>
                                         </div>
                                       )}
+                                      {element.type === 'scenario_text' && (() => {
+                                        // Per-element override editor. The
+                                        // inherited base is the resolved
+                                        // category typography (or scenario
+                                        // default when uncategorized) — the
+                                        // [Override] toggles in TypographyEditor
+                                        // flip each field between "use the
+                                        // inherited value" (greyed) and "set
+                                        // an element override" (active).
+                                        const src = scenarioTextElements.find((t) => t.id === element.id);
+                                        if (!src) return null;
+                                        const cat = findCategoryForElement(element.id);
+                                        const inherited = resolveTypography({
+                                          category: cat?.typography,
+                                          scenarioFont,
+                                          scenarioFontColor,
+                                        });
+                                        const elementOverrideValue: TextCategoryTypography = {
+                                          font: src.font,
+                                          font_color: src.font_color,
+                                          bold: src.bold,
+                                          italic: src.italic,
+                                          underline: src.underline,
+                                          align: src.align,
+                                          shadow: src.shadow,
+                                          background: src.background,
+                                        };
+                                        return (
+                                          <div
+                                            className="px-2 pb-2"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <p className="text-[10px] uppercase tracking-wider text-violet-400 mb-1 px-0.5">
+                                              {cat
+                                                ? `Override (inherits "${cat.name}")`
+                                                : 'Override (uncategorized — inherits scenario)'}
+                                            </p>
+                                            <TypographyEditor
+                                              value={elementOverrideValue}
+                                              onChange={(next) =>
+                                                updateElementOverride(element.id, next)
+                                              }
+                                              mode="element"
+                                              inheritedFrom={inherited}
+                                              customFonts={scenarioCustomFonts}
+                                            />
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   )}
                                 </div>
@@ -1333,7 +1953,8 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                           </div>
                         </div>
                       )}
-                    </div>
+                      </div>
+                    </Fragment>
                   );
                 })}
               </div>
@@ -1438,20 +2059,59 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
               const elWidth = (element.width / 100) * imageBounds.width;
               const elHeight = (element.height / 100) * imageBounds.height;
               const elHeightPx = containerHeightPx * (elHeight / 100);
+              const elWidthPx = containerWidthPx * (elWidth / 100);
               const wrapperStyle = isCp
                 ? { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, transform: 'translate(-50%, -50%)' }
                 : { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, height: `${elHeight}%` };
+
+              // Per-type accent color drives both the wrapper border + the
+              // selection chrome (label chip, drag dots, resize handle).
+              // 'scenario_text' uses violet to stand apart from legacy text
+              // (emerald) and image (blue) elements.
+              const accentBorderSelected =
+                element.type === 'image'
+                  ? 'border-blue-500 shadow-lg shadow-blue-500/50'
+                  : element.type === 'scenario_text'
+                    ? 'border-violet-500 shadow-lg shadow-violet-500/30'
+                    : 'border-emerald-500 shadow-lg shadow-emerald-500/30';
+              const accentBorderHover =
+                element.type === 'image'
+                  ? 'border-transparent hover:border-blue-400'
+                  : element.type === 'scenario_text'
+                    ? 'border-transparent hover:border-violet-400'
+                    : 'border-transparent hover:border-emerald-400';
+              const accentLabelBg =
+                element.type === 'image'
+                  ? 'bg-blue-600'
+                  : element.type === 'scenario_text'
+                    ? 'bg-violet-600'
+                    : 'bg-emerald-600';
+              const accentHex =
+                element.type === 'image'
+                  ? '#3b82f6'
+                  : element.type === 'scenario_text'
+                    ? '#8b5cf6'
+                    : '#10b981';
+              const accentHandleBg =
+                element.type === 'image'
+                  ? 'bg-blue-500'
+                  : element.type === 'scenario_text'
+                    ? 'bg-violet-500'
+                    : 'bg-emerald-500';
+
+              // Live content + style lookup for scenario_text — content,
+              // font, color, etc. live in gameMeta.text_elements[] and are
+              // joined here by id. Inherits scenario font/color when unset.
+              const scenarioTextSrc =
+                element.type === 'scenario_text'
+                  ? scenarioTextElements.find((t) => t.id === element.id)
+                  : undefined;
+
               return (
               <div
                 key={element.id}
                 className={`absolute cursor-move border-2 ${
-                  selectedElement === element.id
-                    ? element.type === 'text'
-                      ? 'border-emerald-500 shadow-lg shadow-emerald-500/30'
-                      : 'border-blue-500 shadow-lg shadow-blue-500/50'
-                    : element.type === 'text'
-                      ? 'border-transparent hover:border-emerald-400'
-                      : 'border-transparent hover:border-blue-400'
+                  selectedElement === element.id ? accentBorderSelected : accentBorderHover
                 }`}
                 style={wrapperStyle}
                 onMouseDown={(e) => handleMouseDown(e, element.id)}
@@ -1471,6 +2131,11 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       }
                     }}
                   />
+                  ) : isClashGame && /^territory_\d+$/.test(element.id) ? (
+                    // Clash territory with no clan images — map-pin marker.
+                    <div className="w-full h-full flex items-center justify-center pointer-events-none text-blue-500 drop-shadow">
+                      <MapPin className="w-full h-full" strokeWidth={1.5} />
+                    </div>
                   ) : (
                     // Checkpoint with no uploaded icon — grabbable circle placeholder.
                     <div
@@ -1480,10 +2145,14 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                   )}
                   {hudMock && (
                     // Mock value preview, centered on the HUD frame (render-only).
+                    // Mirrors the playground runtime, where timer/score/team-name
+                    // inherit the scenario font + font_color from the renderer
+                    // root, so the preview shows the chosen font/colour too.
                     <div
                       className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden"
                       style={{
-                        color: '#ffffff',
+                        fontFamily: resolveFontFamily(scenarioFont) || undefined,
+                        color: scenarioFontColor || '#ffffff',
                         fontWeight: 700,
                         fontSize: `${Math.max(8, elHeightPx * 0.4)}px`,
                         textShadow: '0 1px 3px rgba(0,0,0,0.85)',
@@ -1495,6 +2164,85 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                     </div>
                   )}
                   </>
+                ) : element.type === 'scenario_text' ? (
+                  // Author-defined translatable label. Auto-fit single-line
+                  // sizing via TracksTextFit (shared with the playground
+                  // runtime in slice 3). Text + style read live from the
+                  // hydrated source; empty content renders an italic
+                  // placeholder so unauthored boxes are still draggable.
+                  scenarioTextSrc ? (
+                    (() => {
+                      const lang = scenarioDefaultLanguage as never;
+                      const textValue = String(
+                        getLocalized(
+                          (scenarioTextSrc.text ?? {}) as never,
+                          lang,
+                          lang,
+                        ) || '',
+                      );
+                      // Resolve via the inheritance chain — element override
+                      // (per-field) wins, then category typography (if the
+                      // element has one + the category exists), then
+                      // scenario default.
+                      const elCat = scenarioTextSrc.category
+                        ? scenarioTextCategories.find((c) => c.id === scenarioTextSrc.category)
+                        : undefined;
+                      const resolved = resolveTypography({
+                        element: {
+                          font: scenarioTextSrc.font,
+                          font_color: scenarioTextSrc.font_color,
+                          bold: scenarioTextSrc.bold,
+                          italic: scenarioTextSrc.italic,
+                          underline: scenarioTextSrc.underline,
+                          align: scenarioTextSrc.align,
+                          shadow: scenarioTextSrc.shadow,
+                          background: scenarioTextSrc.background,
+                        },
+                        category: elCat?.typography,
+                        scenarioFont,
+                        scenarioFontColor,
+                      });
+                      const effFontStack = resolveFontFamily(resolved.font);
+                      const placeholder = !textValue.trim();
+                      return (
+                        <div
+                          className="absolute inset-0"
+                          style={{
+                            background: selectedElement === element.id
+                              ? 'rgba(139, 92, 246, 0.06)'
+                              : 'rgba(255,255,255,0.02)',
+                          }}
+                        >
+                          {placeholder ? (
+                            <div className="w-full h-full flex items-center justify-center text-violet-300/60 italic text-sm pointer-events-none select-none">
+                              (empty)
+                            </div>
+                          ) : (
+                            <TracksTextFit
+                              text={textValue}
+                              boxWidthPx={elWidthPx}
+                              boxHeightPx={elHeightPx}
+                              fontFamily={effFontStack}
+                              fontWeight={resolved.bold ? 700 : 400}
+                              fontStyle={resolved.italic ? 'italic' : 'normal'}
+                              underline={resolved.underline}
+                              color={resolved.font_color || '#ffffff'}
+                              align={resolved.align}
+                              shadow={resolved.shadow}
+                              background={resolved.background}
+                            />
+                          )}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    // Source dropped from the scenario after this layout was
+                    // loaded — render a striped placeholder so the orphaned
+                    // box is visible until the author removes it.
+                    <div className="w-full h-full flex items-center justify-center text-violet-300/60 italic text-sm pointer-events-none select-none">
+                      (missing source)
+                    </div>
+                  )
                 ) : (
                   <div
                     className="w-full h-full flex items-center justify-center pointer-events-none select-none overflow-hidden"
@@ -1516,30 +2264,26 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
                 {selectedElement === element.id && (
                   <>
-                    <div className={`absolute -top-6 left-0 text-white text-xs px-2 py-1 rounded whitespace-nowrap ${
-                      element.type === 'text' ? 'bg-emerald-600' : 'bg-blue-600'
-                    }`}>
+                    <div className={`absolute -top-6 left-0 text-white text-xs px-2 py-1 rounded whitespace-nowrap ${accentLabelBg}`}>
                       {element.name}
                     </div>
 
                     <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-current rounded-full border border-white shadow-sm"
-                      style={{ color: element.type === 'text' ? '#10b981' : '#3b82f6' }}
+                      style={{ color: accentHex }}
                     />
                     <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-2 h-2 rounded-full border border-white shadow-sm"
-                      style={{ background: element.type === 'text' ? '#10b981' : '#3b82f6' }}
+                      style={{ background: accentHex }}
                     />
                     <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full border border-white shadow-sm"
-                      style={{ background: element.type === 'text' ? '#10b981' : '#3b82f6' }}
+                      style={{ background: accentHex }}
                     />
                     <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-2 rounded-full border border-white shadow-sm"
-                      style={{ background: element.type === 'text' ? '#10b981' : '#3b82f6' }}
+                      style={{ background: accentHex }}
                     />
 
                     {!isCp && (
                       <div
-                        className={`absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize flex items-center justify-center ${
-                          element.type === 'text' ? 'bg-emerald-500' : 'bg-blue-500'
-                        }`}
+                        className={`absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize flex items-center justify-center ${accentHandleBg}`}
                         onMouseDown={(e) => handleResizeMouseDown(e, element.id)}
                       >
                         <Maximize2 className="w-3 h-3 text-white" />

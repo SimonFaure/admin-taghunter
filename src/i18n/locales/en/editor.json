@@ -1,0 +1,34 @@
+{
+  "alert": {
+    "loadFailed": "Failed to load scenario",
+    "saved": "Saved",
+    "saveFailed": "Save failed",
+    "published": "Published v{{version}}",
+    "publishFailed": "Publish failed",
+    "zipFailed": "ZIP download failed",
+    "uploadFailed": "Upload failed"
+  },
+  "saveBar": {
+    "saving": "Saving...",
+    "save": "Save",
+    "publishing": "Publishing...",
+    "publish": "Publish",
+    "downloadZip": "Download ZIP",
+    "preview": "Preview",
+    "expandAllTitle": "Expand all sections",
+    "collapseAllTitle": "Collapse all sections",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "layoutEditor": "Layout editor"
+  },
+  "header": {
+    "back": "Back",
+    "untitled": "Untitled scenario",
+    "help": "Help",
+    "unsavedChanges": "Unsaved changes"
+  },
+  "field": {
+    "defaultLanguageTitle": "Default language ({{lang}})",
+    "translationTitle": "Translation ({{lang}})"
+  }
+}

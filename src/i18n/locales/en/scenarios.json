@@ -1,0 +1,14 @@
+{
+  "title": "Scenarios",
+  "create": "Create New Mystery Scenario",
+  "edit": "Edit Scenario",
+  "list": "Scenario List",
+  "import": "Import Scenario",
+  "noScenarios": "No scenarios available",
+  "loading": "Loading scenarios...",
+  "deleteConfirm": "Are you sure you want to delete this scenario?",
+  "deleteSuccess": "Scenario deleted successfully",
+  "saveSuccess": "Scenario saved successfully",
+  "importSuccess": "Scenario imported successfully",
+  "lastModified": "Last modified"
+}

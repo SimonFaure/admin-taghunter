@@ -13,13 +13,14 @@
  *     '@late_malus_image'  → scenario gameMeta.late_malus_image
  *     '@quest_main_image_N' → quest at index N-1's `main_image`
  *
- * Two mirrors must move in lockstep with this file — when you change positions,
- * ids, or fontSize values here, update both of these too:
- *   1. backend/database/tagquest_default_layout_migration.sql (the `JSON_OBJECT(...)`
- *      payload upserted into the MySQL `layouts` table — what playgrounds sync from).
- *   2. ../../../../../../taghunter_playground/src/scenarios/tagquest/defaultLayout.json
- *      (bundled fallback the playground loads when SQLite is empty or stale —
- *      `version` field must be bumped together with this file's `version`).
+ * One mirror must move in lockstep with this file — when you change positions,
+ * ids, or fontSize values here, update it too:
+ *   - ../../../../../../taghunter_playground/src/scenarios/tagquest/defaultLayout.json
+ *     (bundled fallback the playground loads — `version` field must be bumped
+ *     together with this file's `version`).
+ *
+ * NOTE: the old MySQL `layouts` table seed (tagquest_default_layout_migration.sql)
+ * was retired — the playground no longer syncs layouts; it uses its bundled JSON.
  *
  * Position values are first-pass approximations against the default template
  * artwork (5692×3200). Fine-tune against the PNG.

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CardsRegistryEditor, CardsEditorApi } from '../CardsRegistryEditor';
 import {
   listCards,
@@ -9,6 +10,7 @@ import {
 } from '../../lib/cardsApi';
 
 export function MyCardsView() {
+  const { t } = useTranslation('cardsList');
   const api = useMemo<CardsEditorApi>(
     () => ({
       list: () => listCards(),
@@ -29,8 +31,8 @@ export function MyCardsView() {
   return (
     <CardsRegistryEditor
       api={api}
-      title="My Cards"
-      description="Register, edit and delete your game cards. Changes sync to your playground devices on their next refresh."
+      title={t('title')}
+      description={t('description')}
     />
   );
 }

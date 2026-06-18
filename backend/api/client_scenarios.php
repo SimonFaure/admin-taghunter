@@ -173,7 +173,7 @@ try {
         if ($isPremium) {
             $scenarios = $db->fetchAll(
                 'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.client_id, s.created_at, s.updated_at,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
                         s.created_at as granted_at, NULL as granted_by, NULL as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM scenarios s
@@ -183,7 +183,7 @@ try {
         } else {
             $scenarios = $db->fetchAll(
                 'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.client_id, s.created_at, s.updated_at,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
                         cs.granted_at, cs.granted_by, a.email as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM client_scenarios cs
@@ -192,7 +192,7 @@ try {
                  WHERE cs.client_id = ?
                  UNION ALL
                  SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.client_id, s.created_at, s.updated_at,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
                         s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM scenarios s
@@ -206,9 +206,29 @@ try {
             );
         }
 
+        // Cascade: a client never sees scenarios of a game type disabled for them
+        // (globally or per-client). Admin inspection of a client's list is unfiltered.
+        if ($auth['type'] === 'client') {
+            require_once __DIR__ . '/../utils/GameTypes.php';
+            $disabledTypes = GameTypes::disabledForClient($db->getConnection(), $clientId);
+            if ($disabledTypes) {
+                $scenarios = array_values(array_filter($scenarios, function($s) use ($disabledTypes) {
+                    return !in_array($s['game_type'] ?? '', $disabledTypes, true);
+                }));
+            }
+        }
+
         $scenarios = array_map(function($s) {
             $s['has_zip_files'] = (int)($s['files_count'] ?? 0) > 0;
             $s['files_count'] = (int)($s['files_count'] ?? 0);
+            // Surface difficulty / audience (game_meta) for the list cards, then
+            // drop the heavy data blob so the payload stays lean. Tolerate both
+            // the flat (`game_meta.…`) and wrapped (`data.game_meta.…`) shapes.
+            $dataArr = !empty($s['data']) ? json_decode($s['data'], true) : null;
+            $gm = is_array($dataArr) ? ($dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? null)) : null;
+            $s['difficulty'] = (is_array($gm) && isset($gm['difficulty'])) ? $gm['difficulty'] : null;
+            $s['audience'] = (is_array($gm) && isset($gm['game_public'])) ? $gm['game_public'] : null;
+            unset($s['data']);
             return $s;
         }, $scenarios);
 

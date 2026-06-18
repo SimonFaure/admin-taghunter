@@ -31,6 +31,7 @@ session_start();
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
+require_once __DIR__ . '/../utils/ScenarioHashes.php';
 
 set_time_limit(0);
 
@@ -578,10 +579,23 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             ];
         }
 
-        $mediaDir = realpath(__DIR__ . '/../../media') . DIRECTORY_SEPARATOR . $uniqid;
+        // Resolve the media base WITHOUT realpath(): realpath() returns false when
+        // media/ doesn't exist yet, which would silently turn the target into an
+        // absolute path at the filesystem root (/{uniqid}) and fail confusingly.
+        $mediaBase = __DIR__ . '/../../media';
+        if (!is_dir($mediaBase)) {
+            if (!@mkdir($mediaBase, 0775, true) && !is_dir($mediaBase)) {
+                throw new Exception("Media base directory is missing and could not be created: $mediaBase (check it exists at the web root and is writable by the web server user)");
+            }
+        }
+        if (!is_writable($mediaBase)) {
+            throw new Exception("Media base directory is not writable by the web server user: $mediaBase");
+        }
+
+        $mediaDir = $mediaBase . DIRECTORY_SEPARATOR . $uniqid;
         if (!is_dir($mediaDir)) {
             if (!@mkdir($mediaDir, 0755, true) && !is_dir($mediaDir)) {
-                throw new Exception("Failed to create media dir for $uniqid");
+                throw new Exception("Failed to create media dir for $uniqid at $mediaDir");
             }
             $mediaDirCreated = true;
         }
@@ -1106,6 +1120,14 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
         $newId = (int)$pdo->lastInsertId();
 
         $pdo->commit();
+
+        // Media files were copied into media/{uniqid}/ above — hash the new
+        // scenario so incremental sync picks it up. Post-commit (best effort).
+        try {
+            ScenarioHashes::recompute($pdo, $uniqid);
+        } catch (Exception $e) {
+            error_log('scenario_import.php - recompute hashes failed for ' . $uniqid . ': ' . $e->getMessage());
+        }
 
         $ret = [
             'status' => 'created',

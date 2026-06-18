@@ -1,0 +1,18 @@
+{
+  "portal": "Client Portal",
+  "role": "Client",
+  "signOut": "Sign Out",
+  "nav": {
+    "home": "Home",
+    "scenarios": "My Scenarios",
+    "patterns": "My Patterns",
+    "cards": "My Cards",
+    "devices": "My Devices",
+    "releases": "App Downloads",
+    "gameTypes": "Tutorial Videos",
+    "statistics": "Statistics",
+    "settings": "Settings",
+    "account": "My Account",
+    "help": "Help"
+  }
+}

@@ -13,6 +13,7 @@
  */
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { CustomFontsManager } from './CustomFontsManager';
@@ -27,6 +28,7 @@ import { HelpDot } from '../../../help';
 const PREVIEW_SAMPLE = 'AaBbCc 0123 éèàâëù';
 
 export function TypographySection() {
+  const { t } = useTranslation('editorSections3');
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const setKey = (k: string, v: unknown) =>
@@ -67,25 +69,29 @@ export function TypographySection() {
   const [customPreviewText, setCustomPreviewText] = useState<string | null>(null);
   const previewText = customPreviewText ?? defaultPreviewText;
 
+  // Preview background — authoring-only toggle so light/dark fonts can be
+  // checked against either backdrop. Not persisted.
+  const [previewBg, setPreviewBg] = useState<'white' | 'black'>('white');
+
   return (
-    <CollapsibleSection title="Typography" headerExtra={<HelpDot topic="editor.typography" />}>
+    <CollapsibleSection title={t('typography.title')} headerExtra={<HelpDot topic="editor.typography" />}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <label className="block">
-          <span className="text-xs font-medium text-gray-700 mb-1 block">Font family</span>
+          <span className="text-xs font-medium text-gray-700 mb-1 block">{t('typography.fontFamily')}</span>
           <select
             value={fontValue}
             onChange={(e) => setKey('font', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
           >
-            <option value="">— Default —</option>
-            <optgroup label="Standard">
+            <option value="">{t('typography.defaultOption')}</option>
+            <optgroup label={t('typography.groupStandard')}>
               {standard.map((f) => (
                 <option key={f.family} value={f.family} style={{ fontFamily: f.stack }}>
                   {f.label}
                 </option>
               ))}
             </optgroup>
-            <optgroup label="Themed">
+            <optgroup label={t('typography.groupThemed')}>
               {themed.map((f) => (
                 <option key={f.family} value={f.family} style={{ fontFamily: f.stack }}>
                   {f.label}
@@ -93,7 +99,7 @@ export function TypographySection() {
               ))}
             </optgroup>
             {customFamilies.length > 0 && (
-              <optgroup label="Custom fonts">
+              <optgroup label={t('typography.groupCustom')}>
                 {customFamilies.map((c) => (
                   <option key={c} value={c} style={{ fontFamily: `"${c}", sans-serif` }}>
                     {c}
@@ -102,14 +108,14 @@ export function TypographySection() {
               </optgroup>
             )}
             {legacyValue && (
-              <optgroup label="Current value">
-                <option value={legacyValue}>{legacyValue} (legacy)</option>
+              <optgroup label={t('typography.groupCurrentValue')}>
+                <option value={legacyValue}>{t('typography.legacySuffix', { family: legacyValue })}</option>
               </optgroup>
             )}
           </select>
         </label>
         <label className="block">
-          <span className="text-xs font-medium text-gray-700 mb-1 block">Font color</span>
+          <span className="text-xs font-medium text-gray-700 mb-1 block">{t('typography.fontColor')}</span>
           <input
             type="color"
             value={String(meta.font_color ?? '#000000')}
@@ -117,38 +123,71 @@ export function TypographySection() {
             className="w-full h-10 border border-gray-300 rounded-md"
           />
         </label>
-        <label className="block">
-          <span className="text-xs font-medium text-gray-700 mb-1 block">Level font color</span>
-          <input
-            type="color"
-            value={String(meta.level_font_color ?? '#000000')}
-            onChange={(e) => setKey('level_font_color', e.target.value)}
-            className="w-full h-10 border border-gray-300 rounded-md"
-          />
-        </label>
+        {editor.adapter.capabilities.hasLevels && (
+          <label className="block">
+            <span className="text-xs font-medium text-gray-700 mb-1 block">{t('typography.levelFontColor')}</span>
+            <input
+              type="color"
+              value={String(meta.level_font_color ?? '#000000')}
+              onChange={(e) => setKey('level_font_color', e.target.value)}
+              className="w-full h-10 border border-gray-300 rounded-md"
+            />
+          </label>
+        )}
       </div>
 
       {/* Live preview of the selected font. The input doubles as the preview:
           it renders in the chosen font and the author can edit the sample. */}
-      <div className="mt-3 border border-gray-200 rounded-md px-3 py-2 bg-white">
+      <div
+        className={`mt-3 border rounded-md px-3 py-2 ${
+          previewBg === 'black' ? 'bg-black border-gray-700' : 'bg-white border-gray-200'
+        }`}
+      >
         <div className="flex items-center justify-between mb-0.5">
-          <span className="text-[11px] font-medium text-gray-400">Preview text</span>
-          {customPreviewText !== null && (
-            <button
-              type="button"
-              onClick={() => setCustomPreviewText(null)}
-              className="text-[11px] text-blue-600 hover:underline"
-            >
-              Reset to default
-            </button>
-          )}
+          <span className="text-[11px] font-medium text-gray-400">{t('typography.previewText')}</span>
+          <div className="flex items-center gap-2">
+            {customPreviewText !== null && (
+              <button
+                type="button"
+                onClick={() => setCustomPreviewText(null)}
+                className="text-[11px] text-blue-600 hover:underline"
+              >
+                {t('typography.resetToDefault')}
+              </button>
+            )}
+            {/* Preview background swatches — black / white. */}
+            <div className="flex items-center gap-1" role="group" aria-label={t('typography.previewBackground')}>
+              <button
+                type="button"
+                onClick={() => setPreviewBg('white')}
+                aria-label={t('typography.whitePreviewBg')}
+                aria-pressed={previewBg === 'white'}
+                className={`w-4 h-4 rounded-sm bg-white border ${
+                  previewBg === 'white' ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-400'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setPreviewBg('black')}
+                aria-label={t('typography.blackPreviewBg')}
+                aria-pressed={previewBg === 'black'}
+                className={`w-4 h-4 rounded-sm bg-black border ${
+                  previewBg === 'black' ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-400'
+                }`}
+              />
+            </div>
+          </div>
         </div>
         <input
           type="text"
           value={previewText}
           onChange={(e) => setCustomPreviewText(e.target.value)}
-          aria-label="Font preview text"
-          className="w-full text-lg text-gray-900 bg-transparent px-0 py-1 border-0 border-b border-dashed border-gray-200 outline-none focus:border-gray-400"
+          aria-label={t('typography.fontPreviewText')}
+          className={`w-full text-lg bg-transparent px-0 py-1 border-0 border-b border-dashed outline-none ${
+            previewBg === 'black'
+              ? 'text-white border-gray-700 focus:border-gray-500'
+              : 'text-gray-900 border-gray-200 focus:border-gray-400'
+          }`}
           style={{
             fontFamily: previewStack || undefined,
             color: String(meta.font_color ?? '') || undefined,

@@ -3,6 +3,7 @@ require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
+require_once __DIR__ . '/../utils/ScenarioHashes.php';
 
 setCorsHeaders();
 session_start();
@@ -45,6 +46,10 @@ try {
             handleDownloadZip($pdo);
             break;
 
+        case 'download_file':
+            handleDownloadFile($pdo);
+            break;
+
         case 'get_scenario':
             handleGetScenario($pdo);
             break;
@@ -80,7 +85,7 @@ function handleGetScenario($pdo) {
     }
 
     $stmt = $pdo->prepare("
-        SELECT s.id, s.title, s.description, s.uniqid, s.medias,
+        SELECT s.id, s.title, s.description, s.uniqid, s.medias, s.data,
                s.game_type, s.scenario_type, IFNULL(s.version, '1.0') as version, s.client_id,
                c.email as client_email
         FROM scenarios s
@@ -158,6 +163,28 @@ function handleGetScenario($pdo) {
 
     $hasZipFiles = !empty($files);
 
+    // Difficulty / audience live in the scenario's game_meta. Tolerate both the
+    // flat (`game_meta.…`) and wrapped (`data.game_meta.…`) shapes, mirroring
+    // the admin ScenariosView readers.
+    $dataArr = $scenario['data'] ? json_decode($scenario['data'], true) : [];
+    $gameMeta = $dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? []);
+    $difficulty = is_array($gameMeta) ? ($gameMeta['difficulty'] ?? null) : null;
+    $audience = is_array($gameMeta) ? ($gameMeta['game_public'] ?? null) : null;
+
+    // Per-file list so the client can download files one by one. file_path is
+    // intentionally omitted; downloads go through the access-checked
+    // `download_file` action keyed on the file id.
+    $fileList = array_map(function ($f) {
+        return [
+            'id' => (int)$f['id'],
+            'name' => $f['name'],
+            'file_size' => (int)$f['file_size'],
+            'mime_type' => $f['mime_type'],
+            'filename' => basename($f['file_path']),
+            'created_at' => $f['created_at'],
+        ];
+    }, $files);
+
     echo json_encode([
         'success' => true,
         'data' => [
@@ -168,11 +195,14 @@ function handleGetScenario($pdo) {
             'game_type' => $scenario['game_type'],
             'scenario_type' => $scenario['scenario_type'],
             'version' => $scenario['version'],
+            'difficulty' => $difficulty,
+            'audience' => $audience,
             'game_visual' => $gameVisual,
             'images' => $images,
             'video_url' => $videoUrl,
             'has_zip_files' => $hasZipFiles,
             'files_count' => count($files),
+            'files' => $fileList,
         ]
     ]);
 }
@@ -275,6 +305,12 @@ function handleUploadVideo($pdo) {
 
     $stmt4 = $pdo->prepare("UPDATE scenarios SET medias = ? WHERE id = ?");
     $stmt4->execute([json_encode($medias), $scenario['id']]);
+
+    try {
+        ScenarioHashes::recompute($pdo, $uniqid);
+    } catch (Exception $e) {
+        error_log('scenario_files.php - recompute hashes failed: ' . $e->getMessage());
+    }
 
     echo json_encode([
         'success' => true,
@@ -568,5 +604,90 @@ function handleDownloadZip($pdo) {
 
     readfile($zipPath);
     unlink($zipPath);
+    exit;
+}
+
+function handleDownloadFile($pdo) {
+    $fileId = $_GET['id'] ?? null;
+    if (!$fileId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing file id']);
+        return;
+    }
+
+    $email = resolveEmailFromRequest();
+    if (!$email) {
+        $email = $_GET['email'] ?? null;
+    }
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT sf.name, sf.file_path, sf.mime_type,
+               s.id as scenario_id, s.client_id, s.created_by,
+               c.email as client_email,
+               a.email as admin_email
+        FROM scenario_files sf
+        JOIN scenarios s ON sf.scenario_id = s.id
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
+        WHERE sf.id = ?
+    ");
+    $stmt->execute([$fileId]);
+    $file = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$file) {
+        http_response_code(404);
+        echo json_encode(['error' => 'File not found']);
+        return;
+    }
+
+    $isOwner = ($file['client_email'] === $email) || ($file['admin_email'] === $email);
+    $isAdmin = false;
+    if (!$isOwner) {
+        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+        $stmt2->execute([$email]);
+        $isAdmin = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
+    }
+    if (!$isOwner && !$isAdmin) {
+        $stmt3 = $pdo->prepare("
+            SELECT cs.id FROM client_scenarios cs
+            JOIN clients c ON cs.client_id = c.id
+            WHERE cs.scenario_id = ? AND c.email = ?
+        ");
+        $stmt3->execute([$file['scenario_id'], $email]);
+        $isOwner = ($stmt3->fetch(PDO::FETCH_ASSOC) !== false);
+    }
+
+    if (!$isOwner && !$isAdmin) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    $fullPath = __DIR__ . '/../../media/' . $file['file_path'];
+    if (!file_exists($fullPath)) {
+        http_response_code(404);
+        echo json_encode(['error' => 'File missing on disk']);
+        return;
+    }
+
+    // Build a friendly download name: the stored label keeps the original extension.
+    $ext = pathinfo($file['file_path'], PATHINFO_EXTENSION);
+    $base = $file['name'] !== '' ? $file['name'] : pathinfo($file['file_path'], PATHINFO_FILENAME);
+    $downloadName = preg_replace('/[\r\n"]/', '', $base);
+    if ($ext && strtolower(pathinfo($downloadName, PATHINFO_EXTENSION)) !== strtolower($ext)) {
+        $downloadName .= '.' . $ext;
+    }
+
+    header('Content-Type: ' . ($file['mime_type'] ?: 'application/octet-stream'));
+    header('Content-Disposition: attachment; filename="' . $downloadName . '"');
+    header('Content-Length: ' . filesize($fullPath));
+    header('Cache-Control: no-cache, must-revalidate');
+
+    readfile($fullPath);
     exit;
 }

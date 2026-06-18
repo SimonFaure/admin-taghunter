@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "sectionTitle": "Informations du scénario",
+    "title": "Titre",
+    "description": "Description",
+    "story": "Histoire"
+  },
+  "cover": {
+    "sectionTitleTracks": "Couverture, arrière-plan et carte",
+    "sectionTitle": "Couverture et arrière-plan",
+    "mapImage": "Image de la carte"
+  },
+  "timing": {
+    "sectionTitle": "Minutage",
+    "keys": {
+      "default_time": "temps par défaut",
+      "default_time_malus": "malus de temps par défaut",
+      "message_display_time": "temps d'affichage du message",
+      "animation_enigma_duration": "durée de l'animation d'énigme"
+    }
+  },
+  "admin": {
+    "sectionTitle": "Admin / métadonnées",
+    "scenarioVersion": "Version du scénario",
+    "audience": "Public (tranches d'âge)",
+    "difficulty": "Difficulté",
+    "univers": "Univers (thèmes)",
+    "universPlaceholder": "Ajouter un tag…",
+    "audienceEmptyWarning": "Aucun public sélectionné — les noms d'équipe seront tirés du pool Ados/Adultes par défaut.",
+    "namePoolHint": "Noms d'équipe tirés de : {{tier}}",
+    "audienceGroups": {
+      "enfants": "Enfants",
+      "ados_adultes": "Ados/Adultes"
+    }
+  }
+}

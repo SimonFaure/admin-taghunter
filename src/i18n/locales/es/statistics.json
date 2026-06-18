@@ -1,0 +1,48 @@
+{
+  "filters": {
+    "from": "Desde",
+    "to": "Hasta",
+    "gameType": "Tipo de juego",
+    "scenario": "Escenario",
+    "client": "Cliente",
+    "all": "Todos",
+    "clear": "Borrar"
+  },
+  "tabs": {
+    "overview": "Resumen",
+    "games": "Partidas"
+  },
+  "errors": {
+    "fetchFailed": "Error al obtener las estadísticas",
+    "loadFailed": "Error al cargar las estadísticas"
+  },
+  "kpi": {
+    "gamesPlayed": "Partidas jugadas",
+    "teams": "Equipos",
+    "players": "Jugadores"
+  },
+  "topScenarios": {
+    "title": "Escenarios principales",
+    "empty": "Aún no hay partidas",
+    "gameCount_one": "{{count}} partida",
+    "gameCount_other": "{{count}} partidas"
+  },
+  "topClients": {
+    "title": "Clientes principales",
+    "empty": "Aún no hay actividad de clientes"
+  },
+  "perDay": {
+    "title": "Partidas por día (últimos 30 días)"
+  },
+  "table": {
+    "date": "Fecha",
+    "name": "Nombre",
+    "type": "Tipo",
+    "scenario": "Escenario",
+    "client": "Cliente",
+    "teams": "Equipos",
+    "players": "Jugadores",
+    "empty": "Ninguna partida coincide con estos filtros"
+  },
+  "empty": "—"
+}

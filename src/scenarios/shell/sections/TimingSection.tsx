@@ -1,31 +1,40 @@
 /**
- * Timing section — animation_*, message_display_time, default_time, default_time_malus.
+ * Timing section — default_time, default_time_malus, message_display_time
+ * (+ mystery-only animation_enigma_duration).
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 
 const TIMING_KEYS = [
   'default_time',
   'default_time_malus',
-  'animation_image_duration',
-  'animation_message_duration',
   'message_display_time',
-  'animation_display_time',
 ] as const;
 
 export function TimingSection() {
+  const { t } = useTranslation('editorSections1');
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
 
+  // Clash has no late/time malus, so the time-malus field is irrelevant.
+  // Mystery surfaces its enigma-reveal step duration here (moved out of the
+  // Enigma timing & sounds section).
+  const keys: readonly string[] = editor.gameType === 'clash'
+    ? TIMING_KEYS.filter((k) => k !== 'default_time_malus')
+    : editor.gameType === 'mystery'
+      ? [...TIMING_KEYS, 'animation_enigma_duration']
+      : TIMING_KEYS;
+
   return (
-    <CollapsibleSection title="Timing">
+    <CollapsibleSection title={t('timing.sectionTitle')}>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {TIMING_KEYS.map((key) => (
+        {keys.map((key) => (
           <label key={key} className="block">
-            <span className="text-xs font-medium text-gray-700 mb-1 block">{prettyKey(key)}</span>
+            <span className="text-xs font-medium text-gray-700 mb-1 block">{t(`timing.keys.${key}`)}</span>
             <input
               type="text"
               value={String(meta[key] ?? '')}
@@ -41,8 +50,4 @@ export function TimingSection() {
       </div>
     </CollapsibleSection>
   );
-}
-
-function prettyKey(k: string): string {
-  return k.replace(/_/g, ' ');
 }

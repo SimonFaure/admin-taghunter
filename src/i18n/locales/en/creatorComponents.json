@@ -1,0 +1,28 @@
+{
+  "languages": {
+    "title": "Languages",
+    "addLanguage": "Add Language",
+    "removeLanguage": "Remove language",
+    "empty": "No languages configured. Add a language to get started.",
+    "modalTitle": "Add Language",
+    "allAdded": "All available languages have been added.",
+    "cancel": "Cancel"
+  },
+  "creator": {
+    "back": "Back",
+    "heading": "Create New Scenario",
+    "titleLabel": "Title *",
+    "titlePlaceholder": "Enter scenario title",
+    "scenarioTypeLabel": "Scenario Type *",
+    "gameTypeLabel": "Game Type *",
+    "statusLabel": "Status",
+    "statusDraft": "Draft",
+    "statusPublished": "Published",
+    "statusArchived": "Archived",
+    "save": "Save Scenario",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "validationTitle": "Please provide a title",
+    "saveError": "Failed to save scenario"
+  }
+}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Search, Filter, Download, Eye, Trash2, Pencil, Plus, ChevronLeft, ChevronDown, Calendar, User, Tag, X, FileJson, Upload } from 'lucide-react';
+import { Package, Search, Filter, Download, Eye, Trash2, Pencil, Plus, ChevronLeft, ChevronDown, Calendar, User, X, FileJson, Upload } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { useAuth } from '../auth/AuthContext';
+import { GameTypeIcon } from './icons/GameTypeIcons';
 import { PatternImport } from '../creator-ported/components/PatternImport';
 import { PatternCorrespondence } from './PatternCorrespondence';
 import { HelpButton } from '../help';
@@ -15,6 +16,7 @@ interface Pattern {
   name: string;
   description: string;
   game_type: string;
+  version?: string | null;
   pattern_data: string;
   is_default: boolean;
   owner_type: string;
@@ -60,7 +62,7 @@ export function PatternsView() {
   const [success, setSuccess] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
-  const [ownerFilter, setOwnerFilter] = useState<'all' | 'system' | 'admin' | 'client'>('all');
+  const [ownerFilter, setOwnerFilter] = useState<'all' | 'admin' | 'client'>('all');
   const [gameTypes, setGameTypes] = useState<string[]>([]);
 
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
@@ -330,7 +332,7 @@ export function PatternsView() {
             <div className="h-6 w-px bg-slate-300" />
             <div>
               <h3 className="text-lg font-semibold text-slate-900">{selectedPattern.name}</h3>
-              <p className="text-sm text-slate-500">{selectedPattern.game_type}</p>
+              <p className="text-sm text-slate-500">{selectedPattern.game_type} · v{selectedPattern.version || '1.0'}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -372,9 +374,14 @@ export function PatternsView() {
               <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Details</h4>
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Tag className="w-4 h-4 text-slate-400 shrink-0" />
+                  <GameTypeIcon type={selectedPattern.game_type} className="w-4 h-4 text-slate-400 shrink-0" />
                   <span className="text-slate-500">Game Type:</span>
-                  <span className="font-medium text-slate-900">{selectedPattern.game_type}</span>
+                  <span className="font-medium text-slate-900 capitalize">{selectedPattern.game_type}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Package className="w-4 h-4 text-slate-400 shrink-0" />
+                  <span className="text-slate-500">Version:</span>
+                  <span className="font-medium text-slate-900 font-mono">v{selectedPattern.version || '1.0'}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-slate-400 shrink-0" />
@@ -395,8 +402,10 @@ export function PatternsView() {
 
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2 mb-2">
-                  {selectedPattern.is_default && (
+                  {selectedPattern.is_default ? (
                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded font-medium">Default</span>
+                  ) : (
+                    <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded font-medium">Custom</span>
                   )}
                   <span className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded capitalize">{selectedPattern.owner_type}</span>
                 </div>
@@ -511,7 +520,8 @@ export function PatternsView() {
                 <option value="" disabled>Select a game type…</option>
                 <option value="tagquest">TagQuest</option>
                 <option value="mystery">Mystery</option>
-                <option value="tracks">Tracks</option>
+                <option value="tracks">Track</option>
+                <option value="clash">Clash</option>
               </select>
             </div>
 
@@ -643,10 +653,9 @@ export function PatternsView() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap mb-4">
         {([
           { key: 'all' as const, label: 'All' },
-          { key: 'system' as const, label: 'System' },
           { key: 'admin' as const, label: 'Admin' },
           { key: 'client' as const, label: 'Client-authored' },
         ]).map(({ key, label }) => (
@@ -706,14 +715,22 @@ export function PatternsView() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-900">{pattern.name}</p>
-                          {pattern.is_default && (
-                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">Default</span>
-                          )}
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium font-mono">v{pattern.version || '1.0'}</span>
+                            {pattern.is_default ? (
+                              <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">Default</span>
+                            ) : (
+                              <span className="text-xs px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-medium">Custom</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-slate-900">{pattern.game_type}</span>
+                      <span className="inline-flex items-center gap-1.5 text-sm text-slate-900 capitalize">
+                        <GameTypeIcon type={pattern.game_type} className="w-4 h-4 text-slate-400" />
+                        {pattern.game_type}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-slate-900 capitalize">{pattern.owner_type}</span>

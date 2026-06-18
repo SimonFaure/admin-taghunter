@@ -7,13 +7,23 @@ import {
   Star,
   Plus,
   Pencil,
+  User,
 } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { recencyKey } from './scenarioSort';
 import { ScenarioListControls } from '../scenarios/ScenarioListControls';
+import { GameTypeIcon } from '../icons/GameTypeIcons';
+import { AUDIENCE_OPTIONS, getAudienceLabel, normalizeAudience } from '../../types/audience';
+import { getDifficultyLabel, getDifficultyBadgeClass } from '../../types/difficulty';
+import { listRegisteredAdapters } from '../../scenarios';
 import type { ClientScenario } from './types';
 import { HelpButton } from '../../help';
+// Side-effect import: registers every shipped adapter so the game-type filter
+// chips can be derived from the registry even when the editor route hasn't
+// been visited yet (mirrors the admin ScenariosView).
+import '../../scenarios/bootstrap';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -36,31 +46,35 @@ export function getGameVisualUrl(
   }
 }
 
-type Filter = 'all' | 'products' | 'mine' | 'drafts';
+// Provenance/status pills, plus dynamically a game-type kind (e.g. 'mystery')
+// or an `audience:`-prefixed value. `(string & {})` keeps literal autocomplete
+// while accepting any game-type kind.
+type Filter = 'all' | 'products' | 'mine' | 'drafts' | (string & {});
 type ViewMode = 'grid' | 'list';
 type GroupBy = 'none' | 'game_type' | 'scenario_type';
 type SortBy = 'recent' | 'name' | 'created';
 
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'products', label: 'Products' },
-  { value: 'mine', label: 'Mine' },
-  { value: 'drafts', label: 'Drafts' },
+const FILTERS: { value: Filter; labelKey: string }[] = [
+  { value: 'all', labelKey: 'filters.all' },
+  { value: 'products', labelKey: 'filters.products' },
+  { value: 'mine', labelKey: 'filters.mine' },
+  { value: 'drafts', labelKey: 'filters.drafts' },
 ];
 
 const GROUP_OPTIONS = [
-  { value: 'none', label: 'None' },
-  { value: 'game_type', label: 'Game type' },
-  { value: 'scenario_type', label: 'Scenario type' },
+  { value: 'none', labelKey: 'groupBy.none' },
+  { value: 'game_type', labelKey: 'groupBy.gameType' },
+  { value: 'scenario_type', labelKey: 'groupBy.scenarioType' },
 ];
 
 const SORT_OPTIONS = [
-  { value: 'recent', label: 'Recently used' },
-  { value: 'created', label: 'Date created' },
-  { value: 'name', label: 'Name' },
+  { value: 'recent', labelKey: 'sortBy.recent' },
+  { value: 'created', labelKey: 'sortBy.created' },
+  { value: 'name', labelKey: 'sortBy.name' },
 ];
 
 export function MyScenariosView() {
+  const { t } = useTranslation('scenariosList');
   const navigate = useNavigate();
   const { user } = useSecureAuth();
   const [scenarios, setScenarios] = useState<ClientScenario[]>([]);
@@ -71,6 +85,18 @@ export function MyScenariosView() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [sortBy, setSortBy] = useState<SortBy>('recent');
+
+  // One filter chip per registered game type, driven by the adapter registry —
+  // but only for types actually present in this client's scenarios. The server
+  // already hides scenarios of disabled game types (client_scenarios.php), so an
+  // absent type means it's either unused or disabled for this client; either way
+  // it shouldn't get a chip.
+  const gameTypeFilters = useMemo(() => {
+    const present = new Set(scenarios.map((s) => s.game_type).filter(Boolean));
+    return listRegisteredAdapters()
+      .filter((a) => present.has(a.kind))
+      .map((a) => ({ key: a.kind, label: a.label }));
+  }, [scenarios]);
 
   useEffect(() => {
     const fetchScenarios = async () => {
@@ -91,10 +117,10 @@ export function MyScenariosView() {
         if (response.ok && result.data) {
           setScenarios(result.data);
         } else {
-          setError(result.error || 'Failed to fetch scenarios');
+          setError(result.error || t('errors.fetchFailed'));
         }
       } catch (err) {
-        setError('Network error');
+        setError(t('errors.network'));
         console.error('Failed to fetch scenarios:', err);
       } finally {
         setLoading(false);
@@ -112,6 +138,8 @@ export function MyScenariosView() {
 
     const passesFilter = (s: ClientScenario): boolean => {
       switch (filter) {
+        case 'all':
+          return true;
         case 'products':
           return isProduct(s);
         case 'mine':
@@ -119,9 +147,14 @@ export function MyScenariosView() {
         case 'drafts':
           // Products are explicitly never "drafts" to the client, regardless of data.
           return !isProduct(s) && (s.status || 'draft') === 'draft';
-        case 'all':
         default:
-          return true;
+          // Audience pills carry an `audience:` prefix so their values can't
+          // collide with game-type kinds (e.g. 'audience:kids').
+          if (filter.startsWith('audience:')) {
+            return normalizeAudience(s.audience || '') === filter.slice('audience:'.length);
+          }
+          // Otherwise `filter` is a game-type kind (e.g. 'mystery' | 'tagquest').
+          return s.game_type === filter;
       }
     };
 
@@ -162,44 +195,27 @@ export function MyScenariosView() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <p className="text-slate-600">View and manage your available game scenarios</p>
+          <p className="text-slate-600">{t('subtitle')}</p>
           <HelpButton chapter="scenarios" className="text-slate-400 hover:text-slate-700" />
         </div>
         {user?.license_type === 'premium' && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-sm font-medium">
             <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
-            Premium — all scenarios unlocked
+            {t('premiumBadge')}
           </span>
         )}
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
-          {FILTERS.map((f) => (
-            <button
-              key={f.value}
-              type="button"
-              onClick={() => setFilter(f.value)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                filter === f.value
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
         <ScenarioListControls
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           groupBy={groupBy}
           onGroupByChange={(v) => setGroupBy(v as GroupBy)}
-          groupOptions={GROUP_OPTIONS}
+          groupOptions={GROUP_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
           sortBy={sortBy}
           onSortByChange={(v) => setSortBy(v as SortBy)}
-          sortOptions={SORT_OPTIONS}
+          sortOptions={SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
           extraActions={
             <button
               type="button"
@@ -207,10 +223,68 @@ export function MyScenariosView() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500"
             >
               <Plus className="w-4 h-4" />
-              New scenario
+              {t('newScenario')}
             </button>
           }
         />
+      </div>
+
+      <div className="mb-6 flex items-center gap-2 flex-wrap">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => setFilter(f.value)}
+            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              filter === f.value
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {t(f.labelKey)}
+          </button>
+        ))}
+
+        {gameTypeFilters.length > 0 && (
+          <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+        )}
+
+        {gameTypeFilters.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setFilter(key)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              filter === key
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <GameTypeIcon type={key} className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
+
+        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+
+        {AUDIENCE_OPTIONS.map(({ value }) => {
+          const key = `audience:${value}`;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setFilter(key)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                filter === key
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              {getAudienceLabel(value, t)}
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -224,9 +298,9 @@ export function MyScenariosView() {
       ) : visible.length === 0 ? (
         <div className="bg-white p-12 rounded-xl shadow-sm border border-slate-200 text-center">
           <Film className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No scenarios match</h3>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('empty.title')}</h3>
           <p className="text-slate-600 mb-6">
-            Try a different filter, or create a new scenario.
+            {t('empty.description')}
           </p>
           <button
             type="button"
@@ -234,7 +308,7 @@ export function MyScenariosView() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
           >
             <Plus className="w-4 h-4" />
-            Create a scenario
+            {t('empty.cta')}
           </button>
         </div>
       ) : (
@@ -268,6 +342,7 @@ function ScenarioGrid({
   onOpen: (uniqid: string) => void;
   onEdit: (uniqid: string) => void;
 }) {
+  const { t } = useTranslation('scenariosList');
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {scenarios.map((scenario) => {
@@ -277,7 +352,7 @@ function ScenarioGrid({
           <button
             key={scenario.id}
             onClick={() => scenario.uniqid && onOpen(scenario.uniqid)}
-            className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all text-left w-full group overflow-hidden relative"
+            className="flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all text-left w-full group overflow-hidden relative"
           >
             {editable && (
               <span
@@ -294,21 +369,21 @@ function ScenarioGrid({
                     onEdit(scenario.uniqid!);
                   }
                 }}
-                title="Edit in Studio"
+                title={t('editInStudio')}
                 className="absolute top-3 right-3 z-10 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/90 hover:bg-white text-slate-600 hover:text-blue-600 shadow opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
               >
                 <Pencil className="w-4 h-4" />
               </span>
             )}
-            <div className="relative w-full bg-slate-100" style={{ height: '180px' }}>
+            <div className="relative w-full overflow-hidden bg-slate-100 aspect-square flex-shrink-0">
               {visual ? (
                 <img
                   src={visual}
                   alt={scenario.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center">
                   <Film className="w-12 h-12 text-slate-300" />
                 </div>
               )}
@@ -316,7 +391,7 @@ function ScenarioGrid({
               <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 rounded-full text-xs font-medium text-slate-700">
                   <Play className="w-3 h-3" />
-                  View
+                  {t('view')}
                 </div>
               </div>
             </div>
@@ -332,17 +407,28 @@ function ScenarioGrid({
               </div>
               <p className="text-sm text-slate-500 line-clamp-2 mb-3">{scenario.description}</p>
 
-              {(scenario.game_type || scenario.scenario_type || scenario.version) && (
+              {(scenario.game_type || scenario.difficulty || scenario.audience || scenario.scenario_type || scenario.version) && (
                 <div className="flex gap-2 flex-wrap items-center">
                   {scenario.game_type && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
-                      <Play className="w-2.5 h-2.5" />
+                      <GameTypeIcon type={scenario.game_type} className="w-3 h-3" />
                       {scenario.game_type}
+                    </span>
+                  )}
+                  {scenario.difficulty && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${getDifficultyBadgeClass(scenario.difficulty)}`}>
+                      {getDifficultyLabel(scenario.difficulty, t)}
+                    </span>
+                  )}
+                  {scenario.audience && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full text-xs font-medium capitalize">
+                      <User className="w-3 h-3" />
+                      {getAudienceLabel(scenario.audience, t)}
                     </span>
                   )}
                   {scenario.version && (
                     <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
-                      v{scenario.version}
+                      {t('versionShort', { version: scenario.version })}
                     </span>
                   )}
                   {scenario.scenario_type && (
@@ -369,16 +455,19 @@ function ScenarioTable({
   onOpen: (uniqid: string) => void;
   onEdit: (uniqid: string) => void;
 }) {
+  const { t } = useTranslation('scenariosList');
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
           <tr>
             <th className="px-4 py-2 w-16"></th>
-            <th className="px-4 py-2">Title</th>
-            <th className="px-4 py-2">Game type</th>
-            <th className="px-4 py-2">Type</th>
-            <th className="px-4 py-2">Version</th>
+            <th className="px-4 py-2">{t('table.title')}</th>
+            <th className="px-4 py-2">{t('table.gameType')}</th>
+            <th className="px-4 py-2">{t('table.audience')}</th>
+            <th className="px-4 py-2">{t('table.difficulty')}</th>
+            <th className="px-4 py-2">{t('table.type')}</th>
+            <th className="px-4 py-2">{t('table.version')}</th>
             <th className="px-4 py-2 w-24"></th>
           </tr>
         </thead>
@@ -402,9 +491,31 @@ function ScenarioTable({
                   </div>
                 </td>
                 <td className="px-4 py-2 font-medium text-slate-900">{scenario.title}</td>
-                <td className="px-4 py-2 text-slate-600 capitalize">{scenario.game_type || '—'}</td>
+                <td className="px-4 py-2 text-slate-600 capitalize">
+                  {scenario.game_type ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <GameTypeIcon type={scenario.game_type} className="w-4 h-4 text-slate-400" />
+                      {scenario.game_type}
+                    </span>
+                  ) : '—'}
+                </td>
+                <td className="px-4 py-2">
+                  {scenario.audience ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full text-xs font-medium capitalize">
+                      <User className="w-3 h-3" />
+                      {getAudienceLabel(scenario.audience, t)}
+                    </span>
+                  ) : <span className="text-slate-400">—</span>}
+                </td>
+                <td className="px-4 py-2">
+                  {scenario.difficulty ? (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${getDifficultyBadgeClass(scenario.difficulty)}`}>
+                      {getDifficultyLabel(scenario.difficulty, t)}
+                    </span>
+                  ) : <span className="text-slate-400">—</span>}
+                </td>
                 <td className="px-4 py-2 text-slate-600 capitalize">{scenario.scenario_type || '—'}</td>
-                <td className="px-4 py-2 text-slate-600">{scenario.version ? `v${scenario.version}` : '—'}</td>
+                <td className="px-4 py-2 text-slate-600">{scenario.version ? t('versionShort', { version: scenario.version }) : '—'}</td>
                 <td className="px-4 py-2 text-right">
                   {editable && (
                     <button
@@ -413,7 +524,7 @@ function ScenarioTable({
                         e.stopPropagation();
                         onEdit(scenario.uniqid!);
                       }}
-                      title="Edit in Studio"
+                      title={t('editInStudio')}
                       className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-500 hover:text-blue-600 hover:bg-slate-100"
                     >
                       <Pencil className="w-4 h-4" />

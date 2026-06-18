@@ -1,12 +1,13 @@
 /**
  * Checkpoints section — per-checkpoint editor.
  *
- * Each row: title (Localized), description (Localized), position
- * (top/left as %), points, and image picker (only shown when
- * `checkpoints_unique_image` is false). Order = checkpoint number.
+ * Each row: title (Localized), description (Localized), points, and image
+ * picker (only shown when `checkpoints_unique_image` is false). Order =
+ * checkpoint number. Positions are NOT edited here — they're placed
+ * visually in the LayoutEditor and saved back to game_meta.checkpoints[].position.
  */
 
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, MapPin } from 'lucide-react';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
@@ -14,6 +15,8 @@ import { getLocalized, setLocalized } from '../../../i18n/getLocalized';
 import type { Lang } from '../../../i18n/types';
 import type { Checkpoint } from '../../../../types/scenario-data';
 import type { MediaSlot } from '../../../types';
+import { tracksMediaSlots } from '../mediaSlots';
+import { useTracksPatternStations } from '../useTracksPatternStations';
 
 function newCheckpoint(): Checkpoint {
   return {
@@ -36,9 +39,27 @@ export function CheckpointsSection() {
   const meta = editor.gameMeta as Record<string, unknown>;
   const checkpoints = (meta.checkpoints ?? []) as Checkpoint[];
   const commonMode = !!meta.checkpoints_unique_image;
+  const commonSlot = tracksMediaSlots.find((s) => s.key === 'checkpoints_unique_image_id');
+
+  // Per-checkpoint station correspondences from the selected default pattern.
+  // Index i maps to checkpoint at position i (see useTracksPatternStations).
+  const patternUniqid = (meta.scenario_default_pattern as string | null | undefined) ?? null;
+  const patternStations = useTracksPatternStations(patternUniqid);
 
   function setCheckpoints(next: Checkpoint[]) {
     editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), checkpoints: next }) as typeof m);
+  }
+
+  function setIconMode(next: 'per_checkpoint' | 'common') {
+    editor.setGameMeta(
+      (m) => ({ ...(m as Record<string, unknown>), checkpoints_unique_image: next === 'common' }) as typeof m,
+    );
+  }
+
+  function setCommonImage(filename: string) {
+    editor.setGameMeta(
+      (m) => ({ ...(m as Record<string, unknown>), checkpoints_unique_image_id: filename }) as typeof m,
+    );
   }
 
   function addCheckpoint() {
@@ -73,6 +94,37 @@ export function CheckpointsSection() {
         </button>
       }
     >
+      <div className="mb-4 space-y-3 border-b border-gray-200 pb-4">
+        <div className="flex items-center gap-4">
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="radio"
+              name="checkpoint-icons-mode"
+              checked={!commonMode}
+              onChange={() => setIconMode('per_checkpoint')}
+            />
+            Per checkpoint (each has its own icon)
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="radio"
+              name="checkpoint-icons-mode"
+              checked={commonMode}
+              onChange={() => setIconMode('common')}
+            />
+            Common (all checkpoints share one icon)
+          </label>
+        </div>
+
+        {commonMode && commonSlot && (
+          <AssetUploadField
+            slot={commonSlot}
+            value={String(meta.checkpoints_unique_image_id ?? '')}
+            onChange={setCommonImage}
+          />
+        )}
+      </div>
+
       {checkpoints.length === 0 ? (
         <p className="text-sm text-gray-500">No checkpoints yet.</p>
       ) : (
@@ -85,11 +137,27 @@ export function CheckpointsSection() {
               scope: 'type',
               label: 'Checkpoint image',
             };
-            const position = c.position ?? { top: 50, left: 50 };
             return (
               <div key={c.id ?? i} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Checkpoint {i + 1}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900">Checkpoint {i + 1}</h3>
+                    {patternUniqid && (
+                      <span className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500">
+                        <MapPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
+                        {patternStations[i] && patternStations[i].stationId != null ? (
+                          <>
+                            <span className="font-mono text-gray-600">#{patternStations[i].stationId}</span>
+                            <span className="truncate">
+                              {patternStations[i].stationName ?? 'Unknown station'}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="italic text-gray-400">No station assigned</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => moveCheckpoint(i, -1)}
@@ -154,45 +222,6 @@ export function CheckpointsSection() {
                         className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white resize-y"
                       />
                     </label>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="block">
-                        <span className="text-xs font-medium text-gray-700 mb-1 block">
-                          Top (%)
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={0.1}
-                          value={position.top}
-                          onChange={(ev) =>
-                            updateCheckpoint(i, {
-                              position: { ...position, top: Number(ev.target.value) },
-                            })
-                          }
-                          className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-xs font-medium text-gray-700 mb-1 block">
-                          Left (%)
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={0.1}
-                          value={position.left}
-                          onChange={(ev) =>
-                            updateCheckpoint(i, {
-                              position: { ...position, left: Number(ev.target.value) },
-                            })
-                          }
-                          className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
-                        />
-                      </label>
-                    </div>
 
                     <label className="block">
                       <span className="text-xs font-medium text-gray-700 mb-1 block">Points</span>

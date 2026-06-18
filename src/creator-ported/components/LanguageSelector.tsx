@@ -1,4 +1,5 @@
 import { Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface LanguageSelectorProps {
   availableLanguages: string[];
@@ -32,18 +33,19 @@ export function LanguageSelector({
   onAddLanguage,
   onRemoveLanguage
 }: LanguageSelectorProps) {
+  const { t } = useTranslation('creatorComponents');
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Globe className="w-5 h-5 text-blue-600" />
-          <h3 className="font-medium text-gray-900">Languages</h3>
+          <h3 className="font-medium text-gray-900">{t('languages.title')}</h3>
         </div>
         <button
           onClick={onAddLanguage}
           className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
-          Add Language
+          {t('languages.addLanguage')}
         </button>
       </div>
 
@@ -86,7 +88,7 @@ export function LanguageSelector({
                     : 'hover:bg-gray-300'
                   }
                 `}
-                title="Remove language"
+                title={t('languages.removeLanguage')}
               >
                 ×
               </button>
@@ -97,7 +99,7 @@ export function LanguageSelector({
 
       {availableLanguages.length === 0 && (
         <p className="text-sm text-gray-500 text-center py-2">
-          No languages configured. Add a language to get started.
+          {t('languages.empty')}
         </p>
       )}
     </div>
@@ -115,6 +117,7 @@ export function AddLanguageModal({
   onSelect,
   onClose
 }: AddLanguageModalProps) {
+  const { t } = useTranslation('creatorComponents');
   const unusedLanguages = AVAILABLE_LANGUAGE_CODES.filter(
     code => !availableLanguages.includes(code)
   );
@@ -124,7 +127,7 @@ export function AddLanguageModal({
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Add Language
+            {t('languages.modalTitle')}
           </h3>
 
           <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -146,7 +149,7 @@ export function AddLanguageModal({
 
           {unusedLanguages.length === 0 && (
             <p className="text-sm text-gray-500 text-center py-4">
-              All available languages have been added.
+              {t('languages.allAdded')}
             </p>
           )}
 
@@ -155,7 +158,7 @@ export function AddLanguageModal({
               onClick={onClose}
               className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              Cancel
+              {t('languages.cancel')}
             </button>
           </div>
         </div>

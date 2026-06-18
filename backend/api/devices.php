@@ -64,6 +64,35 @@ try {
             jsonResponse(['data' => $devices]);
             break;
 
+        case 'lan_networks':
+            // Read-only dashboard view of the client's announced default Wi-Fi
+            // hotspots (the upload side of the playground's Feature B relay).
+            // Passwords are intentionally NOT returned here. Defensive: the
+            // lan_networks table may not be migrated yet -> empty list.
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $clientId = requireClientAuth($db);
+
+            $networks = [];
+            try {
+                $networks = $db->fetchAll(
+                    'SELECT ln.id, ln.ssid, ln.source, ln.is_default, ln.updated_at,
+                            COALESCE(d.display_name, d.device_label) AS device_label
+                     FROM lan_networks ln
+                     LEFT JOIN devices d ON d.id = ln.device_id
+                     WHERE ln.client_id = ? AND ln.is_default = 1
+                     ORDER BY ln.updated_at DESC',
+                    [$clientId]
+                );
+            } catch (Exception $e) {
+                $networks = [];
+            }
+
+            jsonResponse(['data' => $networks]);
+            break;
+
         case 'register':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse(['error' => 'Method not allowed'], 405);

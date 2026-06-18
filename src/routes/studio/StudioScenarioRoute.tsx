@@ -42,12 +42,8 @@ export function StudioScenarioRoute() {
         if (e || !data) {
           setError(e?.message || 'Scenario not found');
         } else {
-          // Product scenarios are read-only for clients. Backend already rejects
-          // saves; this redirect keeps the user out of an editor they can't save.
-          if (!isAdmin && (data as ScenarioRow).scenario_type === 'product') {
-            navigate(`/my/scenarios/${uniqid}`, { replace: true });
-            return;
-          }
+          // Products are editable from the client side too — let the "Edit in
+          // Studio" button open the editor for any scenario type.
           setScenario(data as ScenarioRow);
         }
       } catch (err) {
@@ -59,7 +55,7 @@ export function StudioScenarioRoute() {
     return () => {
       cancelled = true;
     };
-  }, [isNew, uniqid, isAdmin, navigate]);
+  }, [isNew, uniqid, navigate]);
 
   // Admins land on Dashboard with the Scenarios tab pre-selected (Dashboard
    // reads `location.state.tab`); clients have a dedicated list route.

@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download, Gauge } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { ImportLegacyZipModal } from './ImportLegacyZipModal';
+import { ManageGameTypesModal } from './ManageGameTypesModal';
 import { ScenarioListControls } from './scenarios/ScenarioListControls';
-import { AUDIENCE_OPTIONS, getAudienceLabel, normalizeAudience } from '../types/audience';
+import { AUDIENCE_BANDS, type AudienceBand, getBandLabel, resolveBands } from '../types/audience';
+import { DIFFICULTY_LEVELS, coerceDifficulty, formatDifficultyStars, getDifficultyBadgeClass } from '../types/difficulty';
+import { normalizeUnivers } from '../types/univers';
 import { listRegisteredAdapters } from '../scenarios';
+import { GameTypeIcon } from './icons/GameTypeIcons';
 import { HelpButton } from '../help';
 // Side-effect import: registers every shipped adapter so the game-type filter
 // chips below can be derived from the registry even when the editor route
@@ -39,19 +43,37 @@ function getGameVersion(scenario: Scenario): string | null {
   return scenario.version || null;
 }
 
-// Reads the audience (`game_meta.game_public`) out of a scenario's `data`
-// column, tolerating both the flat (`game_meta.…`) and wrapped (`data.game_meta.…`)
-// envelopes the same way the detail view does.
-function getScenarioAudience(scenario: Scenario): string {
+// Reads `game_meta` out of a scenario's `data` column, tolerating both the flat
+// (`game_meta.…`) and wrapped (`data.game_meta.…`) envelopes.
+function getScenarioMeta(scenario: Scenario): Record<string, unknown> {
   const dataSource = scenario.data || scenario.game_data;
-  if (!dataSource) return '';
+  if (!dataSource) return {};
   try {
     const obj = typeof dataSource === 'string' ? JSON.parse(dataSource) : dataSource;
-    const gp = obj?.game_meta?.game_public ?? obj?.data?.game_meta?.game_public;
-    return typeof gp === 'string' ? gp : '';
+    return (obj?.game_meta ?? obj?.data?.game_meta ?? {}) as Record<string, unknown>;
   } catch {
-    return '';
+    return {};
   }
+}
+
+// Resolved age bands, with the read-side fallback (synthesize from game_public
+// for un-backfilled rows).
+function getScenarioBands(scenario: Scenario): AudienceBand[] {
+  const meta = getScenarioMeta(scenario);
+  return resolveBands(meta.audience_bands, meta.game_public);
+}
+
+// Difficulty as an integer 1–5 (legacy enum strings coerced). Returns null when
+// the scenario carries no difficulty at all.
+function getScenarioDifficulty(scenario: Scenario): number | null {
+  const meta = getScenarioMeta(scenario);
+  if (meta.difficulty === undefined || meta.difficulty === null || meta.difficulty === '') return null;
+  return coerceDifficulty(meta.difficulty);
+}
+
+// Free-text univers tags.
+function getScenarioUnivers(scenario: Scenario): string[] {
+  return normalizeUnivers(getScenarioMeta(scenario).univers);
 }
 
 // The base provenance/status filters plus, dynamically, one entry per
@@ -70,6 +92,13 @@ export function ScenariosView() {
     () => listRegisteredAdapters().map((a) => ({ key: a.kind, label: a.label })),
     [],
   );
+  // Map a game-type code to its registry display label (e.g. `tracks` → "Track").
+  // Falls back to the raw value, so it's safe to call on scenario_type keys too.
+  const gameTypeLabels = useMemo(
+    () => Object.fromEntries(listRegisteredAdapters().map((a) => [a.kind, a.label])),
+    [],
+  );
+  const labelForGameType = (code?: string) => (code && gameTypeLabels[code]) || code || '';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -90,10 +119,34 @@ export function ScenariosView() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [groupBy, setGroupBy] = useState<'scenario_type' | 'game_type'>('scenario_type');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showGameTypesModal, setShowGameTypesModal] = useState(false);
+  // Catalog metadata filters — independent multi-selects, AND across categories,
+  // OR within each. A scenario passes the band filter if it includes ANY selected
+  // band; the difficulty filter if its level is in the selected set; the univers
+  // filter if it carries ANY selected tag.
+  const [bandFilters, setBandFilters] = useState<Set<AudienceBand>>(new Set());
+  const [difficultyFilters, setDifficultyFilters] = useState<Set<number>>(new Set());
+  const [universFilters, setUniversFilters] = useState<Set<string>>(new Set());
+  const [difficultySort, setDifficultySort] = useState<'none' | 'asc' | 'desc'>('none');
 
   useEffect(() => {
     fetchScenarios();
   }, []);
+
+  // Distinct univers tags across all loaded scenarios — drives the univers filter chips.
+  const universPool = useMemo(() => {
+    const pool = new Set<string>();
+    for (const s of scenarios) for (const tag of getScenarioUnivers(s)) pool.add(tag);
+    return Array.from(pool).sort((a, b) => a.localeCompare(b));
+  }, [scenarios]);
+
+  const toggleSetItem = <T,>(setState: React.Dispatch<React.SetStateAction<Set<T>>>, item: T) =>
+    setState((prev) => {
+      const next = new Set(prev);
+      if (next.has(item)) next.delete(item);
+      else next.add(item);
+      return next;
+    });
 
   useEffect(() => {
     if (selectedScenario?.uniqid) {
@@ -620,20 +673,9 @@ export function ScenariosView() {
   }
 
   if (selectedScenario) {
-    let gamePublic = null;
-    const dataSource = selectedScenario.data || selectedScenario.game_data;
-    if (dataSource) {
-      try {
-        const dataObj = JSON.parse(dataSource);
-        if (dataObj.game_meta?.game_public !== undefined) {
-          gamePublic = dataObj.game_meta.game_public;
-        } else if (dataObj.data?.game_meta?.game_public !== undefined) {
-          gamePublic = dataObj.data.game_meta.game_public;
-        }
-      } catch (e) {
-        console.error('Failed to parse data for game_public', e);
-      }
-    }
+    const detailBands = getScenarioBands(selectedScenario);
+    const detailUnivers = getScenarioUnivers(selectedScenario);
+    const difficulty = getScenarioDifficulty(selectedScenario);
 
     return (
       <div className="space-y-6">
@@ -661,8 +703,8 @@ export function ScenariosView() {
 
             <div className="flex items-center flex-wrap gap-6 text-sm text-slate-600 mb-4">
               <div className="flex items-center space-x-2">
-                <Film className="w-4 h-4" />
-                <span className="font-medium capitalize">{selectedScenario.game_type}</span>
+                <GameTypeIcon type={selectedScenario.game_type} className="w-4 h-4" />
+                <span className="font-medium capitalize">{labelForGameType(selectedScenario.game_type)}</span>
               </div>
               {getGameVersion(selectedScenario) && (
                 <div className="flex items-center space-x-2">
@@ -712,11 +754,24 @@ export function ScenariosView() {
                   <span>Published by {selectedScenario.creator_name}</span>
                 </div>
               )}
-              {typeof gamePublic === 'string' && gamePublic !== '' && (
-                <div className="flex items-center space-x-2">
-                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                    {getAudienceLabel(gamePublic)}
-                  </span>
+              {(detailBands.length > 0 || difficulty !== null || detailUnivers.length > 0) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {detailBands.map((band) => (
+                    <span key={band} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                      {getBandLabel(band)}
+                    </span>
+                  ))}
+                  {difficulty !== null && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${getDifficultyBadgeClass(difficulty)}`}>
+                      <Gauge className="w-3 h-3" />
+                      {formatDifficultyStars(difficulty)}
+                    </span>
+                  )}
+                  {detailUnivers.map((tag) => (
+                    <span key={tag} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-violet-100 text-violet-800">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               )}
               <div className="flex items-center space-x-2">
@@ -954,21 +1009,45 @@ export function ScenariosView() {
     );
   }
 
-  const filteredScenarios = scenarios.filter((s) => {
+  const matchesProvenance = (s: Scenario): boolean => {
     if (filter === 'all') return true;
     if (filter === 'products') return s.scenario_type === 'product' || s.client_id === null;
     if (filter === 'client-authored') return s.scenario_type === 'custom' || s.client_id !== null;
     if (filter === 'drafts') return (s.status || 'draft') === 'draft';
-    // Audience pills carry an `audience:` prefix so their values can't collide
-    // with game-type kinds (e.g. 'audience:kids').
-    if (filter.startsWith('audience:')) {
-      return normalizeAudience(getScenarioAudience(s)) === filter.slice('audience:'.length);
-    }
     // Otherwise `filter` is a game-type kind (e.g. 'mystery' | 'tagquest' | 'tracks').
     return s.game_type === filter;
-  });
+  };
 
-  const groupedScenarios = filteredScenarios.reduce((acc, scenario) => {
+  // AND across the metadata categories, OR within each.
+  const matchesMetadata = (s: Scenario): boolean => {
+    if (bandFilters.size > 0) {
+      const bands = getScenarioBands(s);
+      if (!bands.some((b) => bandFilters.has(b))) return false;
+    }
+    if (difficultyFilters.size > 0) {
+      const d = getScenarioDifficulty(s);
+      if (d === null || !difficultyFilters.has(d)) return false;
+    }
+    if (universFilters.size > 0) {
+      const tags = getScenarioUnivers(s).map((t) => t.toLowerCase());
+      if (!tags.some((t) => universFilters.has(t))) return false;
+    }
+    return true;
+  };
+
+  const filteredScenarios = scenarios.filter((s) => matchesProvenance(s) && matchesMetadata(s));
+
+  // Apply the difficulty sort (when active) before grouping so both the grid
+  // groups and the list view inherit the order.
+  const byDifficulty = (a: Scenario, b: Scenario) => {
+    const da = getScenarioDifficulty(a) ?? 0;
+    const db = getScenarioDifficulty(b) ?? 0;
+    return difficultySort === 'asc' ? da - db : db - da;
+  };
+  const orderedScenarios =
+    difficultySort === 'none' ? filteredScenarios : [...filteredScenarios].sort(byDifficulty);
+
+  const groupedScenarios = orderedScenarios.reduce((acc, scenario) => {
     const key =
       groupBy === 'game_type'
         ? scenario.game_type || 'Uncategorized'
@@ -983,7 +1062,9 @@ export function ScenariosView() {
   const scenarioTypes = Object.keys(groupedScenarios).sort();
 
   const sortedListScenarios =
-    groupBy === 'game_type'
+    difficultySort !== 'none'
+      ? orderedScenarios
+      : groupBy === 'game_type'
       ? [...filteredScenarios].sort((a, b) =>
           (a.game_type || '').localeCompare(b.game_type || '') ||
           a.title.localeCompare(b.title)
@@ -1052,7 +1133,9 @@ export function ScenariosView() {
 
   const renderScenarioCard = (scenario: Scenario) => {
     const thumbnailUrl = getScenarioThumbnail(scenario);
-    const audience = getScenarioAudience(scenario);
+    const bands = getScenarioBands(scenario);
+    const difficulty = getScenarioDifficulty(scenario);
+    const univers = getScenarioUnivers(scenario);
 
     return (
       <div
@@ -1080,56 +1163,71 @@ export function ScenariosView() {
             </div>
           </div>
 
-          <div className="space-y-2 mb-4">
-            <div className="flex items-center justify-between">
+          {/* Scenario data in two columns: identity (left) + version/badges (right). */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
+            <div className="space-y-2 min-w-0">
               <div className="flex items-center space-x-2 text-sm text-slate-600">
-                <Film className="w-4 h-4" />
-                <span className="font-medium capitalize">{scenario.game_type}</span>
+                <GameTypeIcon type={scenario.game_type} className="w-4 h-4 flex-shrink-0" />
+                <span className="font-medium capitalize truncate">{labelForGameType(scenario.game_type)}</span>
               </div>
+              {scenario.creator_name && (
+                <div className="flex items-center space-x-2 text-sm text-slate-600">
+                  <User className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{scenario.creator_name}</span>
+                </div>
+              )}
+              <div className="flex items-center space-x-2 text-sm text-slate-600">
+                <Calendar className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{new Date(scenario.created_at).toLocaleDateString()}</span>
+              </div>
+              {scenario.client_name && (
+                <div className="flex items-center space-x-2 text-sm text-slate-600">
+                  <User className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">Client: {scenario.client_name}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-start gap-2 min-w-0">
               {getGameVersion(scenario) && (
-                <div className="flex items-center space-x-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                <div className="inline-flex items-center space-x-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
                   <Tag className="w-3 h-3" />
                   <span>v{getGameVersion(scenario)}</span>
                 </div>
               )}
+              {bands.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50">
+                  <User className="w-3 h-3" />
+                  {bands.map((b) => getBandLabel(b)).join(' · ')}
+                </span>
+              )}
+              {difficulty !== null && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${getDifficultyBadgeClass(difficulty)}`}>
+                  <Gauge className="w-3 h-3" />
+                  {formatDifficultyStars(difficulty)}
+                </span>
+              )}
+              {univers.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {univers.map((tag) => (
+                    <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-violet-700 bg-violet-50">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {scenario.status && (
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+                  scenario.status === 'published'
+                    ? 'bg-green-100 text-green-700'
+                    : scenario.status === 'archived'
+                    ? 'bg-slate-200 text-slate-600'
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {scenario.status}
+                </span>
+              )}
             </div>
-            {scenario.creator_name && (
-              <div className="flex items-center space-x-2 text-sm text-slate-600">
-                <User className="w-4 h-4" />
-                <span className="truncate">{scenario.creator_name}</span>
-              </div>
-            )}
-            <div className="flex items-center space-x-2 text-sm text-slate-600">
-              <Calendar className="w-4 h-4" />
-              <span>{new Date(scenario.created_at).toLocaleDateString()}</span>
-            </div>
-            {scenario.client_name && (
-              <div className="flex items-center space-x-2 text-sm text-slate-600">
-                <User className="w-4 h-4" />
-                <span className="truncate">Client: {scenario.client_name}</span>
-              </div>
-            )}
-            {(audience || scenario.status) && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {audience && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50 capitalize">
-                    <User className="w-3 h-3" />
-                    {getAudienceLabel(audience)}
-                  </span>
-                )}
-                {scenario.status && (
-                  <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
-                    scenario.status === 'published'
-                      ? 'bg-green-100 text-green-700'
-                      : scenario.status === 'archived'
-                      ? 'bg-slate-200 text-slate-600'
-                      : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {scenario.status}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
 
           <div className="flex gap-2">
@@ -1174,7 +1272,10 @@ export function ScenariosView() {
           )}
         </td>
         <td className="px-4 py-3">
-          <span className="text-sm font-medium text-slate-600 capitalize">{scenario.game_type}</span>
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 capitalize">
+            <GameTypeIcon type={scenario.game_type} className="w-4 h-4 text-slate-400" />
+            {labelForGameType(scenario.game_type)}
+          </span>
         </td>
         <td className="px-4 py-3">
           {scenario.scenario_type ? (
@@ -1187,10 +1288,22 @@ export function ScenariosView() {
         </td>
         <td className="px-4 py-3">
           {(() => {
-            const audience = getScenarioAudience(scenario);
-            return audience ? (
-              <span className="px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50 capitalize">
-                {getAudienceLabel(audience)}
+            const bands = getScenarioBands(scenario);
+            return bands.length > 0 ? (
+              <span className="px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50">
+                {bands.map((b) => getBandLabel(b)).join(' · ')}
+              </span>
+            ) : (
+              <span className="text-slate-300 text-xs">—</span>
+            );
+          })()}
+        </td>
+        <td className="px-4 py-3">
+          {(() => {
+            const difficulty = getScenarioDifficulty(scenario);
+            return difficulty !== null ? (
+              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getDifficultyBadgeClass(difficulty)}`}>
+                {formatDifficultyStars(difficulty)}
               </span>
             ) : (
               <span className="text-slate-300 text-xs">—</span>
@@ -1292,6 +1405,14 @@ export function ScenariosView() {
                 <FileArchive className="w-4 h-4" />
                 Import legacy ZIP
               </button>
+              <button
+                onClick={() => setShowGameTypesModal(true)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                title="Enable or disable game types"
+              >
+                <Gauge className="w-4 h-4" />
+                Manage game types
+              </button>
             </>
           }
         />
@@ -1304,6 +1425,12 @@ export function ScenariosView() {
           setShowImportModal(false);
           fetchScenarios();
         }}
+      />
+
+      <ManageGameTypesModal
+        open={showGameTypesModal}
+        onClose={() => setShowGameTypesModal(false)}
+        onChanged={fetchScenarios}
       />
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -1342,31 +1469,101 @@ export function ScenariosView() {
                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
             }`}
           >
-            <Film className="w-3.5 h-3.5" />
+            <GameTypeIcon type={key} className="w-3.5 h-3.5" />
             {label}
           </button>
         ))}
 
-        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+      </div>
 
-        {AUDIENCE_OPTIONS.map(({ value, label }) => {
-          const key = `audience:${value}`;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(key)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                filter === key
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              {label}
-            </button>
-          );
-        })}
+      {/* Catalog metadata filters: age bands, difficulty stars, univers tags, and
+          a difficulty sort toggle. AND across categories, OR within each. */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">Age</span>
+        {AUDIENCE_BANDS.map((b) => (
+          <button
+            key={b.value}
+            type="button"
+            onClick={() => toggleSetItem(setBandFilters, b.value)}
+            className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
+              bandFilters.has(b.value)
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {getBandLabel(b.value)}
+          </button>
+        ))}
+
+        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">Difficulty</span>
+        {DIFFICULTY_LEVELS.map((level) => (
+          <button
+            key={level}
+            type="button"
+            onClick={() => toggleSetItem(setDifficultyFilters, level)}
+            title={`${level} / 5`}
+            className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
+              difficultyFilters.has(level)
+                ? 'bg-amber-500 text-white border-amber-500'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {'★'.repeat(level)}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setDifficultySort((s) => (s === 'none' ? 'asc' : s === 'asc' ? 'desc' : 'none'))}
+          className={`inline-flex items-center gap-1 px-2.5 py-1 text-sm rounded-full border transition-colors ${
+            difficultySort !== 'none'
+              ? 'bg-slate-900 text-white border-slate-900'
+              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+          }`}
+          title="Sort by difficulty"
+        >
+          <Gauge className="w-3.5 h-3.5" />
+          {difficultySort === 'asc' ? '↑' : difficultySort === 'desc' ? '↓' : 'Sort'}
+        </button>
+
+        {universPool.length > 0 && (
+          <>
+            <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">Univers</span>
+            {universPool.map((tag) => {
+              const key = tag.toLowerCase();
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleSetItem(setUniversFilters, key)}
+                  className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
+                    universFilters.has(key)
+                      ? 'bg-violet-600 text-white border-violet-600'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </>
+        )}
+
+        {(bandFilters.size > 0 || difficultyFilters.size > 0 || universFilters.size > 0 || difficultySort !== 'none') && (
+          <button
+            type="button"
+            onClick={() => {
+              setBandFilters(new Set());
+              setDifficultyFilters(new Set());
+              setUniversFilters(new Set());
+              setDifficultySort('none');
+            }}
+            className="ml-1 px-2.5 py-1 text-sm rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {filteredScenarios.length === 0 ? (
@@ -1388,7 +1585,7 @@ export function ScenariosView() {
               <div className="flex items-center space-x-3">
                 <div className="h-px flex-1 bg-slate-200"></div>
                 <h3 className="text-lg font-bold text-slate-900 px-4 py-2 bg-slate-100 rounded-lg capitalize">
-                  {type}
+                  {labelForGameType(type)}
                 </h3>
                 <div className="h-px flex-1 bg-slate-200"></div>
               </div>
@@ -1408,6 +1605,7 @@ export function ScenariosView() {
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Game Type</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Audience</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Difficulty</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Version</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>

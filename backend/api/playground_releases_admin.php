@@ -11,7 +11,9 @@
  *   - set_latest    POST  : JSON {id} -- mark a release latest for its platform.
  *   - set_floor     POST  : JSON {id, min_supported_version} -- raise the hard floor.
  *   - update_notes  POST  : JSON {id, notes}.
- *   - delete        POST  : JSON {id} -- delete a release (refused if it is latest).
+ *   - delete        POST  : JSON {id} -- delete any release; if it was the latest,
+ *                                        the next-newest build for its platform is
+ *                                        promoted to latest automatically.
  */
 
 require_once __DIR__ . '/../utils/cors.php';
@@ -56,19 +58,26 @@ function jsonBody(): array {
 
 const TARGETS = ['windows', 'darwin', 'linux', 'android', 'ios'];
 const ARCHS   = ['x86_64', 'aarch64', 'universal'];
+const CHANNELS = ['stable', 'test'];
 
 function isSemver(string $v): bool {
     return (bool)preg_match('/^\d+\.\d+\.\d+$/', $v);
 }
 
-/** Mark one release latest for its (target, arch), clearing siblings. Atomic. */
+function sanitizeChannel(string $v): string {
+    return in_array($v, CHANNELS, true) ? $v : 'stable';
+}
+
+/** Mark one release latest for its (channel, target, arch), clearing siblings. Atomic. */
 function setLatest(Database $db, array $row): void {
+    $channel = $row['channel'] ?? 'stable';
     $conn = $db->getConnection();
     $conn->beginTransaction();
     try {
         $db->query(
-            'UPDATE playground_releases SET is_latest = 0 WHERE target = ? AND arch = ?',
-            [$row['target'], $row['arch']]
+            'UPDATE playground_releases SET is_latest = 0
+             WHERE channel = ? AND target = ? AND arch = ?',
+            [$channel, $row['target'], $row['arch']]
         );
         $db->query('UPDATE playground_releases SET is_latest = 1 WHERE id = ?', [$row['id']]);
         $conn->commit();
@@ -99,7 +108,7 @@ try {
         case 'list': {
             if ($method !== 'GET') jsonResponse(['error' => 'Method not allowed'], 405);
             $rows = $db->fetchAll(
-                'SELECT id, version, target, arch, artifact_filename, artifact_size,
+                'SELECT id, version, channel, target, arch, artifact_filename, artifact_size,
                         store_url, pub_date, notes, min_supported_version, is_latest, created_at
                  FROM playground_releases
                  ORDER BY created_at DESC, id DESC'
@@ -118,6 +127,7 @@ try {
             $version = trim($_POST['version'] ?? '');
             $target  = trim($_POST['target'] ?? '');
             $arch    = trim($_POST['arch'] ?? '');
+            $channel = sanitizeChannel(trim($_POST['channel'] ?? 'stable'));
             $floor   = trim($_POST['min_supported_version'] ?? '0.0.0');
             $notes   = $_POST['notes'] ?? '';
             $markLatest = filter_var($_POST['mark_latest'] ?? 'true', FILTER_VALIDATE_BOOLEAN);
@@ -160,12 +170,12 @@ try {
             $relPath = $version . '/' . $filename;
             $size = filesize($destPath);
 
-            // UPSERT on (version, target, arch).
+            // UPSERT on (channel, version, target, arch).
             $db->query(
                 'INSERT INTO playground_releases
-                    (version, target, arch, artifact_path, artifact_filename, artifact_size,
+                    (version, channel, target, arch, artifact_path, artifact_filename, artifact_size,
                      signature, pub_date, notes, min_supported_version, created_by)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     artifact_path = VALUES(artifact_path),
                     artifact_filename = VALUES(artifact_filename),
@@ -174,13 +184,13 @@ try {
                     pub_date = NOW(),
                     notes = VALUES(notes),
                     min_supported_version = VALUES(min_supported_version)',
-                [$version, $target, $arch, $relPath, $filename, $size,
+                [$version, $channel, $target, $arch, $relPath, $filename, $size,
                  trim($signature), $notes, $floor, $adminId]
             );
 
             $row = $db->fetch(
-                'SELECT * FROM playground_releases WHERE version = ? AND target = ? AND arch = ?',
-                [$version, $target, $arch]
+                'SELECT * FROM playground_releases WHERE channel = ? AND version = ? AND target = ? AND arch = ?',
+                [$channel, $version, $target, $arch]
             );
             if ($markLatest && $row) {
                 setLatest($db, $row);
@@ -199,6 +209,7 @@ try {
 
             $version  = trim($body['version'] ?? '');
             $target   = trim($body['target'] ?? '');
+            $channel  = sanitizeChannel(trim($body['channel'] ?? 'stable'));
             $storeUrl = trim($body['store_url'] ?? '');
             $floor    = trim($body['min_supported_version'] ?? '0.0.0');
             $notes    = $body['notes'] ?? '';
@@ -215,19 +226,19 @@ try {
 
             $db->query(
                 'INSERT INTO playground_releases
-                    (version, target, arch, store_url, pub_date, notes, min_supported_version, created_by)
-                 VALUES (?, ?, ?, ?, NOW(), ?, ?, ?)
+                    (version, channel, target, arch, store_url, pub_date, notes, min_supported_version, created_by)
+                 VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     store_url = VALUES(store_url),
                     pub_date = NOW(),
                     notes = VALUES(notes),
                     min_supported_version = VALUES(min_supported_version)',
-                [$version, $target, 'universal', $storeUrl, $notes, $floor, $adminId]
+                [$version, $channel, $target, 'universal', $storeUrl, $notes, $floor, $adminId]
             );
 
             $row = $db->fetch(
-                'SELECT * FROM playground_releases WHERE version = ? AND target = ? AND arch = ?',
-                [$version, $target, 'universal']
+                'SELECT * FROM playground_releases WHERE channel = ? AND version = ? AND target = ? AND arch = ?',
+                [$channel, $version, $target, 'universal']
             );
             if ($markLatest && $row) {
                 setLatest($db, $row);
@@ -286,9 +297,37 @@ try {
             $id = (int)(jsonBody()['id'] ?? 0);
             $row = $db->fetch('SELECT * FROM playground_releases WHERE id = ?', [$id]);
             if (!$row) jsonResponse(['error' => 'release not found'], 404);
-            if ((int)$row['is_latest'] === 1) {
-                jsonResponse(['error' => 'cannot delete the latest release; set another latest first'], 409);
+
+            // Delete the row first, then -- if it was the latest for its platform --
+            // promote the next-newest remaining build of the same (target, arch) to
+            // latest so self-update never loses its target. All atomic.
+            $conn = $db->getConnection();
+            $conn->beginTransaction();
+            try {
+                $db->query('DELETE FROM playground_releases WHERE id = ?', [$id]);
+                $promoted = null;
+                if ((int)$row['is_latest'] === 1) {
+                    $next = $db->fetch(
+                        'SELECT id, version FROM playground_releases
+                         WHERE channel = ? AND target = ? AND arch = ?
+                         ORDER BY created_at DESC, id DESC
+                         LIMIT 1',
+                        [$row['channel'], $row['target'], $row['arch']]
+                    );
+                    if ($next) {
+                        $db->query('UPDATE playground_releases SET is_latest = 1 WHERE id = ?',
+                            [$next['id']]);
+                        $promoted = $next['version'];
+                    }
+                }
+                $conn->commit();
+            } catch (Throwable $e) {
+                $conn->rollBack();
+                throw $e;
             }
+
+            // Remove the stored artifact (and its now-empty version dir) only after
+            // the DB delete committed.
             if (!empty($row['artifact_path'])) {
                 $abs = realpath($releasesRoot . '/' . str_replace('/', DIRECTORY_SEPARATOR, $row['artifact_path']));
                 $rootReal = realpath($releasesRoot);
@@ -301,10 +340,9 @@ try {
                     }
                 }
             }
-            $db->query('DELETE FROM playground_releases WHERE id = ?', [$id]);
             Logger::log('playground_releases_admin', $method, 'delete', $adminId,
-                ['id' => $id], ['success' => true], 200);
-            jsonResponse(['success' => true]);
+                ['id' => $id], ['success' => true, 'promoted_latest' => $promoted], 200);
+            jsonResponse(['success' => true, 'promoted_latest' => $promoted]);
             break;
         }
 

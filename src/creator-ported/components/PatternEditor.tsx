@@ -6,6 +6,7 @@ import { Alert } from './Alert';
 import { authService } from '../services/authService';
 import { ClientSelector } from './ClientSelector';
 import { ConfirmDialog, PublishStep } from './ConfirmDialog';
+import { clashComboTerritory } from '../../scenarios/bodies/clash/skeleton';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 import { generatePatternSlug } from '../utils/patterns';
@@ -210,6 +211,9 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
     survival: { types: ['good_answer_station', 'wrong_answer_station'], labels: ['Good Answer Station', 'Wrong Answer Station'] },
     tagquest: { types: ['image_1', 'image_2', 'image_3', 'image_4'],    labels: ['Image 1 Station', 'Image 2 Station', 'Image 3 Station', 'Image 4 Station'] },
     tracks:   { types: ['station'],                                      labels: ['Station'] },
+    // Clash: each row = one combination = 3 balise stations. Rows are mapped
+    // positionally to the scenario's 8 combinations (territory order).
+    clash:    { types: ['station_1', 'station_2', 'station_3'],          labels: ['Balise 1', 'Balise 2', 'Balise 3'] },
   };
   const shape = PATTERN_SHAPES[gameType] ?? PATTERN_SHAPES.tagquest;
   const assignmentTypes = shape.types;
@@ -366,54 +370,61 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
     setRows(prev => prev.filter(r => r.index !== rowIndex));
   };
 
+  // Persist the current rows (normalized pattern_items) + patterns row metadata.
+  // Shared by the explicit "Save Pattern" button and the publish flow so that
+  // publishing always saves first. Throws on failure; returns the saved slug.
+  const persistPattern = async (): Promise<string> => {
+    const { error: deleteError } = await db
+      .from('pattern_items')
+      .delete()
+      .eq('pattern_id', patternId);
+
+    if (deleteError) throw deleteError;
+
+    const itemsToInsert: Array<{
+      pattern_id: string;
+      item_index: number;
+      assignment_type: string;
+      station_key_number: number;
+    }> = [];
+
+    rows.forEach(row => {
+      Object.entries(row.assignments).forEach(([type, keyNumber]) => {
+        if (keyNumber !== null) {
+          itemsToInsert.push({
+            pattern_id: patternId,
+            item_index: row.index,
+            assignment_type: type,
+            station_key_number: keyNumber,
+          });
+        }
+      });
+    });
+
+    if (itemsToInsert.length > 0) {
+      const { error: insertError } = await db
+        .from('pattern_items')
+        .insert(itemsToInsert);
+
+      if (insertError) throw insertError;
+    }
+
+    const newSlug = generatePatternSlug(name);
+    const { error: updateError } = await db
+      .from('patterns')
+      .update({ name: name, pattern_slug: newSlug, updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ') })
+      .eq('id', patternId);
+
+    if (updateError) throw updateError;
+
+    setSlug(newSlug);
+    return newSlug;
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
-
-      const { error: deleteError } = await db
-        .from('pattern_items')
-        .delete()
-        .eq('pattern_id', patternId);
-
-      if (deleteError) throw deleteError;
-
-      const itemsToInsert: Array<{
-        pattern_id: string;
-        item_index: number;
-        assignment_type: string;
-        station_key_number: number;
-      }> = [];
-
-      rows.forEach(row => {
-        Object.entries(row.assignments).forEach(([type, keyNumber]) => {
-          if (keyNumber !== null) {
-            itemsToInsert.push({
-              pattern_id: patternId,
-              item_index: row.index,
-              assignment_type: type,
-              station_key_number: keyNumber,
-            });
-          }
-        });
-      });
-
-      if (itemsToInsert.length > 0) {
-        const { error: insertError } = await db
-          .from('pattern_items')
-          .insert(itemsToInsert);
-
-        if (insertError) throw insertError;
-      }
-
-      const newSlug = generatePatternSlug(name);
-      const { error: updateError } = await db
-        .from('patterns')
-        .update({ name: name, pattern_slug: newSlug, updated_at: new Date().toISOString().slice(0, 19).replace('T', ' ') })
-        .eq('id', patternId);
-
-      if (updateError) throw updateError;
-
-      setSlug(newSlug);
+      await persistPattern();
       setAlert({ type: 'success', message: 'Pattern saved successfully.' });
     } catch (error) {
       console.error('Error saving pattern:', error);
@@ -447,6 +458,18 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
     } catch {
       return { exists: false };
     }
+  };
+
+  // Each publish bumps the stored version by a 0.1 increment, automatically.
+  const computeNextVersion = (current: number | string | null | undefined): string => {
+    const n = parseFloat(String(current ?? ''));
+    const base = Number.isFinite(n) && n > 0 ? n : 1.0;
+    return (Math.round(base * 10) / 10 + 0.1).toFixed(1);
+  };
+
+  const openPublishModal = () => {
+    setPublishVersion(computeNextVersion(version));
+    setShowPublishModal(true);
   };
 
   const handlePublish = async () => {
@@ -560,7 +583,10 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
         pattern_data: patternData,
         version: versionNum,
         is_default: isAdmin && !asClient,
-        uniqid: patternId,
+        // patternId is the row's numeric primary key (the editor route loads by
+        // uniqid then passes id). Send it as `id` so the backend updates THIS
+        // row instead of inserting a duplicate draft.
+        id: patternId,
         slug: slug || generatePatternSlug(name),
       };
       console.log('=== REQUEST BODY ===');
@@ -570,17 +596,23 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
       console.log('=== API URL ===');
       console.log(apiUrl);
 
+      // Publishing always saves the current rows first so pattern_items (what the
+      // editor reloads from) and the published pattern_data stay in sync.
+      await persistPattern();
+
       updateStep(0, 'done');
       updateStep(1, 'doing');
 
       const authHeaders = authService.getAuthHeaders() as Record<string, string>;
+      // getAuthHeaders() returns X-Auth-Token (studio's backend expects it; some
+      // Apache setups silently strip the Authorization header). Merge whatever it
+      // provides and only bail if there is genuinely no token at all.
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        ...authHeaders,
       };
 
-      if (authHeaders.Authorization) {
-        headers['Authorization'] = authHeaders.Authorization;
-      } else {
+      if (!headers['X-Auth-Token'] && !headers['Authorization']) {
         throw new Error('Authentication token is missing. Please log in again.');
       }
 
@@ -635,7 +667,9 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
 
       setAlert({ type: 'success', message: responseData.message || 'Pattern published successfully!' });
       setShowPublishModal(false);
-      setPublishVersion('1.0');
+      // Reflect the freshly-published version locally so a subsequent publish
+      // (without a reload) increments from the new value.
+      setVersion(versionNum);
     } catch (error) {
       console.error('=== EXCEPTION CAUGHT ===');
       console.error('Error Type:', typeof error);
@@ -709,7 +743,7 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
               {saving ? 'Saving...' : 'Save Pattern'}
             </button>
             <button
-              onClick={() => setShowPublishModal(true)}
+              onClick={openPublishModal}
               className="flex items-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
             >
               <Upload size={16} />
@@ -748,6 +782,15 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
                   >
                     <td className="px-4 py-3 text-sm font-mono text-slate-300">
                       {rowIdx + 1}
+                      {gameType === 'clash' && (() => {
+                        const t = clashComboTerritory(rowIdx);
+                        if (t.territoryNumber === 0) return null;
+                        return (
+                          <span className="block text-[10px] font-sans text-slate-400 whitespace-nowrap">
+                            T{t.territoryNumber} · {t.sizeLabel}
+                          </span>
+                        );
+                      })()}
                     </td>
                     {assignmentTypes.map(type => (
                       <td key={type} className="px-4 py-3">
@@ -819,16 +862,19 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
             </div>
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-300 mb-2">
-                Version <span className="text-red-400">*</span>
+                Version
               </label>
-              <input
-                type="text"
-                value={publishVersion}
-                onChange={(e) => setPublishVersion(e.target.value)}
-                placeholder="e.g., 1.0, 1.1, 2.0"
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-xs text-slate-400 mt-1">Enter a version number for this pattern (e.g., 1.0, 1.1, 2.0)</p>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-400 font-mono">v{Number(version || 1.0).toFixed(1)}</span>
+                <span className="text-slate-500">→</span>
+                <input
+                  type="text"
+                  value={publishVersion}
+                  disabled
+                  className="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white text-sm font-mono"
+                />
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Version is bumped automatically by 0.1 on each publish.</p>
             </div>
 
             {authService.isAdmin() && (

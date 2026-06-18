@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, LayoutGrid as Layout, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ClientsView } from './ClientsView';
@@ -8,6 +8,7 @@ import LogsView from './LogsView';
 import ApiDocsView from './ApiDocsView';
 import { AdminNotificationsList } from './AdminNotificationsList';
 import { ScenariosView } from './ScenariosView';
+import { ScenarioCatalogView } from './ScenarioCatalogView';
 import { StatisticsView } from './StatisticsView';
 import { SettingsView } from './SettingsView';
 import { MediaView } from './MediaView';
@@ -15,11 +16,13 @@ import { AdminUsersView } from './AdminUsersView';
 import { PatternsView } from './PatternsView';
 import { ActivityHistoryView } from './ActivityHistoryView';
 import { CardsListView } from './CardsListView';
-import { LayoutsView } from './LayoutsView';
+import { TeamNamesView } from './TeamNamesView';
+import { ReportLayoutsView } from './ReportLayoutsView';
 import { DevicesView } from './DevicesView';
 import { RecentErrorsView } from './RecentErrorsView';
 import { GameTypesView } from './GameTypesView';
 import { ReleasesView } from './ReleasesView';
+import { TestersView } from './TestersView';
 import AdminTranslationsView from './admin/AdminTranslationsView';
 import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 import { HelpProvider, DocsShell, studioOpenPdf } from '../help';
@@ -32,9 +35,11 @@ const mainMenuItems: MenuItem[] = [
   { id: 'home', label: 'Dashboard', icon: Home },
   { id: 'clients', label: 'Clients', icon: Users },
   { id: 'scenarios', label: 'Scenarios', icon: Film },
+  { id: 'catalog', label: 'Catalog', icon: LayoutGrid },
   { id: 'patterns', label: 'Patterns', icon: Package },
   { id: 'cards', label: 'Cards', icon: CreditCard },
-  { id: 'layouts', label: 'Layouts', icon: Layout },
+  { id: 'team-names', label: 'Team Names', icon: Tags },
+  { id: 'report-layouts', label: 'Report Layouts', icon: Printer },
   { id: 'devices', label: 'Devices', icon: Monitor },
   { id: 'statistics', label: 'Statistics', icon: TrendingUp },
   { id: 'admin-users', label: 'Admin Users', icon: Shield },
@@ -55,6 +60,7 @@ const devMenuItems: MenuItem[] = [
   { id: 'activity-history', label: 'Activity History', icon: Clock },
   { id: 'recent-errors', label: 'Recent Errors', icon: AlertTriangle },
   { id: 'releases', label: 'Releases', icon: Rocket },
+  { id: 'testers', label: 'Testers', icon: FlaskConical },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -274,17 +280,23 @@ export function Dashboard() {
 
           {activeTab === 'scenarios' && <ScenariosView />}
 
+          {activeTab === 'catalog' && <ScenarioCatalogView />}
+
           {activeTab === 'patterns' && <PatternsView />}
 
           {activeTab === 'cards' && <CardsListView />}
 
-          {activeTab === 'layouts' && <LayoutsView />}
+          {activeTab === 'team-names' && <TeamNamesView />}
+
+          {activeTab === 'report-layouts' && <ReportLayoutsView />}
 
           {activeTab === 'media' && <MediaView />}
 
           {activeTab === 'devices' && <DevicesView />}
 
           {activeTab === 'releases' && <ReleasesView />}
+
+          {activeTab === 'testers' && <TestersView />}
 
           {activeTab === 'recent-errors' && <RecentErrorsView />}
 

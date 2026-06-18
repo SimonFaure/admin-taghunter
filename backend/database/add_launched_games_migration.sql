@@ -114,11 +114,22 @@ SET @sql = (SELECT IF(
         key_id INT NULL,
         start_time BIGINT NULL,
         end_time BIGINT NULL,
+        language VARCHAR(8) NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT fk_teams_game FOREIGN KEY (launched_game_id) REFERENCES launched_games(id) ON DELETE CASCADE,
         INDEX idx_teams_game (launched_game_id),
         INDEX idx_teams_game_team (launched_game_id, team_number)
      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- teams.language: per-team display language (added defensively for installs that
+-- created `teams` before this column existed). NULL ⇒ launch language fallback.
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'teams' AND COLUMN_NAME = 'language') > 0,
+    'SELECT 1',
+    'ALTER TABLE teams ADD COLUMN language VARCHAR(8) NULL AFTER end_time'
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 

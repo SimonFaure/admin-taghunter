@@ -1,0 +1,18 @@
+{
+  "portal": "Portal del cliente",
+  "role": "Cliente",
+  "signOut": "Cerrar sesión",
+  "nav": {
+    "home": "Inicio",
+    "scenarios": "Mis escenarios",
+    "patterns": "Mis patrones",
+    "cards": "Mis tarjetas",
+    "devices": "Mis dispositivos",
+    "releases": "Descargas",
+    "gameTypes": "Vídeos tutoriales",
+    "statistics": "Estadísticas",
+    "settings": "Ajustes",
+    "account": "Mi cuenta",
+    "help": "Ayuda"
+  }
+}

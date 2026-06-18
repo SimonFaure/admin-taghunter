@@ -134,6 +134,20 @@ function buildZipPayload(
       position: c.position,
       points: c.points,
     })),
+
+    // Authored text overlays — passed through with their Localized<string>
+    // `text` maps intact (the playground runtime's `readLocalized` resolves
+    // them at the player's selected language). Position lives here too:
+    // entries without a position are skipped at render time, so unplaced
+    // authored entries still travel but are invisible.
+    text_elements: (gm as Record<string, unknown>).text_elements,
+
+    // Author-defined text-element categories carrying typography defaults.
+    // Per-element fields override category fields, which override the
+    // scenario default. The playground runtime indexes by id and resolves
+    // the inheritance chain in TracksGameRenderer.
+    // Plan: tracks-text-elements-categories.md
+    text_categories: (gm as Record<string, unknown>).text_categories,
   };
 
   const meta = gm as unknown as Record<string, string | undefined>;
@@ -193,10 +207,11 @@ function buildZipPayload(
 
 export const tracksAdapter: ScenarioAdapter<TracksGameMeta> = {
   kind: 'tracks',
-  label: 'Tracks',
+  label: 'Track',
   capabilities: {
     hasLevels: false,
     hasOverscores: false,
+    hasPodium: true,
     supportsProductTemplate: true,
     hasTranslatableArrays: ['checkpoints'],
   },

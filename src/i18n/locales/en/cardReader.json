@@ -1,0 +1,7 @@
+{
+  "title": "Card Detection",
+  "detected": "Card detected",
+  "reading": "Reading card...",
+  "noReader": "No card reader found",
+  "error": "Card reading error"
+}

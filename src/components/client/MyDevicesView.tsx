@@ -1,12 +1,15 @@
-import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X } from 'lucide-react';
+import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X, Server, Wifi } from 'lucide-react';
 import { useState, useEffect, KeyboardEvent } from 'react';
-import { getDevices, deleteDevice, updateDevice, Device } from '../../lib/devicesApi';
+import { useTranslation } from 'react-i18next';
+import { getDevices, deleteDevice, updateDevice, getLanNetworks, Device, LanNetwork } from '../../lib/devicesApi';
 import { HelpButton } from '../../help';
 
 const MAX_DISPLAY_NAME = 120;
 
 export function MyDevicesView() {
+  const { t, i18n } = useTranslation('devicesList');
   const [devices, setDevices] = useState<Device[]>([]);
+  const [networks, setNetworks] = useState<LanNetwork[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -28,7 +31,7 @@ export function MyDevicesView() {
   const saveEdit = async (device: Device) => {
     const trimmed = draft.trim();
     if (trimmed.length > MAX_DISPLAY_NAME) {
-      setError(`Name must be ${MAX_DISPLAY_NAME} characters or fewer`);
+      setError(t('nameTooLong', { max: MAX_DISPLAY_NAME }));
       return;
     }
     try {
@@ -41,7 +44,7 @@ export function MyDevicesView() {
       setDraft('');
       await loadDevices();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename device');
+      setError(err instanceof Error ? err.message : t('renameFailed'));
     } finally {
       setSaving(false);
     }
@@ -67,27 +70,34 @@ export function MyDevicesView() {
       setError('');
       const data = await getDevices();
       setDevices(data);
+      // Best-effort: the hotspots panel is supplementary, so a failure here
+      // (e.g. table not migrated) must not break the device list.
+      try {
+        setNetworks(await getLanNetworks());
+      } catch {
+        setNetworks([]);
+      }
     } catch (err) {
       console.error('Failed to load devices:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load devices');
+      setError(err instanceof Error ? err.message : t('loadFailed'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (deviceUniq: string) => {
-    if (!confirm('Are you sure you want to delete this device? This action cannot be undone.')) {
+    if (!confirm(t('deleteConfirm'))) {
       return;
     }
 
     try {
       await deleteDevice(deviceUniq);
-      setSuccess('Device deleted successfully');
+      setSuccess(t('deleteSuccess'));
       setTimeout(() => setSuccess(''), 3000);
       await loadDevices();
     } catch (err) {
       console.error('Failed to delete device:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete device');
+      setError(err instanceof Error ? err.message : t('deleteFailed'));
       setTimeout(() => setError(''), 5000);
     }
   };
@@ -120,24 +130,24 @@ export function MyDevicesView() {
           <div>
             <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
               <Smartphone className="w-6 h-6" />
-              <span>My Devices</span>
+              <span>{t('title')}</span>
               <HelpButton chapter="devices" className="text-slate-400 hover:text-slate-700 ml-1" />
             </h2>
             <p className="text-slate-600 mt-1">
-              Manage your registered devices
+              {t('subtitle')}
             </p>
           </div>
           <div className="text-sm text-slate-600">
-            {devices.length} {devices.length === 1 ? 'device' : 'devices'} registered
+            {t('registeredCount', { count: devices.length })}
           </div>
         </div>
 
         {devices.length === 0 ? (
           <div className="bg-slate-50 p-12 rounded-xl border border-slate-200 text-center">
             <Smartphone className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Devices Registered</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('empty.title')}</h3>
             <p className="text-slate-600">
-              Your devices will appear here once they connect to the platform
+              {t('empty.subtitle')}
             </p>
           </div>
         ) : (
@@ -162,14 +172,14 @@ export function MyDevicesView() {
                             onChange={(e) => setDraft(e.target.value)}
                             onKeyDown={(e) => handleKeyDown(e, device)}
                             maxLength={MAX_DISPLAY_NAME + 1}
-                            placeholder={device.device_label ?? 'Device name'}
+                            placeholder={device.device_label ?? t('namePlaceholder')}
                             className="border border-slate-300 rounded px-2 py-1 text-sm font-semibold text-slate-900 w-40"
                           />
                           <button
                             type="button"
                             onClick={() => saveEdit(device)}
                             disabled={saving}
-                            title="Save"
+                            title={t('save')}
                             className="p-1 rounded hover:bg-green-50 text-green-600 disabled:opacity-50"
                           >
                             <Check className="w-4 h-4" />
@@ -178,7 +188,7 @@ export function MyDevicesView() {
                             type="button"
                             onClick={cancelEdit}
                             disabled={saving}
-                            title="Cancel"
+                            title={t('cancel')}
                             className="p-1 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-50"
                           >
                             <X className="w-4 h-4" />
@@ -187,12 +197,12 @@ export function MyDevicesView() {
                       ) : (
                         <div className="flex items-center gap-1.5 group">
                           <h3 className="font-semibold text-slate-900 truncate">
-                            {device.display_name || device.device_label || 'Device'}
+                            {device.display_name || device.device_label || t('deviceFallback')}
                           </h3>
                           <button
                             type="button"
                             onClick={() => startEdit(device)}
-                            title="Rename"
+                            title={t('rename')}
                             className="opacity-0 group-hover:opacity-100 p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-opacity"
                           >
                             <Pencil className="w-3.5 h-3.5" />
@@ -200,12 +210,17 @@ export function MyDevicesView() {
                         </div>
                       )}
                       <p className="text-xs text-slate-500 font-mono truncate">{device.device_uniq}</p>
+                      {device.is_default_mother ? (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-200">
+                          <Server className="w-3 h-3" /> {t('defaultGameServer')}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <button
                     onClick={() => handleDelete(device.device_uniq)}
                     className="text-red-600 hover:text-red-700 transition-colors p-2 hover:bg-red-50 rounded-lg"
-                    title="Delete device"
+                    title={t('deleteDevice')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -215,29 +230,29 @@ export function MyDevicesView() {
                   <div className="flex items-center space-x-2 text-sm">
                     <Package className="w-4 h-4 text-slate-400" />
                     <span className="text-slate-600">
-                      <span className="font-medium text-slate-700">Version:</span>{' '}
-                      {device.playground_version || 'N/A'}
+                      <span className="font-medium text-slate-700">{t('labelVersion')}</span>{' '}
+                      {device.playground_version || t('notAvailable')}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm">
                     <HardDrive className="w-4 h-4 text-slate-400" />
                     <span className="text-slate-600">
-                      <span className="font-medium text-slate-700">Cards:</span>{' '}
+                      <span className="font-medium text-slate-700">{t('labelCards')}</span>{' '}
                       v{device.cards_file_version || 0}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm">
                     <Calendar className="w-4 h-4 text-slate-400" />
                     <span className="text-slate-600">
-                      <span className="font-medium text-slate-700">Registered:</span>{' '}
-                      {new Date(device.created_at).toLocaleDateString()}
+                      <span className="font-medium text-slate-700">{t('labelRegistered')}</span>{' '}
+                      {new Date(device.created_at).toLocaleDateString(i18n.language)}
                     </span>
                   </div>
                   <div className="flex items-center space-x-2 text-sm">
                     <Calendar className="w-4 h-4 text-slate-400" />
                     <span className="text-slate-600">
-                      <span className="font-medium text-slate-700">Last Seen:</span>{' '}
-                      {new Date(device.updated_at).toLocaleDateString()}
+                      <span className="font-medium text-slate-700">{t('labelLastSeen')}</span>{' '}
+                      {new Date(device.updated_at).toLocaleDateString(i18n.language)}
                     </span>
                   </div>
                 </div>
@@ -247,14 +262,45 @@ export function MyDevicesView() {
         )}
       </div>
 
+      {networks.length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-1">
+            <Wifi className="w-6 h-6" />
+            <span>{t('hotspots.title')}</span>
+          </h2>
+          <p className="text-slate-600 mb-4 text-sm">
+            {t('hotspots.subtitle')}
+          </p>
+          <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
+            {networks.map((n) => (
+              <div key={n.id} className="flex items-center justify-between gap-4 p-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Wifi className="w-4 h-4 text-slate-700" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 font-mono truncate">{n.ssid}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {n.device_label || t('hotspots.unknownDevice')}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs text-slate-400 flex-shrink-0">
+                  {new Date(n.updated_at).toLocaleDateString(i18n.language)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-blue-800">
-            <p className="font-semibold mb-1">About Devices</p>
+            <p className="font-semibold mb-1">{t('about.title')}</p>
             <p>
-              Devices are automatically registered when they first connect to your account.
-              The system tracks their version and cards file status to ensure they stay up to date.
+              {t('about.body')}
             </p>
           </div>
         </div>

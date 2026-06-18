@@ -23,6 +23,7 @@ session_start();
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
+require_once __DIR__ . '/../utils/ScenarioHashes.php';
 
 function jsonResponse($data, $statusCode = 200) {
     header('Content-Type: application/json');
@@ -407,6 +408,15 @@ try {
                 $created_at = date('Y-m-d H:i:s');
             }
 
+            // Refresh content hashes (data + media) so the playground's
+            // incremental sync sees this change. Never let a hashing hiccup
+            // fail the save — the manifest builder has a NULL-hash fallback.
+            try {
+                ScenarioHashes::recompute($db->getConnection(), $uniqid);
+            } catch (Exception $e) {
+                Logger::log('scenarios', $method, 'recompute_hashes', $_SESSION['user_id'] ?? null, ['uniqid' => $uniqid], ['error' => $e->getMessage()], 200);
+            }
+
             $responseData = [
                 'success' => true,
                 'data' => [
@@ -651,6 +661,12 @@ try {
             $sql = 'UPDATE scenarios SET title = ?, description = ?, data = ?, medias = ?, game_type = ?, scenario_type = ?, status = ?, updated_at = NOW() WHERE id = ?';
             $db->query($sql, [$title, $description, $data, $medias, $game_type, $scenario_type, $status, $id]);
 
+            try {
+                ScenarioHashes::recompute($db->getConnection(), $scenario['uniqid']);
+            } catch (Exception $e) {
+                Logger::log('scenarios', $method, 'recompute_hashes', $_SESSION['user_id'] ?? null, ['uniqid' => $scenario['uniqid']], ['error' => $e->getMessage()], 200);
+            }
+
             jsonResponse([
                 'success' => true,
                 'scenario' => [
@@ -790,11 +806,26 @@ try {
 
             // Create media directory structure: /media/{uniqid}/
             $mediaBaseDir = __DIR__ . '/../../media/';
+
+            // Ensure the media base exists and is writable before creating the
+            // per-scenario subdir — on a fresh prod deploy media/ may be absent
+            // (it's on the never-overwrite list), which otherwise fails confusingly.
+            if (!is_dir($mediaBaseDir)) {
+                if (!@mkdir($mediaBaseDir, 0775, true) && !is_dir($mediaBaseDir)) {
+                    Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'Media base directory missing and could not be created', 'path' => $mediaBaseDir], 500);
+                    jsonResponse(['error' => 'Media base directory is missing and could not be created. Create media/ at the web root, writable by the web server user.'], 500);
+                }
+            }
+            if (!is_writable($mediaBaseDir)) {
+                Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'Media base directory not writable', 'path' => $mediaBaseDir], 500);
+                jsonResponse(['error' => 'Media base directory is not writable by the web server user.'], 500);
+            }
+
             $scenarioMediaDir = $mediaBaseDir . $uniqid . '/';
 
             if (!is_dir($scenarioMediaDir)) {
-                if (!mkdir($scenarioMediaDir, 0755, true)) {
-                    Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'Failed to create directory'], 500);
+                if (!mkdir($scenarioMediaDir, 0755, true) && !is_dir($scenarioMediaDir)) {
+                    Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'Failed to create directory', 'path' => $scenarioMediaDir], 500);
                     jsonResponse(['error' => 'Failed to create media directory'], 500);
                 }
             }
@@ -810,6 +841,13 @@ try {
             if (!move_uploaded_file($file['tmp_name'], $filePath)) {
                 Logger::log('scenarios', $method, 'upload_media', null, ['uniqid' => $uniqid], ['error' => 'Failed to move file'], 500);
                 jsonResponse(['error' => 'Failed to save file'], 500);
+            }
+
+            // New/replaced media file → refresh content hashes.
+            try {
+                ScenarioHashes::recompute($db->getConnection(), $uniqid);
+            } catch (Exception $e) {
+                Logger::log('scenarios', $method, 'recompute_hashes', null, ['uniqid' => $uniqid], ['error' => $e->getMessage()], 200);
             }
 
             // Build response — return relative path; the frontend prefixes with VITE_MEDIA_BASE_URL.

@@ -1,0 +1,16 @@
+{
+  "welcomeBack": "Bienvenido de nuevo, {{name}}",
+  "welcome": "Bienvenido",
+  "createScenario": "Crear escenario",
+  "createAScenario": "Crear un escenario",
+  "loadError": "Error al cargar el inicio",
+  "quickStats": "Estadísticas rápidas",
+  "statScenariosOwned": "Escenarios que poseo",
+  "statCustomScenarios": "Escenarios personalizados",
+  "statGamesLaunched": "Partidas lanzadas",
+  "statPlayers": "Jugadores",
+  "ownedTitle": "Los escenarios que poseo",
+  "ownedEmpty": "Aún no tienes ningún escenario asignado.",
+  "customTitle": "Mis escenarios personalizados",
+  "customEmpty": "Aún no has creado ningún escenario personalizado."
+}

@@ -1,7 +1,7 @@
 export interface GroupItemDef {
   id: string;
   name: string;
-  type: 'image' | 'text';
+  type: 'image' | 'text' | 'scenario_text';
   previewText?: string;
   parentId?: string;
 }
@@ -12,6 +12,19 @@ export interface GroupDef {
   mainImageId: string;
   items: GroupItemDef[];
   questIndex?: number;
+  /**
+   * Sidebar render kind — drives the visual "Text elements" separator that
+   * sits above the first `'text_category'` group. The legacy
+   * Checkpoints / HUD frames groups are implicitly `'standard'` (undefined).
+   * `'text_category'` groups also stay clickable when empty (no items yet)
+   * because their header doubles as the category typography editor anchor.
+   *
+   * Plan: tracks-text-elements-categories.md
+   */
+  kind?: 'text_category';
+  /** For text_category groups: the category's id (matches
+   *  `gm.text_categories[i].id`), or undefined for Uncategorized. */
+  categoryId?: string;
 }
 
 const STATIC_GROUPS: GroupDef[] = [
@@ -121,20 +134,107 @@ export const TRACKS_HUD_MOCK_TEXT: Record<string, string> = {
 };
 
 /**
- * Tracks groups — a Checkpoints group (one draggable icon per checkpoint) and
- * an HUD frames group. `mainImageId` is intentionally left empty: tracks groups
- * have no "move the whole group" semantics (unlike tagquest quests), so each
- * element drags independently.
+ * Tracks groups: Checkpoints + HUD frames, then one group per text-element
+ * category (in author-defined order from `gm.text_categories[]`) + an
+ * Uncategorized bucket. `mainImageId` is intentionally left empty: tracks
+ * groups have no "move the whole group" semantics (unlike tagquest quests).
+ *
+ * Categorised groups always render even when empty so the author can edit
+ * the category's typography from its header. Uncategorized is skipped when
+ * empty (it has no typography to edit).
+ *
+ * Plan: tracks-text-elements-categories.md
  */
-export function buildTracksGroups(checkpointCount: number): GroupDef[] {
+export interface TracksGroupsCategoryInput {
+  /** `id` matches `gm.text_categories[i].id`. */
+  id: string;
+  name: string;
+}
+
+export function buildTracksGroups(
+  checkpointCount: number,
+  textCategories: readonly TracksGroupsCategoryInput[] = [],
+  /** Items keyed by category id; uncategorized items go under the empty-string key. */
+  textItemsByCategory: ReadonlyMap<string, GroupItemDef[]> = new Map(),
+): GroupDef[] {
   const checkpointItems: GroupItemDef[] = [];
   for (let i = 1; i <= checkpointCount; i++) {
     checkpointItems.push({ id: `checkpoint_${i}`, name: `Checkpoint ${i}`, type: 'image' });
   }
-  return [
+  const groups: GroupDef[] = [
     { id: 'tracks_checkpoints', name: 'Checkpoints', mainImageId: '', items: checkpointItems },
     { id: 'tracks_hud', name: 'HUD frames', mainImageId: '', items: TRACKS_HUD_ITEMS },
   ];
+  for (const cat of textCategories) {
+    groups.push({
+      id: `tracks_text_cat_${cat.id}`,
+      name: cat.name || '(unnamed)',
+      mainImageId: '',
+      items: textItemsByCategory.get(cat.id) ?? [],
+      kind: 'text_category',
+      categoryId: cat.id,
+    });
+  }
+  const uncategorizedItems = textItemsByCategory.get('') ?? [];
+  if (uncategorizedItems.length > 0) {
+    groups.push({
+      id: 'tracks_text_cat_uncategorized',
+      name: 'Uncategorized',
+      mainImageId: '',
+      items: uncategorizedItems,
+      kind: 'text_category',
+      // categoryId left undefined → uncategorized
+    });
+  }
+  return groups;
+}
+
+/**
+ * Clash groups: one "Territories" group (the 4 sigil position markers) plus a
+ * text-category group per category (translatable map labels), mirroring tracks
+ * but without the HUD-frames group. Territory markers are move-only — no
+ * "main image" group semantics.
+ */
+export function buildClashGroups(
+  territoryCount: number,
+  textCategories: readonly TracksGroupsCategoryInput[] = [],
+  textItemsByCategory: ReadonlyMap<string, GroupItemDef[]> = new Map(),
+): GroupDef[] {
+  // Fixed skeleton sizes by territory order (large, medium, medium, small).
+  const SIZE_BY_INDEX = ['Large', 'Medium', 'Medium', 'Small'];
+  const territoryItems: GroupItemDef[] = [];
+  for (let i = 1; i <= territoryCount; i++) {
+    const size = SIZE_BY_INDEX[i - 1];
+    territoryItems.push({
+      id: `territory_${i}`,
+      name: size ? `Territory ${i} (${size})` : `Territory ${i}`,
+      type: 'image',
+    });
+  }
+  const groups: GroupDef[] = [
+    { id: 'clash_territories', name: 'Territories', mainImageId: '', items: territoryItems },
+  ];
+  for (const cat of textCategories) {
+    groups.push({
+      id: `clash_text_cat_${cat.id}`,
+      name: cat.name || '(unnamed)',
+      mainImageId: '',
+      items: textItemsByCategory.get(cat.id) ?? [],
+      kind: 'text_category',
+      categoryId: cat.id,
+    });
+  }
+  const uncategorizedItems = textItemsByCategory.get('') ?? [];
+  if (uncategorizedItems.length > 0) {
+    groups.push({
+      id: 'clash_text_cat_uncategorized',
+      name: 'Uncategorized',
+      mainImageId: '',
+      items: uncategorizedItems,
+      kind: 'text_category',
+    });
+  }
+  return groups;
 }
 
 export function getGroupForElement(elementId: string, groups: GroupDef[]): GroupDef | undefined {

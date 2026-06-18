@@ -1,0 +1,37 @@
+{
+  "nameTooLong": "Name must be {{max}} characters or fewer",
+  "renameFailed": "Failed to rename device",
+  "loadFailed": "Failed to load devices",
+  "deleteConfirm": "Are you sure you want to delete this device? This action cannot be undone.",
+  "deleteSuccess": "Device deleted successfully",
+  "deleteFailed": "Failed to delete device",
+  "title": "My Devices",
+  "subtitle": "Manage your registered devices",
+  "registeredCount_one": "{{count}} device registered",
+  "registeredCount_other": "{{count}} devices registered",
+  "empty": {
+    "title": "No Devices Registered",
+    "subtitle": "Your devices will appear here once they connect to the platform"
+  },
+  "namePlaceholder": "Device name",
+  "save": "Save",
+  "cancel": "Cancel",
+  "rename": "Rename",
+  "deviceFallback": "Device",
+  "defaultGameServer": "Default game server",
+  "deleteDevice": "Delete device",
+  "labelVersion": "Version:",
+  "labelCards": "Cards:",
+  "labelRegistered": "Registered:",
+  "labelLastSeen": "Last Seen:",
+  "notAvailable": "N/A",
+  "hotspots": {
+    "title": "Default Wi-Fi hotspots",
+    "subtitle": "Networks your devices broadcast so other devices on this account can join automatically.",
+    "unknownDevice": "Unknown device"
+  },
+  "about": {
+    "title": "About Devices",
+    "body": "Devices are automatically registered when they first connect to your account. The system tracks their version and cards file status to ensure they stay up to date."
+  }
+}

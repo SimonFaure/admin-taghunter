@@ -1,0 +1,24 @@
+{
+  "title": "Settings",
+  "loading": "Loading settings…",
+  "tabs": {
+    "gamePreferences": "Game preferences"
+  },
+  "dismiss": "Dismiss",
+  "errors": {
+    "gameTypesLoadFailed": "Game types load failed ({{status}})",
+    "preferencesLoadFailed": "Preferences load failed ({{status}})",
+    "loadFailed": "Failed to load",
+    "saveFailedStatus": "Save failed ({{status}})",
+    "saveFailed": "Save failed"
+  },
+  "savedMessage": "Preferences saved.",
+  "gamePrefs": {
+    "intro": "Defaults applied when launching a game from the playground. The launch dialog pre-fills these toggles (the operator can still flip them per-launch).",
+    "noVideoSupport": "No game types currently support launch videos.",
+    "playTutorialDefault": "Play tutorial video by default",
+    "playIntroDefault": "Play intro video by default"
+  },
+  "saving": "Saving…",
+  "savePreferences": "Save preferences"
+}

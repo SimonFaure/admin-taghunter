@@ -1,13 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, AlertTriangle, FileText, Smartphone, Monitor, HardDrive, Calendar, ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, AlertTriangle, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Search, Server } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, LicenseType } from '../types/client';
 import { ScenarioData, adminCardsApi } from '../lib/api';
 import { authFetch } from '../lib/authFetch';
 import { CardsRegistryEditor, CardsEditorApi } from './CardsRegistryEditor';
 import { RecoveryCodesPanel } from './RecoveryCodesPanel';
+import { ClientGameTypesPanel } from './ClientGameTypesPanel';
+import { GameTypeIcon } from './icons/GameTypeIcons';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
+
+// Display labels for game-type codes (e.g. `tracks` → "Track"). Falls back to
+// the raw code, so unknown/legacy types still render.
+const GAME_TYPE_LABELS: Record<string, string> = {
+  mystery: 'Mystery',
+  tagquest: 'Tagquest',
+  tracks: 'Track',
+  clash: 'Clash',
+};
+const gameTypeLabel = (code?: string | null) => (code && GAME_TYPE_LABELS[code]) || code || '';
 
 interface ClientDevice {
   id: number;
@@ -18,6 +30,8 @@ interface ClientDevice {
   os_version: string | null;
   app_version: string | null;
   cards_file_version: number | null;
+  is_default_mother?: number | null;
+  update_channel?: string | null;
   last_seen_at: string | null;
   created_at: string | null;
 }
@@ -92,6 +106,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [showAddScenarioModal, setShowAddScenarioModal] = useState(false);
   const [availableScenarios, setAvailableScenarios] = useState<ScenarioData[]>([]);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
+  const [scenarioSearch, setScenarioSearch] = useState('');
+  const [scenarioGameType, setScenarioGameType] = useState<string>('all');
   const [addingScenario, setAddingScenario] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -131,6 +147,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     notes: '',
     license_type: 'access' as LicenseType,
     billing_up_to_date: true,
+    language: 'fr',
+    update_channel: 'stable',
   });
 
   useEffect(() => {
@@ -154,6 +172,26 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       console.error('Error loading devices:', err);
     } finally {
       setLoadingDevices(false);
+    }
+  };
+
+  // Per-device app-update channel override. '' means inherit the client channel.
+  const setDeviceChannel = async (deviceId: number, value: string) => {
+    // Optimistic: reflect the choice immediately, reload on completion.
+    setDevices((prev) =>
+      prev.map((d) => (d.id === deviceId ? { ...d, update_channel: value || null } : d))
+    );
+    try {
+      await authFetch(`${API_BASE_URL}/telemetry_admin.php?action=set_device_channel`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId, update_channel: value || 'inherit' }),
+      });
+    } catch (err) {
+      console.error('Error setting device channel:', err);
+    } finally {
+      void loadDevices();
     }
   };
 
@@ -261,8 +299,27 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
   const openAddScenarioModal = () => {
     setShowAddScenarioModal(true);
+    setScenarioSearch('');
+    setScenarioGameType('all');
     loadAvailableScenarios();
   };
+
+  const availableGameTypes = useMemo(
+    () =>
+      Array.from(
+        new Set(availableScenarios.map((s) => s.game_type).filter((t): t is string => !!t))
+      ).sort(),
+    [availableScenarios]
+  );
+
+  const filteredAvailableScenarios = useMemo(() => {
+    const q = scenarioSearch.trim().toLowerCase();
+    return availableScenarios.filter((s) => {
+      if (scenarioGameType !== 'all' && s.game_type !== scenarioGameType) return false;
+      if (q && !(s.title || '').toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [availableScenarios, scenarioSearch, scenarioGameType]);
 
   const loadClient = async () => {
     setLoading(true);
@@ -279,6 +336,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         notes: data.notes || '',
         license_type: (data.license_type as LicenseType) || 'access',
         billing_up_to_date: data.billing_up_to_date ?? true,
+        language: data.language || 'fr',
+        update_channel: data.update_channel || 'stable',
       });
     }
     setLoading(false);
@@ -628,6 +687,42 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
+                Language
+              </label>
+              <select
+                value={formData.language}
+                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                The client's Studio UI language, the playground onboarding default, and the default language of new scenarios they create.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                App update channel
+              </label>
+              <select
+                value={formData.update_channel}
+                onChange={(e) => setFormData({ ...formData, update_channel: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              >
+                <option value="stable">Stable</option>
+                <option value="test">Test (Tester)</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                Which app-release track this client's playground devices download updates from. Set to
+                Test to make this account a tester. Individual devices can override this below.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Notes
               </label>
               <textarea
@@ -703,6 +798,11 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       >
                         {device.device_uniq}
                       </p>
+                      {device.is_default_mother ? (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-200">
+                          <Server className="w-3 h-3" /> Default game server
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
@@ -724,24 +824,45 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       </span>
                     </div>
                     <div className="flex items-center space-x-2 text-sm">
-                      <HardDrive className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                      <span className="text-slate-600">
-                        <span className="font-medium text-slate-700">Cards:</span>{' '}
-                        v{device.cards_file_version ?? 0}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-sm">
                       <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
                       <span className="text-slate-600">
                         <span className="font-medium text-slate-700">Last seen:</span>{' '}
                         {formatRelative(device.last_seen_at)}
                       </span>
                     </div>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <Package className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                      <label className="text-slate-600 flex items-center gap-2 w-full">
+                        <span className="font-medium text-slate-700 whitespace-nowrap">Update channel:</span>
+                        <select
+                          value={device.update_channel || ''}
+                          onChange={(e) => void setDeviceChannel(device.id, e.target.value)}
+                          className="flex-1 min-w-0 px-2 py-1 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        >
+                          <option value="">Inherit ({formData.update_channel})</option>
+                          <option value="stable">Stable</option>
+                          <option value="test">Test</option>
+                        </select>
+                      </label>
+                    </div>
+                    {device.update_channel === 'test' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200">
+                        Tester device
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        icon={<GamepadIcon className="w-6 h-6 text-slate-700" />}
+        title="Game types"
+        defaultCollapsed
+      >
+        <ClientGameTypesPanel clientId={clientIdNum} />
       </CollapsibleSection>
 
       <CollapsibleSection
@@ -870,70 +991,47 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {boughtScenarios.filter(s => s.scenario_type === 'product').map((scenario) => (
                   <div
                     key={scenario.id}
-                    className="border border-amber-200 bg-amber-50/30 rounded-lg p-6 hover:border-amber-300 transition-colors"
+                    className="border border-amber-200 bg-amber-50/30 rounded-lg px-4 py-3 hover:border-amber-300 transition-colors flex items-center gap-3"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="text-lg font-semibold text-slate-900">
-                            {scenario.title}
-                          </h4>
-                          <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded-full font-medium">
-                            Product
-                          </span>
-                          {scenario.status && (
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${
-                              scenario.status === 'published'
-                                ? 'bg-green-100 text-green-700'
-                                : scenario.status === 'archived'
-                                ? 'bg-slate-200 text-slate-600'
-                                : 'bg-orange-100 text-orange-700'
-                            }`}>
-                              {scenario.status}
-                            </span>
-                          )}
-                        </div>
-                        {scenario.description && (
-                          <p className="text-slate-600 text-sm leading-relaxed">
-                            {scenario.description}
-                          </p>
-                        )}
-                      </div>
-                      {client?.license_type === 'access' && (
-                        <button
-                          onClick={() => handleRemoveScenario(scenario.id, scenario.title)}
-                          className="ml-4 p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all"
-                          title="Remove scenario"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-amber-100">
-                      {scenario.game_type && (
-                        <div className="flex items-center space-x-2 text-sm">
-                          <GamepadIcon className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-600">
-                            <span className="font-medium text-slate-700">Game Type:</span>{' '}
-                            {scenario.game_type}
-                          </span>
-                        </div>
-                      )}
-                      {scenario.uniqid && (
-                        <div className="flex items-center space-x-2 text-sm">
-                          <FileText className="w-4 h-4 text-slate-400" />
-                          <span className="text-slate-600">
-                            <span className="font-medium text-slate-700">ID:</span>{' '}
-                            {scenario.uniqid}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    {scenario.game_type && (
+                      <GameTypeIcon type={scenario.game_type} className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                    )}
+                    <h4 className="font-semibold text-slate-900 truncate">
+                      {scenario.title}
+                    </h4>
+                    <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-medium flex-shrink-0">
+                      Product
+                    </span>
+                    {scenario.status && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize flex-shrink-0 ${
+                        scenario.status === 'published'
+                          ? 'bg-green-100 text-green-700'
+                          : scenario.status === 'archived'
+                          ? 'bg-slate-200 text-slate-600'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {scenario.status}
+                      </span>
+                    )}
+                    {scenario.uniqid && (
+                      <span className="text-xs text-slate-500 font-mono truncate hidden sm:inline" title={scenario.uniqid}>
+                        {scenario.uniqid}
+                      </span>
+                    )}
+                    <div className="flex-1" />
+                    {client?.license_type === 'access' && (
+                      <button
+                        onClick={() => handleRemoveScenario(scenario.id, scenario.title)}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
+                        title="Remove scenario"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1009,7 +1107,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                         <GamepadIcon className="w-4 h-4 text-slate-400" />
                         <span className="text-slate-600">
                           <span className="font-medium text-slate-700">Game Type:</span>{' '}
-                          {scenario.game_type}
+                          {gameTypeLabel(scenario.game_type)}
                         </span>
                       </div>
                     )}
@@ -1099,7 +1197,34 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(80vh-140px)]">
+            {!loadingAvailable && availableScenarios.length > 0 && (
+              <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={scenarioSearch}
+                    onChange={(e) => setScenarioSearch(e.target.value)}
+                    placeholder="Search scenarios..."
+                    className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm"
+                  />
+                </div>
+                <select
+                  value={scenarioGameType}
+                  onChange={(e) => setScenarioGameType(e.target.value)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm capitalize"
+                >
+                  <option value="all">All game types</option>
+                  {availableGameTypes.map((t) => (
+                    <option key={t} value={t} className="capitalize">
+                      {gameTypeLabel(t)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="p-6 overflow-y-auto max-h-[calc(80vh-200px)]">
               {loadingAvailable ? (
                 <div className="flex justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
@@ -1112,28 +1237,32 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     All product scenarios have been added to this client
                   </p>
                 </div>
+              ) : filteredAvailableScenarios.length === 0 ? (
+                <div className="text-center py-12">
+                  <Search className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                  <p className="text-slate-600">No scenarios match your filters</p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {availableScenarios.map((scenario) => (
+                <div className="space-y-2">
+                  {filteredAvailableScenarios.map((scenario) => (
                     <div
                       key={scenario.id}
-                      className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors flex items-start justify-between"
+                      className="border border-slate-200 rounded-lg px-4 py-3 hover:border-slate-300 transition-colors flex items-center gap-3"
                     >
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">{scenario.title}</h4>
-                        {scenario.description && (
-                          <p className="text-sm text-slate-600">{scenario.description}</p>
-                        )}
-                        {scenario.game_type && (
-                          <p className="text-xs text-slate-500 mt-2">
-                            Game Type: {scenario.game_type}
-                          </p>
-                        )}
-                      </div>
+                      {scenario.game_type && (
+                        <GameTypeIcon type={scenario.game_type} className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                      )}
+                      <h4 className="font-semibold text-slate-900 truncate">{scenario.title}</h4>
+                      {scenario.game_type && (
+                        <span className="text-xs text-slate-500 capitalize hidden sm:inline flex-shrink-0">
+                          {gameTypeLabel(scenario.game_type)}
+                        </span>
+                      )}
+                      <div className="flex-1" />
                       <button
                         onClick={() => handleAddScenario(scenario.id)}
                         disabled={addingScenario}
-                        className="ml-4 px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        className="px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
                       >
                         {addingScenario ? 'Adding...' : 'Add'}
                       </button>

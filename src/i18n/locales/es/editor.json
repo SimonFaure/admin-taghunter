@@ -1,0 +1,34 @@
+{
+  "alert": {
+    "loadFailed": "Error al cargar el escenario",
+    "saved": "Guardado",
+    "saveFailed": "Error al guardar",
+    "published": "Publicado v{{version}}",
+    "publishFailed": "Error al publicar",
+    "zipFailed": "Error al descargar el ZIP",
+    "uploadFailed": "Error al subir el archivo"
+  },
+  "saveBar": {
+    "saving": "Guardando...",
+    "save": "Guardar",
+    "publishing": "Publicando...",
+    "publish": "Publicar",
+    "downloadZip": "Descargar ZIP",
+    "preview": "Vista previa",
+    "expandAllTitle": "Expandir todas las secciones",
+    "collapseAllTitle": "Contraer todas las secciones",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "layoutEditor": "Editor de diseño"
+  },
+  "header": {
+    "back": "Volver",
+    "untitled": "Escenario sin título",
+    "help": "Ayuda",
+    "unsavedChanges": "Cambios sin guardar"
+  },
+  "field": {
+    "defaultLanguageTitle": "Idioma predeterminado ({{lang}})",
+    "translationTitle": "Traducción ({{lang}})"
+  }
+}

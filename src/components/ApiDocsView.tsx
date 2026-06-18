@@ -1,4 +1,4 @@
-import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench, LayoutGrid as Layout, Gamepad2, Rocket, UploadCloud, Database, AlertTriangle, ExternalLink, Server, Monitor, BookOpen } from 'lucide-react';
+import { Code, FileJson, Lock, Users, FileText, Activity, ShoppingCart, Smartphone, Image, File, Settings, CreditCard, Package, Wrench, Gamepad2, Rocket, UploadCloud, Database, AlertTriangle, ExternalLink, Server, Monitor, BookOpen, Usb, ClipboardCheck } from 'lucide-react';
 import { useState } from 'react';
 
 interface Endpoint {
@@ -24,8 +24,11 @@ interface ApiDocsViewProps {
   onNavigate?: (tab: string) => void;
 }
 
+type GuideKey = 'deployment' | 'android-reader';
+
 export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
   const [docTab, setDocTab] = useState<'guides' | 'reference'>('guides');
+  const [guideKey, setGuideKey] = useState<GuideKey>('deployment');
   const [expandedEndpoint, setExpandedEndpoint] = useState<string | null>(null);
 
   const scrollToPlayground = () => {
@@ -606,17 +609,6 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         },
         {
           method: 'GET',
-          path: '/backend/api/playground.php?action=get_layouts&email={email}',
-          description: 'Get all active default layouts (admin-owned).',
-          auth: false,
-          playground: true,
-          params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
-          ],
-          response: '{ "layouts": [{ "id": 1, "game_type": "taghunter", "status": "published", "version": "1.0", "owner_type": "admin", "layout_uniqid": "lay_abc123", "scenario_uniqid": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
-        },
-        {
-          method: 'GET',
           path: '/backend/api/playground.php?action=get_cards&email={email}',
           description: 'Get the full cards list for a client parsed from their latest CSV file',
           auth: false,
@@ -640,13 +632,13 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_user_data_update&email={email}',
-          description: 'Aggregate endpoint returning all data a client needs to check for updates: published scenarios (custom + product), default and custom patterns, cards version, on-demand cards flag, active layouts, and billing status. Designed to be called on app launch or sync.',
+          description: 'Aggregate endpoint returning all data a client needs to check for updates: published scenarios (custom + product), default and custom patterns, cards version, on-demand cards flag, and billing status. Designed to be called on app launch or sync.',
           auth: false,
           playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client or admin email address' },
           ],
-          response: '{ "custom_scenarios": [{ "title": "My Scenario", "uniqid": "scenario_abc123", "version": "1.2", "game_type": "taghunter" }], "product_scenarios": [{ "title": "Product Scenario", "uniqid": "scenario_def456", "version": "2.0", "game_type": "taghunter" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0", "pattern_uniqid": "pattern_abc123" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0", "pattern_uniqid": "pattern_def456" }], "cards_version": 3, "has_on_demand_cards": true, "layouts": [{ "id": 1, "version": "1.0", "game_type": "taghunter" }], "billing_up_to_date": true, "license_type": "premium" }',
+          response: '{ "custom_scenarios": [{ "title": "My Scenario", "uniqid": "scenario_abc123", "version": "1.2", "game_type": "taghunter" }], "product_scenarios": [{ "title": "Product Scenario", "uniqid": "scenario_def456", "version": "2.0", "game_type": "taghunter" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0", "pattern_uniqid": "pattern_abc123" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0", "pattern_uniqid": "pattern_def456" }], "cards_version": 3, "has_on_demand_cards": true, "billing_up_to_date": true, "license_type": "premium" }',
         },
         {
           method: 'GET',
@@ -671,18 +663,6 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
             { name: 'version', type: 'integer', description: 'Cards file version number to download' },
           ],
           response: '{ "version": 3, "count": 150, "cards": [{ "key_name": "Tag Alpha", "color": "#FF0000", "key_number": "1", "id": "card_001" }] }',
-        },
-        {
-          method: 'GET',
-          path: '/backend/api/playground.php?action=download_layout&email={email}&layout_id={layout_id}',
-          description: 'Download a layout by ID as a JSON object. Only active layouts are returned. Returns id, layout_uniqid, game_type, version, scenario_uniqid, and the full layout_data JSON.',
-          auth: false,
-          playground: true,
-          params: [
-            { name: 'email', type: 'string', description: 'Client or admin email address' },
-            { name: 'layout_id', type: 'integer', description: 'ID of the layout to download' },
-          ],
-          response: '{ "id": 1, "layout_uniqid": "layout_abc123", "game_type": "taghunter", "version": "1.0", "scenario_uniqid": null, "layout_data": { ... } }',
         },
       ],
     },
@@ -801,61 +781,6 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
             { name: 'meta', type: 'string', description: 'Configuration metadata name (required)' },
           ],
           response: '{ "success": true, "message": "Configuration deleted" }',
-        },
-      ],
-    },
-    {
-      title: 'Layouts',
-      icon: <Layout className="w-5 h-5" />,
-      color: 'bg-teal-600',
-      endpoints: [
-        {
-          method: 'GET',
-          path: '/backend/api/layouts.php?action=list',
-          description: 'Get all layouts (admins see all, clients see their own). Filterable by game_type and status.',
-          auth: true,
-          params: [
-            { name: 'game_type', type: 'string', description: 'Filter by game type (optional)' },
-            { name: 'status', type: 'string', description: 'Filter by status: draft, active, or archived (optional)' },
-          ],
-          response: '{ "data": [{ "id": 1, "layout_data": "{}", "game_type": "TagHunter", "scenario_uniqid": "scenario_674fb123a45e6", "status": "active", "version": "1.0", "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
-        },
-        {
-          method: 'GET',
-          path: '/backend/api/layouts.php?action=get&id={id}',
-          description: 'Get a specific layout by ID',
-          auth: true,
-          params: [
-            { name: 'id', type: 'integer', description: 'Layout ID (required)' },
-          ],
-          response: '{ "data": { "id": 1, "layout_data": "{}", "game_type": "TagHunter", "scenario_uniqid": "scenario_674fb123a45e6", "status": "active", "version": "1.0", "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
-        },
-        {
-          method: 'POST',
-          path: '/backend/api/layouts.php?action=upload',
-          description: 'Upload a layout from Taghunter Creator (email-based authentication, no session required)',
-          auth: false,
-          creator: true,
-          body: [
-            { name: 'email', type: 'string', description: 'Email of admin or client (required)' },
-            { name: 'name', type: 'string', description: 'Layout name (required)' },
-            { name: 'game_type', type: 'string', description: 'Game type (required)' },
-            { name: 'layout_data', type: 'JSON', description: 'Layout JSON data (required)' },
-            { name: 'status', type: 'string', description: 'Layout status: draft, active, or archived (required)' },
-            { name: 'version', type: 'string', description: 'Layout version (optional, default: 1.0)' },
-            { name: 'scenario_uniqid', type: 'string', description: 'Associated scenario unique identifier (optional)' },
-          ],
-          response: '{ "success": true, "data": { "id": 1, "layout_data": "{}", "game_type": "TagHunter", "scenario_uniqid": "scenario_674fb123a45e6", "status": "draft", "version": "1.0", "owner_type": "client", "owner_id": 5, "created_by_email": "client@example.com", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" } }',
-        },
-        {
-          method: 'DELETE',
-          path: '/backend/api/layouts.php?action=delete&id={id}',
-          description: 'Delete a layout (owner or admin only)',
-          auth: true,
-          params: [
-            { name: 'id', type: 'integer', description: 'Layout ID (required)' },
-          ],
-          response: '{ "success": true, "message": "Layout deleted successfully" }',
         },
       ],
     },
@@ -994,7 +919,28 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         </div>
       </div>
 
-      {docTab === 'guides' && <DeploymentGuide onNavigate={onNavigate} />}
+      {docTab === 'guides' && (
+        <>
+          {/* Sub-nav: each guide is a tall block on its own, so we let the
+              reader pick one rather than stack them. */}
+          <div className="flex flex-wrap gap-2 mb-8">
+            <GuidePickerButton
+              active={guideKey === 'deployment'}
+              onClick={() => setGuideKey('deployment')}
+              icon={<Rocket className="w-4 h-4" />}
+              label="Deployment & Versioning"
+            />
+            <GuidePickerButton
+              active={guideKey === 'android-reader'}
+              onClick={() => setGuideKey('android-reader')}
+              icon={<Smartphone className="w-4 h-4" />}
+              label="Testing the Android SI reader"
+            />
+          </div>
+          {guideKey === 'deployment' && <DeploymentGuide onNavigate={onNavigate} />}
+          {guideKey === 'android-reader' && <AndroidReaderTestingGuide />}
+        </>
+      )}
 
       {docTab === 'reference' && (
         <>
@@ -1374,6 +1320,51 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
         </ul>
       </div>
 
+      {/* The floor, in depth */}
+      <div className="bg-rose-50 border border-rose-200 rounded-lg p-5 mb-10">
+        <h3 className="font-semibold text-rose-900 mb-3 flex items-center gap-2">
+          <Lock className="w-4 h-4" />
+          “Min supported (floor)” — what it does
+        </h3>
+        <p className="text-sm text-rose-900/90 mb-3">
+          The <strong>Floor</strong> column in the Releases tab is the <strong>oldest playground
+          version still allowed to run</strong>. Any installed app whose version is <em>below</em> the
+          floor is locked out and forced to update before it can do anything else — distinct from a
+          normal update, which is merely <em>offered</em>.
+        </p>
+        <ul className="space-y-2 text-sm text-rose-900/90 list-disc list-inside mb-3">
+          <li>
+            <strong>The latest row per platform sets the active floor.</strong> Each release carries its
+            own <Mono>min_supported_version</Mono>, but the one that's enforced for a given{' '}
+            <Mono>target/arch</Mono> is the floor on its <strong>latest</strong> build.
+          </li>
+          <li>
+            <strong>How it's enforced.</strong> On launch the app calls the <Mono>check</Mono> action of{' '}
+            <Mono>playground_update.php</Mono>, which always returns the manifest (including the floor).
+            If the client's version is below it, the update screen is shown as a hard block; mobile
+            clients are deep-linked to the store instead.
+          </li>
+          <li>
+            <strong>Floor vs. version.</strong> “Version” is the build you're uploading; “Floor” is the
+            oldest version you'll still tolerate in the field. They're independent fields.
+          </li>
+          <li>
+            <strong>Default <Mono>0.0.0</Mono> blocks no one</strong> — every client is allowed to keep
+            running. This is the right default for an ordinary release.
+          </li>
+          <li>
+            <strong>When to raise it.</strong> Only when an older build is genuinely broken or
+            incompatible (a breaking sync / auth / DB-migration change) and you want to <em>force</em>{' '}
+            every operator onto the new build rather than just offer it. A raised floor strands anyone
+            who can't update right then, so treat it as a deliberate, breaking-change-only lever.
+          </li>
+        </ul>
+        <p className="text-sm text-rose-900/90">
+          Set it on publish via the <strong>Min supported (floor)</strong> field, or later with the{' '}
+          <strong>Floor</strong> button on any release row. It must be valid semver (<Mono>x.y.z</Mono>).
+        </p>
+      </div>
+
       {/* Runbook 1 — studio web deploy */}
       <GuideSection
         icon={<Server className="w-5 h-5" />}
@@ -1385,6 +1376,10 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
             <p>
               <strong>Build the frontend.</strong> From <Mono>studio-taghunter/</Mono> run{' '}
               <Mono>npm run build</Mono>. Vite writes the production bundle to <Mono>dist/</Mono>.
+              The build automatically loads <Mono>.env.production</Mono> (overriding the dev{' '}
+              <Mono>.env</Mono>), which keeps <Mono>VITE_API_BASE_URL</Mono> and{' '}
+              <Mono>VITE_MEDIA_BASE_URL</Mono> <em>relative</em> so the API and media inherit the
+              page's own origin and protocol.
             </p>
           </Step>
           <Step n={2}>
@@ -1395,14 +1390,87 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
               <Mono>backend/</Mono> alongside it (so the API stays at <Mono>/backend/api</Mono>).
             </p>
           </Step>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-amber-900 mb-2 flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4" />
+            Build for prod with RELATIVE URLs — don't ship a dev build
+          </h4>
+          <p className="text-sm text-amber-800 mb-2">
+            <Mono>VITE_*</Mono> env vars are <strong>inlined into the JS at build time</strong>, not read
+            at runtime — so editing <Mono>.env</Mono> on the <em>server</em> does nothing to an
+            already-built bundle. If you build with the dev <Mono>.env</Mono> (which points{' '}
+            <Mono>VITE_MEDIA_BASE_URL</Mono> at the local <Mono>studio.taghunter.test</Mono> host), prod
+            images resolve to that host and fail with <Mono>ERR_SSL_PROTOCOL_ERROR</Mono> once the
+            <Mono>http://</Mono> URL is upgraded to <Mono>https://</Mono>.
+          </p>
+          <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
+            <li>
+              <Mono>.env.production</Mono> holds the prod values (both URLs relative) and is loaded
+              automatically by <Mono>npm run build</Mono>. Keep <Mono>VITE_MEDIA_BASE_URL</Mono> empty so
+              media URLs are root-relative (<Mono>/media/&lt;uniqid&gt;/file.png</Mono>).
+            </li>
+            <li>
+              It is a <em>build-time</em> file — <strong>do not upload it</strong> to the server (it has
+              no effect there). Only the resulting <Mono>dist/</Mono> matters.
+            </li>
+            <li>
+              After deploying a new bundle, hard-refresh (<Mono>Ctrl+Shift+R</Mono>) to drop the cached
+              old JS.
+            </li>
+          </ul>
+        </div>
+
+        <div className="space-y-4 mb-4">
           <Step n={3}>
             <p>
-              <strong>Apply DB changes by hand.</strong> There is no migration runner on the PHP side.
-              If your change added a file under <Mono>backend/database/*.sql</Mono>, run it in
-              phpMyAdmin against the production database. (This is unlike the playground, whose SQLite
-              schema is managed by tracked sqlx migrations.)
+              <strong>Apply DB changes.</strong> There is no per-deploy migration tracking on the PHP
+              side, but every file under <Mono>backend/database/*.sql</Mono> is written to be
+              <em> idempotent</em> — <Mono>CREATE TABLE IF NOT EXISTS</Mono>,{' '}
+              <Mono>INFORMATION_SCHEMA</Mono>-gated <Mono>ALTER</Mono>s, and{' '}
+              <Mono>INSERT ... ON DUPLICATE KEY</Mono> — so re-running an already-applied migration is a
+              no-op. You can either run the specific new <Mono>.sql</Mono> in phpMyAdmin, or apply them
+              all at once with the runner below. (This is unlike the playground, whose SQLite schema is
+              managed by tracked sqlx migrations.)
             </p>
           </Step>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2 text-sm">
+            <Server className="w-4 h-4" />
+            Migrate the whole DB in one shot
+          </h4>
+          <p className="text-sm text-blue-800 mb-3">
+            <Mono>backend/apply_all_migrations.php</Mono> loops over every migration in order
+            (base schema first) and runs each statement error-tolerantly — reported errors are almost
+            always harmless &ldquo;already applied&rdquo; messages. Set the <Mono>$REQUIRED_TOKEN</Mono>{' '}
+            in the file, upload it, then hit it once and delete it afterwards.
+          </p>
+          <CodeBlock>{`# safe, idempotent migrations only
+https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
+
+# &drops=1  also runs the destructive scenarios column drops (verify empty first)
+# &seeds=1  also runs the idempotent team-name + recovery-code seeds`}</CodeBlock>
+          <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside mt-3">
+            <li>
+              <strong>Destructive drops are opt-in.</strong> The two scenarios-refactor column drops
+              (<Mono>drop_game_meta</Mono> / <Mono>drop_media_url</Mono>) only run with{' '}
+              <Mono>&amp;drops=1</Mono>, since <Mono>DROP COLUMN</Mono> is irreversible — confirm the
+              columns are empty in prod first.
+            </li>
+            <li>
+              <strong>Some tables self-create.</strong> <Mono>report_layouts</Mono>,{' '}
+              <Mono>recovery_codes</Mono>, <Mono>team_name_pools</Mono>, and{' '}
+              <Mono>on_demand_cards</Mono> auto-create on first API hit via an{' '}
+              <Mono>ensureTables()</Mono> call, so they need no manual migration.
+            </li>
+            <li>
+              <strong>Back up first</strong> (phpMyAdmin → Export), and{' '}
+              <strong>delete the runner</strong> after — it executes arbitrary migrations.
+            </li>
+          </ul>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2 text-sm">
@@ -1411,7 +1479,10 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
           </h4>
           <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
             <li>
-              <Mono>media/</Mono> — scenario media uploads
+              <Mono>media/</Mono> — scenario media uploads (must <strong>exist</strong> at the web root
+              and be <strong>writable by the web-server user</strong> — scenario import/upload creates{' '}
+              <Mono>media/&lt;uniqid&gt;/</Mono> under it; a missing or read-only{' '}
+              <Mono>media/</Mono> yields a &ldquo;Failed to create media dir&rdquo; error)
             </li>
             <li>
               <Mono>cards/</Mono> — per-client CSV card files
@@ -1426,6 +1497,12 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
           <p className="text-sm text-red-800 mt-2">
             Configure your SFTP client to skip these paths, or upload only the specific files you
             changed.
+          </p>
+          <p className="text-sm text-red-800 mt-2">
+            Overwriting <Mono>backend/config/database.php</Mono> with the local copy is the classic
+            deploy break — it ships the Laragon default (<Mono>root</Mono> / no password) and prod
+            answers with <Mono>Access denied for user 'root'@'localhost' (using password: NO)</Mono>.
+            Restore the prod DB credentials in that file to fix it.
           </p>
         </div>
       </GuideSection>
@@ -1553,6 +1630,377 @@ npm run tauri:build`}</CodeBlock>
         <p>
           Scope: app releases and web deploy. Content versioning (scenario / pattern / layout / cards
           version bumps that drive client re-sync) is a separate workflow and isn't covered here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function GuidePickerButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+        active
+          ? 'bg-gray-900 text-white'
+          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function AndroidReaderTestingGuide() {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-2">
+        <Smartphone className="w-7 h-7 text-gray-700" />
+        <h2 className="text-2xl font-bold text-gray-900">Testing the Android SI reader</h2>
+      </div>
+      <p className="text-gray-600 mb-8 max-w-3xl">
+        How to verify the SportIdent reader works on an Android tablet or phone. The reader's CP210x
+        chip needs a kernel driver on Windows (the studio bundles one); Android handles CP210x in
+        userspace so there is <strong>no driver install</strong> — just a USB-host-capable device
+        and a one-time permission prompt.
+      </p>
+
+      {/* Concepts */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-10">
+        <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+          <FileJson className="w-4 h-4" />
+          What's different from desktop
+        </h3>
+        <ul className="space-y-3 text-sm text-slate-700">
+          <li>
+            <strong>No driver install.</strong> The reader chip (Silicon Labs CP210x, VID{' '}
+            <Mono>0x10C4</Mono> / PID <Mono>0x800A</Mono>) is driven by{' '}
+            <Mono>mik3y/usb-serial-for-android</Mono>, a userspace library bundled into the APK.
+            Plug-and-play on any USB-host-capable device.
+          </li>
+          <li>
+            <strong>USB OTG is required.</strong> The device must support USB <em>host</em> mode
+            (not just charging). Most modern Android tablets and most phones from 2018+ qualify;
+            entry-level phones sometimes don't. A quick check: plug a USB keyboard via an OTG
+            adapter — if typing works, the reader will work too.
+          </li>
+          <li>
+            <strong>One-time permission prompt.</strong> The first time a CP210x device is attached
+            with the playground installed, Android shows a system dialog asking the user to allow
+            the app to access the device. Subsequent connects are silent.
+          </li>
+          <li>
+            <strong>Hot-plug brings the app to foreground.</strong> The app's manifest registers an
+            intent filter on <Mono>USB_DEVICE_ATTACHED</Mono> scoped to the reader's VID/PID — so
+            plugging the reader in with the playground installed launches (or foregrounds) the app
+            automatically.
+          </li>
+        </ul>
+      </div>
+
+      {/* Runbook 1 — hardware */}
+      <GuideSection
+        icon={<Usb className="w-5 h-5" />}
+        color="bg-fuchsia-500"
+        title="Hardware checklist"
+      >
+        <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
+          <li>An Android device running Android 7.0+ (<Mono>minSdk</Mono> is 24).</li>
+          <li>
+            A USB OTG adapter matching the device's port: <Mono>USB-C → USB-A female</Mono> for most
+            current devices, micro-USB OTG for older ones.
+          </li>
+          <li>
+            A SportIdent master station — BSM7, BSM8, or BSM-USB — with its USB-A cable.
+          </li>
+          <li>At least one SI card (SI8 / SI9 / SI10 / SI11) to tap.</li>
+          <li>
+            <em>Optional but useful:</em> a power-passthrough OTG hub if you need the tablet charging
+            during the test (USB-host mode otherwise blocks charging on most devices).
+          </li>
+        </ul>
+      </GuideSection>
+
+      {/* Runbook 2 — environment */}
+      <GuideSection
+        icon={<Wrench className="w-5 h-5" />}
+        color="bg-blue-500"
+        title="Set up the Rust + Android toolchain"
+      >
+        <p className="text-sm text-gray-700 mb-4">
+          This is one-time per dev machine. Skip if you've already shipped Android builds before.
+        </p>
+        <div className="space-y-4">
+          <Step n={1}>
+            <p>
+              <strong>Install Android Studio</strong> (any recent version), then in{' '}
+              <strong>SDK Manager → SDK Tools</strong> tick:
+            </p>
+            <ul className="list-disc list-inside ml-2 text-sm text-gray-700">
+              <li><strong>NDK (Side by side)</strong> — current LTS</li>
+              <li><strong>Android SDK Platform-Tools</strong></li>
+              <li><strong>Android SDK Build-Tools</strong></li>
+              <li><strong>Android SDK Command-line Tools</strong></li>
+            </ul>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Add the Rust Android targets</strong> so cargo can cross-compile:
+            </p>
+            <CodeBlock>{`rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android`}</CodeBlock>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Export the environment variables</strong> so <Mono>cargo tauri android</Mono>
+              can find the SDK and NDK. Put these in your shell profile / PowerShell{' '}
+              <Mono>$PROFILE</Mono>:
+            </p>
+            <CodeBlock>{`# PowerShell — adjust paths to match your install.
+# To find your installed NDK version, run:
+#   Get-ChildItem "$env:LOCALAPPDATA\\Android\\Sdk\\ndk" -Directory
+# The folder name IS the version (e.g. 30.0.14904198). If you have several,
+# pick the highest stable one.
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\\Android\\Sdk"
+$env:NDK_HOME = "$env:ANDROID_HOME\\ndk\\<version>"   # e.g. 30.0.14904198
+$env:JAVA_HOME = "C:\\Program Files\\Android\\Android Studio\\jbr"
+$env:Path += ";$env:ANDROID_HOME\\platform-tools;$env:JAVA_HOME\\bin"`}</CodeBlock>
+          </Step>
+          <Step n={4}>
+            <p>
+              <strong>Enable Developer Options + USB debugging</strong> on the Android device
+              (Settings → About → tap "Build number" 7 times, then Settings → Developer options →
+              USB debugging). Plug the device into the dev machine and accept the "Allow USB
+              debugging?" prompt.
+            </p>
+          </Step>
+          <Step n={5}>
+            <p>
+              <strong>Verify with adb.</strong> From the dev machine:
+            </p>
+            <CodeBlock>{`adb devices
+# expected:
+# List of devices attached
+# <serial>    device`}</CodeBlock>
+          </Step>
+        </div>
+      </GuideSection>
+
+      {/* Runbook 3 — build & deploy */}
+      <GuideSection
+        icon={<Package className="w-5 h-5" />}
+        color="bg-emerald-500"
+        title="Build & deploy to the device"
+      >
+        <div className="space-y-4">
+          <Step n={1}>
+            <p>
+              <strong>Run a live dev build.</strong> From{' '}
+              <Mono>taghunter_playground/</Mono>:
+            </p>
+            <CodeBlock>{`npm run android:dev
+# or, equivalently:
+# cargo tauri android dev`}</CodeBlock>
+            <p>
+              This compiles the Rust cdylib for the device's ABI, builds the APK, sideloads it via
+              adb, and starts the app with hot-reload pointing at your local Vite dev server.
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Or build a standalone debug APK</strong> for handing to someone else to test:
+            </p>
+            <CodeBlock>{`npm run android:build -- --debug
+# APK lands under:
+# src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
+adb install -r app-universal-debug.apk`}</CodeBlock>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Sanity check.</strong> Open the app — it should land on the home screen
+              exactly like the desktop version. Watch <Mono>adb logcat</Mono> in another terminal
+              and filter for the JNI tag:
+            </p>
+            <CodeBlock>{`adb logcat -v color "MainActivity:I" "*:E"`}</CodeBlock>
+          </Step>
+        </div>
+      </GuideSection>
+
+      {/* Runbook 4 — on-device test */}
+      <GuideSection
+        icon={<ClipboardCheck className="w-5 h-5" />}
+        color="bg-cyan-500"
+        title="On-device test checklist"
+      >
+        <p className="text-sm text-gray-700 mb-4">
+          With the APK installed and the device awake:
+        </p>
+        <div className="space-y-4">
+          <Step n={1}>
+            <p>
+              <strong>Plug the reader in via OTG.</strong> Android shows a system dialog: "Allow{' '}
+              <em>Tag Hunter Playground</em> to access USB device?" — tap <strong>OK</strong>. If
+              the app wasn't open, it should be foregrounded automatically (the manifest filter
+              fires).
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Open Devices.</strong> The reader should appear as{' '}
+              "<em>SportIdent master</em>" (or similar — comes from the chip's USB descriptor).
+              VID/PID shown as <Mono>10c4 / 800a</Mono>. Tap{' '}
+              <strong>Start</strong>.
+            </p>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Tap a card on the station.</strong> The reader state goes{' '}
+              <Mono>awakening → listening → reading → listening</Mono>, and a card-read event fires
+              with card ID + punches. In <Mono>logcat</Mono> you'll see{' '}
+              <Mono>si://card-read</Mono> on the JS bridge.
+            </p>
+          </Step>
+          <Step n={4}>
+            <p>
+              <strong>Idle test.</strong> Leave the station alone for 60+ seconds, then tap again.
+              The reader should re-wake and read the second card without manual reconnect.
+            </p>
+          </Step>
+          <Step n={5}>
+            <p>
+              <strong>Unplug mid-session.</strong> Yank the OTG cable while the reader is{' '}
+              <Mono>listening</Mono>. The app should surface "reader disconnected" within a second —
+              same UX as desktop.
+            </p>
+          </Step>
+          <Step n={6}>
+            <p>
+              <strong>Replug.</strong> Plug back in. Permission is now cached, so no dialog. Tap
+              Start. Read another card. Repeat 20-card-in-a-row sequence to stress the channel.
+            </p>
+          </Step>
+        </div>
+      </GuideSection>
+
+      {/* Troubleshooting */}
+      <GuideSection
+        icon={<AlertTriangle className="w-5 h-5" />}
+        color="bg-amber-500"
+        title="Troubleshooting"
+      >
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-5 space-y-4 text-sm text-amber-900">
+          <div>
+            <p className="font-semibold mb-1">"USB permission denied" right after plugging in.</p>
+            <p>
+              The user dismissed the system dialog. Unplug, replug, tap <strong>OK</strong> when the
+              dialog reappears. If it doesn't reappear, revoke the app's USB permissions via
+              Settings → Apps → Tag Hunter Playground → permissions, then replug.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">Reader doesn't appear in the device picker.</p>
+            <p>
+              The device probably isn't in USB-host mode. Try the keyboard test (plug any USB
+              keyboard via OTG and check typing works). Some devices need a Developer-options toggle
+              to enable USB-host. If host mode is fine but the picker is still empty, check{' '}
+              <Mono>adb logcat</Mono> — the reader's VID/PID is logged when the manifest filter
+              matches.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">App foregrounds on plug-in but the picker is empty.</p>
+            <p>
+              The OS routed the intent but the JS-side device poll hasn't fired yet. Wait ~2 s — the
+              picker refreshes on a short cycle. If it still doesn't show, the device descriptor
+              may not match CP210x exactly (a clone chip with a different PID). Capture{' '}
+              <Mono>adb shell dumpsys usb</Mono> and compare VID/PID with{' '}
+              <Mono>res/xml/device_filter.xml</Mono>.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">No card-read events but reader says <em>listening</em>.</p>
+            <p>
+              Bytes aren't flowing across the JNI bridge. Filter logcat for{' '}
+              <Mono>sportident-rx</Mono> (the read-thread name). If that thread isn't active, the
+              IO manager never started — check whether <Mono>SportIdentSerial.open()</Mono> returned
+              a non-zero handle (logged on failure).
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">Build fails: <Mono>aarch64-linux-android-clang: not found</Mono>.</p>
+            <p>
+              The NDK toolchain isn't on PATH. Verify <Mono>NDK_HOME</Mono> points to the right
+              version and that{' '}
+              <Mono>$NDK_HOME/toolchains/llvm/prebuilt/&lt;host&gt;/bin</Mono> contains the
+              cross-compilers.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">Build fails: <Mono>Permission &lt;plugin&gt;:default not found</Mono> (e.g. <Mono>autostart:default</Mono>).</p>
+            <p>
+              A capability grants a permission for a plugin that only compiles on desktop. The
+              <Mono>updater</Mono>, <Mono>process</Mono>, and <Mono>autostart</Mono> plugins are
+              desktop-only (mobile updates go through the app stores; there's no launch-on-login on
+              mobile), and their Rust registration is already gated behind <Mono>#[cfg(desktop)]</Mono>.
+              The <em>permission</em> must be scoped to match. Keep desktop-only permissions out of{' '}
+              <Mono>capabilities/default.json</Mono> (which applies to every target, mobile included)
+              and put them in <Mono>capabilities/desktop.json</Mono>, which carries{' '}
+              <Mono>"platforms": ["windows", "macOS", "linux"]</Mono>. Any new desktop-only plugin
+              follows the same rule.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">App installs &amp; launches but shows <Mono>Failed to request http://&lt;ip&gt;:1420/ : error sending request</Mono>.</p>
+            <p>
+              The APK is fine — the WebView just can't reach the Vite dev server. Tauri serves dev
+              builds from the computer's LAN IP, so the device must be able to route to it. The usual
+              cause is the tablet and the computer being on <strong>different Wi-Fi subnets</strong>{' '}
+              (check with <Mono>adb shell ip addr show wlan0</Mono> vs the PC's{' '}
+              <Mono>ipconfig</Mono> — e.g. device on <Mono>192.168.8.x</Mono>, PC on{' '}
+              <Mono>192.168.251.x</Mono>). Two fixes:
+            </p>
+            <ul className="list-disc list-inside mt-2 space-y-1">
+              <li>
+                <strong>Over USB (recommended, subnet-agnostic):</strong> forward the device's
+                localhost back to the PC through the cable, then point Tauri at localhost:
+                <CodeBlock>{`adb reverse tcp:1420 tcp:1420
+adb reverse tcp:1421 tcp:1421
+$env:TAURI_DEV_HOST = "127.0.0.1"   # PowerShell; bash: export TAURI_DEV_HOST=127.0.0.1
+npm run android:dev`}</CodeBlock>
+                Port 1420 is the dev server, 1421 is HMR (see <Mono>vite.config.ts</Mono>). The
+                reverses persist in the adb daemon across app restarts, but re-apply them if the
+                device reconnects.
+              </li>
+              <li>
+                <strong>Over Wi-Fi:</strong> put the tablet and PC on the <em>same</em> network and
+                open inbound TCP <Mono>1420–1421</Mono> in Windows Defender Firewall. Then plain{' '}
+                <Mono>npm run android:dev</Mono> works with the LAN IP.
+              </li>
+            </ul>
+            <p className="mt-2">
+              Note: <Mono>adb reverse</Mono> is dev-only. Real LAN games still need the tablet and the
+              mother host on the same network.
+            </p>
+          </div>
+        </div>
+      </GuideSection>
+
+      <div className="flex items-start gap-2 text-xs text-gray-500 border-t border-gray-200 pt-4">
+        <Database className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <p>
+          Scope: SportIdent reader transport. Non-CP210x readers (FTDI variants) are out of scope
+          and would require their own VID/PID filter entry. iOS isn't supported — no SI Bluetooth
+          hardware target exists.
         </p>
       </div>
     </div>

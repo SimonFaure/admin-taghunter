@@ -1,0 +1,26 @@
+{
+  "podium": {
+    "title": "Podium et fin de jeu"
+  },
+  "levels": {
+    "title": "Niveaux",
+    "addLevel": "Ajouter un niveau",
+    "empty": "Aucun niveau pour l'instant.",
+    "levelHeading": "Niveau {{key}}",
+    "removeLevel": "Retirer le niveau",
+    "name": "Nom ({{lang}})",
+    "points": "Points",
+    "description": "Description ({{lang}})"
+  },
+  "overscores": {
+    "title": "Surscores",
+    "addOverscore": "Ajouter un surscore",
+    "empty": "Aucun surscore pour l'instant.",
+    "overscoreHeading": "Surscore {{label}}",
+    "removeOverscore": "Retirer le surscore",
+    "imageLabel": "Image du surscore",
+    "step": "Étape",
+    "score": "Score",
+    "name": "Nom ({{lang}})"
+  }
+}

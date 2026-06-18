@@ -1,10 +1,36 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, Loader2, AlertCircle, CheckCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, FileText, Loader2, AlertCircle, CheckCircle, Pencil, Maximize2, X } from 'lucide-react';
 import { secureAuth } from '../../lib/secureAuth';
 import { authFetch } from '../../lib/authFetch';
 import { getGameVisualUrl } from './MyScenariosView';
+import { GameTypeIcon } from '../icons/GameTypeIcons';
+import { getDifficultyLabel, getDifficultyBadgeClass } from '../../types/difficulty';
+import { getAudienceLabel } from '../../types/audience';
 import type { ClientScenario } from './types';
+
+interface ScenarioFile {
+  id: number;
+  name: string;
+  file_size: number;
+  mime_type: string;
+  filename: string;
+  created_at?: string;
+}
+
+function formatFileSize(bytes: number): string {
+  if (!bytes || bytes < 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let val = bytes / 1024;
+  let i = 0;
+  while (val >= 1024 && i < units.length - 1) {
+    val /= 1024;
+    i++;
+  }
+  return `${val.toFixed(val < 10 ? 1 : 0)} ${units[i]}`;
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -40,6 +66,7 @@ function getExtraImages(medias: string | Record<string, unknown> | null | undefi
 }
 
 export function ScenarioDetailView() {
+  const { t } = useTranslation('scenarioDetail');
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
   const onBack = () => navigate('/my/scenarios');
@@ -49,6 +76,13 @@ export function ScenarioDetailView() {
   const [scenario, setScenario] = useState<ClientScenario | null>(null);
   const [loadingScenario, setLoadingScenario] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Extra details (difficulty / audience / per-file list) come from the
+  // single-row get_scenario endpoint, which reads game_meta + scenario_files.
+  const [difficulty, setDifficulty] = useState<string | null>(null);
+  const [audience, setAudience] = useState<string | null>(null);
+  const [files, setFiles] = useState<ScenarioFile[]>([]);
+  const [downloadingFileId, setDownloadingFileId] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,17 +94,39 @@ export function ScenarioDetailView() {
         const body = await res.json();
         if (cancelled) return;
         if (!res.ok) {
-          setLoadError(body?.error || 'Failed to load scenario');
+          setLoadError(body?.error || t('failedToLoad'));
         } else {
           const list = (body?.data as ClientScenario[]) || [];
           const found = list.find((s) => s.uniqid === uniqid) || null;
-          if (!found) setLoadError('Scenario not found');
+          if (!found) setLoadError(t('scenarioNotFound'));
           setScenario(found);
         }
       } catch (err) {
-        if (!cancelled) setLoadError(err instanceof Error ? err.message : 'Network error');
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : t('networkError'));
       } finally {
         if (!cancelled) setLoadingScenario(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [uniqid]);
+
+  useEffect(() => {
+    if (!uniqid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await authFetch(
+          `${API_BASE_URL}/scenario_files.php?action=get_scenario&uniqid=${encodeURIComponent(uniqid)}`
+        );
+        const body = await res.json();
+        if (cancelled || !res.ok || !body?.data) return;
+        setDifficulty(body.data.difficulty || null);
+        setAudience(body.data.audience || null);
+        setFiles(Array.isArray(body.data.files) ? body.data.files : []);
+      } catch {
+        // Non-fatal: the core scenario view still renders without these extras.
       }
     })();
     return () => {
@@ -89,6 +145,7 @@ export function ScenarioDetailView() {
   const [videoUploadSuccess, setVideoUploadSuccess] = useState(false);
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -136,10 +193,10 @@ export function ScenarioDetailView() {
         setVideoUrl(result.video_url);
         setTimeout(() => setVideoUploadSuccess(false), 3000);
       } else {
-        setVideoUploadError(result.error || 'Failed to upload video');
+        setVideoUploadError(result.error || t('failedToUploadVideo'));
       }
     } catch {
-      setVideoUploadError('Network error during upload');
+      setVideoUploadError(t('networkErrorUpload'));
     } finally {
       setVideoUploading(false);
       if (videoInputRef.current) videoInputRef.current.value = '';
@@ -160,7 +217,7 @@ export function ScenarioDetailView() {
 
       if (!response.ok) {
         const err = await response.json();
-        setDownloadError(err.error || 'Download failed');
+        setDownloadError(err.error || t('downloadFailed'));
         return;
       }
 
@@ -174,9 +231,41 @@ export function ScenarioDetailView() {
       document.body.removeChild(a);
       URL.revokeObjectURL(downloadUrl);
     } catch {
-      setDownloadError('Network error during download');
+      setDownloadError(t('networkErrorDownload'));
     } finally {
       setDownloadingZip(false);
+    }
+  };
+
+  const handleDownloadFile = async (file: ScenarioFile) => {
+    setDownloadingFileId(file.id);
+    setDownloadError(null);
+    try {
+      const url = `${API_BASE_URL}/scenario_files.php?action=download_file&id=${encodeURIComponent(file.id)}`;
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        setDownloadError(err.error || t('downloadFailed'));
+        return;
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = file.name || file.filename || `file_${file.id}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    } catch {
+      setDownloadError(t('networkErrorDownload'));
+    } finally {
+      setDownloadingFileId(null);
     }
   };
 
@@ -196,10 +285,10 @@ export function ScenarioDetailView() {
           className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span className="text-sm font-medium">Back to Scenarios</span>
+          <span className="text-sm font-medium">{t('backToScenarios')}</span>
         </button>
         <div className="bg-red-50 p-6 rounded-xl border border-red-200">
-          <p className="text-red-600">{loadError || 'Scenario not found'}</p>
+          <p className="text-red-600">{loadError || t('scenarioNotFound')}</p>
         </div>
       </div>
     );
@@ -213,7 +302,7 @@ export function ScenarioDetailView() {
           className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span className="text-sm font-medium">Back to Scenarios</span>
+          <span className="text-sm font-medium">{t('backToScenarios')}</span>
         </button>
         {scenario.uniqid && (
           <button
@@ -221,7 +310,7 @@ export function ScenarioDetailView() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500"
           >
             <Pencil className="w-4 h-4" />
-            Edit in Studio
+            {t('editInStudio')}
           </button>
         )}
       </div>
@@ -235,6 +324,13 @@ export function ScenarioDetailView() {
                 alt={scenario.title}
                 className="w-full h-full object-cover"
               />
+              <button
+                onClick={() => setLightboxOpen(true)}
+                title={t('expand')}
+                className="absolute top-3 right-3 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
               {allImages.length > 1 && (
                 <>
                   <button
@@ -291,7 +387,8 @@ export function ScenarioDetailView() {
           <div>
             <div className="flex items-start gap-3 mb-2 flex-wrap">
               {scenario.game_type && (
-                <span className="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full capitalize tracking-wide">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full capitalize tracking-wide">
+                  <GameTypeIcon type={scenario.game_type} className="w-3.5 h-3.5" />
                   {scenario.game_type}
                 </span>
               )}
@@ -305,6 +402,20 @@ export function ScenarioDetailView() {
                   v{scenario.version}
                 </span>
               )}
+              {difficulty && (
+                <span
+                  className={`px-3 py-1 text-xs font-semibold rounded-full capitalize tracking-wide ${getDifficultyBadgeClass(
+                    difficulty
+                  )}`}
+                >
+                  {getDifficultyLabel(difficulty, t)}
+                </span>
+              )}
+              {audience && (
+                <span className="px-3 py-1 bg-violet-50 text-violet-700 text-xs font-semibold rounded-full capitalize tracking-wide">
+                  {getAudienceLabel(audience, t)}
+                </span>
+              )}
             </div>
             <h1 className="text-3xl font-bold text-slate-900 mb-3">{scenario.title}</h1>
             <p className="text-slate-600 leading-relaxed">{scenario.description}</p>
@@ -315,7 +426,7 @@ export function ScenarioDetailView() {
           <div>
             <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
               <Play className="w-4 h-4" />
-              Scenario Video
+              {t('scenarioVideo')}
             </h3>
 
             {videoUrl ? (
@@ -325,7 +436,7 @@ export function ScenarioDetailView() {
                 </div>
                 <label className="inline-flex items-center gap-2 text-xs text-slate-500 cursor-pointer hover:text-slate-700 transition-colors">
                   <Upload className="w-3.5 h-3.5" />
-                  Replace video
+                  {t('replaceVideo')}
                   <input
                     ref={videoInputRef}
                     type="file"
@@ -339,7 +450,7 @@ export function ScenarioDetailView() {
             ) : (
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center">
                 <Film className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-500 mb-3">No video added yet</p>
+                <p className="text-sm text-slate-500 mb-3">{t('noVideoYet')}</p>
                 <label
                   className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-all ${
                     videoUploading
@@ -350,12 +461,12 @@ export function ScenarioDetailView() {
                   {videoUploading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Uploading...
+                      {t('uploading')}
                     </>
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Add a video
+                      {t('addVideo')}
                     </>
                   )}
                   <input
@@ -367,7 +478,7 @@ export function ScenarioDetailView() {
                     disabled={videoUploading}
                   />
                 </label>
-                <p className="text-xs text-slate-400 mt-2">MP4, WebM, MOV — max 200MB</p>
+                <p className="text-xs text-slate-400 mt-2">{t('videoFormatsHint')}</p>
               </div>
             )}
 
@@ -380,7 +491,7 @@ export function ScenarioDetailView() {
             {videoUploadSuccess && (
               <div className="flex items-center gap-2 p-3 mt-3 bg-green-50 rounded-lg text-sm text-green-600">
                 <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                Video uploaded successfully
+                {t('videoUploadedSuccess')}
               </div>
             )}
           </div>
@@ -388,20 +499,20 @@ export function ScenarioDetailView() {
           <div className="h-px bg-slate-100" />
 
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <FileArchive className="w-4 h-4" />
-                  Downloadable Files
+                  {t('downloadableFiles')}
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {scenario.has_zip_files
-                    ? `${scenario.files_count ?? ''} file${scenario.files_count !== 1 ? 's' : ''} available as ZIP`
-                    : 'No files available yet'}
+                  {files.length > 0
+                    ? t('filesAvailable', { count: files.length })
+                    : t('noFilesAvailable')}
                 </p>
               </div>
 
-              {scenario.has_zip_files && (
+              {files.length > 1 && (
                 <button
                   onClick={handleDownloadZip}
                   disabled={downloadingZip}
@@ -414,17 +525,58 @@ export function ScenarioDetailView() {
                   {downloadingZip ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Preparing...
+                      {t('preparing')}
                     </>
                   ) : (
                     <>
                       <Download className="w-4 h-4" />
-                      Download ZIP
+                      {t('downloadAllZip')}
                     </>
                   )}
                 </button>
               )}
             </div>
+
+            {files.length > 0 && (
+              <ul className="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
+                {files.map((file) => {
+                  const busy = downloadingFileId === file.id;
+                  return (
+                    <li
+                      key={file.id}
+                      className="flex items-center justify-between gap-3 px-4 py-3 bg-white hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 bg-slate-100 rounded-lg flex-shrink-0">
+                          <FileText className="w-4 h-4 text-slate-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
+                          <p className="text-xs text-slate-400">{formatFileSize(file.file_size)}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadFile(file)}
+                        disabled={busy}
+                        title={t('download')}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex-shrink-0 ${
+                          busy
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95'
+                        }`}
+                      >
+                        {busy ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-4 h-4" />
+                        )}
+                        {t('download')}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
             {downloadError && (
               <div className="flex items-center gap-2 p-3 mt-3 bg-red-50 rounded-lg text-sm text-red-600">
@@ -435,6 +587,63 @@ export function ScenarioDetailView() {
           </div>
         </div>
       </div>
+
+      {lightboxOpen && allImages.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            onClick={() => setLightboxOpen(false)}
+            title={t('close')}
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={allImages[activeImageIndex]}
+            alt={scenario.title}
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {allImages.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePrevImage();
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleNextImage();
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+                {allImages.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImageIndex(i);
+                    }}
+                    className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                      i === activeImageIndex ? 'bg-white' : 'bg-white/40'
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

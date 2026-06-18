@@ -12,7 +12,7 @@ import type { ComponentType } from 'react';
 import type { z } from 'zod';
 import type { ValidationResult } from '../creator-ported/utils/publishValidation';
 
-export type ScenarioGameType = 'mystery' | 'tagquest' | 'tracks';
+export type ScenarioGameType = 'mystery' | 'tagquest' | 'tracks' | 'clash';
 
 /**
  * A single asset slot the editor knows about — image, sound, or font.
@@ -34,6 +34,8 @@ export interface MediaSlot {
  *
  * - `hasLevels`: render LevelsSection. True for mystery + tagquest, false for tracks.
  * - `hasOverscores`: render OverscoresSection. Mystery only.
+ * - `hasPodium`: render PodiumSection (top_1/3/10). True for mystery/tagquest/tracks;
+ *   false for clash (clan-based, no per-team podium).
  * - `supportsProductTemplate`: render the "use default images/texts" toggle that
  *   pulls from the Tagquest defaultConfig table. Tagquest only today.
  * - `hasTranslatableArrays`: which named arrays under `game_meta` carry
@@ -43,6 +45,7 @@ export interface MediaSlot {
 export interface Capabilities {
   hasLevels: boolean;
   hasOverscores: boolean;
+  hasPodium: boolean;
   supportsProductTemplate: boolean;
   hasTranslatableArrays: readonly ('quests' | 'enigmas' | 'levels' | 'overscores' | 'checkpoints')[];
 }
@@ -186,6 +189,12 @@ export interface ScenarioEditorState<TGameMeta = any> {
   uniqid: string;
   gameType: ScenarioGameType;
   adapter: ScenarioAdapter<TGameMeta>;
+
+  /**
+   * The DB column `scenarios.version` (auto-bumped +0.1 on every save). Shown
+   * read-only in the admin section so it matches the scenarios details page.
+   */
+  scenarioVersion: string;
 
   gameMeta: TGameMeta;
   setGameMeta: (updater: (m: TGameMeta) => TGameMeta) => void;

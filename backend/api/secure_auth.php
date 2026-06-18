@@ -342,6 +342,7 @@ try {
                 $companyLogoUsesAvatar = isset($client['company_logo_uses_avatar'])
                     ? (bool)$client['company_logo_uses_avatar']
                     : true;
+                $languageVal = $client['language'] ?? 'fr';
             }
 
             if (!$client && !$admin) {
@@ -374,6 +375,7 @@ try {
                 $response['data']['avatar_url'] = $avatarUrl;
                 $response['data']['company_logo_url'] = $companyLogoUrl;
                 $response['data']['company_logo_uses_avatar'] = $companyLogoUsesAvatar;
+                $response['data']['language'] = $languageVal;
             }
 
             Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);
@@ -420,13 +422,14 @@ try {
                 // Hydrate logo prefs so MyAccountView can render the Brand identity
                 // card without an extra fetch. TokenManager doesn't carry these.
                 $logoRow = $db->fetch(
-                    'SELECT company_logo_url, company_logo_uses_avatar FROM clients WHERE id = ?',
+                    'SELECT company_logo_url, company_logo_uses_avatar, language FROM clients WHERE id = ?',
                     [$tokenData['user_id']]
                 );
                 $response['company_logo_url'] = $logoRow['company_logo_url'] ?? null;
                 $response['company_logo_uses_avatar'] = isset($logoRow['company_logo_uses_avatar'])
                     ? (bool)$logoRow['company_logo_uses_avatar']
                     : true;
+                $response['language'] = $logoRow['language'] ?? 'fr';
             }
 
             Logger::log('secure_auth', 'POST', 'validate', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], $response, 200);
@@ -739,6 +742,43 @@ try {
             ];
 
             Logger::log('secure_auth', 'POST', 'update-logo-preference', $clientId, ['use_avatar' => (bool)$body['use_avatar']], $response, 200);
+            jsonResponse($response);
+            break;
+
+        case 'update-language':
+            // Client self-service: set my own UI language. Mirrors the
+            // update-logo-preference token-auth pattern. The set is constrained
+            // to the chrome languages; anything else is rejected so a client
+            // can never strand themselves on an untranslated language.
+            // Design: project_client_language.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $authHeader = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+            if (empty($authHeader)) {
+                jsonResponse(['error' => 'Authentication required'], 401);
+            }
+
+            $tokenData = TokenManager::validateToken($db, $authHeader);
+            if (!$tokenData || $tokenData['user_type'] !== 'client') {
+                jsonResponse(['error' => 'Invalid authentication'], 401);
+            }
+
+            $clientId = (int)$tokenData['user_id'];
+            $body = getRequestData();
+            $lang = $body['language'] ?? '';
+            if (!in_array($lang, ['fr', 'en', 'es'], true)) {
+                jsonResponse(['error' => 'Unsupported language'], 400);
+            }
+
+            $db->execute(
+                'UPDATE clients SET language = ? WHERE id = ?',
+                [$lang, $clientId]
+            );
+
+            $response = ['success' => true, 'data' => ['language' => $lang]];
+            Logger::log('secure_auth', 'POST', 'update-language', $clientId, ['language' => $lang], $response, 200);
             jsonResponse($response);
             break;
 

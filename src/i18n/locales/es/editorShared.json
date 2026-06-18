@@ -1,0 +1,16 @@
+{
+  "required": "Obligatorio",
+  "replace": "Reemplazar",
+  "upload": "Subir",
+  "clear": "Borrar",
+  "kind": {
+    "image": "imagen",
+    "sound": "sonido",
+    "video": "vídeo",
+    "audio": "audio",
+    "file": "archivo",
+    "asset": "recurso"
+  },
+  "fileTypeNotAccepted": "Tipo de archivo no aceptado ({{kind}} requerido)",
+  "dragDropHint": "Arrastra y suelta un archivo {{kind}} aquí, o haz clic en Subir."
+}

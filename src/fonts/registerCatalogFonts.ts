@@ -17,6 +17,30 @@
 
 import { FONT_CATALOG } from './catalog';
 
+/**
+ * The bundled-font `@font-face` rules as a CSS string, for injecting into an
+ * iframe document (e.g. the report preview / print) which does NOT inherit the
+ * parent page's font faces. `baseUrl` (e.g. window.location.origin) prefixes the
+ * `/fonts/...` path so a srcdoc iframe — which has no base URL — can resolve it.
+ */
+export function catalogFontFaceCss(baseUrl = ''): string {
+  const rules: string[] = [];
+  for (const font of FONT_CATALOG) {
+    for (const face of font.faces ?? []) {
+      rules.push(
+        `@font-face{` +
+          `font-family:"${font.family}";` +
+          `src:url("${baseUrl}/fonts/${face.file}") format("${face.format}");` +
+          `font-weight:${face.weight};` +
+          `font-style:${face.style};` +
+          `font-display:swap;` +
+          `}`,
+      );
+    }
+  }
+  return rules.join('\n');
+}
+
 let registered = false;
 
 export function registerCatalogFonts(): void {

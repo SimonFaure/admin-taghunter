@@ -40,6 +40,17 @@ interface CollapsibleSectionProps {
   children: ReactNode;
 }
 
+// Derive a stable scroll-target id from the title (used by SectionsTOC). Strips
+// parenthesized suffixes (e.g. "(24)") so a counted title's id doesn't change
+// as the count does.
+export function sectionIdFromTitle(t: string): string {
+  const base = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export function CollapsibleSection({
   title,
   headerExtra,
@@ -55,7 +66,11 @@ export function CollapsibleSection({
   }, [ctx.version]);
 
   return (
-    <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <section
+      id={sectionIdFromTitle(title)}
+      data-section-title={title}
+      className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 scroll-mt-20"
+    >
       <div className={`flex items-center justify-between gap-2 ${collapsed ? '' : 'mb-3'}`}>
         <button
           type="button"

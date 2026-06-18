@@ -11,7 +11,8 @@
 //     events: [
 //       {
 //         event_uuid: "<uuid v4>",
-//         event_type: "heartbeat" | "error" | "launch" | "game_summary" | "recovery_code_used",
+//         event_type: "heartbeat" | "error" | "launch" | "game_summary" | "recovery_code_used"
+//                   | "sync_item_failed" | "sync_item_resolved",
 //         occurred_at: "<ISO 8601>",
 //         payload: {...event-type-specific...}
 //       },
@@ -56,6 +57,11 @@ function ingestHeartbeat(object $db, int $clientId, ?int $authDeviceId, array $p
         'os' => $payload['os'] ?? null,
         'os_version' => $payload['os_version'] ?? null,
         'app_version' => $payload['app_version'] ?? null,
+        // Device role flag (manage-only). Only honoured when the heartbeat
+        // actually carries it, so older clients don't reset it to false.
+        'operator_only' => array_key_exists('operator_only', $payload)
+            ? (bool)$payload['operator_only']
+            : null,
     ]);
 
     return true;
@@ -240,6 +246,150 @@ function ingestRecoveryCodeUsed(
     return true;
 }
 
+// ─── sync-failure lifecycle ─────────────────────────────────────────────────
+//
+// Per-item content-sync failures from the playground. One CURRENT-STATE row per
+// (client_id, device_id, item_key) that flips status failed<->resolved. We
+// upsert manually (not ON DUPLICATE KEY — device_id is nullable, so its NULLs
+// would defeat the unique index) and apply a last-write-wins guard on
+// last_event_at so a reordered stale event can't clobber newer state. The
+// FIFO outbox already delivers a single device's events in causal order; the
+// guard is belt-and-braces. Defensive try/catch: an un-migrated install acks
+// and drops the row rather than 500-ing the whole batch.
+
+function syncFailureExistingRow(object $db, int $clientId, ?int $authDeviceId, string $itemKey): ?array {
+    if ($authDeviceId === null) {
+        return $db->fetch(
+            'SELECT id, status, times_failed, last_event_at, first_failed_at
+               FROM device_sync_failures
+              WHERE client_id = ? AND device_id IS NULL AND item_key = ?',
+            [$clientId, $itemKey]
+        ) ?: null;
+    }
+    return $db->fetch(
+        'SELECT id, status, times_failed, last_event_at, first_failed_at
+           FROM device_sync_failures
+          WHERE client_id = ? AND device_id = ? AND item_key = ?',
+        [$clientId, $authDeviceId, $itemKey]
+    ) ?: null;
+}
+
+// A stale event (older than what we've already applied) is ignored.
+function syncFailureIsStale(?array $existing, ?string $eventAt): bool {
+    if ($existing === null || $eventAt === null) return false;
+    $prev = $existing['last_event_at'] ?? null;
+    // 'Y-m-d H:i:s' strings compare chronologically as plain strings.
+    return $prev !== null && $eventAt < $prev;
+}
+
+function ingestSyncItemFailed(
+    object $db,
+    int $clientId,
+    ?int $authDeviceId,
+    string $occurredAt,
+    array $payload
+): bool {
+    $itemKey = trim((string)($payload['item_key'] ?? ''));
+    if ($itemKey === '' || strlen($itemKey) > 255) {
+        return false;
+    }
+
+    try {
+        $eventAt = normalizeDatetime($occurredAt) ?? date('Y-m-d H:i:s');
+        $firstFailed = normalizeDatetime($payload['first_failed_at'] ?? null) ?? $eventAt;
+        $lastFailed = normalizeDatetime($payload['last_failed_at'] ?? null) ?? $eventAt;
+        $kind = isset($payload['kind']) ? substr((string)$payload['kind'], 0, 48) : null;
+        $label = isset($payload['label']) ? substr((string)$payload['label'], 0, 512) : null;
+        $version = isset($payload['version']) && $payload['version'] !== null ? (int)$payload['version'] : null;
+        $errorType = isset($payload['error_type']) && $payload['error_type'] !== null
+            ? substr((string)$payload['error_type'], 0, 64) : null;
+        $httpStatus = isset($payload['http_status']) && $payload['http_status'] !== null
+            ? (int)$payload['http_status'] : null;
+        $errorMessage = isset($payload['error_message']) && $payload['error_message'] !== null
+            ? substr((string)$payload['error_message'], 0, 2000) : null;
+
+        $existing = syncFailureExistingRow($db, $clientId, $authDeviceId, $itemKey);
+        if (syncFailureIsStale($existing, $eventAt)) {
+            return true; // older than what we've recorded — ack and drop.
+        }
+
+        if ($existing === null) {
+            $db->execute(
+                'INSERT INTO device_sync_failures
+                   (client_id, device_id, item_key, kind, label, version, status,
+                    error_type, http_status, error_message, times_failed,
+                    first_failed_at, last_failed_at, resolved_at, resolution, last_event_at)
+                 VALUES (?, ?, ?, ?, ?, ?, \'failed\', ?, ?, ?, 1, ?, ?, NULL, NULL, ?)',
+                [
+                    $clientId, $authDeviceId, $itemKey, $kind, $label, $version,
+                    $errorType, $httpStatus, $errorMessage, $firstFailed, $lastFailed, $eventAt,
+                ]
+            );
+            return true;
+        }
+
+        // Re-failure after a resolve bumps times_failed; a same-episode refresh
+        // (signature change) leaves the count alone.
+        $bump = (($existing['status'] ?? '') === 'resolved') ? 1 : 0;
+        $db->execute(
+            'UPDATE device_sync_failures
+                SET status = \'failed\', kind = ?, label = ?, version = ?,
+                    error_type = ?, http_status = ?, error_message = ?,
+                    times_failed = times_failed + ?, last_failed_at = ?,
+                    resolved_at = NULL, resolution = NULL, last_event_at = ?
+              WHERE id = ?',
+            [
+                $kind, $label, $version, $errorType, $httpStatus, $errorMessage,
+                $bump, $lastFailed, $eventAt, (int)$existing['id'],
+            ]
+        );
+    } catch (Exception $e) {
+        error_log('[telemetry.sync_item_failed] ' . $e->getMessage());
+    }
+
+    return true;
+}
+
+function ingestSyncItemResolved(
+    object $db,
+    int $clientId,
+    ?int $authDeviceId,
+    string $occurredAt,
+    array $payload
+): bool {
+    $itemKey = trim((string)($payload['item_key'] ?? ''));
+    if ($itemKey === '' || strlen($itemKey) > 255) {
+        return false;
+    }
+    $resolution = (string)($payload['resolution'] ?? 'downloaded');
+    if ($resolution !== 'downloaded' && $resolution !== 'removed') {
+        $resolution = 'downloaded';
+    }
+
+    try {
+        $eventAt = normalizeDatetime($occurredAt) ?? date('Y-m-d H:i:s');
+        $existing = syncFailureExistingRow($db, $clientId, $authDeviceId, $itemKey);
+        // No prior failure row recorded (e.g. the failed event never reached us)
+        // — nothing to resolve. Ack and drop.
+        if ($existing === null) {
+            return true;
+        }
+        if (syncFailureIsStale($existing, $eventAt)) {
+            return true;
+        }
+        $db->execute(
+            'UPDATE device_sync_failures
+                SET status = \'resolved\', resolution = ?, resolved_at = ?, last_event_at = ?
+              WHERE id = ?',
+            [$resolution, $eventAt, $eventAt, (int)$existing['id']]
+        );
+    } catch (Exception $e) {
+        error_log('[telemetry.sync_item_resolved] ' . $e->getMessage());
+    }
+
+    return true;
+}
+
 function normalizeDatetime($value): ?string {
     if ($value === null || $value === '') return null;
     $ts = strtotime((string)$value);
@@ -313,6 +463,12 @@ try {
                     break;
                 case 'recovery_code_used':
                     $ok = ingestRecoveryCodeUsed($db, $clientId, $occurredAt, $payload);
+                    break;
+                case 'sync_item_failed':
+                    $ok = ingestSyncItemFailed($db, $clientId, $authDeviceId, $occurredAt, $payload);
+                    break;
+                case 'sync_item_resolved':
+                    $ok = ingestSyncItemResolved($db, $clientId, $authDeviceId, $occurredAt, $payload);
                     break;
                 default:
                     $ok = false;

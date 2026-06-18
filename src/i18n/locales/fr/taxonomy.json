@@ -1,0 +1,24 @@
+{
+  "difficulty": {
+    "easy": "Facile",
+    "medium": "Moyen",
+    "hard": "Difficile"
+  },
+  "audience": {
+    "mini_kids": "Mini-enfants",
+    "kids": "Enfants",
+    "ado_adultes": "Ados/Adultes"
+  },
+  "band": {
+    "age_4_5": "4-5",
+    "age_6_7": "6-7",
+    "age_8_10": "8-10",
+    "age_11_12": "11-12",
+    "age_13_plus": "+13",
+    "age_adultes": "Adultes"
+  },
+  "catalogGroup": {
+    "enfants": "Enfants",
+    "ados_adultes": "Ados/Adultes"
+  }
+}

@@ -12,6 +12,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 3 section)
  */
 
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { getLocalized, setLocalized } from '../../i18n/getLocalized';
 import type { Lang, Localized } from '../../i18n/types';
@@ -35,6 +36,7 @@ export function LocalizedField({
   placeholder,
   className = '',
 }: LocalizedFieldProps) {
+  const { t } = useTranslation('editor');
   const editor = useScenarioEditor();
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
@@ -54,7 +56,7 @@ export function LocalizedField({
           <span>{label}</span>
           <span
             className="text-[10px] uppercase tracking-wide text-gray-400 font-mono"
-            title={lang === defaultLang ? `Default language (${lang})` : `Translation (${lang})`}
+            title={lang === defaultLang ? t('field.defaultLanguageTitle', { lang }) : t('field.translationTitle', { lang })}
           >
             {lang}
           </span>

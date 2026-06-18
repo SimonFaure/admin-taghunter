@@ -105,6 +105,56 @@ function requireAuth() {
     jsonResponse(['error' => 'Authentication required'], 401);
 }
 
+/**
+ * Patterns rows can live in the normalized `pattern_items` table (admin/default
+ * patterns) while the denormalized `pattern_data` JSON column is left empty.
+ * For any pattern whose `pattern_data` is empty, rebuild the nested
+ * `[{index, assignments:{type:station}}]` shape from pattern_items so the
+ * client always receives renderable rows. Mutates the passed array in place.
+ */
+function synthesizePatternRows($db, array &$patterns): void {
+    $ids = [];
+    foreach ($patterns as $p) {
+        $pd = trim((string)($p['pattern_data'] ?? ''));
+        $decoded = ($pd === '') ? null : json_decode($pd, true);
+        if (empty($decoded)) $ids[] = $p['id'];
+    }
+    if (!$ids) return;
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $items = $db->fetchAll(
+        "SELECT pattern_id, item_index, assignment_type, station_key_number
+         FROM pattern_items WHERE pattern_id IN ($placeholders)
+         ORDER BY pattern_id, item_index",
+        $ids
+    );
+
+    $byPattern = [];
+    foreach ($items as $it) {
+        $pid = $it['pattern_id'];
+        $idx = (int)$it['item_index'];
+        $byPattern[$pid][$idx][$it['assignment_type']] = (int)$it['station_key_number'];
+    }
+
+    $built = [];
+    foreach ($byPattern as $pid => $rowsByIdx) {
+        ksort($rowsByIdx);
+        $rows = [];
+        $i = 1;
+        foreach ($rowsByIdx as $assignments) {
+            $rows[] = ['index' => $i++, 'assignments' => (object)$assignments];
+        }
+        $built[$pid] = $rows;
+    }
+
+    foreach ($patterns as &$p) {
+        if (isset($built[$p['id']])) {
+            $p['pattern_data'] = json_encode($built[$p['id']]);
+        }
+    }
+    unset($p);
+}
+
 try {
     $db = Database::getInstance();
     error_log('patterns.php: Database instance created');
@@ -121,6 +171,20 @@ try {
                 'timestamp' => date('Y-m-d H:i:s'),
                 'action' => 'health'
             ]);
+            break;
+
+        case 'stations':
+            // The list of SI balises (stations) used to assign pattern rows,
+            // mirroring the admin pattern editor's station picker. Token-authed
+            // so clients can build patterns with the real station list.
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            requireAuth();
+            $stations = $db->fetchAll(
+                'SELECT id, station_name, station_function FROM si_balises ORDER BY id'
+            );
+            jsonResponse(['data' => $stations]);
             break;
 
         case 'list':
@@ -146,8 +210,10 @@ try {
                 $query .= ' ORDER BY game_type, is_default DESC, name';
                 $patterns = $db->fetchAll($query, $params);
             } else {
+                // Clients see only published default patterns (never admin draft
+                // or archived ones) plus all of their own patterns, any status.
                 $query = 'SELECT * FROM patterns
-                          WHERE (is_default = TRUE)
+                          WHERE (is_default = TRUE AND status = "published")
                           OR (owner_type = ? AND owner_id = ?)';
                 $params = [$userType, $userId];
 
@@ -159,6 +225,8 @@ try {
                 $query .= ' ORDER BY game_type, is_default DESC, name';
                 $patterns = $db->fetchAll($query, $params);
             }
+
+            synthesizePatternRows($db, $patterns);
 
             $response = ['data' => $patterns];
             Logger::log('patterns', 'GET', 'list', $userId, ['user_type' => $userType, 'game_type' => $gameType], $response, 200);
@@ -193,6 +261,10 @@ try {
                     jsonResponse(['error' => 'Access denied'], 403);
                 }
             }
+
+            $single = [$pattern];
+            synthesizePatternRows($db, $single);
+            $pattern = $single[0];
 
             $response = ['data' => $pattern];
             Logger::log('patterns', 'GET', 'get', $userId, ['id' => $id], $response, 200);
@@ -229,6 +301,9 @@ try {
                 $isDefault = $data['is_default'] ?? false;
                 $patternUniqid = $data['pattern_uniqid'] ?? $data['uniqid'] ?? null;
                 $patternSlug = $data['pattern_slug'] ?? $data['slug'] ?? null;
+                // Studio's editor always carries the row's numeric primary key; the
+                // external Creator app does not. Used to upsert the right row below.
+                $patternRowId = (isset($data['id']) && is_numeric($data['id'])) ? (int)$data['id'] : null;
 
                 if (empty($email)) {
                     error_log('Upload failed: Email required');
@@ -317,11 +392,34 @@ try {
                     'pattern_data_preview' => substr($jsonData, 0, 500)
                 ], ['step' => 'about to run INSERT'], 200, 'creator');
 
-                $patternId = $db->execute(
-                    'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid, pattern_slug, status)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid, $patternSlug, 'draft']
-                );
+                // Upsert an existing pattern. Re-publishing from the studio editor
+                // must UPDATE the row and mark it published — inserting a duplicate
+                // would break the editor route, which loads patterns by uniqid via
+                // maybeSingle(). Match by numeric id first (the editor always sends
+                // it), then fall back to pattern_uniqid. A genuinely new pattern
+                // (no match) still inserts as a draft so the external Creator
+                // submission/approval flow is preserved.
+                $existing = null;
+                if ($patternRowId !== null) {
+                    $existing = $db->fetch('SELECT id FROM patterns WHERE id = ? LIMIT 1', [$patternRowId]);
+                }
+                if (!$existing && !empty($patternUniqid)) {
+                    $existing = $db->fetch('SELECT id FROM patterns WHERE pattern_uniqid = ? LIMIT 1', [$patternUniqid]);
+                }
+
+                if ($existing) {
+                    $patternId = $existing['id'];
+                    $db->execute(
+                        'UPDATE patterns SET name = ?, game_type = ?, version = ?, pattern_data = ?, pattern_slug = COALESCE(?, pattern_slug), status = ? WHERE id = ?',
+                        [$name, $gameType, $version, $jsonData, $patternSlug, 'published', $patternId]
+                    );
+                } else {
+                    $patternId = $db->execute(
+                        'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid, pattern_slug, status)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid, $patternSlug, 'draft']
+                    );
+                }
 
                 $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$patternId]);
 
@@ -543,6 +641,51 @@ try {
 
             $response = ['success' => true, 'data' => $updatedPattern];
             Logger::log('patterns', $_SERVER['REQUEST_METHOD'], 'update', $userId, ['id' => $id], $response, 200);
+            jsonResponse($response);
+            break;
+
+        case 'publish':
+            // Publish a pattern: bump the version by 0.1 (same logic as the
+            // admin pattern editor) and flip status -> published. Owner or admin.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $tokenData = requireAuth();
+            $userId = $tokenData['user_id'];
+            $userType = $tokenData['user_type'];
+
+            $data = getRequestData();
+            $id = $data['id'] ?? $_GET['id'] ?? '';
+            if (empty($id)) {
+                jsonResponse(['error' => 'Pattern ID is required'], 400);
+            }
+
+            $pattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$id]);
+            if (!$pattern) {
+                jsonResponse(['error' => 'Pattern not found'], 404);
+            }
+
+            if ($userType !== 'admin') {
+                if ($pattern['owner_type'] !== $userType || $pattern['owner_id'] != $userId) {
+                    jsonResponse(['error' => 'Access denied'], 403);
+                }
+            }
+
+            // Same 0.1 increment the admin editor uses: base = current (or 1.0),
+            // next = base + 0.1, formatted to one decimal.
+            $current = (float)($pattern['version'] ?? 0);
+            $base = ($current > 0) ? $current : 1.0;
+            $nextVersion = number_format(round($base * 10) / 10 + 0.1, 1, '.', '');
+
+            $db->execute(
+                'UPDATE patterns SET version = ?, status = ? WHERE id = ?',
+                [$nextVersion, 'published', $id]
+            );
+
+            $updated = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$id]);
+            $response = ['success' => true, 'data' => $updated];
+            Logger::log('patterns', 'POST', 'publish', $userId, ['id' => $id, 'version' => $nextVersion], $response, 200);
             jsonResponse($response);
             break;
 

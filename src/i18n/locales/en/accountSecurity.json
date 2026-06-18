@@ -1,0 +1,22 @@
+{
+  "backToAccount": "Back to Account",
+  "title": "Security",
+  "authentication": {
+    "heading": "Authentication",
+    "body": "Your account is secured with one-time password authentication. There's no password to change — every sign-in is verified by email code."
+  },
+  "signOutEverywhere": {
+    "heading": "Sign out everywhere",
+    "body": "Revokes every active session for your account, on every browser and device. You'll be signed out of this session too and will need to sign in again.",
+    "button": "Sign out everywhere",
+    "confirmPrompt": "This will sign you out of this browser too. Continue?",
+    "confirmButton": "Yes, sign me out everywhere",
+    "signingOut": "Signing out…",
+    "cancel": "Cancel"
+  },
+  "errors": {
+    "revokeFailed": "Failed to revoke sessions",
+    "network": "Network error"
+  },
+  "flash": "All sessions signed out — please sign in again."
+}

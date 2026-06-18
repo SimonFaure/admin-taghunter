@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { db } from '../creator-ported/lib/db';
 import { HelpDot } from '../help';
+import { clashComboTerritory } from '../scenarios/bodies/clash/skeleton';
 
 interface Station {
   id: number;
@@ -16,6 +17,7 @@ const PATTERN_SHAPES: Record<string, { types: string[]; labels: string[] }> = {
   survival: { types: ['good_answer_station', 'wrong_answer_station'], labels: ['Good answer', 'Wrong answer'] },
   tagquest: { types: ['image_1', 'image_2', 'image_3', 'image_4'],    labels: ['Image 1', 'Image 2', 'Image 3', 'Image 4'] },
   tracks:   { types: ['station'],                                      labels: ['Station'] },
+  clash:    { types: ['station_1', 'station_2', 'station_3'],          labels: ['Balise 1', 'Balise 2', 'Balise 3'] },
 };
 
 // What one pattern row represents, per game type.
@@ -24,6 +26,7 @@ const ROW_NOUN: Record<string, string> = {
   mystery: 'Enigma',
   survival: 'Enigma',
   tracks: 'Checkpoint',
+  clash: 'Combination',
 };
 
 interface NormalizedRow {
@@ -224,6 +227,15 @@ export function PatternCorrespondence({ patternId, gameType, patternData }: Patt
                 <tr key={row.index} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-2.5 font-medium text-slate-900 whitespace-nowrap">
                     {noun} {i + 1}
+                    {gameType === 'clash' && (() => {
+                      const t = clashComboTerritory(i);
+                      if (t.territoryNumber === 0) return null;
+                      return (
+                        <span className="block text-xs font-normal text-slate-500">
+                          Territory {t.territoryNumber} ({t.sizeLabel})
+                        </span>
+                      );
+                    })()}
                   </td>
                   {columns.map((col) => {
                     const stationId = row.assignments[col.key] ?? null;

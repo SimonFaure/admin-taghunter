@@ -1,0 +1,39 @@
+{
+  "title": {
+    "edit": "Editar patrón personalizado",
+    "new": "Nuevo patrón personalizado"
+  },
+  "close": "Cerrar",
+  "gameType": "Tipo de juego",
+  "name": "Nombre",
+  "namePlaceholder": "p. ej. Sala A — recorrido 1",
+  "description": "Descripción (opcional)",
+  "importExcel": "Importar CSV / Excel",
+  "orDownloadTemplate": "o descargue una plantilla:",
+  "csv": "CSV",
+  "excel": "Excel",
+  "table": {
+    "number": "#",
+    "removeRow": "Eliminar fila",
+    "addRow": "Añadir fila"
+  },
+  "stationUnknown": "{{id}} (desconocida)",
+  "cancel": "Cancelar",
+  "saving": "Guardando…",
+  "saveChanges": "Guardar cambios",
+  "createPattern": "Crear patrón",
+  "import": {
+    "noRows": "No se encontraron filas utilizables. Compruebe que las columnas coincidan con la plantilla de este tipo de juego.",
+    "imported_one": "Se importó {{count}} fila desde {{file}}.",
+    "imported_other": "Se importaron {{count}} filas desde {{file}}.",
+    "readError": "No se pudo leer el archivo: {{message}}",
+    "readErrorGeneric": "No se pudo leer el archivo"
+  },
+  "errors": {
+    "nameRequired": "Asigne un nombre al patrón.",
+    "rowRequired": "Añada al menos una fila con un número de baliza.",
+    "updateFailed": "No se pudo actualizar el patrón",
+    "createFailed": "No se pudo crear el patrón",
+    "saveFailed": "No se pudo guardar el patrón"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "backToAccount": "Volver a la cuenta",
+  "title": "Seguridad",
+  "authentication": {
+    "heading": "Autenticación",
+    "body": "Tu cuenta está protegida con autenticación por contraseña de un solo uso. No hay ninguna contraseña que cambiar — cada inicio de sesión se verifica con un código enviado por correo electrónico."
+  },
+  "signOutEverywhere": {
+    "heading": "Cerrar sesión en todas partes",
+    "body": "Revoca todas las sesiones activas de tu cuenta, en todos los navegadores y dispositivos. También se cerrará esta sesión y deberás iniciar sesión de nuevo.",
+    "button": "Cerrar sesión en todas partes",
+    "confirmPrompt": "Esto también cerrará tu sesión en este navegador. ¿Continuar?",
+    "confirmButton": "Sí, cerrar mi sesión en todas partes",
+    "signingOut": "Cerrando sesión…",
+    "cancel": "Cancelar"
+  },
+  "errors": {
+    "revokeFailed": "No se pudieron revocar las sesiones",
+    "network": "Error de red"
+  },
+  "flash": "Se cerraron todas las sesiones — vuelve a iniciar sesión."
+}

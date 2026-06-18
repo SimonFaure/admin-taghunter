@@ -11,6 +11,7 @@
  */
 
 import { Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { getLocalized, setLocalized } from '../../i18n/getLocalized';
@@ -23,6 +24,7 @@ interface Level {
 }
 
 export function LevelsSection() {
+  const { t } = useTranslation('editorSections2');
   const editor = useScenarioEditor();
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
@@ -53,18 +55,18 @@ export function LevelsSection() {
 
   return (
     <CollapsibleSection
-      title="Levels"
+      title={t('levels.title')}
       headerExtra={
         <button
           onClick={addLevel}
           className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1"
         >
-          <Plus className="w-3 h-3" /> Add level
+          <Plus className="w-3 h-3" /> {t('levels.addLevel')}
         </button>
       }
     >
       {keys.length === 0 ? (
-        <p className="text-sm text-gray-500">No levels yet.</p>
+        <p className="text-sm text-gray-500">{t('levels.empty')}</p>
       ) : (
         <div className="space-y-4">
           {keys.map((k) => {
@@ -72,11 +74,11 @@ export function LevelsSection() {
             return (
               <div key={k} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Level {k}</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">{t('levels.levelHeading', { key: k })}</h3>
                   <button
                     onClick={() => removeLevel(k)}
                     className="p-1.5 hover:bg-red-50 rounded text-red-500"
-                    aria-label="Remove level"
+                    aria-label={t('levels.removeLevel')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -85,7 +87,7 @@ export function LevelsSection() {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                   <label className="md:col-span-7 block">
                     <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      Name ({lang})
+                      {t('levels.name', { lang })}
                     </span>
                     <input
                       value={getLocalized(lvl.name as never, lang, defaultLang)}
@@ -99,7 +101,7 @@ export function LevelsSection() {
                   </label>
 
                   <label className="md:col-span-5 block">
-                    <span className="text-xs font-medium text-gray-700 mb-1 block">Points</span>
+                    <span className="text-xs font-medium text-gray-700 mb-1 block">{t('levels.points')}</span>
                     <input
                       value={lvl.points ?? ''}
                       onChange={(e) => updateLevel(k, { points: e.target.value })}
@@ -109,7 +111,7 @@ export function LevelsSection() {
 
                   <label className="md:col-span-12 block">
                     <span className="text-xs font-medium text-gray-700 mb-1 block">
-                      Description ({lang})
+                      {t('levels.description', { lang })}
                     </span>
                     <textarea
                       rows={2}

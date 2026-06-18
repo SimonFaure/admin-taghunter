@@ -1,0 +1,41 @@
+{
+  "subtitle": "Consulta y gestiona tus escenarios de juego disponibles",
+  "premiumBadge": "Premium — todos los escenarios desbloqueados",
+  "newScenario": "Nuevo escenario",
+  "filters": {
+    "all": "Todos",
+    "products": "Productos",
+    "mine": "Los míos",
+    "drafts": "Borradores"
+  },
+  "groupBy": {
+    "none": "Ninguno",
+    "gameType": "Tipo de juego",
+    "scenarioType": "Tipo de escenario"
+  },
+  "sortBy": {
+    "recent": "Usados recientemente",
+    "created": "Fecha de creación",
+    "name": "Nombre"
+  },
+  "errors": {
+    "fetchFailed": "Error al cargar los escenarios",
+    "network": "Error de red"
+  },
+  "empty": {
+    "title": "Ningún escenario coincide",
+    "description": "Prueba con otro filtro o crea un nuevo escenario.",
+    "cta": "Crear un escenario"
+  },
+  "editInStudio": "Editar en Studio",
+  "view": "Ver",
+  "versionShort": "v{{version}}",
+  "table": {
+    "title": "Título",
+    "gameType": "Tipo de juego",
+    "audience": "Público",
+    "difficulty": "Dificultad",
+    "type": "Tipo",
+    "version": "Versión"
+  }
+}

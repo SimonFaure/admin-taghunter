@@ -21,6 +21,7 @@ session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/DeviceManager.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -32,11 +33,30 @@ function getRequestData(): array {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
+// Token takes precedence; the session is only a fallback. The studio admin is
+// token-based (secure_auth.php sets no PHP session), so without bridging the
+// X-Auth-Token here these read-only admin views 401 unless a sibling endpoint
+// happened to set the session first. Mirrors scenarios.php::requireAuth().
 function requireAdminAuth(): int {
-    if (!isset($_SESSION['user_id'])) {
-        jsonResponse(['error' => 'Unauthorized'], 401);
+    $header = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if ($header !== '') {
+        if (strpos($header, 'Bearer ') === 0) {
+            $header = substr($header, 7);
+        }
+        $tokenData = TokenManager::validateToken(Database::getInstance(), $header);
+        if ($tokenData && ($tokenData['user_type'] ?? '') === 'admin') {
+            // Overwrite any stale session with the authoritative token values.
+            $_SESSION['user_id'] = $tokenData['user_id'];
+            $_SESSION['user_type'] = 'admin';
+            return (int)$tokenData['user_id'];
+        }
     }
-    return (int)$_SESSION['user_id'];
+
+    if (isset($_SESSION['user_id']) && ($_SESSION['user_type'] ?? '') === 'admin') {
+        return (int)$_SESSION['user_id'];
+    }
+
+    jsonResponse(['error' => 'Unauthorized'], 401);
 }
 
 try {
@@ -75,6 +95,9 @@ try {
                     d.os_version,
                     d.playground_version AS app_version,
                     d.cards_file_version,
+                    d.is_default_mother,
+                    d.operator_only,
+                    d.update_channel,
                     d.last_seen_at,
                     d.created_at,
                     d.updated_at,
@@ -84,7 +107,10 @@ try {
                     (SELECT COUNT(DISTINCT e.fingerprint_hash) FROM error_reports e
                        WHERE e.device_id = d.id
                          AND e.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-                    ) AS error_count_7d
+                    ) AS error_count_7d,
+                    (SELECT COUNT(*) FROM device_sync_failures sf
+                       WHERE sf.device_id = d.id AND sf.status = 'failed'
+                    ) AS active_sync_failures
                  FROM devices d
                  LEFT JOIN clients c ON c.id = d.client_id
                  $where
@@ -110,7 +136,7 @@ try {
                     d.id, d.device_uniq, d.device_label, d.display_name, d.os, d.os_version,
                     d.playground_version AS app_version,
                     d.last_seen_at, d.created_at, d.updated_at,
-                    d.cards_file_version,
+                    d.cards_file_version, d.operator_only,
                     c.id AS client_id, c.email AS client_email, c.name AS client_name
                  FROM devices d
                  LEFT JOIN clients c ON c.id = d.client_id
@@ -150,11 +176,32 @@ try {
                 [$deviceId]
             );
 
+            // Per-item content-sync failures: all currently-failed items, plus
+            // any that recovered in the last 7 days. Failed sort to the top.
+            // Guarded — an un-migrated studio simply returns an empty list.
+            $syncFailures = [];
+            try {
+                $syncFailures = $db->fetchAll(
+                    "SELECT item_key, kind, label, version, status, error_type, http_status,
+                            error_message, times_failed, resolution,
+                            first_failed_at, last_failed_at, resolved_at
+                     FROM device_sync_failures
+                     WHERE device_id = ?
+                       AND (status = 'failed' OR resolved_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))
+                     ORDER BY (status = 'failed') DESC, last_failed_at DESC
+                     LIMIT 200",
+                    [$deviceId]
+                );
+            } catch (Exception $e) {
+                error_log('[telemetry_admin.device_detail] sync_failures: ' . $e->getMessage());
+            }
+
             jsonResponse([
                 'data' => [
                     'device' => $device,
                     'errors' => $errors,
                     'launches' => $launches,
+                    'sync_failures' => $syncFailures,
                 ]
             ]);
             break;
@@ -164,26 +211,32 @@ try {
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
-            // Fleet-wide error feed, grouped by client + fingerprint so a bug
-            // affecting many devices collapses to one row showing total count
-            // and how many devices saw it.
+            // Fleet-wide error feed, grouped by client + device + fingerprint so
+            // each row identifies the specific device that reported the error.
+            // This lets the admin UI show the device name and sort by client /
+            // device. A bug hitting several devices now yields one row per
+            // device (rows with a NULL device_id collapse to one "unknown"
+            // group per client+fingerprint).
             $rows = $db->fetchAll(
                 "SELECT
                     e.client_id,
+                    e.device_id,
                     e.fingerprint_hash,
                     MAX(e.error_message) AS error_message,
                     MAX(e.stack_trace) AS stack_trace,
                     SUM(e.occurrence_count) AS total_count,
-                    COUNT(DISTINCT e.device_id) AS device_count,
                     MIN(e.first_seen_at) AS first_seen_at,
                     MAX(e.last_seen_at) AS last_seen_at,
                     MAX(e.app_version) AS app_version,
                     c.email AS client_email,
-                    c.name AS client_name
+                    c.name AS client_name,
+                    d.device_label,
+                    d.display_name
                  FROM error_reports e
                  LEFT JOIN clients c ON c.id = e.client_id
+                 LEFT JOIN devices d ON d.id = e.device_id
                  WHERE e.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-                 GROUP BY e.client_id, e.fingerprint_hash
+                 GROUP BY e.client_id, e.device_id, e.fingerprint_hash
                  ORDER BY MAX(e.last_seen_at) DESC
                  LIMIT 200"
             );
@@ -224,6 +277,39 @@ try {
             }
 
             jsonResponse(['success' => true, 'display_name' => $displayName]);
+            break;
+        }
+
+        case 'set_device_channel': {
+            // Admin per-device app-update channel override. An empty/"inherit"
+            // value clears it (the device falls back to its client's channel).
+            // Design: project_client_tester_update_channel.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $data = getRequestData();
+            $deviceId = isset($data['device_id']) ? (int)$data['device_id'] : 0;
+            if ($deviceId <= 0) {
+                jsonResponse(['error' => 'device_id is required'], 400);
+            }
+
+            // null / '' / 'inherit' -> clear the override; otherwise constrain to
+            // the known channel set ('test' is the only non-stable override that
+            // makes sense to pin per-device).
+            $raw = $data['update_channel'] ?? null;
+            $channel = null;
+            if ($raw !== null && $raw !== '' && $raw !== 'inherit') {
+                $channel = in_array($raw, ['stable', 'test'], true) ? $raw : 'stable';
+            }
+
+            $exists = $db->fetch('SELECT id FROM devices WHERE id = ?', [$deviceId]);
+            if (!$exists) {
+                jsonResponse(['error' => 'Device not found'], 404);
+            }
+            $db->query('UPDATE devices SET update_channel = ? WHERE id = ?', [$channel, $deviceId]);
+
+            jsonResponse(['success' => true, 'update_channel' => $channel]);
             break;
         }
 

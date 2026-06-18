@@ -34,6 +34,25 @@ interface DeviceRow {
   client_email: string | null;
   client_name: string | null;
   error_count_7d: number;
+  active_sync_failures?: number;
+  /** Device is operator-only (manage/launch games, never plays). 0/1 from MySQL. */
+  operator_only?: boolean | number;
+}
+
+interface SyncFailure {
+  item_key: string;
+  kind: string | null;
+  label: string | null;
+  version: number | null;
+  status: 'failed' | 'resolved';
+  error_type: string | null;
+  http_status: number | null;
+  error_message: string | null;
+  times_failed: number;
+  resolution: 'downloaded' | 'removed' | null;
+  first_failed_at: string | null;
+  last_failed_at: string | null;
+  resolved_at: string | null;
 }
 
 // The name shown to humans: the user/admin-chosen display_name wins, falling
@@ -46,7 +65,7 @@ function clientName(d: DeviceRow): string {
   return d.client_name || d.client_email || (d.client_id != null ? `#${d.client_id}` : '');
 }
 
-type SortKey = 'device' | 'client' | 'last_seen' | 'errors';
+type SortKey = 'device' | 'client' | 'last_seen' | 'errors' | 'sync';
 interface SortState {
   key: SortKey;
   dir: 'asc' | 'desc';
@@ -76,6 +95,7 @@ interface DeviceDetailPayload {
   device: DeviceRow & { cards_file_version?: number };
   errors: DeviceErrorGroup[];
   launches: DeviceLaunch[];
+  sync_failures: SyncFailure[];
 }
 
 async function renameDeviceAdmin(deviceId: number, displayName: string | null): Promise<void> {
@@ -120,6 +140,8 @@ export function DevicesView() {
           return clientName(a).localeCompare(clientName(b)) * dir;
         case 'errors':
           return (a.error_count_7d - b.error_count_7d) * dir;
+        case 'sync':
+          return ((a.active_sync_failures ?? 0) - (b.active_sync_failures ?? 0)) * dir;
         case 'last_seen':
         default: {
           const ta = a.last_seen_at ? new Date(a.last_seen_at).getTime() : 0;
@@ -219,6 +241,7 @@ export function DevicesView() {
                 <th className="text-left px-4 py-3 font-medium">OS</th>
                 <SortHeader label="Last seen" sortKey="last_seen" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Errors (7d)" sortKey="errors" sort={sort} onSort={toggleSort} />
+                <SortHeader label="Sync issues" sortKey="sync" sort={sort} onSort={toggleSort} />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -229,7 +252,14 @@ export function DevicesView() {
                   className="cursor-pointer hover:bg-slate-50 transition-colors"
                 >
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{deviceName(d) || '(unnamed)'}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-900">{deviceName(d) || '(unnamed)'}</span>
+                      {Boolean(d.operator_only) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-medium rounded uppercase tracking-wide">
+                          Operator-only
+                        </span>
+                      )}
+                    </div>
                     <div className="text-xs text-slate-400 font-mono">{d.device_uniq.slice(0, 13)}…</div>
                   </td>
                   <td className="px-4 py-3 text-sm">{clientName(d) || '—'}</td>
@@ -243,6 +273,16 @@ export function DevicesView() {
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 text-xs font-medium rounded">
                         <AlertTriangle className="w-3 h-3" />
                         {d.error_count_7d}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">0</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(d.active_sync_failures ?? 0) > 0 ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded">
+                        <RefreshCw className="w-3 h-3" />
+                        {d.active_sync_failures}
                       </span>
                     ) : (
                       <span className="text-xs text-slate-400">0</span>
@@ -268,7 +308,7 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
   const [data, setData] = useState<DeviceDetailPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<'info' | 'errors' | 'launches'>('info');
+  const [tab, setTab] = useState<'info' | 'errors' | 'launches' | 'sync'>('info');
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -436,6 +476,9 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
             <TabButton current={tab} value="launches" onClick={() => setTab('launches')}>
               Games launched ({data.launches.length})
             </TabButton>
+            <TabButton current={tab} value="sync" onClick={() => setTab('sync')}>
+              Sync failures ({data.sync_failures.filter((s) => s.status === 'failed').length})
+            </TabButton>
           </div>
 
           {tab === 'info' && (
@@ -447,6 +490,7 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
                 <Detail label="OS" value={data.device.os} />
                 <Detail label="OS version" value={data.device.os_version} />
                 <Detail label="App version" value={data.device.app_version} mono />
+                <Detail label="Device role" value={data.device.operator_only ? 'Operator-only (manage, never plays)' : 'Plays games'} />
                 <Detail label="Cards file version" value={String(data.device.cards_file_version ?? '—')} />
                 <Detail label="Client" value={data.device.client_name || data.device.client_email} />
                 <Detail label="Last seen" value={data.device.last_seen_at} />
@@ -461,6 +505,10 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
 
           {tab === 'launches' && (
             <LaunchList launches={data.launches} />
+          )}
+
+          {tab === 'sync' && (
+            <SyncFailureList failures={data.sync_failures} />
           )}
         </>
       )}
@@ -588,6 +636,116 @@ function ErrorList({ errors }: { errors: DeviceErrorGroup[] }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// Plain-English reason from the structured error (studio admin is internal).
+function syncReason(f: SyncFailure): string {
+  if (f.http_status !== null) {
+    if (f.http_status >= 500) return `Server error (${f.http_status})`;
+    if (f.http_status === 403) return 'Access denied — content not assigned to this client';
+    if (f.http_status === 404) return 'File not found on server';
+    if (f.http_status === 408) return 'Network timeout';
+    return `Request failed (${f.http_status})`;
+  }
+  const type = f.error_type ?? '';
+  const msg = (f.error_message ?? '').toLowerCase();
+  if (type === 'TimeoutError' || msg.includes('timed out') || msg.includes('timeout')) return 'Network timeout';
+  if (type === 'TypeError' || msg.includes('network') || msg.includes('fetch')) return 'Network problem';
+  if (msg.includes('disk') || msg.includes('space') || msg.includes('os error')) return 'Could not save to disk';
+  if (type === 'SyntaxError' || msg.includes('json') || msg.includes('parse')) return 'Corrupted response';
+  return f.error_message || 'Unknown error';
+}
+
+function SyncFailureList({ failures }: { failures: SyncFailure[] }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) => {
+    const next = new Set(expanded);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setExpanded(next);
+  };
+
+  if (failures.length === 0) {
+    return (
+      <div className="bg-white p-12 rounded-xl border border-slate-200 text-center">
+        <RefreshCw className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+        <p className="text-slate-500">No sync failures recorded.</p>
+      </div>
+    );
+  }
+
+  const active = failures.filter((f) => f.status === 'failed');
+  const resolved = failures.filter((f) => f.status === 'resolved');
+
+  const renderRow = (f: SyncFailure) => {
+    const open = expanded.has(f.item_key);
+    const isResolved = f.status === 'resolved';
+    return (
+      <div
+        key={f.item_key}
+        className={`bg-white rounded-xl border ${isResolved ? 'border-slate-200 opacity-70' : 'border-amber-200'}`}
+      >
+        <button
+          onClick={() => toggle(f.item_key)}
+          className="w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-slate-900 truncate">{f.label || f.item_key}</p>
+                {isResolved ? (
+                  <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] uppercase tracking-wide rounded">
+                    <Check className="w-3 h-3" />
+                    {f.resolution === 'removed' ? 'Removed' : 'Recovered'}
+                  </span>
+                ) : (
+                  <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] uppercase tracking-wide rounded">
+                    <AlertTriangle className="w-3 h-3" />
+                    Failing
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">{syncReason(f)}</p>
+              <p className="text-[11px] text-slate-400 mt-1 font-mono">{f.item_key}</p>
+            </div>
+            <div className="text-right text-xs text-slate-500 shrink-0">
+              {f.times_failed > 1 && <div className="font-semibold text-slate-700">×{f.times_failed}</div>}
+              <div>{formatRelative(isResolved ? f.resolved_at : f.last_failed_at)}</div>
+            </div>
+          </div>
+        </button>
+        {open && (
+          <div className="px-5 pb-4 border-t border-slate-100">
+            <dl className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs mt-3">
+              <Detail label="Kind" value={f.kind} />
+              <Detail label="Version" value={f.version != null ? String(f.version) : null} />
+              <Detail label="Error type" value={f.error_type} />
+              <Detail label="HTTP status" value={f.http_status != null ? String(f.http_status) : null} />
+              <Detail label="First failed" value={f.first_failed_at} />
+              <Detail label="Last failed" value={f.last_failed_at} />
+              {isResolved && <Detail label="Resolved at" value={f.resolved_at} />}
+              {isResolved && <Detail label="Resolution" value={f.resolution} />}
+            </dl>
+            {f.error_message && (
+              <pre className="text-xs text-slate-700 bg-slate-50 p-3 rounded overflow-x-auto whitespace-pre-wrap break-all mt-3">
+                {f.error_message}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {active.map(renderRow)}
+      {resolved.length > 0 && (
+        <p className="text-xs uppercase tracking-wide text-slate-400 pt-2">Recently resolved</p>
+      )}
+      {resolved.map(renderRow)}
     </div>
   );
 }

@@ -57,6 +57,7 @@ export const EnigmaSchema = z.looseObject({
   number: z.string().optional(),
   text: LocalizedStringSchema.optional(),
   good_answer_image: z.string().optional(),
+  wrong_answer_image: z.string().optional(),
   good_answer_points: z.string().optional(),
   wrong_answer_points: z.string().optional(),
 });
@@ -124,7 +125,18 @@ const BaseGameMetaSchema = z.looseObject({
   top_3_sound: z.string().optional(),
   top_10_sound: z.string().optional(),
   final_image_sound: z.string().optional(),
+  // Name-pool tier (mini_kids/kids/ado_adultes), kept as a derived shadow of
+  // `audience_bands` (written on save). Legacy source of truth for team-name
+  // pools, ZIP import and storefront patterns.
   game_public: z.string().optional(),
+  // New source of truth for audience: an array of fine-grained age bands
+  // (age_4_5 … age_adultes). See types/audience.ts.
+  audience_bands: z.array(z.string()).optional(),
+  // Free-text univers/theme tags (folksonomy). See types/univers.ts.
+  univers: z.array(z.string()).optional(),
+  // Difficulty is now an integer 1–5 (stars). Accept number or legacy
+  // enum-string ("easy"/"medium"/"hard") for un-backfilled rows; coerced on read.
+  difficulty: z.union([z.number(), z.string()]).optional(),
   default_time: z.string().optional(),
   default_time_malus: z.string().optional(),
   font: z.string().optional(),
@@ -135,6 +147,10 @@ const BaseGameMetaSchema = z.looseObject({
   overscores: z.array(OverscoreSchema).optional(),
   team_title: z.string().optional(),
   pdf_title: z.string().optional(),
+  // Per-scenario mission-report PDF layout override (block-layout document).
+  // Absent ⇒ playground uses the synced per-game-type default. Edited in the
+  // scenario editor's "Report layout" section; shape mirrors lib/api ReportLayout.
+  report_layout: z.any().optional(),
   auto_reset: z.boolean().optional(),
   delay_auto_reset: z.string().optional(),
   text_player_starts: LocalizedStringSchema.optional(),
@@ -153,6 +169,8 @@ const BaseGameMetaSchema = z.looseObject({
   text_following_top_podium: LocalizedStringSchema.optional(),
   text_if_error: LocalizedStringSchema.optional(),
   text_is_card_empty: LocalizedStringSchema.optional(),
+  // Shown when a team is caught cheating (e.g. presenting an un-erased chip).
+  text_team_cheating: LocalizedStringSchema.optional(),
   message_display_time: z.string().optional(),
   animation_display_time: z.string().optional(),
   animation_image_duration: z.string().optional(),
@@ -184,6 +202,10 @@ export const MysteryGameMetaSchema = BaseGameMetaSchema.extend({
   enigma_error: z.string().optional(),
   enigma_no_answer: z.string().optional(),
   points_units: z.string().optional(),
+
+  // Default mystery pattern (each enigma's good/wrong answer image → station).
+  // Stored as the pattern's uniqid; overridable at launch. See PatternSection.
+  scenario_default_pattern: z.string().nullable().optional(),
 });
 
 export const TagquestGameMetaSchema = BaseGameMetaSchema.extend({
@@ -230,6 +252,74 @@ export const CheckpointSchema = z.looseObject({
     .looseObject({ top: z.number(), left: z.number() })
     .optional(),
   points: z.number().optional(),
+});
+
+/**
+ * Authored text labels overlaid on the tracks map at runtime.
+ *
+ * Plans: tracks-text-elements.md (slices 1-3) +
+ *        tracks-text-elements-categories.md (categories + typography move)
+ *
+ * Content + (optional) position live here; style is RESOLVED at runtime via
+ * the inheritance chain `element.<f>` → `category.<f>` (when `category` set
+ * and matches an entry in `game_meta.text_categories`) → scenario default.
+ * The element's typography fields are interpreted as per-field OVERRIDES
+ * over the resolved category typography.
+ *
+ * `category` references `text_categories[i].id`; absent = "Uncategorized"
+ * (no category in the chain). `position` absent = "authored but not placed
+ * yet"; the runtime skips those.
+ */
+export const TextElementSchema = z.looseObject({
+  id: z.string(),
+  text: LocalizedStringSchema.optional(),
+  /** Category id reference; undefined = Uncategorized. */
+  category: z.string().optional(),
+  font: z.string().optional(),
+  font_color: z.string().optional(),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  align: z.enum(['left', 'center', 'right']).optional(),
+  shadow: z.boolean().optional(),
+  background: z.boolean().optional(),
+  position: z
+    .looseObject({
+      left: z.number(),
+      top: z.number(),
+      width: z.number(),
+      height: z.number(),
+    })
+    .optional(),
+});
+
+/**
+ * Per-category typography defaults. Every field independently optional — an
+ * unset field falls back to the scenario default at resolution time.
+ *
+ * Plan: C:\Users\faure\.claude\plans\tracks-text-elements-categories.md
+ */
+export const TextCategoryTypographySchema = z.looseObject({
+  font: z.string().optional(),
+  font_color: z.string().optional(),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  align: z.enum(['left', 'center', 'right']).optional(),
+  shadow: z.boolean().optional(),
+  background: z.boolean().optional(),
+});
+
+/**
+ * Author-defined text-element category — first-class object with id + name +
+ * typography defaults. Elements reference by `id` so renames don't break refs.
+ *
+ * Plan: C:\Users\faure\.claude\plans\tracks-text-elements-categories.md
+ */
+export const TextCategorySchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  typography: TextCategoryTypographySchema.optional(),
 });
 
 export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
@@ -317,6 +407,83 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
   // Pattern inheritance (theme bundle: ado_adultes / kids / mini_kids).
   // Renamed from legacy `game_default_pattern`.
   scenario_default_pattern: z.string().nullable().optional(),
+
+  // Authored text overlays placed on the map via the LayoutEditor.
+  // See TextElementSchema above.
+  text_elements: z.array(TextElementSchema).optional(),
+
+  // Author-defined categories grouping text elements + carrying typography
+  // defaults. Element style is resolved as
+  //   element.<f> ?? category.<f> ?? scenario default
+  // at runtime. See TextCategorySchema above.
+  text_categories: z.array(TextCategorySchema).optional(),
+});
+
+/* -------------------------------------------------------------------------- */
+/* Clash — TagQuest-derived clans/territories mode.                           */
+/*                                                                            */
+/* Design: project_clash_game_type_design (grill-me decision record).         */
+/*                                                                            */
+/* Fixed skeleton (v1): exactly 4 territory slots — 1 large (3 combinations), */
+/* 2 medium (2 combinations each), 1 small (1 combination) — totalling 8      */
+/* combinations over 24 balises. The scenario authors per-territory           */
+/* name/points/complete-image and per-combination piece+main images + clans.  */
+/* The balise station -> combination assignment lives in a separate Clash     */
+/* PATTERN (game_type='clash'), selected/overridable at launch.               */
+/* -------------------------------------------------------------------------- */
+
+export const ClashClanSchema = z.looseObject({
+  /** Stable id so launch-time name overrides + seals don't break on reorder. */
+  id: z.string(),
+  /** Default clan name (overridable at launch). */
+  name: LocalizedStringSchema.optional(),
+  /** Hex colour used for this clan's bars/highlights. */
+  color: z.string().optional(),
+  /** Seal/logo image filename (partitioned into medias.clans on save). */
+  seal: z.string().optional(),
+});
+
+export const ClashCombinationSchema = z.looseObject({
+  /** Stable id; referenced by the Clash pattern's station assignments. */
+  id: z.string(),
+  name: LocalizedStringSchema.optional(),
+  /** The 3 balise piece images (revealed one per balise bip). */
+  piece_1: z.string().optional(),
+  piece_2: z.string().optional(),
+  piece_3: z.string().optional(),
+  /** Main combination image (shown when the 3 balises are validated). */
+  main: z.string().optional(),
+});
+
+export const ClashTerritorySchema = z.looseObject({
+  id: z.string(),
+  name: LocalizedStringSchema.optional(),
+  /** Fixes the combo count + control mode: large/medium = volume, small = last-bipper. */
+  size: z.enum(['large', 'medium', 'small']),
+  /** Point value awarded to the controlling clan (string like the rest of the bag). */
+  points: z.string().optional(),
+  /** Territory-complete image shown on full conquest (small reuses combo main). */
+  complete_image: z.string().optional(),
+  /** Seal anchor on the map (percent of the map box). Placed in the editor. */
+  position: z.looseObject({ top: z.number(), left: z.number() }).optional(),
+  /** Nested combinations (length 3/2/2/1 by size) — encodes the grouping. */
+  combinations: z.array(ClashCombinationSchema).optional(),
+});
+
+export const ClashGameMetaSchema = BaseGameMetaSchema.extend({
+  /** Map background image (layout-editor surface for territory seal anchors). */
+  map_image: z.string().optional(),
+  /** Neutral seal shown on contested/untouched territories. */
+  neutral_seal: z.string().optional(),
+  /** Up to 4 clans authored here; launch picks 2-4 active + name overrides. */
+  clans: z.array(ClashClanSchema).optional(),
+  /** Exactly 4 territory slots in the fixed skeleton. */
+  territories: z.array(ClashTerritorySchema).optional(),
+  /** Default Clash pattern (station->combination assignments), overridable at launch. */
+  scenario_default_pattern: z.string().nullable().optional(),
+  /** Authored text overlays placed on the map via the LayoutEditor (reused from tracks). */
+  text_elements: z.array(TextElementSchema).optional(),
+  text_categories: z.array(TextCategorySchema).optional(),
 });
 
 /* -------------------------------------------------------------------------- */
@@ -347,6 +514,12 @@ export const TracksScenarioDataSchema = z.strictObject({
   available_languages: z.array(z.string()),
 });
 
+export const ClashScenarioDataSchema = z.strictObject({
+  game_meta: ClashGameMetaSchema,
+  default_language: z.string(),
+  available_languages: z.array(z.string()),
+});
+
 /* -------------------------------------------------------------------------- */
 /* scenarios.medias column                                                    */
 /* -------------------------------------------------------------------------- */
@@ -365,15 +538,23 @@ export type Overscore = z.infer<typeof OverscoreSchema>;
 export type Enigma = z.infer<typeof EnigmaSchema>;
 export type Quest = z.infer<typeof QuestSchema>;
 export type Checkpoint = z.infer<typeof CheckpointSchema>;
+export type TextElement = z.infer<typeof TextElementSchema>;
+export type TextCategoryTypography = z.infer<typeof TextCategoryTypographySchema>;
+export type TextCategory = z.infer<typeof TextCategorySchema>;
+export type ClashClan = z.infer<typeof ClashClanSchema>;
+export type ClashCombination = z.infer<typeof ClashCombinationSchema>;
+export type ClashTerritory = z.infer<typeof ClashTerritorySchema>;
 
 export type MysteryGameMeta = z.infer<typeof MysteryGameMetaSchema>;
 export type TagquestGameMeta = z.infer<typeof TagquestGameMetaSchema>;
 export type TracksGameMeta = z.infer<typeof TracksGameMetaSchema>;
+export type ClashGameMeta = z.infer<typeof ClashGameMetaSchema>;
 
 export type MysteryScenarioData = z.infer<typeof MysteryScenarioDataSchema>;
 export type TagquestScenarioData = z.infer<typeof TagquestScenarioDataSchema>;
 export type TracksScenarioData = z.infer<typeof TracksScenarioDataSchema>;
-export type ScenarioData = MysteryScenarioData | TagquestScenarioData | TracksScenarioData;
+export type ClashScenarioData = z.infer<typeof ClashScenarioDataSchema>;
+export type ScenarioData = MysteryScenarioData | TagquestScenarioData | TracksScenarioData | ClashScenarioData;
 
 export type MediasField = z.infer<typeof MediasSchema>;
 
@@ -384,7 +565,7 @@ export type MediasField = z.infer<typeof MediasSchema>;
 /* Always returns the original data unchanged; never blocks the save.         */
 /* -------------------------------------------------------------------------- */
 
-export type ScenarioGameType = 'mystery' | 'tagquest' | 'tracks';
+export type ScenarioGameType = 'mystery' | 'tagquest' | 'tracks' | 'clash';
 
 export function validateScenarioData(
   gameType: string | undefined,
@@ -398,6 +579,8 @@ export function validateScenarioData(
     schema = TagquestScenarioDataSchema;
   } else if (gameType === 'tracks') {
     schema = TracksScenarioDataSchema;
+  } else if (gameType === 'clash') {
+    schema = ClashScenarioDataSchema;
   } else {
     return;
   }

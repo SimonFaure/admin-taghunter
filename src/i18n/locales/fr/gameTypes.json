@@ -1,0 +1,51 @@
+{
+  "loading": "Chargement des types de jeu…",
+  "title": "Types de jeu",
+  "titleClient": "Vidéos tutorielles",
+  "description": {
+    "admin": "Gérez la vidéo tutorielle et les pistes de sous-titres historiques fournies à chaque client. Les clients peuvent remplacer la vidéo pour leurs propres événements mais ne peuvent pas supprimer la version historique.",
+    "client": "Téléversez votre propre vidéo tutorielle pour remplacer la version historique de Taghunter pour vos événements. Les pistes de sous-titres vous permettent de localiser le texte à l'écran."
+  },
+  "error": {
+    "failedToLoad": "Échec du chargement",
+    "uploadFailed": "Échec du téléversement",
+    "removeFailed": "Échec de la suppression",
+    "updateFailed": "Échec de la mise à jour"
+  },
+  "dismiss": "Ignorer",
+  "confirm": {
+    "adminRemoveVideo": "Supprimer la vidéo tutorielle historique pour {{code}} ? Les clients sans remplacement n'auront aucune vidéo tutorielle jusqu'à ce que vous en téléversiez une nouvelle.",
+    "clientRemoveVideo": "Supprimer votre remplacement de vidéo tutorielle pour {{code}} ? Vous reviendrez à la vidéo historique de Taghunter."
+  },
+  "card": {
+    "codeLabel": "code : {{code}}",
+    "tutorialVideoCheckbox": "Vidéo tutorielle",
+    "introVideoCheckbox": "Vidéo d'introduction",
+    "tutorialDisabled": "Vidéo tutorielle désactivée pour ce type de jeu.",
+    "legacyVideoHeading": "Vidéo tutorielle historique (Taghunter)",
+    "videoVersion": "(v{{version}})",
+    "noLegacyVideo": "Aucune vidéo tutorielle historique téléversée pour le moment.",
+    "noLegacyVideoClient": "Aucune vidéo tutorielle n'est encore disponible pour ce type de jeu.",
+    "legacyVideoClientNote": "Il s'agit de la vidéo tutorielle standard de Taghunter. Téléversez la vôtre ci-dessous pour la remplacer.",
+    "dropVideoHint": "Glissez-déposez une vidéo ici, ou cliquez pour parcourir",
+    "yourOverrideHeading": "Votre remplacement de vidéo tutorielle",
+    "activeOverride": "Remplacement actif",
+    "usingLegacyVideo": "Utilisation de la vidéo historique. Téléversez la vôtre pour la remplacer :",
+    "subtitleTracksLegacy": "Pistes de sous-titres (historique)",
+    "subtitleTracksOverride": "Pistes de sous-titres (remplacement)",
+    "pillVideo": "Vidéo définie",
+    "pillNoVideo": "Aucune vidéo",
+    "pillSubtitles": "{{count}} sous-titres",
+    "subtitleSelectLabel": "Sous-titres :",
+    "subtitleOff": "Désactivés",
+    "langCode": "({{lang}})",
+    "missing": "— manquant"
+  },
+  "actions": {
+    "replace": "Remplacer",
+    "remove": "Retirer",
+    "upload": "Téléverser",
+    "uploadOverride": "Téléverser un remplacement",
+    "uploadVtt": "Téléverser .vtt"
+  }
+}

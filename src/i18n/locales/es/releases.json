@@ -1,0 +1,23 @@
+{
+  "title": "Descargas de la aplicación",
+  "subtitle": "Descarga la última aplicación Tag Hunter Playground para tu plataforma",
+  "refresh": "Actualizar",
+  "errorLoad": "Error al cargar las versiones",
+  "errorFetch": "Error al obtener las versiones",
+  "empty": {
+    "title": "No hay versiones disponibles",
+    "description": "Las descargas de la aplicación aparecerán aquí una vez publicadas."
+  },
+  "section": {
+    "desktop": "Escritorio",
+    "mobile": "Móvil"
+  },
+  "versionPrefix": "v",
+  "openStore": "Abrir la tienda",
+  "download": "Descargar",
+  "notDownloadable": "No descargable",
+  "size": {
+    "mb": "{{value}} MB",
+    "kb": "{{value}} KB"
+  }
+}

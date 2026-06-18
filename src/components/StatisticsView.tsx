@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BarChart3, Users, TrendingUp, Gamepad2, UserCircle } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { HelpButton } from '../help';
@@ -66,6 +67,7 @@ interface FilterState {
 const EMPTY_FILTERS: FilterState = { from: '', to: '', game_type: '', scenario_uniqid: '', client_id: '' };
 
 export function StatisticsView() {
+  const { t, i18n } = useTranslation('statistics');
   const [stats, setStats] = useState<OverviewResp | null>(null);
   const [games, setGames] = useState<GameRow[]>([]);
   const [options, setOptions] = useState<FiltersResp | null>(null);
@@ -96,13 +98,13 @@ export function StatisticsView() {
         authFetch(`${API_BASE_URL}/statistics.php?action=filters${suffix}`),
       ]);
       if (!overviewRes.ok || !listRes.ok || !filtersRes.ok) {
-        throw new Error('Failed to fetch statistics');
+        throw new Error(t('errors.fetchFailed'));
       }
       setStats(await overviewRes.json());
       setGames((await listRes.json()).games ?? []);
       setOptions(await filtersRes.json());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load statistics');
+      setError(err instanceof Error ? err.message : t('errors.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -117,7 +119,7 @@ export function StatisticsView() {
 
   const setFilter = (k: keyof FilterState, v: string) => setFilters((prev) => ({ ...prev, [k]: v }));
 
-  const fmtDate = (s: string | null) => (s ? new Date(s.replace(' ', 'T') + 'Z').toLocaleString() : '—');
+  const fmtDate = (s: string | null) => (s ? new Date(s.replace(' ', 'T') + 'Z').toLocaleString(i18n.language) : t('empty'));
 
   return (
     <div className="space-y-6">
@@ -127,55 +129,55 @@ export function StatisticsView() {
       {/* Filter bar */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-wrap items-end gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">From</label>
+          <label className="block text-xs font-medium text-slate-500 mb-1">{t('filters.from')}</label>
           <input type="date" value={filters.from} onChange={(e) => setFilter('from', e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">To</label>
+          <label className="block text-xs font-medium text-slate-500 mb-1">{t('filters.to')}</label>
           <input type="date" value={filters.to} onChange={(e) => setFilter('to', e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Game type</label>
+          <label className="block text-xs font-medium text-slate-500 mb-1">{t('filters.gameType')}</label>
           <select value={filters.game_type} onChange={(e) => setFilter('game_type', e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm capitalize min-w-[8rem]">
-            <option value="">All</option>
-            {options?.game_types.map((t) => <option key={t} value={t}>{t}</option>)}
+            <option value="">{t('filters.all')}</option>
+            {options?.game_types.map((gt) => <option key={gt} value={gt}>{gt}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Scenario</label>
+          <label className="block text-xs font-medium text-slate-500 mb-1">{t('filters.scenario')}</label>
           <select value={filters.scenario_uniqid} onChange={(e) => setFilter('scenario_uniqid', e.target.value)}
             className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm min-w-[10rem]">
-            <option value="">All</option>
+            <option value="">{t('filters.all')}</option>
             {options?.scenarios.map((s) => <option key={s.scenario_uniqid} value={s.scenario_uniqid}>{s.title}</option>)}
           </select>
         </div>
         {isAdmin && options?.clients && (
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Client</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{t('filters.client')}</label>
             <select value={filters.client_id} onChange={(e) => setFilter('client_id', e.target.value)}
               className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm min-w-[10rem]">
-              <option value="">All</option>
+              <option value="">{t('filters.all')}</option>
               {options.clients.map((c) => <option key={c.client_id} value={String(c.client_id)}>{c.name || c.email || `#${c.client_id}`}</option>)}
             </select>
           </div>
         )}
         {(filters.from || filters.to || filters.game_type || filters.scenario_uniqid || filters.client_id) && (
           <button onClick={() => setFilters(EMPTY_FILTERS)}
-            className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 underline">Clear</button>
+            className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 underline">{t('filters.clear')}</button>
         )}
       </div>
 
       <div className="flex space-x-4 border-b border-slate-200">
         <button onClick={() => setActiveTab('overview')}
           className={`px-4 py-2 font-medium transition-all ${activeTab === 'overview' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-600 hover:text-slate-900'}`}>
-          Overview
+          {t('tabs.overview')}
         </button>
         <button onClick={() => setActiveTab('games')}
           className={`px-4 py-2 font-medium transition-all ${activeTab === 'games' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-600 hover:text-slate-900'}`}>
-          Games
+          {t('tabs.games')}
         </button>
       </div>
 
@@ -188,27 +190,27 @@ export function StatisticsView() {
       ) : !stats ? null : activeTab === 'overview' ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <KpiCard icon={<Gamepad2 className="w-6 h-6 text-blue-600" />} bg="bg-blue-100" value={stats.overview.total_games} label="Games Played" />
-            <KpiCard icon={<Users className="w-6 h-6 text-emerald-600" />} bg="bg-emerald-100" value={stats.overview.total_teams} label="Teams" />
-            <KpiCard icon={<UserCircle className="w-6 h-6 text-amber-600" />} bg="bg-amber-100" value={stats.overview.total_players} label="Players" />
+            <KpiCard icon={<Gamepad2 className="w-6 h-6 text-blue-600" />} bg="bg-blue-100" value={stats.overview.total_games} label={t('kpi.gamesPlayed')} lang={i18n.language} />
+            <KpiCard icon={<Users className="w-6 h-6 text-emerald-600" />} bg="bg-emerald-100" value={stats.overview.total_teams} label={t('kpi.teams')} lang={i18n.language} />
+            <KpiCard icon={<UserCircle className="w-6 h-6 text-amber-600" />} bg="bg-amber-100" value={stats.overview.total_players} label={t('kpi.players')} lang={i18n.language} />
           </div>
 
           <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-2' : ''} gap-6`}>
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="flex items-center space-x-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-slate-700" />
-                <h3 className="text-lg font-bold text-slate-900">Top Scenarios</h3>
+                <h3 className="text-lg font-bold text-slate-900">{t('topScenarios.title')}</h3>
               </div>
               <div className="space-y-3">
                 {stats.top_scenarios.length === 0 ? (
-                  <p className="text-slate-600 text-sm">No games yet</p>
+                  <p className="text-slate-600 text-sm">{t('topScenarios.empty')}</p>
                 ) : stats.top_scenarios.slice(0, 5).map((s, i) => (
                   <div key={(s.scenario_uniqid ?? '') + i} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                     <div className="flex items-center space-x-3">
                       <span className="text-sm font-semibold text-slate-400 w-6">#{i + 1}</span>
                       <span className="text-sm font-medium text-slate-900">{s.title}</span>
                     </div>
-                    <span className="text-sm font-semibold text-slate-600">{s.launches} game{s.launches === 1 ? '' : 's'}</span>
+                    <span className="text-sm font-semibold text-slate-600">{t('topScenarios.gameCount', { count: s.launches })}</span>
                   </div>
                 ))}
               </div>
@@ -218,17 +220,17 @@ export function StatisticsView() {
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                 <div className="flex items-center space-x-2 mb-4">
                   <Users className="w-5 h-5 text-slate-700" />
-                  <h3 className="text-lg font-bold text-slate-900">Top Clients</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('topClients.title')}</h3>
                 </div>
                 <div className="space-y-3">
                   {(stats.top_clients ?? []).length === 0 ? (
-                    <p className="text-slate-600 text-sm">No client activity yet</p>
+                    <p className="text-slate-600 text-sm">{t('topClients.empty')}</p>
                   ) : (stats.top_clients ?? []).slice(0, 5).map((c, i) => (
                     <div key={c.client_id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
                       <div className="flex items-center space-x-3 flex-1 min-w-0">
                         <span className="text-sm font-semibold text-slate-400 w-6">#{i + 1}</span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{c.name || '—'}</p>
+                          <p className="text-sm font-medium text-slate-900 truncate">{c.name || t('empty')}</p>
                           <p className="text-xs text-slate-500 truncate">{c.email}</p>
                         </div>
                       </div>
@@ -244,12 +246,12 @@ export function StatisticsView() {
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="flex items-center space-x-2 mb-4">
                 <BarChart3 className="w-5 h-5 text-slate-700" />
-                <h3 className="text-lg font-bold text-slate-900">Games Per Day (Last 30 Days)</h3>
+                <h3 className="text-lg font-bold text-slate-900">{t('perDay.title')}</h3>
               </div>
               <div className="space-y-2">
                 {stats.games_per_day.slice(0, 14).map((day) => (
                   <div key={day.date} className="flex items-center space-x-4">
-                    <span className="text-sm text-slate-600 w-24">{new Date(day.date).toLocaleDateString()}</span>
+                    <span className="text-sm text-slate-600 w-24">{new Date(day.date).toLocaleDateString(i18n.language)}</span>
                     <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
                       <div className="bg-blue-600 h-full rounded-full" style={{ width: `${Math.min((day.count / maxPerDay) * 100, 100)}%` }} />
                     </div>
@@ -266,27 +268,27 @@ export function StatisticsView() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Scenario</th>
-                  {isAdmin && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">Client</th>}
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">Teams</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">Players</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.date')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.name')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.type')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.scenario')}</th>
+                  {isAdmin && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.client')}</th>}
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.teams')}</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.players')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {games.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 7 : 6} className="px-6 py-12 text-center text-slate-600">No games match these filters</td></tr>
+                  <tr><td colSpan={isAdmin ? 7 : 6} className="px-6 py-12 text-center text-slate-600">{t('table.empty')}</td></tr>
                 ) : games.map((g) => (
                   <tr key={g.summary_uuid} className="hover:bg-slate-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-900">{fmtDate(g.played_at)}</td>
-                    <td className="px-4 py-3 text-sm text-slate-900">{g.name || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">{g.name || t('empty')}</td>
                     <td className="px-4 py-3 text-sm text-slate-700 capitalize">{g.game_type}</td>
-                    <td className="px-4 py-3 text-sm text-slate-900">{g.scenario_title || g.scenario_uniqid || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">{g.scenario_title || g.scenario_uniqid || t('empty')}</td>
                     {isAdmin && (
                       <td className="px-4 py-3 text-sm">
-                        <div className="text-slate-900">{g.client_name || '—'}</div>
+                        <div className="text-slate-900">{g.client_name || t('empty')}</div>
                         <div className="text-xs text-slate-500">{g.client_email}</div>
                       </td>
                     )}
@@ -308,13 +310,13 @@ export function StatisticsView() {
   );
 }
 
-function KpiCard({ icon, bg, value, label }: { icon: React.ReactNode; bg: string; value: number; label: string }) {
+function KpiCard({ icon, bg, value, label, lang }: { icon: React.ReactNode; bg: string; value: number; label: string; lang: string }) {
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
       <div className="flex items-center justify-between mb-4">
         <div className={`p-3 ${bg} rounded-lg`}>{icon}</div>
       </div>
-      <h3 className="text-2xl font-bold text-slate-900 mb-1">{value.toLocaleString()}</h3>
+      <h3 className="text-2xl font-bold text-slate-900 mb-1">{value.toLocaleString(lang)}</h3>
       <p className="text-sm text-slate-600">{label}</p>
     </div>
   );

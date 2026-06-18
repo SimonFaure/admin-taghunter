@@ -6,9 +6,9 @@
  * "stage" centered in the wrapper (letterbox/pillarbox on non-16:9 wrappers).
  * Template overlay + text/image elements position relative to the stage.
  *
- * The same layout JSON is upserted into MySQL `layouts` by
- * `tagquest_default_layout_migration.sql` and synced down to the playground
- * runtime — so positions are guaranteed to match in-game.
+ * The same `defaultTagquestLayout` is bundled into the playground runtime as
+ * its fallback JSON — so positions are guaranteed to match in-game. (The old
+ * MySQL `layouts` table seed was retired; layouts are no longer synced.)
  */
 
 import { useEffect, useRef, useState } from 'react';

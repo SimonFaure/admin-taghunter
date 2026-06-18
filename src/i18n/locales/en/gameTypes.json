@@ -1,0 +1,51 @@
+{
+  "loading": "Loading game types…",
+  "title": "Game Types",
+  "titleClient": "Tutorial Videos",
+  "description": {
+    "admin": "Manage the legacy tutorial video and subtitle tracks shipped to every client. Clients can override the video for their own events but cannot delete the legacy one.",
+    "client": "Upload your own tutorial video to replace the Taghunter legacy version for your events. Subtitle tracks let you localize the on-screen text."
+  },
+  "error": {
+    "failedToLoad": "Failed to load",
+    "uploadFailed": "Upload failed",
+    "removeFailed": "Remove failed",
+    "updateFailed": "Update failed"
+  },
+  "dismiss": "Dismiss",
+  "confirm": {
+    "adminRemoveVideo": "Remove the legacy tutorial video for {{code}}? Clients without an override will have no tutorial video until you upload a new one.",
+    "clientRemoveVideo": "Remove your tutorial video override for {{code}}? You'll fall back to the legacy video from Taghunter."
+  },
+  "card": {
+    "codeLabel": "code: {{code}}",
+    "tutorialVideoCheckbox": "Tutorial video",
+    "introVideoCheckbox": "Intro video",
+    "tutorialDisabled": "Tutorial video disabled for this game type.",
+    "legacyVideoHeading": "Legacy tutorial video (Taghunter)",
+    "videoVersion": "(v{{version}})",
+    "noLegacyVideo": "No legacy tutorial video uploaded yet.",
+    "noLegacyVideoClient": "No tutorial video is available for this game type yet.",
+    "legacyVideoClientNote": "This is the standard Taghunter tutorial video. Upload your own below to override it.",
+    "dropVideoHint": "Drag & drop a video here, or click to browse",
+    "yourOverrideHeading": "Your tutorial video override",
+    "activeOverride": "Active override",
+    "usingLegacyVideo": "Using legacy video. Upload your own to override:",
+    "subtitleTracksLegacy": "Subtitle tracks (legacy)",
+    "subtitleTracksOverride": "Subtitle tracks (override)",
+    "pillVideo": "Video set",
+    "pillNoVideo": "No video",
+    "pillSubtitles": "{{count}} subtitles",
+    "subtitleSelectLabel": "Subtitles:",
+    "subtitleOff": "Off",
+    "langCode": "({{lang}})",
+    "missing": "— missing"
+  },
+  "actions": {
+    "replace": "Replace",
+    "remove": "Remove",
+    "upload": "Upload",
+    "uploadOverride": "Upload override",
+    "uploadVtt": "Upload .vtt"
+  }
+}

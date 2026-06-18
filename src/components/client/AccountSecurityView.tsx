@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Shield, AlertTriangle, Loader2 } from 'lucide-react';
 import { authFetch } from '../../lib/authFetch';
@@ -7,6 +8,7 @@ import { useAuth } from '../../auth/AuthContext';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 export function AccountSecurityView() {
+  const { t } = useTranslation('accountSecurity');
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
@@ -22,7 +24,7 @@ export function AccountSecurityView() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || body?.success !== true) {
-        setError(body?.error || 'Failed to revoke sessions');
+        setError(body?.error || t('errors.revokeFailed'));
         setSubmitting(false);
         return;
       }
@@ -33,10 +35,10 @@ export function AccountSecurityView() {
       await logout();
       navigate('/login', {
         replace: true,
-        state: { flash: 'All sessions signed out — please sign in again.' },
+        state: { flash: t('flash') },
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error');
+      setError(err instanceof Error ? err.message : t('errors.network'));
       setSubmitting(false);
     }
   };
@@ -48,28 +50,26 @@ export function AccountSecurityView() {
         className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Account
+        {t('backToAccount')}
       </Link>
 
       <div className="flex items-center gap-3">
         <Shield className="h-6 w-6 text-slate-600" />
-        <h1 className="text-2xl font-semibold text-slate-900">Security</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">{t('title')}</h1>
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-3">
-        <h2 className="text-lg font-bold text-slate-900">Authentication</h2>
+        <h2 className="text-lg font-bold text-slate-900">{t('authentication.heading')}</h2>
         <p className="text-sm text-slate-600">
-          Your account is secured with one-time password authentication. There's no password to
-          change — every sign-in is verified by email code.
+          {t('authentication.body')}
         </p>
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Sign out everywhere</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('signOutEverywhere.heading')}</h2>
           <p className="text-sm text-slate-600 mt-1">
-            Revokes every active session for your account, on every browser and device. You'll be
-            signed out of this session too and will need to sign in again.
+            {t('signOutEverywhere.body')}
           </p>
         </div>
 
@@ -86,14 +86,14 @@ export function AccountSecurityView() {
             onClick={() => setConfirming(true)}
             className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-sm font-medium"
           >
-            Sign out everywhere
+            {t('signOutEverywhere.button')}
           </button>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
             <div className="flex items-start gap-2 text-sm text-amber-900">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>
-                This will sign you out of this browser too. Continue?
+                {t('signOutEverywhere.confirmPrompt')}
               </span>
             </div>
             <div className="flex gap-2">
@@ -110,10 +110,10 @@ export function AccountSecurityView() {
                 {submitting ? (
                   <span className="inline-flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Signing out…
+                    {t('signOutEverywhere.signingOut')}
                   </span>
                 ) : (
-                  'Yes, sign me out everywhere'
+                  t('signOutEverywhere.confirmButton')
                 )}
               </button>
               <button
@@ -122,7 +122,7 @@ export function AccountSecurityView() {
                 disabled={submitting}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100"
               >
-                Cancel
+                {t('signOutEverywhere.cancel')}
               </button>
             </div>
           </div>

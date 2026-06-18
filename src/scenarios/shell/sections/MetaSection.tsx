@@ -8,34 +8,36 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 3 section)
  */
 
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { LocalizedField } from '../components/LocalizedField';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import type { Localized } from '../../i18n/types';
 
 export function MetaSection() {
+  const { t } = useTranslation('editorSections1');
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const set = (key: 'title' | 'description' | 'story', next: Localized<string>) =>
     editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), [key]: next }) as typeof m);
 
   return (
-    <CollapsibleSection title="Scenario info">
+    <CollapsibleSection title={t('meta.sectionTitle')}>
       <div className="space-y-3">
         <LocalizedField
-          label="Title"
+          label={t('meta.title')}
           value={meta.title as Localized<string> | string | undefined}
           onChange={(next) => set('title', next)}
         />
         <LocalizedField
-          label="Description"
+          label={t('meta.description')}
           value={meta.description as Localized<string> | string | undefined}
           onChange={(next) => set('description', next)}
           multiline
           rows={2}
         />
         <LocalizedField
-          label="Story"
+          label={t('meta.story')}
           value={meta.story as Localized<string> | string | undefined}
           onChange={(next) => set('story', next)}
           multiline

@@ -8,7 +8,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, MapPin } from 'lucide-react';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
@@ -16,6 +16,19 @@ import { getLocalized, setLocalized } from '../../../i18n/getLocalized';
 import type { Lang } from '../../../i18n/types';
 import type { Enigma } from '../../../../types/scenario-data';
 import type { MediaSlot } from '../../../types';
+import { useMysteryPatternStations, type SlotStation } from '../useMysteryPatternStations';
+
+/** Shows the station/balise a given answer image is mapped to by the default pattern. */
+function StationHint({ station }: { station?: SlotStation }) {
+  if (!station || station.stationId == null) return null;
+  return (
+    <span className="mt-1 flex items-center gap-1 text-[11px] text-gray-500">
+      <MapPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
+      <span className="font-mono text-gray-600">#{station.stationId}</span>
+      <span className="truncate">{station.stationName ?? 'Unknown station'}</span>
+    </span>
+  );
+}
 
 function emptyEnigma(): Enigma {
   return {
@@ -23,6 +36,7 @@ function emptyEnigma(): Enigma {
     // Stage 3: text is `Localized<string>`. New enigmas start with empty map.
     text: {},
     good_answer_image: '',
+    wrong_answer_image: '',
     good_answer_points: '',
     wrong_answer_points: '',
   };
@@ -33,6 +47,12 @@ export function EnigmasSection() {
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
   const enigmas = ((editor.gameMeta as Record<string, unknown>).enigmas ?? []) as Enigma[];
+  const patternUniqid =
+    ((editor.gameMeta as Record<string, unknown>).scenario_default_pattern as
+      | string
+      | null
+      | undefined) ?? null;
+  const patternStations = useMysteryPatternStations(patternUniqid);
 
   function setEnigmas(next: Enigma[]) {
     editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), enigmas: next }) as typeof m);
@@ -74,6 +94,17 @@ export function EnigmasSection() {
               scope: 'type',
               label: 'Good answer image',
             };
+            const wrongImageSlot: MediaSlot = {
+              key: `enigma_${i}_wrong_answer_image`,
+              kind: 'image',
+              required: false,
+              scope: 'type',
+              label: 'Wrong answer image',
+            };
+            // Pattern rows are keyed by item_index, matched at runtime against
+            // the enigma's `number`; fall back to position (1-based) when blank.
+            const enigmaKey = Number(e.number) || i + 1;
+            const stations = patternStations[enigmaKey];
             return (
               <div key={i} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
@@ -139,14 +170,26 @@ export function EnigmasSection() {
                     </label>
                   </div>
 
-                  {/* Right: image upload */}
-                  <div>
-                    <AssetUploadField
-                      slot={imageSlot}
-                      value={e.good_answer_image ?? ''}
-                      onChange={(filename) => updateEnigma(i, { good_answer_image: filename })}
-                      previewSize="lg"
-                    />
+                  {/* Right: good + wrong answer image uploads */}
+                  <div className="space-y-3">
+                    <div>
+                      <AssetUploadField
+                        slot={imageSlot}
+                        value={e.good_answer_image ?? ''}
+                        onChange={(filename) => updateEnigma(i, { good_answer_image: filename })}
+                        previewSize="lg"
+                      />
+                      <StationHint station={stations?.good_answer_station} />
+                    </div>
+                    <div>
+                      <AssetUploadField
+                        slot={wrongImageSlot}
+                        value={e.wrong_answer_image ?? ''}
+                        onChange={(filename) => updateEnigma(i, { wrong_answer_image: filename })}
+                        previewSize="lg"
+                      />
+                      <StationHint station={stations?.wrong_answer_station} />
+                    </div>
                   </div>
                 </div>
               </div>

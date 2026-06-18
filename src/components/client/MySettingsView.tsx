@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { Settings, Gamepad2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { HelpButton } from '../../help';
@@ -25,6 +26,7 @@ interface PreferencesShape {
 type TabKey = 'game-preferences';
 
 export function MySettingsView() {
+  const { t } = useTranslation('clientSettings');
   const { token } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('game-preferences');
   const [gameTypes, setGameTypes] = useState<GameTypeLite[]>([]);
@@ -48,18 +50,18 @@ export function MySettingsView() {
         fetch(`${API_BASE_URL}/game_types.php?action=list`, { headers: headersJson }),
         fetch(`${API_BASE_URL}/client_preferences.php`, { headers: headersJson }),
       ]);
-      if (!gtRes.ok) throw new Error(`Game types load failed (${gtRes.status})`);
-      if (!prefRes.ok) throw new Error(`Preferences load failed (${prefRes.status})`);
+      if (!gtRes.ok) throw new Error(t('errors.gameTypesLoadFailed', { status: gtRes.status }));
+      if (!prefRes.ok) throw new Error(t('errors.preferencesLoadFailed', { status: prefRes.status }));
       const gtJson = await gtRes.json();
       const prefJson = await prefRes.json();
       setGameTypes((gtJson.game_types || []) as GameTypeLite[]);
       setPrefs((prefJson.preferences || {}) as PreferencesShape);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
+      setError(e instanceof Error ? e.message : t('errors.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [headersJson]);
+  }, [headersJson, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -82,11 +84,11 @@ export function MySettingsView() {
         headers: headersJson,
         body: JSON.stringify({ preferences: prefs }),
       });
-      if (!res.ok) throw new Error(`Save failed (${res.status})`);
-      setSavedMessage('Preferences saved.');
+      if (!res.ok) throw new Error(t('errors.saveFailedStatus', { status: res.status }));
+      setSavedMessage(t('savedMessage'));
       setTimeout(() => setSavedMessage(null), 3000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(e instanceof Error ? e.message : t('errors.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -96,13 +98,13 @@ export function MySettingsView() {
     (gt) => gt.supports_tutorial_video || gt.supports_intro_video
   );
 
-  if (loading) return <div className="p-8 text-slate-500">Loading settings…</div>;
+  if (loading) return <div className="p-8 text-slate-500">{t('loading')}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
         <Settings className="w-6 h-6 text-slate-700" />
-        <h2 className="text-2xl font-bold text-slate-900">Settings</h2>
+        <h2 className="text-2xl font-bold text-slate-900">{t('title')}</h2>
         <HelpButton chapter="settings" className="text-slate-400 hover:text-slate-700 ml-1" />
       </div>
 
@@ -116,7 +118,7 @@ export function MySettingsView() {
           }`}
         >
           <Gamepad2 className="w-4 h-4 inline mr-2" />
-          Game preferences
+          {t('tabs.gamePreferences')}
         </button>
       </div>
 
@@ -124,7 +126,7 @@ export function MySettingsView() {
         <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg flex items-center gap-2">
           <AlertCircle className="w-5 h-5" />
           <span>{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-sm underline">Dismiss</button>
+          <button onClick={() => setError(null)} className="ml-auto text-sm underline">{t('dismiss')}</button>
         </div>
       )}
 
@@ -138,12 +140,11 @@ export function MySettingsView() {
       {activeTab === 'game-preferences' && (
         <div className="space-y-4">
           <p className="text-sm text-slate-600">
-            Defaults applied when launching a game from the playground. The launch dialog pre-fills these toggles
-            (the operator can still flip them per-launch).
+            {t('gamePrefs.intro')}
           </p>
 
           {gameTypesWithVideos.length === 0 ? (
-            <div className="text-slate-500 italic">No game types currently support launch videos.</div>
+            <div className="text-slate-500 italic">{t('gamePrefs.noVideoSupport')}</div>
           ) : (
             <div className="space-y-4">
               {gameTypesWithVideos.map((gt) => {
@@ -159,7 +160,7 @@ export function MySettingsView() {
                             checked={!!pref.play_tutorial_default}
                             onChange={(e) => updatePref(gt.code, 'play_tutorial_default', e.target.checked)}
                           />
-                          Play tutorial video by default
+                          {t('gamePrefs.playTutorialDefault')}
                         </label>
                       )}
                       {gt.supports_intro_video && (
@@ -169,7 +170,7 @@ export function MySettingsView() {
                             checked={!!pref.play_intro_default}
                             onChange={(e) => updatePref(gt.code, 'play_intro_default', e.target.checked)}
                           />
-                          Play intro video by default
+                          {t('gamePrefs.playIntroDefault')}
                         </label>
                       )}
                     </div>
@@ -185,7 +186,7 @@ export function MySettingsView() {
               disabled={saving}
               className="px-5 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Save preferences'}
+              {saving ? t('saving') : t('savePreferences')}
             </button>
           </div>
         </div>

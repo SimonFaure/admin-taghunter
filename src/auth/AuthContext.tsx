@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { secureAuth } from '../lib/secureAuth';
+import { applyClientLanguage } from '../i18n';
 
 const USER_STORAGE_KEY = 'auth_user';
 
@@ -22,6 +23,7 @@ export interface AuthUser {
   client_id?: string;
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
+  language?: string;
   created_at?: string;
   avatar_url?: string;
   company_logo_url?: string | null;
@@ -45,6 +47,7 @@ interface AuthContextType {
   updateUserAvatar: (avatarUrl: string) => void;
   updateCompanyLogo: (logoUrl: string | null) => void;
   updateLogoPreference: (useAvatar: boolean) => void;
+  updateLanguage: (language: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,6 +64,7 @@ function buildUserFromPayload(payload: any, fallbackToken: string): AuthUser {
     client_id: payload.client_id || (userType === 'client' ? userId : undefined),
     license_type: payload.license_type,
     billing_up_to_date: payload.billing_up_to_date,
+    language: payload.language,
     created_at: payload.created_at,
     avatar_url: payload.avatar_url,
     company_logo_url: payload.company_logo_url ?? null,
@@ -89,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = (await secureAuth.validateToken(token)) as any;
       if (result?.valid && result.user_id) {
         const built = buildUserFromPayload(result, token);
+        if (built.user_type === 'client' && built.language) applyClientLanguage(built.language);
         persistUser(built);
         setUser(built);
       } else {
@@ -116,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         payload = result.data;
       }
       const built = buildUserFromPayload(payload, secureAuth.getStoredToken() || '');
+      if (built.user_type === 'client' && built.language) applyClientLanguage(built.language);
       persistUser(built);
       setUser(built);
       return { success: true };
@@ -158,6 +164,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) setUser({ ...user, company_logo_uses_avatar: useAvatar });
   };
 
+  // Client self-service language change: update cached user + apply live. The
+  // caller (MyAccountView) is responsible for persisting server-side first.
+  const updateLanguage = (language: string) => {
+    applyClientLanguage(language);
+    if (user) {
+      const next = { ...user, language };
+      persistUser(next);
+      setUser(next);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     const expiry = secureAuth.getTokenExpiry();
@@ -186,6 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateUserAvatar,
         updateCompanyLogo,
         updateLogoPreference,
+        updateLanguage,
       }}
     >
       {children}

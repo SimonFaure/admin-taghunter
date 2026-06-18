@@ -1,0 +1,16 @@
+{
+  "welcomeBack": "Bon retour, {{name}}",
+  "welcome": "Bienvenue",
+  "createScenario": "Créer un scénario",
+  "createAScenario": "Créer un scénario",
+  "loadError": "Échec du chargement de l'accueil",
+  "quickStats": "Statistiques rapides",
+  "statScenariosOwned": "Scénarios que je possède",
+  "statCustomScenarios": "Scénarios personnalisés",
+  "statGamesLaunched": "Parties lancées",
+  "statPlayers": "Joueurs",
+  "ownedTitle": "Les scénarios que je possède",
+  "ownedEmpty": "Aucun scénario ne vous est encore attribué.",
+  "customTitle": "Mes scénarios personnalisés",
+  "customEmpty": "Vous n'avez pas encore créé de scénario personnalisé."
+}

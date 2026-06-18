@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "sectionTitle": "Scenario info",
+    "title": "Title",
+    "description": "Description",
+    "story": "Story"
+  },
+  "cover": {
+    "sectionTitleTracks": "Cover, background & map",
+    "sectionTitle": "Cover & background",
+    "mapImage": "Map image"
+  },
+  "timing": {
+    "sectionTitle": "Timing",
+    "keys": {
+      "default_time": "default time",
+      "default_time_malus": "default time malus",
+      "message_display_time": "message display time",
+      "animation_enigma_duration": "animation enigma duration"
+    }
+  },
+  "admin": {
+    "sectionTitle": "Admin / metadata",
+    "scenarioVersion": "Scenario version",
+    "audience": "Audience (age bands)",
+    "difficulty": "Difficulty",
+    "univers": "Univers (theme tags)",
+    "universPlaceholder": "Add a tag…",
+    "audienceEmptyWarning": "No audience selected — team names will default to Teens/Adults.",
+    "namePoolHint": "Team names drawn from: {{tier}}",
+    "audienceGroups": {
+      "enfants": "Children",
+      "ados_adultes": "Teens/Adults"
+    }
+  }
+}

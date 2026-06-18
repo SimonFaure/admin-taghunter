@@ -1,0 +1,41 @@
+{
+  "status": {
+    "draft": "Borrador",
+    "published": "Publicado",
+    "archived": "Archivado"
+  },
+  "changeStatus": "Cambiar estado",
+  "download": "Descargar",
+  "downloadCsv": "Descargar CSV",
+  "downloadExcel": "Descargar Excel",
+  "noRows": "Este patrón aún no tiene filas.",
+  "table": {
+    "name": "Nombre",
+    "gameType": "Tipo de juego",
+    "version": "Versión",
+    "status": "Estado",
+    "actions": "Acciones"
+  },
+  "preview": "Vista previa",
+  "edit": "Editar",
+  "delete": "Eliminar",
+  "newPattern": "Nuevo patrón",
+  "defaultPatterns": "Patrones predeterminados",
+  "myCustomPatterns": "Mis patrones personalizados",
+  "searchPlaceholder": "Buscar patrones...",
+  "allGameTypes": "Todos los tipos de juego",
+  "noDefaultMatch": "Ningún patrón predeterminado coincide con tus filtros",
+  "noDefaultAvailable": "No hay patrones predeterminados disponibles",
+  "noCustomMatch": "Ningún patrón personalizado coincide con tus filtros",
+  "noCustomYet": "Aún no hay patrones personalizados.",
+  "createPattern": "Crear un patrón",
+  "close": "Cerrar",
+  "confirmDelete": "¿Estás seguro de que quieres eliminar este patrón?",
+  "errors": {
+    "fetch": "Error al obtener los patrones",
+    "load": "Error al cargar los patrones",
+    "delete": "Error al eliminar el patrón",
+    "publish": "Error al publicar el patrón",
+    "updateStatus": "Error al actualizar el estado"
+  }
+}

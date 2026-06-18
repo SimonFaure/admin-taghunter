@@ -1,0 +1,24 @@
+{
+  "title": "Ajustes",
+  "loading": "Cargando ajustes…",
+  "tabs": {
+    "gamePreferences": "Preferencias de juego"
+  },
+  "dismiss": "Descartar",
+  "errors": {
+    "gameTypesLoadFailed": "Error al cargar los tipos de juego ({{status}})",
+    "preferencesLoadFailed": "Error al cargar las preferencias ({{status}})",
+    "loadFailed": "Error al cargar",
+    "saveFailedStatus": "Error al guardar ({{status}})",
+    "saveFailed": "Error al guardar"
+  },
+  "savedMessage": "Preferencias guardadas.",
+  "gamePrefs": {
+    "intro": "Valores predeterminados aplicados al iniciar un juego desde el playground. El cuadro de inicio rellena previamente estas opciones (el operador aún puede cambiarlas en cada inicio).",
+    "noVideoSupport": "Ningún tipo de juego admite actualmente vídeos de inicio.",
+    "playTutorialDefault": "Reproducir el vídeo tutorial por defecto",
+    "playIntroDefault": "Reproducir el vídeo de introducción por defecto"
+  },
+  "saving": "Guardando…",
+  "savePreferences": "Guardar preferencias"
+}

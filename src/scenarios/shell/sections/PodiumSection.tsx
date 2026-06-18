@@ -4,6 +4,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
+import { useTranslation } from 'react-i18next';
 import { AssetUploadField } from '../components/AssetUploadField';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { useScenarioEditor } from '../useScenarioEditor';
@@ -19,11 +20,13 @@ const PODIUM_KEYS = [
 ] as const;
 
 export function PodiumSection() {
+  const { t } = useTranslation('editorSections2');
   const editor = useScenarioEditor();
+  if (!editor.adapter.capabilities.hasPodium) return null;
   const slots = commonMediaSlots.filter((s) => (PODIUM_KEYS as readonly string[]).includes(s.key));
 
   return (
-    <CollapsibleSection title="Podium & end-of-game">
+    <CollapsibleSection title={t('podium.title')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {slots.map((slot) => (
           <AssetUploadField

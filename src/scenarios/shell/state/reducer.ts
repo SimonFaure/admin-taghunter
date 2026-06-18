@@ -20,6 +20,12 @@ export interface EditorReducerState<TGameMeta = any> {
   // Row-level fields the publish endpoint needs surfaced.
   scenarioStatus: string;
   scenarioType: string;
+  /**
+   * The DB column `scenarios.version` (auto-bumped +0.1 on every save). Shown
+   * read-only in the admin section so the editor matches the details page;
+   * NOT the same as the in-`game_meta` `scenario_version` string (ZIP/publish).
+   */
+  scenarioVersion: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   scenarioLayout: any;
 
@@ -56,6 +62,7 @@ export function initialState<TGameMeta>(scenarioId: string, defaultGameMeta: TGa
     gameMeta: defaultGameMeta,
     scenarioStatus: 'draft',
     scenarioType: 'custom',
+    scenarioVersion: '',
     scenarioLayout: null,
     currentLanguage: 'fr',
     defaultLanguage: 'fr',

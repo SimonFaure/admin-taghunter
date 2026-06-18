@@ -6,16 +6,30 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 interface FleetErrorRow {
   client_id: number;
+  device_id: number | null;
   fingerprint_hash: string;
   error_message: string;
   stack_trace: string | null;
   total_count: number;
-  device_count: number;
   first_seen_at: string;
   last_seen_at: string;
   app_version: string | null;
   client_email: string | null;
   client_name: string | null;
+  device_label: string | null;
+  display_name: string | null;
+}
+
+type SortKey = 'recent' | 'client' | 'device';
+
+// The name shown to humans: the user/admin-chosen display_name wins, falling
+// back to the OS hostname (device_label).
+function deviceName(r: FleetErrorRow): string {
+  return r.display_name || r.device_label || '';
+}
+
+function clientName(r: FleetErrorRow): string {
+  return r.client_name || r.client_email || `client #${r.client_id}`;
 }
 
 function formatRelative(iso: string | null): string {
@@ -34,6 +48,7 @@ export function RecentErrorsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>('recent');
 
   const fetchErrors = async () => {
     try {
@@ -63,19 +78,57 @@ export function RecentErrorsView() {
     setExpanded(next);
   };
 
+  // Sort client-side over the loaded rows. "recent" preserves the server's
+  // last-seen ordering; client/device sort alphabetically then fall back to
+  // most-recent within a group.
+  const sortedRows = [...rows].sort((a, b) => {
+    if (sortKey === 'client') {
+      const byClient = clientName(a).localeCompare(clientName(b));
+      if (byClient !== 0) return byClient;
+      const byDevice = deviceName(a).localeCompare(deviceName(b));
+      if (byDevice !== 0) return byDevice;
+    } else if (sortKey === 'device') {
+      const byDevice = deviceName(a).localeCompare(deviceName(b));
+      if (byDevice !== 0) return byDevice;
+    }
+    // recent (default) and tie-breaker: newest last_seen first
+    return new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime();
+  });
+
+  const sortButton = (key: SortKey, label: string) => (
+    <button
+      onClick={() => setSortKey(key)}
+      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+        sortKey === key
+          ? 'bg-slate-900 text-white'
+          : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-4">
         <p className="text-sm text-slate-600">
-          Errors from the last 30 days, grouped by fingerprint. Up to 200 most-recent groups.
+          Errors from the last 30 days, grouped by device + fingerprint. Up to 200 most-recent groups.
         </p>
-        <button
-          onClick={fetchErrors}
-          className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span className="text-sm font-medium">Refresh</span>
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-slate-400 mr-1">Sort</span>
+            {sortButton('recent', 'Recent')}
+            {sortButton('client', 'Client')}
+            {sortButton('device', 'Device')}
+          </div>
+          <button
+            onClick={fetchErrors}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="text-sm font-medium">Refresh</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -95,8 +148,8 @@ export function RecentErrorsView() {
         </div>
       ) : (
         <div className="space-y-3">
-          {rows.map((r) => {
-            const key = `${r.client_id}:${r.fingerprint_hash}`;
+          {sortedRows.map((r) => {
+            const key = `${r.client_id}:${r.device_id ?? 'none'}:${r.fingerprint_hash}`;
             const open = expanded.has(key);
             return (
               <div key={key} className="bg-white rounded-xl border border-slate-200">
@@ -111,14 +164,16 @@ export function RecentErrorsView() {
                         <p className="text-sm font-medium text-slate-900 truncate">{r.error_message}</p>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
-                        {r.client_name || r.client_email || `client #${r.client_id}`}
+                        {clientName(r)}
                         {r.app_version && <span className="ml-2 font-mono">v{r.app_version}</span>}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-1 font-medium">
+                        {deviceName(r) || <span className="italic text-slate-400">unknown device</span>}
                       </p>
                       <p className="text-xs text-slate-400 mt-1 font-mono">{r.fingerprint_hash.slice(0, 16)}…</p>
                     </div>
                     <div className="text-right text-xs text-slate-500 shrink-0">
                       <div className="font-semibold text-slate-700">×{r.total_count}</div>
-                      <div>on {r.device_count} device{r.device_count === 1 ? '' : 's'}</div>
                       <div className="mt-1">{formatRelative(r.last_seen_at)}</div>
                     </div>
                   </div>

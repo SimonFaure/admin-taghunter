@@ -10,6 +10,7 @@ import { GaugeSection } from './sections/GaugeSection';
 import { FrameSection } from './sections/FrameSection';
 import { ScoringSection } from './sections/ScoringSection';
 import { EnigmaTimingSection } from './sections/EnigmaTimingSection';
+import { PatternSection } from './sections/PatternSection';
 import { EnigmasSection } from './sections/EnigmasSection';
 
 export function MysteryBody() {
@@ -20,6 +21,7 @@ export function MysteryBody() {
       <FrameSection />
       <ScoringSection />
       <EnigmaTimingSection />
+      <PatternSection />
       <EnigmasSection />
     </>
   );

@@ -1,0 +1,41 @@
+{
+  "status": {
+    "draft": "Brouillon",
+    "published": "Publié",
+    "archived": "Archivé"
+  },
+  "changeStatus": "Changer le statut",
+  "download": "Télécharger",
+  "downloadCsv": "Télécharger en CSV",
+  "downloadExcel": "Télécharger en Excel",
+  "noRows": "Ce modèle n'a pas encore de lignes.",
+  "table": {
+    "name": "Nom",
+    "gameType": "Type de jeu",
+    "version": "Version",
+    "status": "Statut",
+    "actions": "Actions"
+  },
+  "preview": "Aperçu",
+  "edit": "Modifier",
+  "delete": "Supprimer",
+  "newPattern": "Nouveau modèle",
+  "defaultPatterns": "Modèles par défaut",
+  "myCustomPatterns": "Mes modèles personnalisés",
+  "searchPlaceholder": "Rechercher des modèles...",
+  "allGameTypes": "Tous les types de jeu",
+  "noDefaultMatch": "Aucun modèle par défaut ne correspond à vos filtres",
+  "noDefaultAvailable": "Aucun modèle par défaut disponible",
+  "noCustomMatch": "Aucun modèle personnalisé ne correspond à vos filtres",
+  "noCustomYet": "Aucun modèle personnalisé pour le moment.",
+  "createPattern": "Créer un modèle",
+  "close": "Fermer",
+  "confirmDelete": "Êtes-vous sûr de vouloir supprimer ce modèle ?",
+  "errors": {
+    "fetch": "Échec de la récupération des modèles",
+    "load": "Échec du chargement des modèles",
+    "delete": "Échec de la suppression du modèle",
+    "publish": "Échec de la publication du modèle",
+    "updateStatus": "Échec de la mise à jour du statut"
+  }
+}

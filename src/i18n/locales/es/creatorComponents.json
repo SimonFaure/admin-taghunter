@@ -1,0 +1,28 @@
+{
+  "languages": {
+    "title": "Idiomas",
+    "addLanguage": "Añadir idioma",
+    "removeLanguage": "Quitar idioma",
+    "empty": "No hay idiomas configurados. Añade un idioma para empezar.",
+    "modalTitle": "Añadir idioma",
+    "allAdded": "Se han añadido todos los idiomas disponibles.",
+    "cancel": "Cancelar"
+  },
+  "creator": {
+    "back": "Atrás",
+    "heading": "Crear nuevo escenario",
+    "titleLabel": "Título *",
+    "titlePlaceholder": "Introduce el título del escenario",
+    "scenarioTypeLabel": "Tipo de escenario *",
+    "gameTypeLabel": "Tipo de juego *",
+    "statusLabel": "Estado",
+    "statusDraft": "Borrador",
+    "statusPublished": "Publicado",
+    "statusArchived": "Archivado",
+    "save": "Guardar escenario",
+    "saving": "Guardando...",
+    "cancel": "Cancelar",
+    "validationTitle": "Proporciona un título",
+    "saveError": "No se pudo guardar el escenario"
+  }
+}

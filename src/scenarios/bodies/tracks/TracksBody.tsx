@@ -6,8 +6,6 @@
  * Design plan: C:\Users\faure\.claude\plans\tracks-game-type-design.md
  */
 
-import { MapSection } from './sections/MapSection';
-import { CheckpointIconsSection } from './sections/CheckpointIconsSection';
 import { CheckpointsSection } from './sections/CheckpointsSection';
 import { RoutesSection } from './sections/RoutesSection';
 import { DisplaysSection } from './sections/DisplaysSection';
@@ -16,6 +14,7 @@ import { ScoreTypesSection } from './sections/ScoreTypesSection';
 import { TimingSection } from './sections/TimingSection';
 import { DisplayOptionsSection } from './sections/DisplayOptionsSection';
 import { HudFramesSection } from './sections/HudFramesSection';
+import { TextElementsSection } from './sections/TextElementsSection';
 import { FeedbackImagesSection } from './sections/FeedbackImagesSection';
 import { SoundsSection } from './sections/SoundsSection';
 import { PatternSection } from './sections/PatternSection';
@@ -23,8 +22,7 @@ import { PatternSection } from './sections/PatternSection';
 export function TracksBody() {
   return (
     <>
-      <MapSection />
-      <CheckpointIconsSection />
+      <PatternSection />
       <CheckpointsSection />
       <RoutesSection />
       <DisplaysSection />
@@ -33,9 +31,9 @@ export function TracksBody() {
       <TimingSection />
       <DisplayOptionsSection />
       <HudFramesSection />
+      <TextElementsSection />
       <FeedbackImagesSection />
       <SoundsSection />
-      <PatternSection />
     </>
   );
 }

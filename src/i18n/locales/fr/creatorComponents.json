@@ -1,0 +1,28 @@
+{
+  "languages": {
+    "title": "Langues",
+    "addLanguage": "Ajouter une langue",
+    "removeLanguage": "Retirer la langue",
+    "empty": "Aucune langue configurée. Ajoutez une langue pour commencer.",
+    "modalTitle": "Ajouter une langue",
+    "allAdded": "Toutes les langues disponibles ont été ajoutées.",
+    "cancel": "Annuler"
+  },
+  "creator": {
+    "back": "Retour",
+    "heading": "Créer un nouveau scénario",
+    "titleLabel": "Titre *",
+    "titlePlaceholder": "Saisissez le titre du scénario",
+    "scenarioTypeLabel": "Type de scénario *",
+    "gameTypeLabel": "Type de jeu *",
+    "statusLabel": "Statut",
+    "statusDraft": "Brouillon",
+    "statusPublished": "Publié",
+    "statusArchived": "Archivé",
+    "save": "Enregistrer le scénario",
+    "saving": "Enregistrement...",
+    "cancel": "Annuler",
+    "validationTitle": "Veuillez fournir un titre",
+    "saveError": "Échec de l'enregistrement du scénario"
+  }
+}

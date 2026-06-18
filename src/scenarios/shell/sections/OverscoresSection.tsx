@@ -12,6 +12,7 @@
  */
 
 import { Plus, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { AssetUploadField } from '../components/AssetUploadField';
@@ -27,6 +28,7 @@ interface Overscore {
 }
 
 export function OverscoresSection() {
+  const { t } = useTranslation('editorSections2');
   const editor = useScenarioEditor();
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
@@ -56,18 +58,18 @@ export function OverscoresSection() {
 
   return (
     <CollapsibleSection
-      title="Overscores"
+      title={t('overscores.title')}
       headerExtra={
         <button
           onClick={addOverscore}
           className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1"
         >
-          <Plus className="w-3 h-3" /> Add overscore
+          <Plus className="w-3 h-3" /> {t('overscores.addOverscore')}
         </button>
       }
     >
       {overscores.length === 0 ? (
-        <p className="text-sm text-gray-500">No overscores yet.</p>
+        <p className="text-sm text-gray-500">{t('overscores.empty')}</p>
       ) : (
         <div className="space-y-4">
           {overscores.map((o, i) => {
@@ -76,18 +78,18 @@ export function OverscoresSection() {
               kind: 'image',
               required: false,
               scope: 'type',
-              label: 'Overscore image',
+              label: t('overscores.imageLabel'),
             };
             return (
               <div key={i} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-gray-900">
-                    Overscore {o.overscore_step || i + 1}
+                    {t('overscores.overscoreHeading', { label: o.overscore_step || i + 1 })}
                   </h3>
                   <button
                     onClick={() => removeOverscore(i)}
                     className="p-1.5 hover:bg-red-50 rounded text-red-500"
-                    aria-label="Remove overscore"
+                    aria-label={t('overscores.removeOverscore')}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -97,7 +99,7 @@ export function OverscoresSection() {
                   {/* Left: stacked inputs */}
                   <div className="space-y-3">
                     <label className="block">
-                      <span className="text-xs font-medium text-gray-700 mb-1 block">Step</span>
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">{t('overscores.step')}</span>
                       <input
                         value={o.overscore_step}
                         onChange={(e) => updateOverscore(i, { overscore_step: e.target.value })}
@@ -106,7 +108,7 @@ export function OverscoresSection() {
                     </label>
 
                     <label className="block">
-                      <span className="text-xs font-medium text-gray-700 mb-1 block">Score</span>
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">{t('overscores.score')}</span>
                       <input
                         value={o.overscore_score}
                         onChange={(e) => updateOverscore(i, { overscore_score: e.target.value })}
@@ -116,7 +118,7 @@ export function OverscoresSection() {
 
                     <label className="block">
                       <span className="text-xs font-medium text-gray-700 mb-1 block">
-                        Name ({lang})
+                        {t('overscores.name', { lang })}
                       </span>
                       <input
                         value={getLocalized(o.name_overscore_step as never, lang, defaultLang)}

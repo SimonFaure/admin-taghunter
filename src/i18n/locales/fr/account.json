@@ -1,0 +1,57 @@
+{
+  "maxSize": "Max 2 Mo",
+  "title": "Informations du compte",
+  "subtitle": "Gérez votre profil et les paramètres de votre compte",
+  "yourAvatar": "Votre avatar",
+  "fields": {
+    "name": "Nom",
+    "email": "E-mail",
+    "clientId": "Identifiant client",
+    "licenseType": "Type de licence",
+    "paymentStatus": "Statut de paiement",
+    "memberSince": "Membre depuis",
+    "notSet": "Non défini"
+  },
+  "license": { "premium": "Premium", "access": "Access" },
+  "payment": { "upToDate": "À jour", "required": "Paiement requis" },
+  "brand": {
+    "title": "Identité de marque",
+    "desc": "Cette image est envoyée à l'application playground pour personnaliser vos sessions.",
+    "logoAlt": "Logo de marque",
+    "usingAvatar": "Avatar utilisé",
+    "usingLogo": "Logo d'entreprise utilisé",
+    "useAvatar": "Utiliser mon avatar comme logo d'entreprise",
+    "replace": "Remplacer le logo d'entreprise",
+    "upload": "Téléverser un logo d'entreprise",
+    "constraints": "Max 2 Mo. JPEG, PNG, GIF ou WebP."
+  },
+  "language": {
+    "title": "Langue",
+    "desc": "La langue de votre interface Studio. Elle devient aussi la langue par défaut des nouveaux scénarios que vous créez et la langue suggérée lors de la configuration de l'application playground."
+  },
+  "security": {
+    "title": "Sécurité",
+    "desc": "Votre compte est sécurisé par une authentification à mot de passe à usage unique.",
+    "manage": "Gérer la sécurité"
+  },
+  "memberSince": {
+    "na": "N/D",
+    "years_one": "{{count}} an",
+    "years_other": "{{count}} ans",
+    "months_one": "{{count}} mois",
+    "months_other": "{{count}} mois",
+    "days_one": "{{count}} jour",
+    "days_other": "{{count}} jours"
+  },
+  "messages": {
+    "imageFile": "Veuillez téléverser un fichier image",
+    "imageSize": "L'image doit faire moins de 2 Mo",
+    "logoUploadFail": "Échec du téléversement du logo",
+    "logoUpdated": "Logo d'entreprise mis à jour",
+    "prefFail": "Échec de la mise à jour de la préférence",
+    "languageFail": "Échec de la mise à jour de la langue",
+    "languageUpdated": "Langue mise à jour",
+    "avatarFail": "Échec du téléversement de l'avatar",
+    "avatarUpdated": "Avatar mis à jour avec succès"
+  }
+}

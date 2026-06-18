@@ -10,7 +10,24 @@ export interface Device {
   device_uniq: string;
   device_label: string | null;
   display_name: string | null;
+  // Inventory bit set during first-launch onboarding (or the playground's
+  // Network settings tab): this machine is the client's canonical mother / game
+  // server. No secret is stored — see playground first-launch onboarding.
+  is_default_mother?: number;
+  mother_uuid?: string | null;
   created_at: string;
+  updated_at: string;
+}
+
+// A relayed default Wi-Fi hotspot announced by one of the client's devices.
+// Sibling playground devices download these to auto-join. Hotspot creds only;
+// the password is never surfaced here.
+export interface LanNetwork {
+  id: number;
+  ssid: string;
+  source: string;
+  is_default: number;
+  device_label: string | null;
   updated_at: string;
 }
 
@@ -37,6 +54,23 @@ export async function getDevices(): Promise<Device[]> {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch devices');
+  }
+
+  const result = await response.json();
+  return result.data || [];
+}
+
+// The client's announced default Wi-Fi hotspots (read-only dashboard view).
+export async function getLanNetworks(): Promise<LanNetwork[]> {
+  const response = await fetch(`${API_BASE_URL}/devices.php?action=lan_networks`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || 'Failed to fetch hotspots');
   }
 
   const result = await response.json();

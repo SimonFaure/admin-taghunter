@@ -14,11 +14,27 @@ import { resolveFontFamily } from '../../fonts/resolveFontFamily';
 import { registerStudioCustomFonts } from '../../fonts/registerStudioCustomFonts';
 import type { CustomFont, Enigma, Overscore } from '../../types/scenario-data';
 import { MOCK_MYSTERY_STATE } from './mockMysteryState';
+import {
+  IDLE_ROLES,
+  INGAME_ROLES,
+  MysteryFixedFrames,
+  MysteryIdleBox,
+  MysteryLayoutBox,
+  resolveIdleLayout,
+  resolveIngameLayout,
+  type IdleLayout,
+  type IngameLayout,
+  type IngameRoleKey,
+} from './mysteryIngameLayout';
 
 type Localized = Record<string, string>;
 
 export type EnigmaView = 'locked' | 'revealed';
-export type MysteryScreen = 'instructions' | 'ingame' | 'endgame';
+export type MysteryScreen = 'instructions' | 'ingame' | 'endgame' | 'idle';
+
+/** Mock subtitle shown for the idle 'subtitle' element in the studio preview/
+ *  layout editor (the real text is a per-launch field in the playground). */
+export const IDLE_SUBTITLE_SAMPLE = 'Centre Aéré des Collines';
 
 export interface PreviewMysteryGameMeta {
   background_image?: string;
@@ -32,6 +48,11 @@ export interface PreviewMysteryGameMeta {
   levels_gauge_player_icon_image?: string;
   levels_gauge_level_icon_image?: string;
   gauge_filling?: string;
+  game_instructions_image?: string;
+  game_instructions_button_image?: string;
+  game_instructions_button_hover_image?: string;
+  game_refresh_button_image?: string;
+  game_refresh_button_hover_image?: string;
   font?: string;
   font_color?: string;
   level_font_color?: string;
@@ -41,6 +62,10 @@ export interface PreviewMysteryGameMeta {
   overscores?: Overscore[];
   levels?: Record<string, { points?: string; name?: Localized | string; description?: Localized | string }>;
   custom_fonts?: CustomFont[];
+  /** Author-placed positions for the 4 in-game text roles. Absent → defaults. */
+  ingame_layout?: IngameLayout;
+  /** Author-placed styled title/subtitle for the idle (between-teams) screen. */
+  idle_layout?: IdleLayout;
   [key: string]: unknown;
 }
 
@@ -62,6 +87,10 @@ export interface MysteryPreviewRendererProps {
   /** Active editor language (for admin label resolution). */
   lang: Lang;
   defaultLang: Lang;
+  /** When true, the 4 in-game text overlays are NOT drawn — the in-game layout
+   *  editor uses this so the preview is a clean backdrop under its own
+   *  draggable boxes. */
+  hideIngameTextOverlays?: boolean;
 }
 
 export function MysteryPreviewRenderer({
@@ -75,6 +104,7 @@ export function MysteryPreviewRenderer({
   screen,
   canonicalWidth,
   canonicalHeight,
+  hideIngameTextOverlays,
 }: MysteryPreviewRendererProps) {
   const fitWrapperRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -134,16 +164,6 @@ export function MysteryPreviewRenderer({
   const gaugeInsetPx = `${gaugeInset}px`;
   const gaugeDoubleInsetPx = `${gaugeInset * 2}px`;
 
-  const cardStyle: React.CSSProperties = {
-    width: '100%',
-    position: 'relative',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: gameMeta.font_color || '#ffffff',
-    textShadow: '0 1px 4px rgba(0,0,0,0.7)',
-  };
-
   return (
     <div
       ref={fitWrapperRef}
@@ -191,7 +211,14 @@ export function MysteryPreviewRenderer({
         >
           {screen === 'ingame' && (
           <>
-          {/* Top 3-column row */}
+          {/* Top band reserved for the title elements (enigma name centre, team
+              name right, timer/score left). The board below starts under them:
+              enigma image under the enigma title, recap list under the team
+              title. */}
+          <div style={{ height: `${stage.height * 0.12}px`, flexShrink: 0 }} />
+
+          {/* Board row: centre = enigma image (under enigma title),
+              right = recap list (under team title). */}
           <div
             style={{
               display: 'grid',
@@ -201,35 +228,9 @@ export function MysteryPreviewRenderer({
               minHeight: 0,
             }}
           >
-            {/* Left column: timer, score, overscore image */}
+            {/* Left column: overscore image only. Timer + score are now
+                author-placed overlays (see below). */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: `${stage.height * 0.02}px` }}>
-              <div style={{ ...cardStyle, aspectRatio: '4 / 1' }}>
-                {gameMeta.time_background_image && (
-                  <img
-                    src={resolveMediaUrl(gameMeta.time_background_image)}
-                    alt=""
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                )}
-                <div style={{ position: 'relative', fontSize: `${stage.height * 0.045}px`, fontWeight: 'bold' }}>
-                  {MOCK_MYSTERY_STATE.timer}
-                </div>
-              </div>
-
-              <div style={{ ...cardStyle, aspectRatio: '4 / 1' }}>
-                {gameMeta.score_background_image && (
-                  <img
-                    src={resolveMediaUrl(gameMeta.score_background_image)}
-                    alt=""
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                )}
-                <div style={{ position: 'relative', fontSize: `${stage.height * 0.045}px`, fontWeight: 'bold' }}>
-                  {MOCK_MYSTERY_STATE.score}
-                  {pointsUnits === 'percentage' ? '%' : `/${scoreFullGame}`}
-                </div>
-              </div>
-
               {/* Overscore display — shown when the modal selects a stage. */}
               {overscoreImageUrl && (
                 <div
@@ -277,18 +278,8 @@ export function MysteryPreviewRenderer({
                   `Enigma ${enigma.number ?? selectedEnigmaIndex + 1}`;
                 return (
                   <>
-                    <div
-                      style={{
-                        fontSize: `${stage.height * 0.05}px`,
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        textShadow: '0 1px 4px rgba(0,0,0,0.7)',
-                        padding: `0 ${stage.width * 0.01}px`,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {text}
-                    </div>
+                    {/* Enigma name is now an author-placed overlay (below); the
+                        centre column shows only the featured image. */}
                     <div
                       style={{
                         flex: '1 1 0',
@@ -320,23 +311,11 @@ export function MysteryPreviewRenderer({
               })()}
             </div>
 
-            {/* Right column: team name + enigmas header + recap grid */}
+            {/* Right column: enigmas header + recap grid. Team name is now an
+                author-placed overlay (see below). */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: `${stage.height * 0.012}px`, minHeight: 0 }}>
-              <div style={{ ...cardStyle, aspectRatio: '4 / 1' }}>
-                {gameMeta.team_name_background_image && (
-                  <img
-                    src={resolveMediaUrl(gameMeta.team_name_background_image)}
-                    alt=""
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                )}
-                <div style={{ position: 'relative', fontSize: `${stage.height * 0.04}px`, fontWeight: 'bold' }}>
-                  {MOCK_MYSTERY_STATE.teamName}
-                </div>
-              </div>
-
               {gameMeta.enigmas_header_image && (
-                <div style={{ ...cardStyle, aspectRatio: '5 / 1' }}>
+                <div style={{ width: '100%', position: 'relative', aspectRatio: '5 / 1' }}>
                   <img
                     src={resolveMediaUrl(gameMeta.enigmas_header_image)}
                     alt=""
@@ -583,6 +562,51 @@ export function MysteryPreviewRenderer({
               })()}
             </div>
           </div>
+
+          {/* Fixed element frame images (non-movable), drawn behind the
+              author-placed text. Shown even when text overlays are hidden (the
+              in-game layout editor uses this as its backdrop). */}
+          {(() => {
+            const frameUrls: Partial<Record<IngameRoleKey, string>> = {};
+            for (const role of INGAME_ROLES) {
+              const file = role.frameImageKey
+                ? (gameMeta[role.frameImageKey] as string | undefined)
+                : undefined;
+              if (file) frameUrls[role.key] = resolveMediaUrl(file);
+            }
+            return <MysteryFixedFrames frameUrls={frameUrls} />;
+          })()}
+
+          {/* Author-placed text overlays — the 4 in-game roles positioned via
+              game_meta.ingame_layout, each auto-fitting its box. */}
+          {!hideIngameTextOverlays && (() => {
+            const layout = resolveIngameLayout(gameMeta.ingame_layout);
+            const overlayFont = scenarioFontFamily || 'Arial Black, Arial, sans-serif';
+            const overlayColor = gameMeta.font_color || '#ffffff';
+            const featured = enigmas[selectedEnigmaIndex];
+            const enigmaName = featured
+              ? readLocalized(featured.text as Localized | string | undefined) ||
+                `Enigma ${featured.number ?? selectedEnigmaIndex + 1}`
+              : '';
+            const scoreText = `${MOCK_MYSTERY_STATE.score}${pointsUnits === 'percentage' ? '%' : `/${scoreFullGame}`}`;
+            const textByRole: Record<string, string> = {
+              enigma_name: enigmaName,
+              timer: MOCK_MYSTERY_STATE.timer,
+              score: scoreText,
+              team_name: MOCK_MYSTERY_STATE.teamName,
+            };
+            return INGAME_ROLES.map((role) => (
+              <MysteryLayoutBox
+                key={role.key}
+                box={layout[role.key]}
+                stageWidth={stage.width}
+                stageHeight={stage.height}
+                text={textByRole[role.key]}
+                fontFamily={overlayFont}
+                color={overlayColor}
+              />
+            ));
+          })()}
           </>
           )}
 
@@ -653,6 +677,35 @@ export function MysteryPreviewRenderer({
                 )}
               </div>
             );
+          })()}
+
+          {/* Idle screen — background only (drawn at the root) plus the enabled
+              author-placed title/subtitle. The layout editor passes
+              `hideIngameTextOverlays` so its draggable copies sit alone on top. */}
+          {screen === 'idle' && !hideIngameTextOverlays && (() => {
+            const idle = resolveIdleLayout(gameMeta.idle_layout);
+            const fallbackFont = scenarioFontFamily || 'Arial Black, Arial, sans-serif';
+            const fallbackColor = gameMeta.font_color || '#ffffff';
+            const scenarioTitle = readLocalized(gameMeta.title as Localized | string | undefined) || '';
+            const textByRole: Record<string, string> = {
+              title: scenarioTitle,
+              subtitle: IDLE_SUBTITLE_SAMPLE,
+            };
+            return IDLE_ROLES.map((role) => {
+              const el = idle[role.key];
+              if (!el.enabled) return null;
+              return (
+                <MysteryIdleBox
+                  key={role.key}
+                  element={el}
+                  stageHeight={stage.height}
+                  text={textByRole[role.key]}
+                  fallbackFontFamily={fallbackFont}
+                  fallbackColor={fallbackColor}
+                  resolveFont={resolveFontFamily}
+                />
+              );
+            });
           })()}
 
           {screen === 'endgame' && (() => {

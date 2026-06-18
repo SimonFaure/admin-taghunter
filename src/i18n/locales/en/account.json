@@ -1,0 +1,57 @@
+{
+  "maxSize": "Max 2MB",
+  "title": "Account Information",
+  "subtitle": "Manage your profile and account settings",
+  "yourAvatar": "Your avatar",
+  "fields": {
+    "name": "Name",
+    "email": "Email",
+    "clientId": "Client ID",
+    "licenseType": "License Type",
+    "paymentStatus": "Payment Status",
+    "memberSince": "Member Since",
+    "notSet": "Not set"
+  },
+  "license": { "premium": "Premium", "access": "Access" },
+  "payment": { "upToDate": "Up to Date", "required": "Payment Required" },
+  "brand": {
+    "title": "Brand identity",
+    "desc": "This image is sent to the playground app to brand your sessions.",
+    "logoAlt": "Brand logo",
+    "usingAvatar": "Using avatar",
+    "usingLogo": "Using company logo",
+    "useAvatar": "Use my avatar as my company logo",
+    "replace": "Replace company logo",
+    "upload": "Upload company logo",
+    "constraints": "Max 2MB. JPEG, PNG, GIF or WebP."
+  },
+  "language": {
+    "title": "Language",
+    "desc": "The language of your Studio interface. It also becomes the default for new scenarios you create and the suggested language when setting up the playground app."
+  },
+  "security": {
+    "title": "Security",
+    "desc": "Your account is secured with one-time password authentication.",
+    "manage": "Manage security"
+  },
+  "memberSince": {
+    "na": "N/A",
+    "years_one": "{{count}} year",
+    "years_other": "{{count}} years",
+    "months_one": "{{count}} month",
+    "months_other": "{{count}} months",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days"
+  },
+  "messages": {
+    "imageFile": "Please upload an image file",
+    "imageSize": "Image must be smaller than 2MB",
+    "logoUploadFail": "Failed to upload logo",
+    "logoUpdated": "Company logo updated",
+    "prefFail": "Failed to update preference",
+    "languageFail": "Failed to update language",
+    "languageUpdated": "Language updated",
+    "avatarFail": "Failed to upload avatar",
+    "avatarUpdated": "Avatar updated successfully"
+  }
+}

@@ -36,10 +36,12 @@ SET @sql = (SELECT IF(
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- devices.device_uniq  (per-install unique id; required by the new auth flow)
+-- devices.device_uniq  (per-install unique id, required by the new auth flow)
 -- This column is created by cards_and_devices_migration.sql, but on legacy
 -- schemas it may be missing — add it here defensively. Without it, the
 -- playground client cannot identify itself to the server.
+-- (Comments here intentionally avoid semicolons: some migration runners split
+--  on `;` before stripping comments, so a `;` in prose corrupts the next stmt.)
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
@@ -61,7 +63,32 @@ SET @sql = (SELECT IF(
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- devices.device_label  (user-facing name; defaults to hostname)
+-- devices.playground_version  (last app version seen from this device)
+-- Created by cards_and_devices_migration.sql CREATE TABLE, but that is a no-op
+-- on legacy `devices` tables that predate it — so backfill defensively here.
+-- DeviceManager INSERTs and SELECTs this column, so login fails without it.
+-- ─────────────────────────────────────────────────────────────────────────────
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'devices' AND COLUMN_NAME = 'playground_version') > 0,
+    'SELECT 1',
+    'ALTER TABLE devices ADD COLUMN playground_version VARCHAR(50) NOT NULL DEFAULT '''''
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- devices.cards_file_version  (same legacy-backfill rationale as above)
+-- ─────────────────────────────────────────────────────────────────────────────
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'devices' AND COLUMN_NAME = 'cards_file_version') > 0,
+    'SELECT 1',
+    'ALTER TABLE devices ADD COLUMN cards_file_version INT NOT NULL DEFAULT 0'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- devices.device_label  (user-facing name, defaults to hostname)
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS

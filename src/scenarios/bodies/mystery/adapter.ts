@@ -47,6 +47,7 @@ function buildMediasColumn(gameMeta: MysteryGameMeta, uniqid: string): MediasCol
   const enigmas = (gameMeta.enigmas ?? []).map((e: Enigma) => ({
     enigma_number: e.number,
     good_answer_image: extractFileName(e.good_answer_image ?? ''),
+    wrong_answer_image: extractFileName(e.wrong_answer_image ?? ''),
   }));
   const overscores = (gameMeta.overscores ?? []).map((o: Overscore) => ({
     overscore_step: o.overscore_step,
@@ -107,6 +108,9 @@ function enumerateMedia(gameMeta: MysteryGameMeta): readonly EnumeratedMedia[] {
   (gameMeta.enigmas ?? []).forEach((e: Enigma, eIdx: number) => {
     if (e.good_answer_image) {
       out.push({ fieldName: `enigma_${eIdx}_good_answer_image`, filename: e.good_answer_image, kind: 'image' });
+    }
+    if (e.wrong_answer_image) {
+      out.push({ fieldName: `enigma_${eIdx}_wrong_answer_image`, filename: e.wrong_answer_image, kind: 'image' });
     }
   });
   (gameMeta.overscores ?? []).forEach((o: Overscore, oIdx: number) => {
@@ -206,8 +210,9 @@ function buildZipPayload(
     .map((e: Enigma) => ({
       enigma_number: e.number,
       good_answer_image: relativeUrl(e.good_answer_image ?? ''),
+      wrong_answer_image: relativeUrl(e.wrong_answer_image ?? ''),
     }))
-    .filter((e) => e.good_answer_image && e.good_answer_image !== '');
+    .filter((e) => (e.good_answer_image && e.good_answer_image !== '') || (e.wrong_answer_image && e.wrong_answer_image !== ''));
 
   const overscoresMedia = (gm.overscores ?? [])
     .map((o: Overscore) => ({
@@ -256,6 +261,7 @@ export const mysteryAdapter: ScenarioAdapter<MysteryGameMeta> = {
   capabilities: {
     hasLevels: true,
     hasOverscores: true,
+    hasPodium: true,
     supportsProductTemplate: false,
     hasTranslatableArrays: ['enigmas', 'levels', 'overscores'],
   },

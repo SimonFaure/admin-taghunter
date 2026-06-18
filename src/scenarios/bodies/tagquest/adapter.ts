@@ -214,6 +214,7 @@ export const tagquestAdapter: ScenarioAdapter<TagquestGameMeta> = {
   capabilities: {
     hasLevels: true,
     hasOverscores: false,
+    hasPodium: true,
     supportsProductTemplate: true,
     hasTranslatableArrays: ['quests', 'levels'],
   },

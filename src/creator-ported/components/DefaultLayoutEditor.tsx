@@ -935,40 +935,11 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
 
     setPublishing(true);
     try {
+      // saveLayout() upserts the live default layout into default_config, which
+      // is the authoritative store the playground reads. The old `layouts` table
+      // publish pipeline was retired, so Save IS the publish.
       await saveLayout();
-
-      const newVersion = Number((currentVersion + 0.1).toFixed(1));
-
-      const authToken = authService.getToken();
-
-      const payload = {
-        email: userEmail,
-        name: scenarioType,
-        game_type: scenarioType,
-        layout_data: { elements },
-        status: layoutStatus,
-        version: String(newVersion),
-        scenario_uniqid: scenarioId || null,
-        layout_uniqid: layoutUniqid || null,
-      };
-
-      const publishUrl = `${API_BASE_URL}/layouts.php?action=upload`;
-      const response = await fetch(publishUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken?.token ? { 'Authorization': `Bearer ${authToken.token}` } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok || !responseData.success) {
-        throw new Error(responseData.error || `Failed to publish layout (${response.status})`);
-      }
-
-      setAlert({ type: 'success', message: responseData.message || 'Layout published successfully' });
+      setAlert({ type: 'success', message: 'Layout published successfully' });
     } catch (error) {
       console.error('Error publishing layout:', error);
       setAlert({ type: 'error', message: error instanceof Error ? error.message : 'Failed to publish layout' });

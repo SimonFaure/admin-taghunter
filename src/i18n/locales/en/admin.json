@@ -1,0 +1,12 @@
+{
+  "title": "Admin Panel",
+  "enterPassword": "Enter Admin Password",
+  "unlock": "Unlock",
+  "invalidPassword": "Invalid password",
+  "apiLogs": "API Logs",
+  "importLogs": "Import Logs",
+  "documentation": "API Documentation",
+  "clearLogs": "Clear Logs",
+  "viewLogs": "View Logs",
+  "noLogs": "No logs available"
+}

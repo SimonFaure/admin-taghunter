@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useTranslation } from 'react-i18next';
 import { db } from '../../creator-ported/lib/db';
 import { getMediaUrl as getMediaUrlUtil, extractFileName } from '../../creator-ported/utils/mediaUrl';
 import { useAuth } from '../../auth/AuthContext';
@@ -25,11 +26,12 @@ import {
   type SavePayload,
 } from './state/saveOrchestrator';
 import { uploadAsset as uploadAssetImpl } from './state/assetUpload';
-import { getLocalized } from '../i18n/getLocalized';
+import { getLocalized, setLocalized } from '../i18n/getLocalized';
 import type { Lang } from '../i18n/types';
 import { ScenarioHeader } from './components/ScenarioHeader';
 import { SaveBar } from './components/SaveBar';
 import { CollapseAllProvider } from './components/CollapsibleSection';
+import { SectionsTOC } from './components/SectionsTOC';
 import { LanguageBar } from './components/LanguageBar';
 import { MetaSection } from './sections/MetaSection';
 import { CoverSection } from './sections/CoverSection';
@@ -40,6 +42,7 @@ import { TextStringsSection } from './sections/TextStringsSection';
 import { TypographySection } from './sections/TypographySection';
 import { TimingSection } from './sections/TimingSection';
 import { AdminSection } from './sections/AdminSection';
+import { ReportLayoutSection } from './sections/ReportLayoutSection';
 import type { ScenarioAdapter, ScenarioEditorState, ShellAlert } from '../types';
 
 interface ScenarioEditorShellProps {
@@ -50,6 +53,7 @@ interface ScenarioEditorShellProps {
 }
 
 export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutEditor }: ScenarioEditorShellProps) {
+  const { t } = useTranslation('editor');
   const { userType } = useAuth();
   const isAdmin = userType === 'admin';
 
@@ -64,7 +68,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
       try {
         const { data, error } = await db
           .from('scenarios')
-          .select('title, description, uniqid, data, medias, status, scenario_type, scenario_layout')
+          .select('title, description, uniqid, data, medias, status, scenario_type, scenario_layout, version')
           .eq('id', scenarioId)
           .maybeSingle();
         if (cancelled || error || !data) return;
@@ -104,6 +108,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
           description?: string;
           status?: string;
           scenario_type?: string;
+          version?: unknown;
         };
 
         // Validate against adapter schema (warn-only). Doesn't gate hydration.
@@ -118,7 +123,16 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
         }
 
         // Merge gameMeta + media (images/sounds/video) back into a flat working copy.
-        const gameMetaIn = parsedData?.game_meta ?? {};
+        // A freshly-created scenario is inserted with `data: {}` (no game_meta),
+        // so loading it would otherwise clobber the defaultConfig that
+        // initialState seeded — leaving fixed-skeleton types like clash with no
+        // territories/clans and no way to add them. Fall back to the adapter's
+        // defaults whenever the loaded game_meta is empty.
+        const loadedMeta = parsedData?.game_meta;
+        const gameMetaIn =
+          loadedMeta && Object.keys(loadedMeta).length > 0
+            ? loadedMeta
+            : (adapter.defaultConfig() as Record<string, unknown>);
         const merged: Record<string, unknown> = { ...gameMetaIn };
         if (parsedMedia?.images) for (const [k, v] of Object.entries(parsedMedia.images)) merged[k] = v;
         if (parsedMedia?.sounds) for (const [k, v] of Object.entries(parsedMedia.sounds)) merged[k] = v;
@@ -159,6 +173,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
             if (typeof n !== 'string' || n === '') return;
             const m = byNumber.get(n);
             if (m?.good_answer_image) e.good_answer_image = m.good_answer_image;
+            if (m?.wrong_answer_image) e.wrong_answer_image = m.wrong_answer_image;
           });
         }
 
@@ -219,13 +234,26 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
           }
         }
 
-        const defaultLanguage = parsedData?.default_language ?? 'fr';
+        const defaultLanguage = (parsedData?.default_language ?? 'fr') as Lang;
+
+        // A freshly-created scenario stores its title/description only in the
+        // row columns (data is `{}`, so game_meta fell back to defaults above).
+        // Seed the localized gameMeta fields from the row whenever they're empty
+        // so the title typed on the "Create New Scenario" page shows up here.
+        if (row.title && !getLocalized(merged.title as never, defaultLanguage, defaultLanguage)) {
+          merged.title = setLocalized(merged.title as never, defaultLanguage, row.title, defaultLanguage);
+        }
+        if (row.description && !getLocalized(merged.description as never, defaultLanguage, defaultLanguage)) {
+          merged.description = setLocalized(merged.description as never, defaultLanguage, row.description, defaultLanguage);
+        }
+
         dispatch({
           type: 'HYDRATE',
           payload: {
             uniqid: row.uniqid ?? '',
             scenarioStatus: row.status ?? 'draft',
             scenarioType: row.scenario_type ?? 'custom',
+            scenarioVersion: row.version != null ? String(row.version) : '',
             scenarioLayout: parsedLayout,
             gameMeta: merged,
             defaultLanguage,
@@ -239,14 +267,14 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
       } catch (err) {
         if (!cancelled) {
           console.error('[ScenarioEditorShell] load failed', err);
-          dispatch({ type: 'SET_ALERT', payload: { type: 'error', message: 'Failed to load scenario' } });
+          dispatch({ type: 'SET_ALERT', payload: { type: 'error', message: t('alert.loadFailed') } });
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [scenarioId, adapter]);
+  }, [scenarioId, adapter, t]);
 
   const buildPayload = useCallback((): SavePayload => {
     // Derive row-level title/description from the Localized maps' default-lang
@@ -272,13 +300,18 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
   const save = useCallback(async () => {
     dispatch({ type: 'BEGIN_SAVING' });
     const result = await performSave(buildPayload());
+    // performSave bumps scenarios.version (+0.1); reflect the new value so the
+    // admin section's read-only field stays in step with the details page.
+    if (result.ok && result.savedScenario?.version != null) {
+      dispatch({ type: 'HYDRATE', payload: { scenarioVersion: String(result.savedScenario.version) } });
+    }
     dispatch({
       type: 'END_SAVING',
       payload: result.ok
-        ? { type: 'success', message: 'Saved' }
-        : { type: 'error', message: result.error ?? 'Save failed' },
+        ? { type: 'success', message: t('alert.saved') }
+        : { type: 'error', message: result.error ?? t('alert.saveFailed') },
     });
-  }, [buildPayload]);
+  }, [buildPayload, t]);
 
   const publish = useCallback(async () => {
     dispatch({ type: 'BEGIN_PUBLISHING' });
@@ -293,22 +326,30 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     const payload: SavePayload = { ...buildPayload(), gameMeta: bumpedMeta, status: 'published' };
     const result = await performSave(payload);
     if (result.ok) {
-      dispatch({ type: 'HYDRATE', payload: { scenarioStatus: 'published' } });
+      dispatch({
+        type: 'HYDRATE',
+        payload: {
+          scenarioStatus: 'published',
+          ...(result.savedScenario?.version != null
+            ? { scenarioVersion: String(result.savedScenario.version) }
+            : {}),
+        },
+      });
     }
     dispatch({
       type: 'END_PUBLISHING',
       payload: result.ok
-        ? { type: 'success', message: `Published v${nextVersion}` }
-        : { type: 'error', message: result.error ?? 'Publish failed' },
+        ? { type: 'success', message: t('alert.published', { version: nextVersion }) }
+        : { type: 'error', message: result.error ?? t('alert.publishFailed') },
     });
-  }, [buildPayload, state.gameMeta]);
+  }, [buildPayload, state.gameMeta, t]);
 
   const downloadZip = useCallback(async () => {
     const result = await performZipDownload(buildPayload());
     if (!result.ok) {
-      dispatch({ type: 'SET_ALERT', payload: { type: 'error', message: result.error ?? 'ZIP download failed' } });
+      dispatch({ type: 'SET_ALERT', payload: { type: 'error', message: result.error ?? t('alert.zipFailed') } });
     }
-  }, [buildPayload]);
+  }, [buildPayload, t]);
 
   const uploadAsset = useCallback(
     async (slotKey: string, file: File): Promise<string> => {
@@ -319,11 +360,11 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
         slotKind: slot?.kind ?? 'image',
       });
       if (!result.ok || !result.filename) {
-        throw new Error(result.error ?? 'Upload failed');
+        throw new Error(result.error ?? t('alert.uploadFailed'));
       }
       return result.filename;
     },
-    [state.uniqid, adapter.mediaSlots],
+    [state.uniqid, adapter.mediaSlots, t],
   );
 
   const getMediaUrl = useCallback(
@@ -341,6 +382,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
       uniqid: state.uniqid,
       gameType: adapter.kind,
       adapter,
+      scenarioVersion: state.scenarioVersion,
       gameMeta: state.gameMeta,
       setGameMeta: (updater) => dispatch({ type: 'SET_GAME_META', payload: updater(state.gameMeta) }),
       setField: (key, val) =>
@@ -396,6 +438,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
               <Alert type={state.alert.type === 'success' ? 'success' : 'error'} message={state.alert.message} onClose={() => setAlert(null)} />
             </div>
           )}
+          <SectionsTOC />
           <main className="flex-1 px-6 py-4 space-y-4">
             <LanguageBar />
             <MetaSection />
@@ -408,6 +451,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
             <TypographySection />
             <TimingSection />
             <AdminSection />
+            <ReportLayoutSection />
             <AdminOnlyPanel>
               <ScenarioAdminControls scenarioId={scenarioId} />
             </AdminOnlyPanel>

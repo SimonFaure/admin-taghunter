@@ -8,6 +8,7 @@
 import { TagquestImagesSection } from './sections/TagquestImagesSection';
 import { TagquestSoundsSection } from './sections/TagquestSoundsSection';
 import { MalusComboSection } from './sections/MalusComboSection';
+import { PatternSection } from './sections/PatternSection';
 import { QuestsSection } from './sections/QuestsSection';
 import { ProductTemplateSection } from './sections/ProductTemplateSection';
 
@@ -18,6 +19,7 @@ export function TagquestBody() {
       <TagquestImagesSection />
       <TagquestSoundsSection />
       <MalusComboSection />
+      <PatternSection />
       <QuestsSection />
     </>
   );

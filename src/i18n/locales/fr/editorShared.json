@@ -1,0 +1,16 @@
+{
+  "required": "Obligatoire",
+  "replace": "Remplacer",
+  "upload": "Téléverser",
+  "clear": "Effacer",
+  "kind": {
+    "image": "image",
+    "sound": "son",
+    "video": "vidéo",
+    "audio": "audio",
+    "file": "fichier",
+    "asset": "ressource"
+  },
+  "fileTypeNotAccepted": "Type de fichier non accepté ({{kind}} requis)",
+  "dragDropHint": "Glissez-déposez un fichier {{kind}} ici, ou cliquez sur Téléverser."
+}

@@ -5,7 +5,6 @@ import { MyHomeView } from '../components/client/MyHomeView';
 import { MyScenariosView } from '../components/client/MyScenariosView';
 import { ScenarioDetailView } from '../components/client/ScenarioDetailView';
 import { MyPatternsView } from '../components/client/MyPatternsView';
-import { MyLayoutsView } from '../components/client/MyLayoutsView';
 import { MyCardsView } from '../components/client/MyCardsView';
 import { MyDevicesView } from '../components/client/MyDevicesView';
 import { MyAccountView } from '../components/client/MyAccountView';
@@ -20,6 +19,7 @@ import { GameTypesView } from '../components/GameTypesView';
 import { MySettingsView } from '../components/client/MySettingsView';
 import { ClientStatisticsView } from '../components/client/ClientStatisticsView';
 import { MyHelpView } from '../components/client/MyHelpView';
+import { MyReleasesView } from '../components/client/MyReleasesView';
 
 // Admin list views (/admin/scenarios etc.) aren't split out yet — Dashboard's
 // existing tab state still owns those. Leaving them as placeholder routes for
@@ -42,7 +42,6 @@ export function AppRouter() {
         <Route element={<RequireRole role="admin" />}>
           <Route path="/admin/scenarios" element={<Placeholder path="/admin/scenarios" />} />
           <Route path="/admin/patterns" element={<Placeholder path="/admin/patterns" />} />
-          <Route path="/admin/layouts" element={<Placeholder path="/admin/layouts" />} />
           <Route path="/admin/*" element={<Dashboard />} />
         </Route>
 
@@ -53,9 +52,9 @@ export function AppRouter() {
             <Route path="scenarios" element={<MyScenariosView />} />
             <Route path="scenarios/:uniqid" element={<ScenarioDetailView />} />
             <Route path="patterns" element={<MyPatternsView />} />
-            <Route path="layouts" element={<MyLayoutsView />} />
             <Route path="cards" element={<MyCardsView />} />
             <Route path="devices" element={<MyDevicesView />} />
+            <Route path="releases" element={<MyReleasesView />} />
             <Route path="game-types" element={<GameTypesView />} />
             <Route path="statistics" element={<ClientStatisticsView />} />
             <Route path="settings" element={<MySettingsView />} />

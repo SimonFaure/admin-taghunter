@@ -1,0 +1,16 @@
+{
+  "welcomeBack": "Welcome back, {{name}}",
+  "welcome": "Welcome",
+  "createScenario": "Create scenario",
+  "createAScenario": "Create a scenario",
+  "loadError": "Failed to load home",
+  "quickStats": "Quick stats",
+  "statScenariosOwned": "Scenarios I own",
+  "statCustomScenarios": "Custom scenarios",
+  "statGamesLaunched": "Games launched",
+  "statPlayers": "Players",
+  "ownedTitle": "The scenarios I own",
+  "ownedEmpty": "No scenarios assigned to you yet.",
+  "customTitle": "My Custom scenarios",
+  "customEmpty": "You haven't created any custom scenarios yet."
+}

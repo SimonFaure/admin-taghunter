@@ -1,0 +1,39 @@
+{
+  "title": {
+    "edit": "Edit custom pattern",
+    "new": "New custom pattern"
+  },
+  "close": "Close",
+  "gameType": "Game type",
+  "name": "Name",
+  "namePlaceholder": "e.g. Salle A — parcours 1",
+  "description": "Description (optional)",
+  "importExcel": "Import CSV / Excel",
+  "orDownloadTemplate": "or download a template:",
+  "csv": "CSV",
+  "excel": "Excel",
+  "table": {
+    "number": "#",
+    "removeRow": "Remove row",
+    "addRow": "Add row"
+  },
+  "stationUnknown": "{{id}} (unknown)",
+  "cancel": "Cancel",
+  "saving": "Saving…",
+  "saveChanges": "Save changes",
+  "createPattern": "Create pattern",
+  "import": {
+    "noRows": "No usable rows found. Check the columns match the template for this game type.",
+    "imported_one": "Imported {{count}} row from {{file}}.",
+    "imported_other": "Imported {{count}} rows from {{file}}.",
+    "readError": "Could not read file: {{message}}",
+    "readErrorGeneric": "Could not read file"
+  },
+  "errors": {
+    "nameRequired": "Please give the pattern a name.",
+    "rowRequired": "Add at least one row with a station number.",
+    "updateFailed": "Failed to update pattern",
+    "createFailed": "Failed to create pattern",
+    "saveFailed": "Failed to save pattern"
+  }
+}

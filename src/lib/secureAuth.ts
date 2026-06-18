@@ -15,6 +15,7 @@ interface TokenData {
   name?: string;
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
+  language?: string;
   created_at?: string;
   avatar_url?: string;
 }
@@ -30,6 +31,7 @@ interface ValidationData {
   error?: string;
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
+  language?: string;
   created_at?: string;
   avatar_url?: string;
 }
@@ -121,6 +123,15 @@ export const secureAuth = {
     return secureFetch<ValidationData>('/secure_auth.php?action=validate', {
       method: 'POST',
       body: JSON.stringify({ token: tokenToValidate }),
+    });
+  },
+
+  // Client self-service: persist my own UI language (fr/en/es). Token-authed
+  // via the X-Auth-Token header that secureFetch already attaches.
+  async updateLanguage(language: string): Promise<ApiResponse<{ language: string }>> {
+    return secureFetch<{ language: string }>('/secure_auth.php?action=update-language', {
+      method: 'POST',
+      body: JSON.stringify({ language }),
     });
   },
 

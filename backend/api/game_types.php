@@ -25,7 +25,9 @@ function gtClientVersionDir($code, $clientId, $version) {
 }
 
 function gtAuth() {
-    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+    // Header is preferred; the query-param fallback lets <video>/<track> elements
+    // (which can't set custom headers) authenticate media requests.
+    $token = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? ($_GET['token'] ?? '');
     if (empty($token)) return null;
     $db = Database::getInstance();
     $tokenData = TokenManager::validateToken($db, $token);
@@ -116,6 +118,9 @@ function gtJsonRow($row) {
     $row['supports_intro_video'] = (bool)$row['supports_intro_video'];
     $row['tutorial_video_version'] = (int)$row['tutorial_video_version'];
     $row['tutorial_subtitles'] = $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass();
+    // Global availability flag (enable/disable game type). Defensive default for
+    // installs where the migration hasn't run yet (column absent → treat as enabled).
+    $row['enabled'] = array_key_exists('enabled', $row) ? (bool)$row['enabled'] : true;
     return $row;
 }
 
@@ -123,6 +128,8 @@ function gtJsonOverride($row) {
     if (!$row) return null;
     $row['tutorial_video_version'] = (int)$row['tutorial_video_version'];
     $row['tutorial_subtitles'] = $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass();
+    // Per-client availability flag: NULL = inherit (allowed), 0 = disabled for this client.
+    $row['enabled'] = array_key_exists('enabled', $row) && $row['enabled'] !== null ? (bool)$row['enabled'] : null;
     return $row;
 }
 
@@ -160,6 +167,12 @@ try {
         case 'admin_remove_video':         handleAdminRemoveVideo($pdo); break;
         case 'admin_remove_subtitle':      handleAdminRemoveSubtitle($pdo); break;
         case 'admin_update_supports':      handleAdminUpdateSupports($pdo); break;
+        case 'admin_set_global_enabled':   handleAdminSetGlobalEnabled($pdo); break;
+        case 'admin_set_client_enabled':   handleAdminSetClientEnabled($pdo); break;
+        case 'admin_set_device_enabled':   handleAdminSetDeviceEnabled($pdo); break;
+        case 'admin_set_channel_enabled':  handleAdminSetChannelEnabled($pdo); break;
+        case 'admin_list_testers':         handleAdminListTesters($pdo); break;
+        case 'admin_disable_impact':       handleAdminDisableImpact($pdo); break;
         case 'client_upload_video':        handleClientUploadVideo($pdo); break;
         case 'client_upload_subtitle':     handleClientUploadSubtitle($pdo); break;
         case 'client_remove_video':        handleClientRemoveVideo($pdo); break;
@@ -182,11 +195,35 @@ function handleList($pdo) {
     $types = array_map('gtJsonRow', $rows);
 
     $overrides = [];
+
     if ($auth['user_type'] === 'client') {
+        // Clients only ever see types available to them (full cascade): hide globally
+        // disabled types and types this client has been disabled for. The server is the
+        // authoritative gate — scenarios/patterns/etc. are filtered the same way.
+        require_once __DIR__ . '/../utils/GameTypes.php';
+        $disabled = GameTypes::disabledForClient($pdo, $auth['user_id']);
+        if ($disabled) {
+            $types = array_values(array_filter($types, function ($t) use ($disabled) {
+                return !in_array($t['code'], $disabled, true);
+            }));
+        }
+
         $stmt = $pdo->prepare('SELECT * FROM client_game_type_overrides WHERE client_id = ?');
         $stmt->execute([$auth['user_id']]);
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $overrides[$row['game_type_code']] = gtJsonOverride($row);
+        }
+    } elseif ($auth['user_type'] === 'admin') {
+        // Admins see every type (incl. disabled) so they can manage availability and
+        // pre-author content. When inspecting a specific client (per-client game-type
+        // section on the client detail page), return that client's overrides too.
+        $clientId = isset($_GET['client_id']) ? (int)$_GET['client_id'] : 0;
+        if ($clientId > 0) {
+            $stmt = $pdo->prepare('SELECT * FROM client_game_type_overrides WHERE client_id = ?');
+            $stmt->execute([$clientId]);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $overrides[$row['game_type_code']] = gtJsonOverride($row);
+            }
         }
     }
 
@@ -207,6 +244,217 @@ function handleAdminUpdateSupports($pdo) {
     $stmt = $pdo->prepare('UPDATE game_types SET supports_tutorial_video = ?, supports_intro_video = ? WHERE code = ?');
     $stmt->execute([$supportsTutorial, $supportsIntro, $code]);
     echo json_encode(['success' => true]);
+}
+
+function handleAdminSetGlobalEnabled($pdo) {
+    gtRequireAdmin();
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $code = $body['code'] ?? null;
+    if (!$code) { http_response_code(400); echo json_encode(['error' => 'Missing code']); return; }
+    if (!isset($body['enabled'])) { http_response_code(400); echo json_encode(['error' => 'Missing enabled']); return; }
+    $row = gtLoadRow($pdo, $code);
+    if (!$row) { http_response_code(404); echo json_encode(['error' => 'Game type not found']); return; }
+
+    $enabled = (int)(bool)$body['enabled'];
+    $stmt = $pdo->prepare('UPDATE game_types SET enabled = ? WHERE code = ?');
+    $stmt->execute([$enabled, $code]);
+    echo json_encode(['success' => true, 'code' => $code, 'enabled' => (bool)$enabled]);
+}
+
+function handleAdminSetClientEnabled($pdo) {
+    gtRequireAdmin();
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $code = $body['code'] ?? null;
+    $clientId = isset($body['client_id']) ? (int)$body['client_id'] : 0;
+    if (!$code) { http_response_code(400); echo json_encode(['error' => 'Missing code']); return; }
+    if ($clientId <= 0) { http_response_code(400); echo json_encode(['error' => 'Missing client_id']); return; }
+    if (!array_key_exists('enabled', $body)) { http_response_code(400); echo json_encode(['error' => 'Missing enabled']); return; }
+    if (!gtLoadRow($pdo, $code)) { http_response_code(404); echo json_encode(['error' => 'Game type not found']); return; }
+
+    // Tri-state per-client override (overrides the global default):
+    //   true  -> 1    force-enabled for this client (even if globally disabled),
+    //   false -> 0    force-disabled for this client (even if globally enabled),
+    //   null  -> NULL inherit the global default (follows global changes).
+    // The override row may also carry tutorial-video data, so we upsert only `enabled`.
+    $raw = $body['enabled'];
+    if ($raw === null) {
+        $enabledVal = null;
+    } elseif ($raw === true || $raw === 1 || $raw === '1') {
+        $enabledVal = 1;
+    } else {
+        $enabledVal = 0;
+    }
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO client_game_type_overrides (client_id, game_type_code, enabled)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE enabled = VALUES(enabled)'
+    );
+    $stmt->execute([$clientId, $code, $enabledVal]);
+    echo json_encode([
+        'success' => true,
+        'client_id' => $clientId,
+        'code' => $code,
+        'enabled' => $enabledVal, // 1 | 0 | null (inherit)
+    ]);
+}
+
+// Normalise a tri-state `enabled` request body value to 1 | 0 | null (inherit).
+function gtTriState($raw) {
+    if ($raw === null) return null;
+    if ($raw === true || $raw === 1 || $raw === '1') return 1;
+    return 0;
+}
+
+// Per-DEVICE game-type override (Testers page). Tri-state; beats the client and
+// channel layers. NULL clears it (the device falls back to client/channel/global).
+function handleAdminSetDeviceEnabled($pdo) {
+    gtRequireAdmin();
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $code = $body['code'] ?? null;
+    $deviceId = isset($body['device_id']) ? (int)$body['device_id'] : 0;
+    if (!$code) { http_response_code(400); echo json_encode(['error' => 'Missing code']); return; }
+    if ($deviceId <= 0) { http_response_code(400); echo json_encode(['error' => 'Missing device_id']); return; }
+    if (!array_key_exists('enabled', $body)) { http_response_code(400); echo json_encode(['error' => 'Missing enabled']); return; }
+    if (!gtLoadRow($pdo, $code)) { http_response_code(404); echo json_encode(['error' => 'Game type not found']); return; }
+
+    $enabledVal = gtTriState($body['enabled']);
+    if ($enabledVal === null) {
+        $stmt = $pdo->prepare('DELETE FROM device_game_type_overrides WHERE device_id = ? AND game_type_code = ?');
+        $stmt->execute([$deviceId, $code]);
+    } else {
+        $stmt = $pdo->prepare(
+            'INSERT INTO device_game_type_overrides (device_id, game_type_code, enabled)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE enabled = VALUES(enabled)'
+        );
+        $stmt->execute([$deviceId, $code, $enabledVal]);
+    }
+    echo json_encode(['success' => true, 'device_id' => $deviceId, 'code' => $code, 'enabled' => $enabledVal]);
+}
+
+// Per-CHANNEL game-type override (Testers page "all testers" layer). channel='test'
+// grants/forces a type for every device resolved to the test channel. Tri-state.
+function handleAdminSetChannelEnabled($pdo) {
+    gtRequireAdmin();
+    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+    $code = $body['code'] ?? null;
+    $channel = $body['channel'] ?? '';
+    if (!$code) { http_response_code(400); echo json_encode(['error' => 'Missing code']); return; }
+    if (!in_array($channel, ['stable', 'test'], true)) { http_response_code(400); echo json_encode(['error' => 'Invalid channel']); return; }
+    if (!array_key_exists('enabled', $body)) { http_response_code(400); echo json_encode(['error' => 'Missing enabled']); return; }
+    if (!gtLoadRow($pdo, $code)) { http_response_code(404); echo json_encode(['error' => 'Game type not found']); return; }
+
+    $enabledVal = gtTriState($body['enabled']);
+    if ($enabledVal === null) {
+        $stmt = $pdo->prepare('DELETE FROM channel_game_type_overrides WHERE channel = ? AND game_type_code = ?');
+        $stmt->execute([$channel, $code]);
+    } else {
+        $stmt = $pdo->prepare(
+            'INSERT INTO channel_game_type_overrides (channel, game_type_code, enabled)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE enabled = VALUES(enabled)'
+        );
+        $stmt->execute([$channel, $code, $enabledVal]);
+    }
+    echo json_encode(['success' => true, 'channel' => $channel, 'code' => $code, 'enabled' => $enabledVal]);
+}
+
+// Powers the admin Testers page. Returns the global game-type registry, the
+// 'test' channel overrides ("all testers"), the per-client overrides for the
+// clients owning tester devices, and one row per tester device (resolved update
+// channel = 'test') with its own device-level overrides.
+function handleAdminListTesters($pdo) {
+    gtRequireAdmin();
+
+    $types = array_map('gtJsonRow', $pdo->query('SELECT * FROM game_types ORDER BY code')->fetchAll(PDO::FETCH_ASSOC));
+
+    // 'test' channel overrides -> { code: 0|1 }.
+    $channelOverrides = [];
+    $stmt = $pdo->query("SELECT game_type_code, enabled FROM channel_game_type_overrides WHERE channel = 'test' AND enabled IS NOT NULL");
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $channelOverrides[$r['game_type_code']] = (int)$r['enabled'];
+    }
+
+    // Tester devices: resolved update channel is 'test'.
+    $devices = $pdo->query(
+        "SELECT d.id, d.device_label, d.display_name, d.update_channel AS device_channel,
+                d.last_seen_at,
+                c.id AS client_id, c.name AS client_name, c.email AS client_email,
+                c.update_channel AS client_channel
+         FROM devices d
+         JOIN clients c ON c.id = d.client_id
+         WHERE d.update_channel = 'test'
+            OR (d.update_channel IS NULL AND c.update_channel = 'test')
+         ORDER BY c.name ASC, d.last_seen_at DESC"
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    // Per-device overrides -> { device_id: { code: 0|1 } }.
+    $deviceOverrides = [];
+    $stmt = $pdo->query('SELECT device_id, game_type_code, enabled FROM device_game_type_overrides WHERE enabled IS NOT NULL');
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $deviceOverrides[(int)$r['device_id']][$r['game_type_code']] = (int)$r['enabled'];
+    }
+
+    // Per-client overrides for the involved clients -> { client_id: { code: 0|1 } }.
+    $clientOverrides = [];
+    $clientIds = array_values(array_unique(array_map(fn($d) => (int)$d['client_id'], $devices)));
+    if ($clientIds) {
+        $ph = implode(',', array_fill(0, count($clientIds), '?'));
+        $stmt = $pdo->prepare("SELECT client_id, game_type_code, enabled FROM client_game_type_overrides WHERE enabled IS NOT NULL AND client_id IN ($ph)");
+        $stmt->execute($clientIds);
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $clientOverrides[(int)$r['client_id']][$r['game_type_code']] = (int)$r['enabled'];
+        }
+    }
+
+    $testers = array_map(function ($d) use ($deviceOverrides) {
+        $id = (int)$d['id'];
+        return [
+            'device_id' => $id,
+            'label' => $d['display_name'] ?: ($d['device_label'] ?: 'Device'),
+            'client_id' => (int)$d['client_id'],
+            'client_name' => $d['client_name'] ?: $d['client_email'],
+            'client_channel' => $d['client_channel'],
+            'device_channel' => $d['device_channel'],
+            'last_seen_at' => $d['last_seen_at'],
+            'overrides' => $deviceOverrides[$id] ?? new stdClass(),
+        ];
+    }, $devices);
+
+    echo json_encode([
+        'game_types' => $types,
+        'channel_overrides' => (object)$channelOverrides,
+        'client_overrides' => (object)$clientOverrides,
+        'testers' => $testers,
+    ]);
+}
+
+// Impact preview for a *global* disable: how many published scenarios and how many
+// distinct clients are affected. Powers the confirmation dialog in the studio modal.
+function handleAdminDisableImpact($pdo) {
+    gtRequireAdmin();
+    $code = $_GET['code'] ?? '';
+    if (!$code) { http_response_code(400); echo json_encode(['error' => 'Missing code']); return; }
+
+    $scenarioCount = (int)$pdo->query(
+        'SELECT COUNT(*) FROM scenarios WHERE game_type = ' . $pdo->quote($code) . ' AND status = "published"'
+    )->fetchColumn();
+
+    // Distinct clients touched: owners of custom scenarios of this type, plus clients
+    // granted a product scenario of this type. A rough but useful "who is affected".
+    $clientCount = (int)$pdo->query(
+        'SELECT COUNT(DISTINCT cid) FROM (
+            SELECT client_id AS cid FROM scenarios
+             WHERE game_type = ' . $pdo->quote($code) . ' AND status = "published" AND client_id IS NOT NULL
+            UNION
+            SELECT cs.client_id AS cid FROM client_scenarios cs
+             JOIN scenarios s ON s.id = cs.scenario_id
+             WHERE s.game_type = ' . $pdo->quote($code) . ' AND s.status = "published"
+         ) t'
+    )->fetchColumn();
+
+    echo json_encode(['code' => $code, 'scenario_count' => $scenarioCount, 'client_count' => $clientCount]);
 }
 
 function handleAdminUploadVideo($pdo) {
@@ -513,7 +761,44 @@ function handleGetMedia($pdo) {
         http_response_code(404); echo json_encode(['error' => 'File not found']); return;
     }
 
+    // Drop any buffering so large videos stream instead of loading into memory.
+    while (ob_get_level() > 0) { ob_end_clean(); }
+
+    $size = filesize($path);
+    $start = 0;
+    $end = $size - 1;
+
     header('Content-Type: ' . $mime);
-    header('Content-Length: ' . filesize($path));
-    readfile($path);
+    header('Accept-Ranges: bytes');
+
+    // Honour HTTP Range requests so the player can seek without re-downloading.
+    if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d*)-(\d*)/', $_SERVER['HTTP_RANGE'], $m)) {
+        if ($m[1] !== '') $start = (int)$m[1];
+        if ($m[2] !== '') $end = (int)$m[2];
+        if ($start > $end || $start >= $size) {
+            http_response_code(416);
+            header("Content-Range: bytes */$size");
+            return;
+        }
+        http_response_code(206);
+        header("Content-Range: bytes $start-$end/$size");
+    }
+
+    $length = $end - $start + 1;
+    header('Content-Length: ' . $length);
+
+    $fp = fopen($path, 'rb');
+    if ($fp === false) {
+        http_response_code(500); echo json_encode(['error' => 'Read failed']); return;
+    }
+    fseek($fp, $start);
+    $chunk = 8192;
+    $pos = $start;
+    while (!feof($fp) && $pos <= $end) {
+        $read = min($chunk, $end - $pos + 1);
+        echo fread($fp, $read);
+        $pos += $read;
+        flush();
+    }
+    fclose($fp);
 }

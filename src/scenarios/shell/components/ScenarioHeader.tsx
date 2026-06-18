@@ -5,12 +5,14 @@
  */
 
 import { ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { getLocalized } from '../../i18n/getLocalized';
 import type { Lang } from '../../i18n/types';
 import { HelpButton } from '../../../help';
 
 export function ScenarioHeader() {
+  const { t } = useTranslation('editor');
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const title = getLocalized(
@@ -24,22 +26,22 @@ export function ScenarioHeader() {
         <button
           onClick={editor.onBack}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          aria-label="Back"
+          aria-label={t('header.back')}
         >
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <div>
           <div className="text-xs uppercase tracking-wide text-gray-500">{editor.adapter.label}</div>
           <h1 className="text-lg font-semibold text-gray-900">
-            {title || <span className="text-gray-400">Untitled scenario</span>}
+            {title || <span className="text-gray-400">{t('header.untitled')}</span>}
           </h1>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <HelpButton chapter="scenario-editor" label="Help" className="text-slate-500 hover:text-slate-800" />
+        <HelpButton chapter="scenario-editor" label={t('header.help')} className="text-slate-500 hover:text-slate-800" />
         {editor.isDirty && (
           <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-200">
-            Unsaved changes
+            {t('header.unsavedChanges')}
           </span>
         )}
       </div>

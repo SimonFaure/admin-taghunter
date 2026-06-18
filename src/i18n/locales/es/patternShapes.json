@@ -1,0 +1,14 @@
+{
+  "label": {
+    "good_answer_station": "Estación de respuesta correcta",
+    "wrong_answer_station": "Estación de respuesta incorrecta",
+    "image_1": "Estación de imagen 1",
+    "image_2": "Estación de imagen 2",
+    "image_3": "Estación de imagen 3",
+    "image_4": "Estación de imagen 4",
+    "station": "Estación",
+    "station_1": "Baliza 1",
+    "station_2": "Baliza 2",
+    "station_3": "Baliza 3"
+  }
+}

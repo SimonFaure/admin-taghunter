@@ -9,6 +9,7 @@
  */
 
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Upload, Trash2, Image as ImageIcon, Music, Film } from 'lucide-react';
 import type { MediaSlot } from '../../types';
 import { useScenarioEditor } from '../useScenarioEditor';
@@ -51,6 +52,7 @@ function fileMatchesAccept(file: File, accept: string): boolean {
 
 export function AssetUploadField({ slot, value, onChange, validate, previewSize = 'sm' }: AssetUploadFieldProps) {
   const editor = useScenarioEditor();
+  const { t } = useTranslation('editorShared');
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -112,7 +114,7 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
     if (!fileMatchesAccept(file, accept)) {
-      setDropError(`File type not accepted (${slot.kind === 'image' ? 'image' : slot.kind === 'sound' ? 'audio' : slot.kind === 'video' ? 'video' : 'asset'} required)`);
+      setDropError(t('fileTypeNotAccepted', { kind: slot.kind === 'image' ? t('kind.image') : slot.kind === 'sound' ? t('kind.audio') : slot.kind === 'video' ? t('kind.video') : t('kind.asset') }));
       return;
     }
     handleFile(file);
@@ -137,7 +139,7 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
           <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
             <Icon className="w-4 h-4 text-gray-400" />
             {slot.label}
-            {slot.required === 'error' && <span className="text-red-500" title="Required">*</span>}
+            {slot.required === 'error' && <span className="text-red-500" title={t('required')}>*</span>}
           </div>
           {value && <div className="text-xs text-gray-500 mt-0.5 truncate">{value}</div>}
         </div>
@@ -149,14 +151,14 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
             className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 inline-flex items-center gap-1"
           >
             <Upload className="w-3 h-3" />
-            {uploading ? '...' : value ? 'Replace' : 'Upload'}
+            {uploading ? '...' : value ? t('replace') : t('upload')}
           </button>
           {value && (
             <button
               type="button"
               onClick={() => onChange('')}
               className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 inline-flex items-center gap-1"
-              aria-label="Clear"
+              aria-label={t('clear')}
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -183,7 +185,7 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
       )}
       {!value && (
         <div className="text-[11px] text-gray-400 italic mt-1">
-          Drag &amp; drop a {slot.kind === 'image' ? 'image' : slot.kind === 'sound' ? 'sound' : slot.kind === 'video' ? 'video' : 'file'} here, or click Upload.
+          {t('dragDropHint', { kind: slot.kind === 'image' ? t('kind.image') : slot.kind === 'sound' ? t('kind.sound') : slot.kind === 'video' ? t('kind.video') : t('kind.file') })}
         </div>
       )}
       {dropError && (

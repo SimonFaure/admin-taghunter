@@ -9,6 +9,7 @@ session_start();
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/RecoveryCodes.php';
+require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -20,11 +21,30 @@ function getRequestData() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
+// Token takes precedence; the session is only a fallback. The studio is
+// token-based (secure_auth.php sets no PHP session), so without bridging the
+// X-Auth-Token here this endpoint 401s unless a sibling endpoint happened to
+// set the session first. Mirrors scenarios.php::requireAuth().
 function requireAuth() {
-    if (!isset($_SESSION['user_id'])) {
-        jsonResponse(['error' => 'Unauthorized'], 401);
+    $header = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+    if ($header !== '') {
+        if (strpos($header, 'Bearer ') === 0) {
+            $header = substr($header, 7);
+        }
+        $tokenData = TokenManager::validateToken(Database::getInstance(), $header);
+        if ($tokenData) {
+            // Overwrite any stale session with the authoritative token values.
+            $_SESSION['user_id'] = $tokenData['user_id'];
+            $_SESSION['user_type'] = $tokenData['user_type'];
+            return $tokenData['user_id'];
+        }
     }
-    return $_SESSION['user_id'];
+
+    if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
+        return $_SESSION['user_id'];
+    }
+
+    jsonResponse(['error' => 'Unauthorized'], 401);
 }
 
 function formatClientData($client) {
@@ -35,6 +55,22 @@ function formatClientData($client) {
     }
 
     return $client;
+}
+
+// The client UI language is constrained to the studio/playground chrome set.
+// Anything else collapses to the default so a bad value can never strand a
+// client on an untranslated surface. Design: project_client_language.
+const CLIENT_LANGUAGES = ['fr', 'en', 'es'];
+function sanitizeLanguage($value) {
+    return in_array($value, CLIENT_LANGUAGES, true) ? $value : 'fr';
+}
+
+// The app-update channel a client (and, unless overridden, its devices) pulls
+// builds from. A bad value collapses to 'stable' so a typo can never strand a
+// client on a non-existent track. Design: project_client_tester_update_channel.
+const UPDATE_CHANNELS = ['stable', 'test'];
+function sanitizeChannel($value) {
+    return in_array($value, UPDATE_CHANNELS, true) ? $value : 'stable';
 }
 
 try {
@@ -135,6 +171,8 @@ try {
                 'avatar_url' => $data['avatar_url'] ?? null,
                 'license_type' => $data['license_type'] ?? 'access',
                 'billing_up_to_date' => (isset($data['billing_up_to_date']) ? $data['billing_up_to_date'] : true) ? 1 : 0,
+                'language' => sanitizeLanguage($data['language'] ?? 'fr'),
+                'update_channel' => sanitizeChannel($data['update_channel'] ?? 'stable'),
                 'created_by' => $userId,
             ];
 
@@ -202,13 +240,17 @@ try {
             $updates = [];
             $values = [];
 
-            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'playground_version', 'creator_version'];
+            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'language', 'update_channel', 'playground_version', 'creator_version'];
             foreach ($allowedFields as $field) {
                 if (array_key_exists($field, $data)) {
                     $updates[] = "$field = ?";
                     $value = $data[$field];
                     if ($field === 'billing_up_to_date') {
                         $value = $value ? 1 : 0;
+                    } elseif ($field === 'language') {
+                        $value = sanitizeLanguage($value);
+                    } elseif ($field === 'update_channel') {
+                        $value = sanitizeChannel($value);
                     }
                     $values[] = $value;
                 }

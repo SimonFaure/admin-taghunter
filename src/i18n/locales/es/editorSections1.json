@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "sectionTitle": "Información del escenario",
+    "title": "Título",
+    "description": "Descripción",
+    "story": "Historia"
+  },
+  "cover": {
+    "sectionTitleTracks": "Portada, fondo y mapa",
+    "sectionTitle": "Portada y fondo",
+    "mapImage": "Imagen del mapa"
+  },
+  "timing": {
+    "sectionTitle": "Tiempos",
+    "keys": {
+      "default_time": "tiempo predeterminado",
+      "default_time_malus": "penalización de tiempo predeterminada",
+      "message_display_time": "tiempo de visualización del mensaje",
+      "animation_enigma_duration": "duración de la animación del enigma"
+    }
+  },
+  "admin": {
+    "sectionTitle": "Admin / metadatos",
+    "scenarioVersion": "Versión del escenario",
+    "audience": "Público (rangos de edad)",
+    "difficulty": "Dificultad",
+    "univers": "Universo (temas)",
+    "universPlaceholder": "Añadir una etiqueta…",
+    "audienceEmptyWarning": "Sin público seleccionado — los nombres de equipo usarán el grupo Adolescentes/Adultos por defecto.",
+    "namePoolHint": "Nombres de equipo extraídos de: {{tier}}",
+    "audienceGroups": {
+      "enfants": "Niños",
+      "ados_adultes": "Adolescentes/Adultos"
+    }
+  }
+}

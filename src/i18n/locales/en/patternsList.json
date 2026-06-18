@@ -1,0 +1,41 @@
+{
+  "status": {
+    "draft": "Draft",
+    "published": "Published",
+    "archived": "Archived"
+  },
+  "changeStatus": "Change status",
+  "download": "Download",
+  "downloadCsv": "Download CSV",
+  "downloadExcel": "Download Excel",
+  "noRows": "This pattern has no rows yet.",
+  "table": {
+    "name": "Name",
+    "gameType": "Game type",
+    "version": "Version",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "preview": "Preview",
+  "edit": "Edit",
+  "delete": "Delete",
+  "newPattern": "New pattern",
+  "defaultPatterns": "Default Patterns",
+  "myCustomPatterns": "My Custom Patterns",
+  "searchPlaceholder": "Search patterns...",
+  "allGameTypes": "All Game Types",
+  "noDefaultMatch": "No default patterns match your filters",
+  "noDefaultAvailable": "No default patterns available",
+  "noCustomMatch": "No custom patterns match your filters",
+  "noCustomYet": "No custom patterns yet.",
+  "createPattern": "Create a pattern",
+  "close": "Close",
+  "confirmDelete": "Are you sure you want to delete this pattern?",
+  "errors": {
+    "fetch": "Failed to fetch patterns",
+    "load": "Failed to load patterns",
+    "delete": "Failed to delete pattern",
+    "publish": "Failed to publish pattern",
+    "updateStatus": "Failed to update status"
+  }
+}

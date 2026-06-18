@@ -13,7 +13,7 @@ export function StudioLayoutRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const { userType } = useAuth();
-  const roleHome = userType === 'admin' ? '/admin' : '/my/layouts';
+  const roleHome = userType === 'admin' ? '/admin' : '/my/home';
   // Honor the origin passed by the scenario editor ("Open layout editor"); fall
   // back to the role home for entries from a layouts list.
   const backTo = (location.state as { from?: string } | null)?.from || roleHome;

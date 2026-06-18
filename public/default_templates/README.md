@@ -6,8 +6,7 @@ Requirements:
 - 16:9 aspect ratio (e.g., 1920×1080, 3840×2160, 5692×3200)
 - Transparent background
 - Frame artwork positioned so text overlays line up with the coordinates in
-  `src/scenarios/bodies/tagquest/defaultLayout.ts` and the row inserted by
-  `backend/database/tagquest_default_layout_migration.sql`
+  `src/scenarios/bodies/tagquest/defaultLayout.ts`
 
 The studio web app serves the file at `/default_templates/tagquest_template.png`
 and the playground's Vite public/ has its own copy at the same URL path. Keep

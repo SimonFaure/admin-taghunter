@@ -83,6 +83,19 @@ class AuthService {
     return this.getToken()?.email || null;
   }
 
+  // The logged-in client's UI language (fr/en/es), read from the persisted
+  // auth_user blob. Seeds a new client-authored scenario's default_language.
+  getClientLanguage(): string | null {
+    try {
+      const raw = localStorage.getItem(USER_KEY);
+      if (!raw) return null;
+      const u = JSON.parse(raw) as PersistedUser & { language?: string };
+      return typeof u?.language === 'string' ? u.language : null;
+    } catch {
+      return null;
+    }
+  }
+
   isAdmin(): boolean {
     return this.getToken()?.is_admin ?? false;
   }

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Rocket, RefreshCw, Star, Trash2, Upload, Smartphone } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Rocket, RefreshCw, Star, Trash2, Upload, Smartphone, X } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
@@ -8,6 +8,7 @@ const ENDPOINT = `${API_BASE_URL}/playground_releases_admin.php`;
 interface Release {
   id: number;
   version: string;
+  channel: string;
   target: string;
   arch: string;
   artifact_filename: string | null;
@@ -22,7 +23,25 @@ interface Release {
 
 const DESKTOP_TARGETS = ['windows', 'darwin', 'linux'];
 const ARCHS = ['x86_64', 'aarch64', 'universal'];
+const CHANNELS = ['stable', 'test'];
 const SEMVER = /^\d+\.\d+\.\d+$/;
+
+// Small coloured badge for a release's channel. Stable is neutral; test is amber
+// so a pre-release build is obvious at a glance in the combined list.
+function ChannelBadge({ channel }: { channel: string }) {
+  const isTest = channel === 'test';
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded ${
+        isTest
+          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+          : 'bg-slate-100 text-slate-600'
+      }`}
+    >
+      {channel}
+    </span>
+  );
+}
 
 function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
@@ -41,6 +60,12 @@ export function ReleasesView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [channelFilter, setChannelFilter] = useState<'all' | 'stable' | 'test'>('all');
+
+  const visibleReleases =
+    channelFilter === 'all'
+      ? releases
+      : releases.filter((r) => (r.channel || 'stable') === channelFilter);
 
   const fetchReleases = async () => {
     try {
@@ -104,11 +129,13 @@ export function ReleasesView() {
   };
 
   const remove = (rel: Release) => {
-    if (rel.is_latest) {
-      setError('Cannot delete the latest release — mark another release latest first.');
+    const latestWarning = rel.is_latest
+      ? '\n\nThis is the current LATEST release. The next-newest build for ' +
+        `${rel.target}/${rel.arch} will be promoted to latest automatically ` +
+        '(or no release will be latest if this is the only one).'
+      : '';
+    if (!window.confirm(`Delete release ${rel.version} (${rel.target}/${rel.arch})?${latestWarning}`))
       return;
-    }
-    if (!window.confirm(`Delete release ${rel.version} (${rel.target}/${rel.arch})?`)) return;
     void postAction('delete', { id: rel.id });
   };
 
@@ -117,15 +144,32 @@ export function ReleasesView() {
       <div className="flex items-center justify-between mb-6">
         <p className="text-sm text-slate-600">
           {releases.length} release{releases.length === 1 ? '' : 's'}. The “latest” row per
-          platform drives self-update; its minimum version is the hard floor.
+          channel + platform drives self-update; its minimum version is the hard floor.
         </p>
-        <button
-          onClick={fetchReleases}
-          className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
-          <span className="text-sm font-medium">Refresh</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden text-sm">
+            {(['all', 'stable', 'test'] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => setChannelFilter(c)}
+                className={`px-3 py-2 capitalize transition-colors ${
+                  channelFilter === c
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={fetchReleases}
+            className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span className="text-sm font-medium">Refresh</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -143,10 +187,14 @@ export function ReleasesView() {
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900" />
         </div>
-      ) : releases.length === 0 ? (
+      ) : visibleReleases.length === 0 ? (
         <div className="bg-white p-12 rounded-xl border border-slate-200 text-center">
           <Rocket className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-          <p className="text-slate-500">No releases published yet.</p>
+          <p className="text-slate-500">
+            {releases.length === 0
+              ? 'No releases published yet.'
+              : `No ${channelFilter} releases.`}
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -154,6 +202,7 @@ export function ReleasesView() {
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Version</th>
+                <th className="text-left px-4 py-3 font-medium">Channel</th>
                 <th className="text-left px-4 py-3 font-medium">Platform</th>
                 <th className="text-left px-4 py-3 font-medium">Artifact</th>
                 <th className="text-left px-4 py-3 font-medium">Floor</th>
@@ -162,7 +211,7 @@ export function ReleasesView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {releases.map((r) => (
+              {visibleReleases.map((r) => (
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -174,6 +223,9 @@ export function ReleasesView() {
                         </span>
                       )}
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <ChannelBadge channel={r.channel || 'stable'} />
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {r.target}/{r.arch}
@@ -222,9 +274,9 @@ export function ReleasesView() {
                         Notes
                       </button>
                       <button
-                        disabled={busy || r.is_latest}
+                        disabled={busy}
                         onClick={() => remove(r)}
-                        title={r.is_latest ? 'Cannot delete the latest release' : 'Delete'}
+                        title={r.is_latest ? 'Delete (will promote next-newest to latest)' : 'Delete'}
                         className="p-1 text-red-600 rounded hover:bg-red-50 disabled:opacity-30"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -248,6 +300,7 @@ interface FormProps {
 
 function NewDesktopRelease({ onDone, onError }: FormProps) {
   const [version, setVersion] = useState('');
+  const [channel, setChannel] = useState('stable');
   const [target, setTarget] = useState('windows');
   const [arch, setArch] = useState('x86_64');
   const [floor, setFloor] = useState('0.0.0');
@@ -265,6 +318,7 @@ function NewDesktopRelease({ onDone, onError }: FormProps) {
 
     const fd = new FormData();
     fd.append('version', version.trim());
+    fd.append('channel', channel);
     fd.append('target', target);
     fd.append('arch', arch);
     fd.append('min_supported_version', floor.trim());
@@ -319,6 +373,15 @@ function NewDesktopRelease({ onDone, onError }: FormProps) {
             className="input"
           />
         </Field>
+        <Field label="Channel">
+          <select value={channel} onChange={(e) => setChannel(e.target.value)} className="input">
+            {CHANNELS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
         <Field label="Target">
           <select value={target} onChange={(e) => setTarget(e.target.value)} className="input">
             {DESKTOP_TARGETS.map((t) => (
@@ -346,16 +409,8 @@ function NewDesktopRelease({ onDone, onError }: FormProps) {
           className="input"
         />
       </Field>
-      <Field label="Artifact (updater bundle)">
-        <input type="file" onChange={(e) => setArtifact(e.target.files?.[0] ?? null)} />
-      </Field>
-      <Field label="Signature (.sig)">
-        <input
-          type="file"
-          accept=".sig"
-          onChange={(e) => setSignature(e.target.files?.[0] ?? null)}
-        />
-      </Field>
+      <FileDrop label="Artifact (updater bundle)" file={artifact} onFile={setArtifact} />
+      <FileDrop label="Signature (.sig)" file={signature} accept=".sig" onFile={setSignature} />
       <button
         type="submit"
         disabled={submitting}
@@ -370,6 +425,7 @@ function NewDesktopRelease({ onDone, onError }: FormProps) {
 
 function NewMobileRelease({ onDone, onError }: FormProps) {
   const [version, setVersion] = useState('');
+  const [channel, setChannel] = useState('stable');
   const [target, setTarget] = useState('android');
   const [storeUrl, setStoreUrl] = useState('');
   const [floor, setFloor] = useState('0.0.0');
@@ -390,6 +446,7 @@ function NewMobileRelease({ onDone, onError }: FormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           version: version.trim(),
+          channel,
           target,
           store_url: storeUrl.trim(),
           min_supported_version: floor.trim(),
@@ -438,7 +495,15 @@ function NewMobileRelease({ onDone, onError }: FormProps) {
             <option value="ios">ios</option>
           </select>
         </Field>
-        <div />
+        <Field label="Channel">
+          <select value={channel} onChange={(e) => setChannel(e.target.value)} className="input">
+            {CHANNELS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
       </div>
       <Field label="Store URL">
         <input
@@ -473,5 +538,79 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-xs uppercase text-slate-400">{label}</span>
       {children}
     </label>
+  );
+}
+
+// A click-or-drag file picker. Replaces the bare <input type="file"> so artifacts
+// and signatures can be dropped onto the form.
+function FileDrop({
+  label,
+  file,
+  accept,
+  onFile,
+}: {
+  label: string;
+  file: File | null;
+  accept?: string;
+  onFile: (file: File | null) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="mt-3">
+      <span className="text-xs uppercase text-slate-400">{label}</span>
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          const dropped = e.dataTransfer.files?.[0] ?? null;
+          if (dropped) onFile(dropped);
+        }}
+        className={`mt-1 flex items-center gap-3 rounded-lg border-2 border-dashed px-4 py-4 cursor-pointer transition-colors ${
+          dragging
+            ? 'border-slate-900 bg-slate-50'
+            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+        }`}
+      >
+        <Upload className="w-5 h-5 text-slate-400 flex-shrink-0" />
+        <div className="min-w-0">
+          {file ? (
+            <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
+          ) : (
+            <p className="text-sm text-slate-500">
+              Drop file here or <span className="text-blue-600">browse</span>
+            </p>
+          )}
+        </div>
+        {file && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFile(null);
+              if (inputRef.current) inputRef.current.value = '';
+            }}
+            title="Remove file"
+            className="ml-auto p-1 text-slate-400 hover:text-red-600 rounded"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+        />
+      </div>
+    </div>
   );
 }

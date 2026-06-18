@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import {
   CreditCard,
   Plus,
@@ -60,11 +61,13 @@ function suggestNextKeyNumber(cards: CardRow[]): number {
 
 export function CardsRegistryEditor({
   api,
-  title = 'Cards',
+  title,
   description,
   collapsible = false,
   defaultCollapsed = false,
 }: Props) {
+  const { t } = useTranslation('cardsRegistry');
+  const resolvedTitle = title ?? t('title');
   const [collapsed, setCollapsed] = useState(collapsible ? defaultCollapsed : false);
   const [cards, setCards] = useState<CardRow[]>([]);
   const [version, setVersion] = useState<number>(0);
@@ -96,7 +99,7 @@ export function CardsRegistryEditor({
       setCards(res.cards);
       setVersion(res.version);
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Failed to load cards');
+      showToast('error', err instanceof Error ? err.message : t('toast.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -137,10 +140,10 @@ export function CardsRegistryEditor({
   const handleConflict = (err: unknown): boolean => {
     if (err instanceof CardsConflictError) {
       if (err.errorCode === 'key_number_taken') {
-        setKeyNumberError('This key number is already taken by another card');
-        showToast('error', 'Key number already in use — choose another');
+        setKeyNumberError(t('toast.keyNumberTaken'));
+        showToast('error', t('toast.keyNumberInUse'));
       } else {
-        showToast('error', 'A card with this chip ID is already registered');
+        showToast('error', t('toast.chipIdRegistered'));
       }
       return true;
     }
@@ -153,15 +156,15 @@ export function CardsRegistryEditor({
     const id = parseInt(editState.idStr, 10);
     const keyNumber = parseInt(editState.keyNumberStr, 10);
     if (!Number.isFinite(id) || id <= 0) {
-      showToast('error', 'Chip ID must be a positive integer');
+      showToast('error', t('toast.chipIdPositive'));
       return;
     }
     if (!Number.isFinite(keyNumber) || keyNumber <= 0) {
-      showToast('error', 'Key number must be a positive integer');
+      showToast('error', t('toast.keyNumberPositive'));
       return;
     }
     if (editState.keyName.trim() === '') {
-      showToast('error', 'Name is required');
+      showToast('error', t('toast.nameRequired'));
       return;
     }
 
@@ -173,12 +176,12 @@ export function CardsRegistryEditor({
         key_name: editState.keyName.trim(),
         color: editState.color.trim() === '' ? null : editState.color.trim(),
       });
-      showToast('success', `Registered ${editState.keyName} (#${keyNumber})`);
+      showToast('success', t('toast.registered', { name: editState.keyName, keyNumber }));
       setEditState({ kind: 'none' });
       await reload();
     } catch (err) {
       if (!handleConflict(err)) {
-        showToast('error', err instanceof Error ? err.message : 'Failed to register card');
+        showToast('error', err instanceof Error ? err.message : t('toast.registerFailed'));
       }
     } finally {
       setBusy(false);
@@ -190,11 +193,11 @@ export function CardsRegistryEditor({
     setKeyNumberError(null);
     const keyNumber = parseInt(editState.keyNumberStr, 10);
     if (!Number.isFinite(keyNumber) || keyNumber <= 0) {
-      showToast('error', 'Key number must be a positive integer');
+      showToast('error', t('toast.keyNumberPositive'));
       return;
     }
     if (editState.keyName.trim() === '') {
-      showToast('error', 'Name is required');
+      showToast('error', t('toast.nameRequired'));
       return;
     }
 
@@ -205,12 +208,12 @@ export function CardsRegistryEditor({
         key_name: editState.keyName.trim(),
         color: editState.color.trim() === '' ? null : editState.color.trim(),
       });
-      showToast('success', 'Card updated');
+      showToast('success', t('toast.cardUpdated'));
       setEditState({ kind: 'none' });
       await reload();
     } catch (err) {
       if (!handleConflict(err)) {
-        showToast('error', err instanceof Error ? err.message : 'Failed to update card');
+        showToast('error', err instanceof Error ? err.message : t('toast.updateFailed'));
       }
     } finally {
       setBusy(false);
@@ -227,11 +230,11 @@ export function CardsRegistryEditor({
     setBusy(true);
     try {
       await api.remove(card.id);
-      showToast('success', 'Card deleted');
+      showToast('success', t('toast.cardDeleted'));
       setConfirmDelete(null);
       await reload();
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Failed to delete card');
+      showToast('error', err instanceof Error ? err.message : t('toast.deleteFailed'));
     } finally {
       setBusy(false);
     }
@@ -242,22 +245,33 @@ export function CardsRegistryEditor({
 
   const handleImport = async (file: File) => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
-      showToast('error', 'Only CSV files are allowed');
+      showToast('error', t('toast.onlyCsv'));
       return;
     }
     setImportState({ open: true, busy: true, dragActive: false });
     try {
       const res = await api.importCsv(file);
-      const parts = [`${res.inserted} inserted`, `${res.updated} updated`];
-      if (res.skipped > 0) parts.push(`${res.skipped} skipped`);
-      showToast(res.skipped > 0 ? 'info' : 'success', `Import done: ${parts.join(', ')}`);
+      const parts = [
+        t('toast.inserted', { count: res.inserted }),
+        t('toast.updated', { count: res.updated }),
+      ];
+      if (res.skipped > 0) parts.push(t('toast.skipped', { count: res.skipped }));
+      showToast(
+        res.skipped > 0 ? 'info' : 'success',
+        t('toast.importDone', { summary: parts.join(', ') })
+      );
       if (res.errors.length > 0) {
-        showToast('error', `Errors: ${res.errors.slice(0, 3).join(' | ')}${res.errors.length > 3 ? ' …' : ''}`);
+        showToast(
+          'error',
+          t('toast.importErrors', {
+            errors: `${res.errors.slice(0, 3).join(' | ')}${res.errors.length > 3 ? ' …' : ''}`,
+          })
+        );
       }
       closeImport();
       await reload();
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : 'Import failed');
+      showToast('error', err instanceof Error ? err.message : t('toast.importFailed'));
       setImportState({ open: true, busy: false, dragActive: false });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -308,18 +322,18 @@ export function CardsRegistryEditor({
                   <ChevronDown className="w-5 h-5 text-slate-500" />
                 )}
                 <CreditCard className="w-6 h-6" />
-                <span>{title}</span>
+                <span>{resolvedTitle}</span>
               </button>
             ) : (
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <CreditCard className="w-6 h-6" />
-                <span>{title}</span>
+                <span>{resolvedTitle}</span>
                 <HelpButton chapter="cards" className="ml-1 text-slate-400 hover:text-slate-700" />
               </h2>
             )}
             {description && <p className="text-slate-600 mt-1">{description}</p>}
             <div className="mt-2 text-xs text-slate-500">
-              {cards.length} card{cards.length === 1 ? '' : 's'} · version {version.toFixed(2)}
+              {t('cardCount', { count: cards.length, version: version.toFixed(2) })}
             </div>
           </div>
           {!collapsed && (
@@ -337,7 +351,7 @@ export function CardsRegistryEditor({
                 className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm disabled:opacity-50"
               >
                 <Upload className="w-4 h-4" />
-                <span>Import CSV</span>
+                <span>{t('importCsv')}</span>
               </button>
               <button
                 onClick={openRegister}
@@ -345,7 +359,7 @@ export function CardsRegistryEditor({
                 className="inline-flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-all text-sm disabled:opacity-50"
               >
                 <Plus className="w-4 h-4" />
-                <span>Register card</span>
+                <span>{t('registerCard')}</span>
               </button>
             </div>
           )}
@@ -353,19 +367,19 @@ export function CardsRegistryEditor({
 
         {!collapsed && editState.kind === 'register' && (
           <div className="mb-6 p-4 border border-slate-200 rounded-lg bg-slate-50">
-            <h3 className="text-sm font-semibold text-slate-900 mb-3">Register a new card</h3>
+            <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('registerNew')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <Field label="Chip ID" hint="from the card chip">
+              <Field label={t('fields.chipId')} hint={t('fields.chipIdHint')}>
                 <input
                   type="number"
                   min={1}
                   value={editState.idStr}
                   onChange={(e) => setEditState({ ...editState, idStr: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                  placeholder="e.g. 2145811"
+                  placeholder={t('fields.chipIdPlaceholder')}
                 />
               </Field>
-              <Field label="Key #" hint="display number" error={keyNumberError ?? undefined}>
+              <Field label={t('fields.keyNumber')} hint={t('fields.keyNumberHint')} error={keyNumberError ?? undefined}>
                 <input
                   type="number"
                   min={1}
@@ -376,22 +390,22 @@ export function CardsRegistryEditor({
                   }`}
                 />
               </Field>
-              <Field label="Name" hint="required">
+              <Field label={t('fields.name')} hint={t('fields.nameHint')}>
                 <input
                   type="text"
                   value={editState.keyName}
                   onChange={(e) => setEditState({ ...editState, keyName: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                  placeholder="e.g. Alpha"
+                  placeholder={t('fields.namePlaceholder')}
                 />
               </Field>
-              <Field label="Color" hint="optional">
+              <Field label={t('fields.color')} hint={t('fields.colorHint')}>
                 <input
                   type="text"
                   value={editState.color}
                   onChange={(e) => setEditState({ ...editState, color: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                  placeholder="e.g. red"
+                  placeholder={t('fields.colorPlaceholder')}
                 />
               </Field>
             </div>
@@ -402,7 +416,7 @@ export function CardsRegistryEditor({
                 className="inline-flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                <span>Save</span>
+                <span>{t('save')}</span>
               </button>
               <button
                 onClick={cancelEdit}
@@ -410,7 +424,7 @@ export function CardsRegistryEditor({
                 className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50 disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
-                <span>Cancel</span>
+                <span>{t('cancel')}</span>
               </button>
             </div>
           </div>
@@ -423,9 +437,13 @@ export function CardsRegistryEditor({
         ) : sorted.length === 0 ? (
           <div className="bg-slate-50 p-12 rounded-xl border border-slate-200 text-center">
             <CreditCard className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No cards registered yet</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">{t('empty.title')}</h3>
             <p className="text-slate-600 text-sm">
-              Click <strong>Register card</strong> to add one manually, or <strong>Import CSV</strong> to bulk-import.
+              <Trans
+                t={t}
+                i18nKey="empty.lead"
+                components={[<strong key="0" />, <strong key="1" />]}
+              />
             </p>
           </div>
         ) : (
@@ -433,11 +451,11 @@ export function CardsRegistryEditor({
             <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-slate-50">
                 <tr>
-                  <Th>Key #</Th>
-                  <Th>Name</Th>
-                  <Th>Color</Th>
-                  <Th>Chip ID</Th>
-                  <Th className="text-right">Actions</Th>
+                  <Th>{t('table.keyNumber')}</Th>
+                  <Th>{t('table.name')}</Th>
+                  <Th>{t('table.color')}</Th>
+                  <Th>{t('table.chipId')}</Th>
+                  <Th className="text-right">{t('table.actions')}</Th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -491,7 +509,7 @@ export function CardsRegistryEditor({
                               className="inline-flex items-center gap-1 px-2 py-1 bg-slate-900 text-white rounded text-xs hover:bg-slate-700 disabled:opacity-50"
                             >
                               <Save className="w-3 h-3" />
-                              <span>Save</span>
+                              <span>{t('save')}</span>
                             </button>
                             <button
                               onClick={cancelEdit}
@@ -521,7 +539,7 @@ export function CardsRegistryEditor({
                             onClick={() => openEdit(card)}
                             disabled={busy || editState.kind !== 'none'}
                             className="inline-flex items-center gap-1 px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded text-xs disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Edit"
+                            title={t('actions.edit')}
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
@@ -529,7 +547,7 @@ export function CardsRegistryEditor({
                             onClick={() => handleDelete(card)}
                             disabled={busy || editState.kind !== 'none'}
                             className="inline-flex items-center gap-1 px-2 py-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded text-xs disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Delete"
+                            title={t('actions.delete')}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -586,6 +604,7 @@ function ImportCsvModal({
   onPick,
   onDrop,
 }: ImportCsvModalProps) {
+  const { t } = useTranslation('cardsRegistry');
   const handleDragEvent = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -608,7 +627,7 @@ function ImportCsvModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-slate-900">Import cards from CSV</h3>
+          <h3 className="text-lg font-bold text-slate-900">{t('import.title')}</h3>
           <button
             onClick={onCancel}
             disabled={busy}
@@ -633,12 +652,12 @@ function ImportCsvModal({
         >
           <Upload className="w-10 h-10 text-slate-400 mx-auto mb-3" />
           <p className="font-semibold text-slate-900 mb-1">
-            {busy ? 'Importing…' : 'Drop CSV here or click to browse'}
+            {busy ? t('import.importing') : t('import.dropPrompt')}
           </p>
           <p className="text-xs text-slate-500">
-            Expected headers: <code className="bg-slate-200 px-1 rounded">key_name, color, key_number, id</code>
+            {t('import.expectedHeaders')} <code className="bg-slate-200 px-1 rounded">key_name, color, key_number, id</code>
           </p>
-          <p className="text-xs text-slate-500 mt-1">Existing rows are upserted by chip ID.</p>
+          <p className="text-xs text-slate-500 mt-1">{t('import.upsertNote')}</p>
         </div>
         <div className="mt-4 flex justify-end">
           <button
@@ -646,7 +665,7 @@ function ImportCsvModal({
             disabled={busy}
             className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg disabled:opacity-50"
           >
-            Cancel
+            {t('import.cancel')}
           </button>
         </div>
       </div>
@@ -662,15 +681,21 @@ interface ConfirmDeleteModalProps {
 }
 
 function ConfirmDeleteModal({ card, busy, onCancel, onConfirm }: ConfirmDeleteModalProps) {
+  const { t } = useTranslation('cardsRegistry');
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-        <h3 className="text-lg font-bold text-slate-900 mb-2">Delete card?</h3>
+        <h3 className="text-lg font-bold text-slate-900 mb-2">{t('confirmDelete.title')}</h3>
         <p className="text-sm text-slate-700 mb-1">
-          <strong>{card.key_name}</strong> (chip <code className="font-mono">{card.id}</code>, key #{card.key_number})
+          <Trans
+            t={t}
+            i18nKey="confirmDelete.cardLine"
+            values={{ name: card.key_name, chipId: card.id, keyNumber: card.key_number }}
+            components={[<strong key="0" />, <code key="1" className="font-mono" />]}
+          />
         </p>
         <p className="text-xs text-slate-500 mb-6">
-          This deletes the card on studio and on every device on the next sync. It cannot be undone.
+          {t('confirmDelete.warning')}
         </p>
         <div className="flex justify-end gap-2">
           <button
@@ -678,14 +703,14 @@ function ConfirmDeleteModal({ card, busy, onCancel, onConfirm }: ConfirmDeleteMo
             disabled={busy}
             className="px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg disabled:opacity-50"
           >
-            Cancel
+            {t('confirmDelete.cancel')}
           </button>
           <button
             onClick={onConfirm}
             disabled={busy}
             className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
           >
-            {busy ? 'Deleting…' : 'Delete'}
+            {busy ? t('confirmDelete.deleting') : t('confirmDelete.delete')}
           </button>
         </div>
       </div>

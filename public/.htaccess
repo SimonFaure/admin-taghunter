@@ -1,0 +1,19 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Let the backend API and uploaded media be handled by their own
+  # directories/.htaccess — never rewrite them to the SPA shell.
+  RewriteRule ^backend/ - [L]
+  RewriteRule ^media/ - [L]
+
+  # If the request maps to a real file or directory, serve it as-is
+  # (index.html, JS/CSS assets, fonts, images, studio-help.pdf, ...).
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else is a client-side route (e.g. /my/home) — serve the SPA
+  # shell so React Router can render it on a fresh load / page reload.
+  RewriteRule ^ /index.html [L]
+</IfModule>

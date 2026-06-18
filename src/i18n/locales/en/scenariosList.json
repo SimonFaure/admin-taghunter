@@ -1,0 +1,41 @@
+{
+  "subtitle": "View and manage your available game scenarios",
+  "premiumBadge": "Premium — all scenarios unlocked",
+  "newScenario": "New scenario",
+  "filters": {
+    "all": "All",
+    "products": "Products",
+    "mine": "Mine",
+    "drafts": "Drafts"
+  },
+  "groupBy": {
+    "none": "None",
+    "gameType": "Game type",
+    "scenarioType": "Scenario type"
+  },
+  "sortBy": {
+    "recent": "Recently used",
+    "created": "Date created",
+    "name": "Name"
+  },
+  "errors": {
+    "fetchFailed": "Failed to fetch scenarios",
+    "network": "Network error"
+  },
+  "empty": {
+    "title": "No scenarios match",
+    "description": "Try a different filter, or create a new scenario.",
+    "cta": "Create a scenario"
+  },
+  "editInStudio": "Edit in Studio",
+  "view": "View",
+  "versionShort": "v{{version}}",
+  "table": {
+    "title": "Title",
+    "gameType": "Game type",
+    "audience": "Audience",
+    "difficulty": "Difficulty",
+    "type": "Type",
+    "version": "Version"
+  }
+}

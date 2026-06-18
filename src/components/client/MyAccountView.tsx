@@ -1,7 +1,10 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { Mail, User, Building, Calendar, Crown, CheckCircle, XCircle, Upload, Image as ImageIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -12,8 +15,8 @@ function resolveMediaUrl(url: string | null | undefined): string | null {
   return `${MEDIA_BASE_URL}${url}`;
 }
 
-function formatMemberSince(dateString?: string): string {
-  if (!dateString) return 'N/A';
+function formatMemberSince(dateString: string | undefined, t: TFn, locale: string): string {
+  if (!dateString) return t('memberSince.na');
 
   const createdDate = new Date(dateString);
   const now = new Date();
@@ -27,20 +30,20 @@ function formatMemberSince(dateString?: string): string {
 
   let duration = '';
   if (years > 0) {
-    duration = `${years} year${years > 1 ? 's' : ''}`;
+    duration = t('memberSince.years', { count: years });
     if (months > 0) {
-      duration += `, ${months} month${months > 1 ? 's' : ''}`;
+      duration += `, ${t('memberSince.months', { count: months })}`;
     }
   } else if (months > 0) {
-    duration = `${months} month${months > 1 ? 's' : ''}`;
+    duration = t('memberSince.months', { count: months });
     if (days > 0) {
-      duration += `, ${days} day${days > 1 ? 's' : ''}`;
+      duration += `, ${t('memberSince.days', { count: days })}`;
     }
   } else {
-    duration = `${days} day${days > 1 ? 's' : ''}`;
+    duration = t('memberSince.days', { count: days });
   }
 
-  const formattedDate = createdDate.toLocaleDateString('en-US', {
+  const formattedDate = createdDate.toLocaleDateString(locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -50,10 +53,12 @@ function formatMemberSince(dateString?: string): string {
 }
 
 export function MyAccountView() {
-  const { user, updateUserAvatar, updateCompanyLogo, updateLogoPreference } = useSecureAuth();
+  const { t, i18n } = useTranslation('account');
+  const { user, updateUserAvatar, updateCompanyLogo, updateLogoPreference, updateLanguage } = useSecureAuth();
   const [uploading, setUploading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoTogglePending, setLogoTogglePending] = useState(false);
+  const [langPending, setLangPending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -76,11 +81,11 @@ export function MyAccountView() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file');
+      setError(t('messages.imageFile'));
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setError('Image must be smaller than 2MB');
+      setError(t('messages.imageSize'));
       return;
     }
 
@@ -105,12 +110,41 @@ export function MyAccountView() {
 
       if (result.data?.company_logo_url) {
         updateCompanyLogo(result.data.company_logo_url);
-        showSuccess('Company logo updated');
+        showSuccess(t('messages.logoUpdated'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload logo');
+      setError(err instanceof Error ? err.message : t('messages.logoUploadFail'));
     } finally {
       setLogoUploading(false);
+    }
+  };
+
+  const handleLanguageChange = async (language: string) => {
+    if (language === (user?.language || 'fr')) return;
+    setLangPending(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/secure_auth.php?action=update-language`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': user?.token || '',
+        },
+        body: JSON.stringify({ language }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update language');
+      }
+
+      // Applies live + persists to the cached user + localStorage UI lang.
+      updateLanguage(language);
+      showSuccess(t('messages.languageUpdated'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('messages.languageFail'));
+    } finally {
+      setLangPending(false);
     }
   };
 
@@ -134,7 +168,7 @@ export function MyAccountView() {
 
       updateLogoPreference(useAvatar);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update preference');
+      setError(err instanceof Error ? err.message : t('messages.prefFail'));
     } finally {
       setLogoTogglePending(false);
     }
@@ -145,12 +179,12 @@ export function MyAccountView() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Please upload an image file');
+      setError(t('messages.imageFile'));
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setError('Image must be smaller than 2MB');
+      setError(t('messages.imageSize'));
       return;
     }
 
@@ -178,11 +212,11 @@ export function MyAccountView() {
 
       if (result.data?.avatar_url) {
         updateUserAvatar(result.data.avatar_url);
-        setSuccess('Avatar updated successfully');
+        setSuccess(t('messages.avatarUpdated'));
         setTimeout(() => setSuccess(''), 3000);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload avatar');
+      setError(err instanceof Error ? err.message : t('messages.avatarFail'));
     } finally {
       setUploading(false);
     }
@@ -209,7 +243,7 @@ export function MyAccountView() {
               {user?.avatar_url ? (
                 <img
                   src={user.avatar_url}
-                  alt={user.name || 'Your avatar'}
+                  alt={user.name || t('yourAvatar')}
                   className="w-24 h-24 rounded-full object-cover border-4 border-slate-100"
                 />
               ) : (
@@ -237,12 +271,12 @@ export function MyAccountView() {
               </label>
             </div>
             <p className="text-xs text-slate-500 text-center mt-2">
-              Max 2MB
+              {t('maxSize')}
             </p>
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Account Information</h3>
-            <p className="text-sm text-slate-600">Manage your profile and account settings</p>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">{t('title')}</h3>
+            <p className="text-sm text-slate-600">{t('subtitle')}</p>
           </div>
         </div>
 
@@ -252,8 +286,8 @@ export function MyAccountView() {
               <User className="w-5 h-5 text-blue-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600">Name</p>
-              <p className="text-base text-slate-900 truncate">{user?.name || 'Not set'}</p>
+              <p className="text-sm font-medium text-slate-600">{t('fields.name')}</p>
+              <p className="text-base text-slate-900 truncate">{user?.name || t('fields.notSet')}</p>
             </div>
           </div>
 
@@ -262,7 +296,7 @@ export function MyAccountView() {
               <Mail className="w-5 h-5 text-emerald-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600">Email</p>
+              <p className="text-sm font-medium text-slate-600">{t('fields.email')}</p>
               <p className="text-base text-slate-900 truncate">{user?.email}</p>
             </div>
           </div>
@@ -272,7 +306,7 @@ export function MyAccountView() {
               <Building className="w-5 h-5 text-amber-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600">Client ID</p>
+              <p className="text-sm font-medium text-slate-600">{t('fields.clientId')}</p>
               <p className="text-base text-slate-900 font-mono truncate">{user?.client_id}</p>
             </div>
           </div>
@@ -282,9 +316,9 @@ export function MyAccountView() {
               <Crown className={`w-5 h-5 ${user?.license_type === 'premium' ? 'text-purple-600' : 'text-sky-600'}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600">License Type</p>
+              <p className="text-sm font-medium text-slate-600">{t('fields.licenseType')}</p>
               <p className={`text-base font-semibold ${user?.license_type === 'premium' ? 'text-purple-600' : 'text-sky-600'}`}>
-                {user?.license_type === 'premium' ? 'Premium' : 'Access'}
+                {user?.license_type === 'premium' ? t('license.premium') : t('license.access')}
               </p>
             </div>
           </div>
@@ -298,9 +332,9 @@ export function MyAccountView() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600">Payment Status</p>
+              <p className="text-sm font-medium text-slate-600">{t('fields.paymentStatus')}</p>
               <p className={`text-base font-semibold ${user?.billing_up_to_date ? 'text-green-600' : 'text-red-600'}`}>
-                {user?.billing_up_to_date ? 'Up to Date' : 'Payment Required'}
+                {user?.billing_up_to_date ? t('payment.upToDate') : t('payment.required')}
               </p>
             </div>
           </div>
@@ -310,8 +344,8 @@ export function MyAccountView() {
               <Calendar className="w-5 h-5 text-rose-600" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600">Member Since</p>
-              <p className="text-base text-slate-900">{formatMemberSince(user?.created_at)}</p>
+              <p className="text-sm font-medium text-slate-600">{t('fields.memberSince')}</p>
+              <p className="text-base text-slate-900">{formatMemberSince(user?.created_at, t, i18n.language)}</p>
             </div>
           </div>
         </div>
@@ -322,19 +356,19 @@ export function MyAccountView() {
           <div className="flex-shrink-0">
             <div className="w-24 h-24 rounded-lg bg-slate-100 border-4 border-slate-100 flex items-center justify-center overflow-hidden">
               {activeBrandUrl ? (
-                <img src={activeBrandUrl} alt="Brand logo" className="w-full h-full object-contain" />
+                <img src={activeBrandUrl} alt={t('brand.logoAlt')} className="w-full h-full object-contain" />
               ) : (
                 <ImageIcon className="w-10 h-10 text-slate-300" />
               )}
             </div>
             <p className="text-xs text-slate-500 text-center mt-2">
-              {usesAvatar ? 'Using avatar' : 'Using company logo'}
+              {usesAvatar ? t('brand.usingAvatar') : t('brand.usingLogo')}
             </p>
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Brand identity</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">{t('brand.title')}</h3>
             <p className="text-sm text-slate-600 mb-4">
-              This image is sent to the playground app to brand your sessions.
+              {t('brand.desc')}
             </p>
 
             <label className="flex items-center gap-2 text-sm text-slate-700 mb-4 cursor-pointer">
@@ -345,7 +379,7 @@ export function MyAccountView() {
                 onChange={(e) => handleToggleLogoPreference(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300"
               />
-              Use my avatar as my company logo
+              {t('brand.useAvatar')}
             </label>
 
             {!usesAvatar && (
@@ -359,7 +393,7 @@ export function MyAccountView() {
                   ) : (
                     <Upload className="w-4 h-4" />
                   )}
-                  {hasUploadedLogo ? 'Replace company logo' : 'Upload company logo'}
+                  {hasUploadedLogo ? t('brand.replace') : t('brand.upload')}
                   <input
                     id="company-logo-upload"
                     type="file"
@@ -369,7 +403,7 @@ export function MyAccountView() {
                     className="hidden"
                   />
                 </label>
-                <p className="text-xs text-slate-500">Max 2MB. JPEG, PNG, GIF or WebP.</p>
+                <p className="text-xs text-slate-500">{t('brand.constraints')}</p>
               </div>
             )}
           </div>
@@ -377,15 +411,32 @@ export function MyAccountView() {
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">Security</h3>
+        <h3 className="text-lg font-bold text-slate-900 mb-2">{t('language.title')}</h3>
         <p className="text-sm text-slate-600 mb-4">
-          Your account is secured with one-time password authentication.
+          {t('language.desc')}
+        </p>
+        <select
+          value={user?.language || 'fr'}
+          onChange={(e) => handleLanguageChange(e.target.value)}
+          disabled={langPending}
+          className="w-full max-w-xs px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 disabled:opacity-50"
+        >
+          <option value="fr">Français</option>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <h3 className="text-lg font-bold text-slate-900 mb-4">{t('security.title')}</h3>
+        <p className="text-sm text-slate-600 mb-4">
+          {t('security.desc')}
         </p>
         <Link
           to="/my/account/security"
           className="inline-block px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all text-sm font-medium"
         >
-          Manage security
+          {t('security.manage')}
         </Link>
       </div>
     </div>

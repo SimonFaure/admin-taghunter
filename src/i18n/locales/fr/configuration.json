@@ -1,0 +1,17 @@
+{
+  "title": "Configuration",
+  "general": "Paramètres Généraux",
+  "database": "Base de Données",
+  "api": "Paramètres API",
+  "system": "Système",
+  "mysqlConfig": "Configuration MySQL",
+  "host": "Hôte",
+  "port": "Port",
+  "user": "Utilisateur",
+  "password": "Mot de Passe",
+  "testConnection": "Tester la Connexion",
+  "connectionSuccess": "Connexion réussie",
+  "connectionFailed": "Échec de la connexion",
+  "saveConfig": "Enregistrer la Configuration",
+  "configSaved": "Configuration enregistrée avec succès"
+}

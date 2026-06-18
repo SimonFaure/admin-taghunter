@@ -39,7 +39,7 @@ const GAME_TYPE_TABS: { key: TabType; label: string }[] = [
   { key: 'all', label: 'All Patterns' },
   { key: 'tagquest', label: 'TagQuest' },
   { key: 'mystery', label: 'Mystery' },
-  { key: 'tracks', label: 'Tracks' },
+  { key: 'tracks', label: 'Track' },
 ];
 
 export function PatternsPage({ onEditPattern }: PatternsPageProps) {

@@ -1,0 +1,16 @@
+{
+  "required": "Required",
+  "replace": "Replace",
+  "upload": "Upload",
+  "clear": "Clear",
+  "kind": {
+    "image": "image",
+    "sound": "sound",
+    "video": "video",
+    "audio": "audio",
+    "file": "file",
+    "asset": "asset"
+  },
+  "fileTypeNotAccepted": "File type not accepted ({{kind}} required)",
+  "dragDropHint": "Drag & drop a {{kind}} here, or click Upload."
+}

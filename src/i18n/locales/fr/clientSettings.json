@@ -1,0 +1,24 @@
+{
+  "title": "Paramètres",
+  "loading": "Chargement des paramètres…",
+  "tabs": {
+    "gamePreferences": "Préférences de jeu"
+  },
+  "dismiss": "Ignorer",
+  "errors": {
+    "gameTypesLoadFailed": "Échec du chargement des types de jeu ({{status}})",
+    "preferencesLoadFailed": "Échec du chargement des préférences ({{status}})",
+    "loadFailed": "Échec du chargement",
+    "saveFailedStatus": "Échec de l'enregistrement ({{status}})",
+    "saveFailed": "Échec de l'enregistrement"
+  },
+  "savedMessage": "Préférences enregistrées.",
+  "gamePrefs": {
+    "intro": "Valeurs par défaut appliquées au lancement d'un jeu depuis le playground. La fenêtre de lancement pré-remplit ces options (l'opérateur peut toujours les modifier à chaque lancement).",
+    "noVideoSupport": "Aucun type de jeu ne prend actuellement en charge les vidéos de lancement.",
+    "playTutorialDefault": "Lire la vidéo tutoriel par défaut",
+    "playIntroDefault": "Lire la vidéo d'introduction par défaut"
+  },
+  "saving": "Enregistrement…",
+  "savePreferences": "Enregistrer les préférences"
+}

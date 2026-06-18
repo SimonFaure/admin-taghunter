@@ -1,0 +1,39 @@
+{
+  "title": {
+    "edit": "Modifier le pattern personnalisé",
+    "new": "Nouveau pattern personnalisé"
+  },
+  "close": "Fermer",
+  "gameType": "Type de jeu",
+  "name": "Nom",
+  "namePlaceholder": "ex. Salle A — parcours 1",
+  "description": "Description (facultatif)",
+  "importExcel": "Importer CSV / Excel",
+  "orDownloadTemplate": "ou téléchargez un modèle :",
+  "csv": "CSV",
+  "excel": "Excel",
+  "table": {
+    "number": "#",
+    "removeRow": "Retirer la ligne",
+    "addRow": "Ajouter une ligne"
+  },
+  "stationUnknown": "{{id}} (inconnue)",
+  "cancel": "Annuler",
+  "saving": "Enregistrement…",
+  "saveChanges": "Enregistrer les modifications",
+  "createPattern": "Créer le pattern",
+  "import": {
+    "noRows": "Aucune ligne exploitable trouvée. Vérifiez que les colonnes correspondent au modèle de ce type de jeu.",
+    "imported_one": "{{count}} ligne importée depuis {{file}}.",
+    "imported_other": "{{count}} lignes importées depuis {{file}}.",
+    "readError": "Impossible de lire le fichier : {{message}}",
+    "readErrorGeneric": "Impossible de lire le fichier"
+  },
+  "errors": {
+    "nameRequired": "Veuillez donner un nom au pattern.",
+    "rowRequired": "Ajoutez au moins une ligne avec un numéro de balise.",
+    "updateFailed": "Échec de la mise à jour du pattern",
+    "createFailed": "Échec de la création du pattern",
+    "saveFailed": "Échec de l'enregistrement du pattern"
+  }
+}

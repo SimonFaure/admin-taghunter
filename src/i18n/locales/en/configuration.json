@@ -1,0 +1,17 @@
+{
+  "title": "Configuration",
+  "general": "General Settings",
+  "database": "Database",
+  "api": "API Settings",
+  "system": "System",
+  "mysqlConfig": "MySQL Configuration",
+  "host": "Host",
+  "port": "Port",
+  "user": "User",
+  "password": "Password",
+  "testConnection": "Test Connection",
+  "connectionSuccess": "Connection successful",
+  "connectionFailed": "Connection failed",
+  "saveConfig": "Save Configuration",
+  "configSaved": "Configuration saved successfully"
+}

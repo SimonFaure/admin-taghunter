@@ -1,0 +1,48 @@
+{
+  "filters": {
+    "from": "Du",
+    "to": "Au",
+    "gameType": "Type de jeu",
+    "scenario": "Scénario",
+    "client": "Client",
+    "all": "Tous",
+    "clear": "Effacer"
+  },
+  "tabs": {
+    "overview": "Aperçu",
+    "games": "Parties"
+  },
+  "errors": {
+    "fetchFailed": "Échec de la récupération des statistiques",
+    "loadFailed": "Échec du chargement des statistiques"
+  },
+  "kpi": {
+    "gamesPlayed": "Parties jouées",
+    "teams": "Équipes",
+    "players": "Joueurs"
+  },
+  "topScenarios": {
+    "title": "Meilleurs scénarios",
+    "empty": "Aucune partie pour le moment",
+    "gameCount_one": "{{count}} partie",
+    "gameCount_other": "{{count}} parties"
+  },
+  "topClients": {
+    "title": "Meilleurs clients",
+    "empty": "Aucune activité client pour le moment"
+  },
+  "perDay": {
+    "title": "Parties par jour (30 derniers jours)"
+  },
+  "table": {
+    "date": "Date",
+    "name": "Nom",
+    "type": "Type",
+    "scenario": "Scénario",
+    "client": "Client",
+    "teams": "Équipes",
+    "players": "Joueurs",
+    "empty": "Aucune partie ne correspond à ces filtres"
+  },
+  "empty": "—"
+}

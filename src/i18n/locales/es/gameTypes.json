@@ -1,0 +1,51 @@
+{
+  "loading": "Cargando tipos de juego…",
+  "title": "Tipos de juego",
+  "titleClient": "Vídeos tutoriales",
+  "description": {
+    "admin": "Gestiona el vídeo tutorial heredado y las pistas de subtítulos enviadas a cada cliente. Los clientes pueden reemplazar el vídeo para sus propios eventos pero no pueden eliminar el heredado.",
+    "client": "Sube tu propio vídeo tutorial para reemplazar la versión heredada de Taghunter en tus eventos. Las pistas de subtítulos te permiten localizar el texto en pantalla."
+  },
+  "error": {
+    "failedToLoad": "Error al cargar",
+    "uploadFailed": "Error al subir",
+    "removeFailed": "Error al eliminar",
+    "updateFailed": "Error al actualizar"
+  },
+  "dismiss": "Descartar",
+  "confirm": {
+    "adminRemoveVideo": "¿Eliminar el vídeo tutorial heredado de {{code}}? Los clientes sin un reemplazo no tendrán vídeo tutorial hasta que subas uno nuevo.",
+    "clientRemoveVideo": "¿Eliminar tu reemplazo de vídeo tutorial de {{code}}? Volverás al vídeo heredado de Taghunter."
+  },
+  "card": {
+    "codeLabel": "código: {{code}}",
+    "tutorialVideoCheckbox": "Vídeo tutorial",
+    "introVideoCheckbox": "Vídeo de introducción",
+    "tutorialDisabled": "Vídeo tutorial desactivado para este tipo de juego.",
+    "legacyVideoHeading": "Vídeo tutorial heredado (Taghunter)",
+    "videoVersion": "(v{{version}})",
+    "noLegacyVideo": "Aún no se ha subido ningún vídeo tutorial heredado.",
+    "noLegacyVideoClient": "Aún no hay ningún vídeo tutorial disponible para este tipo de juego.",
+    "legacyVideoClientNote": "Este es el vídeo tutorial estándar de Taghunter. Sube el tuyo a continuación para reemplazarlo.",
+    "dropVideoHint": "Arrastra y suelta un vídeo aquí, o haz clic para explorar",
+    "yourOverrideHeading": "Tu reemplazo de vídeo tutorial",
+    "activeOverride": "Reemplazo activo",
+    "usingLegacyVideo": "Usando el vídeo heredado. Sube el tuyo para reemplazarlo:",
+    "subtitleTracksLegacy": "Pistas de subtítulos (heredado)",
+    "subtitleTracksOverride": "Pistas de subtítulos (reemplazo)",
+    "pillVideo": "Vídeo definido",
+    "pillNoVideo": "Sin vídeo",
+    "pillSubtitles": "{{count}} subtítulos",
+    "subtitleSelectLabel": "Subtítulos:",
+    "subtitleOff": "Desactivados",
+    "langCode": "({{lang}})",
+    "missing": "— faltante"
+  },
+  "actions": {
+    "replace": "Reemplazar",
+    "remove": "Eliminar",
+    "upload": "Subir",
+    "uploadOverride": "Subir reemplazo",
+    "uploadVtt": "Subir .vtt"
+  }
+}

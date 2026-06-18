@@ -15,6 +15,26 @@ import JSZip from 'jszip';
 import { db } from '../../../creator-ported/lib/db';
 import { getMediaUrl } from '../../../creator-ported/utils/mediaUrl';
 import type { ScenarioAdapter } from '../../types';
+import { normalizeBands, bandsToNamePoolTier } from '../../../types/audience';
+import { normalizeUnivers } from '../../../types/univers';
+import { coerceDifficulty } from '../../../types/difficulty';
+
+/**
+ * Normalise the audience/difficulty/univers metadata in place on the cleaned
+ * game_meta before it is written to `scenarios.data`:
+ *  - `audience_bands` → canonical, de-duped band list (source of truth)
+ *  - `game_public`    → derived name-pool tier shadow (oldest band wins)
+ *  - `difficulty`     → integer 1–5 (coerced from legacy enum strings)
+ *  - `univers`        → clean string[] tags
+ * Shared by every game type and by both the regular-save and ZIP paths.
+ */
+function applyMetadataDerivations(meta: Record<string, unknown>): void {
+  const bands = normalizeBands(meta.audience_bands);
+  meta.audience_bands = bands;
+  meta.game_public = bandsToNamePoolTier(bands);
+  meta.difficulty = coerceDifficulty(meta.difficulty);
+  meta.univers = normalizeUnivers(meta.univers);
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface SavePayload<TGameMeta = any> {
@@ -61,6 +81,9 @@ export interface ZipDownloadOptions {
  */
 function buildCanonicalUpdate<TGameMeta>(payload: SavePayload<TGameMeta>) {
   const cleanGameMeta = payload.adapter.cleanGameMetaForData(payload.gameMeta);
+  // Derive the game_public shadow + normalise audience_bands/difficulty/univers
+  // so every save writes the canonical metadata shape regardless of game type.
+  applyMetadataDerivations(cleanGameMeta);
   const medias = payload.adapter.buildMediasColumn(payload.gameMeta, payload.uniqid);
   // Stage 3 (D5) shape: translatable content is per-field `Localized<T>`
   // INSIDE game_meta. The legacy `data.translations[lang] = {full copy}`

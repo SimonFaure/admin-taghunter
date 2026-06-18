@@ -1,0 +1,37 @@
+{
+  "nameTooLong": "El nombre debe tener {{max}} caracteres o menos",
+  "renameFailed": "No se pudo renombrar el dispositivo",
+  "loadFailed": "No se pudieron cargar los dispositivos",
+  "deleteConfirm": "¿Seguro que quieres eliminar este dispositivo? Esta acción no se puede deshacer.",
+  "deleteSuccess": "Dispositivo eliminado correctamente",
+  "deleteFailed": "No se pudo eliminar el dispositivo",
+  "title": "Mis dispositivos",
+  "subtitle": "Gestiona tus dispositivos registrados",
+  "registeredCount_one": "{{count}} dispositivo registrado",
+  "registeredCount_other": "{{count}} dispositivos registrados",
+  "empty": {
+    "title": "Ningún dispositivo registrado",
+    "subtitle": "Tus dispositivos aparecerán aquí una vez que se conecten a la plataforma"
+  },
+  "namePlaceholder": "Nombre del dispositivo",
+  "save": "Guardar",
+  "cancel": "Cancelar",
+  "rename": "Renombrar",
+  "deviceFallback": "Dispositivo",
+  "defaultGameServer": "Servidor de juego predeterminado",
+  "deleteDevice": "Eliminar dispositivo",
+  "labelVersion": "Versión:",
+  "labelCards": "Tarjetas:",
+  "labelRegistered": "Registrado:",
+  "labelLastSeen": "Visto por última vez:",
+  "notAvailable": "N/D",
+  "hotspots": {
+    "title": "Puntos de acceso Wi-Fi predeterminados",
+    "subtitle": "Redes que difunden tus dispositivos para que otros dispositivos de esta cuenta puedan conectarse automáticamente.",
+    "unknownDevice": "Dispositivo desconocido"
+  },
+  "about": {
+    "title": "Acerca de los dispositivos",
+    "body": "Los dispositivos se registran automáticamente cuando se conectan por primera vez a tu cuenta. El sistema controla su versión y el estado de su archivo de tarjetas para garantizar que se mantengan actualizados."
+  }
+}

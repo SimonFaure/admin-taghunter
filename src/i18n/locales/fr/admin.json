@@ -1,0 +1,12 @@
+{
+  "title": "Panneau d'Administration",
+  "enterPassword": "Entrez le Mot de Passe Admin",
+  "unlock": "Déverrouiller",
+  "invalidPassword": "Mot de passe invalide",
+  "apiLogs": "Logs API",
+  "importLogs": "Logs d'Importation",
+  "documentation": "Documentation API",
+  "clearLogs": "Effacer les Logs",
+  "viewLogs": "Voir les Logs",
+  "noLogs": "Aucun log disponible"
+}

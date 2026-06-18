@@ -1,0 +1,23 @@
+{
+  "title": "App Downloads",
+  "subtitle": "Download the latest Tag Hunter Playground app for your platform",
+  "refresh": "Refresh",
+  "errorLoad": "Failed to load releases",
+  "errorFetch": "Failed to fetch releases",
+  "empty": {
+    "title": "No Releases Available",
+    "description": "App downloads will appear here once published."
+  },
+  "section": {
+    "desktop": "Desktop",
+    "mobile": "Mobile"
+  },
+  "versionPrefix": "v",
+  "openStore": "Open store",
+  "download": "Download",
+  "notDownloadable": "Not downloadable",
+  "size": {
+    "mb": "{{value}} MB",
+    "kb": "{{value}} KB"
+  }
+}

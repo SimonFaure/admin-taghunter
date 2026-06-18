@@ -212,11 +212,12 @@ try {
                 $teamName = $t['team_name'] ?? null;
                 $pattern = isset($t['pattern']) ? (int)$t['pattern'] : 0;
                 $keyId = isset($t['key_id']) && $t['key_id'] !== '' ? (int)$t['key_id'] : null;
+                $language = isset($t['language']) && $t['language'] !== '' ? (string)$t['language'] : null;
                 if ($teamNumber <= 0) continue;
                 $db->execute(
-                    'INSERT INTO teams (launched_game_id, team_number, team_name, pattern, score, key_id)
-                     VALUES (?, ?, ?, ?, 0, ?)',
-                    [$launchedGameId, $teamNumber, $teamName, $pattern, $keyId]
+                    'INSERT INTO teams (launched_game_id, team_number, team_name, pattern, score, key_id, language)
+                     VALUES (?, ?, ?, ?, 0, ?, ?)',
+                    [$launchedGameId, $teamNumber, $teamName, $pattern, $keyId, $language]
                 );
             }
 
@@ -333,7 +334,7 @@ try {
         $game = requireLaunchedGameOwned($db, $id, $clientId);
 
         $teams = $db->fetchAll(
-            'SELECT id, team_number, team_name, pattern, score, key_id, start_time, end_time
+            'SELECT id, team_number, team_name, pattern, score, key_id, start_time, end_time, language
              FROM teams WHERE launched_game_id = ? ORDER BY team_number ASC',
             [$id]
         );
@@ -419,8 +420,8 @@ try {
 
     case 'update_team':
         // Partial-field update of a team row. Accepts any subset of:
-        //   score (int), team_name (string), start_time (bigint), end_time (bigint)
-        // Only fields present in the body are updated.
+        //   score (int), team_name (string), start_time (bigint), end_time (bigint),
+        //   language (2-letter ISO string|null). Only fields present in the body are updated.
         if ($method !== 'POST') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
@@ -445,6 +446,10 @@ try {
             $sets[] = 'end_time = ?';
             $args[] = $data['end_time'] === null ? null : (int)$data['end_time'];
         }
+        if (array_key_exists('language', $data)) {
+            $sets[] = 'language = ?';
+            $args[] = $data['language'] === null ? null : (string)$data['language'];
+        }
         if (count($sets) === 0) {
             jsonResponseWithAuthState($db, $clientId, ['success' => true, 'noop' => true]);
         }
@@ -464,6 +469,7 @@ try {
         $teamName = isset($data['team_name']) ? (string)$data['team_name'] : null;
         $pattern = isset($data['pattern']) ? (int)$data['pattern'] : 0;
         $keyId = isset($data['key_id']) && $data['key_id'] !== null ? (int)$data['key_id'] : null;
+        $language = isset($data['language']) && $data['language'] !== '' ? (string)$data['language'] : null;
         $drawFromPool = !empty($data['draw_from_pool']);
         if ($teamNumber <= 0) jsonResponse(['error' => 'team_number is required'], 400);
         requireLaunchedGameOwned($db, $launchedGameId, $clientId);
@@ -488,9 +494,9 @@ try {
             }
         }
         $db->execute(
-            'INSERT INTO teams (launched_game_id, team_number, team_name, pattern, score, key_id)
-             VALUES (?, ?, ?, ?, 0, ?)',
-            [$launchedGameId, $teamNumber, $teamName, $pattern, $keyId]
+            'INSERT INTO teams (launched_game_id, team_number, team_name, pattern, score, key_id, language)
+             VALUES (?, ?, ?, ?, 0, ?, ?)',
+            [$launchedGameId, $teamNumber, $teamName, $pattern, $keyId, $language]
         );
         $newId = (int)$db->lastInsertId();
         jsonResponseWithAuthState($db, $clientId, ['id' => $newId]);

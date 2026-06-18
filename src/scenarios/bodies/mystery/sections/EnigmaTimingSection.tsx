@@ -1,6 +1,6 @@
 /**
- * Enigma timing section — animation_enigma_duration + enigma sound slots
- * (success / error / no_answer).
+ * Enigma timing section — enigma sound slots (success / error / no_answer).
+ * (animation_enigma_duration moved to the shared Timing section.)
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
@@ -18,20 +18,7 @@ export function EnigmaTimingSection() {
   const soundSlots = mysteryMediaSlots.filter((s) => (SOUND_KEYS as readonly string[]).includes(s.key));
 
   return (
-    <CollapsibleSection title="Enigma timing & sounds">
-      <label className="block mb-3">
-        <span className="text-xs font-medium text-gray-700 mb-1 block">Animation enigma duration (s)</span>
-        <input
-          type="text"
-          value={String(meta.animation_enigma_duration ?? '')}
-          onChange={(e) =>
-            editor.setGameMeta(
-              (m) => ({ ...(m as Record<string, unknown>), animation_enigma_duration: e.target.value }) as typeof m,
-            )
-          }
-          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md text-sm"
-        />
-      </label>
+    <CollapsibleSection title="Enigma sounds">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {soundSlots.map((slot) => (
           <AssetUploadField

@@ -1,0 +1,26 @@
+{
+  "podium": {
+    "title": "Podio y fin de juego"
+  },
+  "levels": {
+    "title": "Niveles",
+    "addLevel": "Añadir nivel",
+    "empty": "Aún no hay niveles.",
+    "levelHeading": "Nivel {{key}}",
+    "removeLevel": "Quitar nivel",
+    "name": "Nombre ({{lang}})",
+    "points": "Puntos",
+    "description": "Descripción ({{lang}})"
+  },
+  "overscores": {
+    "title": "Sobrepuntuaciones",
+    "addOverscore": "Añadir sobrepuntuación",
+    "empty": "Aún no hay sobrepuntuaciones.",
+    "overscoreHeading": "Sobrepuntuación {{label}}",
+    "removeOverscore": "Quitar sobrepuntuación",
+    "imageLabel": "Imagen de sobrepuntuación",
+    "step": "Paso",
+    "score": "Puntuación",
+    "name": "Nombre ({{lang}})"
+  }
+}

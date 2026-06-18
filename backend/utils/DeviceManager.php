@@ -19,8 +19,8 @@ class DeviceManager {
         }
 
         $db->execute(
-            'INSERT INTO devices (client_id, device_uniq, device_label, os, os_version, playground_version, last_seen_at)
-             VALUES (?, ?, ?, ?, ?, ?, NOW())',
+            'INSERT INTO devices (client_id, device_uniq, device_label, os, os_version, playground_version, operator_only, last_seen_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())',
             [
                 $clientId,
                 $deviceUniq,
@@ -28,6 +28,7 @@ class DeviceManager {
                 $metadata['os'] ?? null,
                 $metadata['os_version'] ?? null,
                 $metadata['app_version'] ?? '',
+                !empty($metadata['operator_only']) ? 1 : 0,
             ]
         );
 
@@ -50,6 +51,13 @@ class DeviceManager {
             $params[] = $metadata['app_version'];
         }
 
+        // Device role: operator-only (manage-only). A real boolean that can be
+        // false, so test key presence, not truthiness.
+        if (array_key_exists('operator_only', $metadata) && $metadata['operator_only'] !== null) {
+            $fields[] = 'operator_only = ?';
+            $params[] = $metadata['operator_only'] ? 1 : 0;
+        }
+
         $fields[] = 'last_seen_at = NOW()';
         $fields[] = 'updated_at = NOW()';
 
@@ -68,7 +76,7 @@ class DeviceManager {
     public static function listForClient(object $db, int $clientId): array {
         return $db->fetchAll(
             'SELECT d.id, d.device_uniq, d.device_label, d.display_name, d.os, d.os_version,
-                    d.playground_version AS app_version,
+                    d.playground_version AS app_version, d.operator_only,
                     d.created_at, d.updated_at, d.last_seen_at,
                     (SELECT COUNT(*) FROM auth_tokens t
                        WHERE t.device_id = d.id

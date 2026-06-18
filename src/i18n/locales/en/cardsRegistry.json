@@ -1,0 +1,78 @@
+{
+  "title": "Cards",
+  "save": "Save",
+  "cancel": "Cancel",
+  "importCsv": "Import CSV",
+  "registerCard": "Register card",
+  "cardCount_one": "{{count}} card · version {{version}}",
+  "cardCount_other": "{{count}} cards · version {{version}}",
+  "registerNew": "Register a new card",
+  "fields": {
+    "chipId": "Chip ID",
+    "chipIdHint": "from the card chip",
+    "chipIdPlaceholder": "e.g. 2145811",
+    "keyNumber": "Key #",
+    "keyNumberHint": "display number",
+    "name": "Name",
+    "nameHint": "required",
+    "namePlaceholder": "e.g. Alpha",
+    "color": "Color",
+    "colorHint": "optional",
+    "colorPlaceholder": "e.g. red"
+  },
+  "table": {
+    "keyNumber": "Key #",
+    "name": "Name",
+    "color": "Color",
+    "chipId": "Chip ID",
+    "actions": "Actions"
+  },
+  "actions": {
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "empty": {
+    "title": "No cards registered yet",
+    "registerStrong": "Register card",
+    "importStrong": "Import CSV",
+    "lead": "Click <0>Register card</0> to add one manually, or <1>Import CSV</1> to bulk-import."
+  },
+  "import": {
+    "title": "Import cards from CSV",
+    "importing": "Importing…",
+    "dropPrompt": "Drop CSV here or click to browse",
+    "expectedHeaders": "Expected headers:",
+    "upsertNote": "Existing rows are upserted by chip ID.",
+    "cancel": "Cancel"
+  },
+  "confirmDelete": {
+    "title": "Delete card?",
+    "cardLine": "<0>{{name}}</0> (chip <1>{{chipId}}</1>, key #{{keyNumber}})",
+    "warning": "This deletes the card on studio and on every device on the next sync. It cannot be undone.",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting…"
+  },
+  "toast": {
+    "loadFailed": "Failed to load cards",
+    "keyNumberTaken": "This key number is already taken by another card",
+    "keyNumberInUse": "Key number already in use — choose another",
+    "chipIdRegistered": "A card with this chip ID is already registered",
+    "chipIdPositive": "Chip ID must be a positive integer",
+    "keyNumberPositive": "Key number must be a positive integer",
+    "nameRequired": "Name is required",
+    "registered": "Registered {{name}} (#{{keyNumber}})",
+    "registerFailed": "Failed to register card",
+    "cardUpdated": "Card updated",
+    "updateFailed": "Failed to update card",
+    "cardDeleted": "Card deleted",
+    "deleteFailed": "Failed to delete card",
+    "onlyCsv": "Only CSV files are allowed",
+    "inserted": "{{count}} inserted",
+    "updated": "{{count}} updated",
+    "skipped": "{{count}} skipped",
+    "importDone": "Import done: {{summary}}",
+    "importErrors": "Errors: {{errors}}",
+    "importFailed": "Import failed"
+  }
+}

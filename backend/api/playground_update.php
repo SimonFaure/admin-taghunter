@@ -18,6 +18,8 @@
  *                comparison + release notes + mobile store links.
  *   - download : Streams a release artifact by id (PHP passthrough; the
  *                releases/ directory is never web-served directly).
+ *   - list     : Public list of the latest release per platform (no signatures
+ *                or internal paths). Powers the client portal download page.
  */
 
 require_once __DIR__ . '/../utils/cors.php';
@@ -52,7 +54,8 @@ function updateBaseUrl(): string {
 function mobileStoreUrls(Database $db): array {
     $rows = $db->fetchAll(
         "SELECT target, store_url FROM playground_releases
-         WHERE target IN ('android','ios') AND is_latest = 1 AND store_url IS NOT NULL"
+         WHERE target IN ('android','ios') AND is_latest = 1
+           AND channel = 'stable' AND store_url IS NOT NULL"
     );
     $out = [];
     foreach ($rows as $r) {
@@ -61,26 +64,40 @@ function mobileStoreUrls(Database $db): array {
     return $out;
 }
 
-/**
- * Build the latest-release payload for a given platform.
- * Returns null when no release is published for that platform.
- */
-function buildManifest(Database $db, string $target, string $arch): ?array {
-    $isMobile = in_array($target, ['android', 'ios'], true);
+/** Constrain a caller-supplied channel to the known set; default 'stable'. */
+function sanitizeChannel(string $value): string {
+    return in_array($value, ['stable', 'test'], true) ? $value : 'stable';
+}
 
+/** The latest release for a platform on a specific channel (null if none). */
+function latestRow(Database $db, string $target, string $arch, string $channel, bool $isMobile): ?array {
     if ($isMobile) {
         // Mobile releases are arch-agnostic (one store listing).
-        $row = $db->fetch(
+        return $db->fetch(
             "SELECT * FROM playground_releases
-             WHERE target = ? AND is_latest = 1 LIMIT 1",
-            [$target]
-        );
-    } else {
-        $row = $db->fetch(
-            "SELECT * FROM playground_releases
-             WHERE target = ? AND arch = ? AND is_latest = 1 LIMIT 1",
-            [$target, $arch]
-        );
+             WHERE target = ? AND channel = ? AND is_latest = 1 LIMIT 1",
+            [$target, $channel]
+        ) ?: null;
+    }
+    return $db->fetch(
+        "SELECT * FROM playground_releases
+         WHERE target = ? AND arch = ? AND channel = ? AND is_latest = 1 LIMIT 1",
+        [$target, $arch, $channel]
+    ) ?: null;
+}
+
+/**
+ * Build the latest-release payload for a given platform + channel.
+ * A 'test'-channel caller with no test release for the platform falls back to
+ * the stable latest, so a tester is never stranded on a platform we haven't cut
+ * a test build for. Returns null when no release is published at all.
+ */
+function buildManifest(Database $db, string $target, string $arch, string $channel = 'stable'): ?array {
+    $isMobile = in_array($target, ['android', 'ios'], true);
+
+    $row = latestRow($db, $target, $arch, $channel, $isMobile);
+    if (!$row && $channel !== 'stable') {
+        $row = latestRow($db, $target, $arch, 'stable', $isMobile);
     }
 
     if (!$row) {
@@ -130,7 +147,15 @@ try {
                 jsonResponse(['error' => 'target and arch are required'], 400);
             }
 
-            $manifest = buildManifest($db, $target, $arch);
+            // The update path is unauthenticated, so the playground tells us which
+            // release channel it resolved (device override -> client -> stable).
+            // The custom 'check' path passes ?channel=; the Tauri plugin's own
+            // request can only set a header, so accept X-Update-Channel too.
+            $channel = sanitizeChannel(
+                $_GET['channel'] ?? ($_SERVER['HTTP_X_UPDATE_CHANNEL'] ?? 'stable')
+            );
+
+            $manifest = buildManifest($db, $target, $arch, $channel);
 
             // 'manifest' is the Tauri plugin endpoint: 204 means "up to date".
             if ($action === 'manifest') {
@@ -156,6 +181,48 @@ try {
                 'available' => $manifest !== null,
                 'manifest'  => $manifest,
             ]);
+            break;
+        }
+
+        case 'list': {
+            if ($method !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            // Latest STABLE release per platform only -- the public download
+            // surface is identity-blind, so it never exposes test builds. A
+            // device only reaches the test track via the channel-aware
+            // manifest/check path after an admin designates it a tester.
+            $rows = $db->fetchAll(
+                "SELECT id, version, target, arch, artifact_filename, artifact_size,
+                        store_url, pub_date, notes, min_supported_version
+                 FROM playground_releases
+                 WHERE is_latest = 1 AND channel = 'stable'
+                 ORDER BY target ASC, arch ASC"
+            );
+
+            $base = updateBaseUrl();
+            $releases = [];
+            foreach ($rows as $r) {
+                $isMobile = in_array($r['target'], ['android', 'ios'], true);
+                $releases[] = [
+                    'version'      => $r['version'],
+                    'target'       => $r['target'],
+                    'arch'         => $r['arch'],
+                    'notes'        => $r['notes'] ?? '',
+                    'pub_date'     => $r['pub_date'] ? date('c', strtotime($r['pub_date'])) : null,
+                    'artifact_size' => $r['artifact_size'] !== null ? (int)$r['artifact_size'] : null,
+                    // Mobile -> store listing; desktop -> authenticated-free binary stream.
+                    'store_url'    => $isMobile ? ($r['store_url'] ?: null) : null,
+                    'download_url' => (!$isMobile && !empty($r['artifact_filename']))
+                        ? $base . '?action=download&id=' . (int)$r['id']
+                        : null,
+                ];
+            }
+
+            Logger::log('playground_update', $method, 'list', null, [],
+                ['count' => count($releases)], 200, 'playground');
+            jsonResponse(['releases' => $releases]);
             break;
         }
 
@@ -209,7 +276,7 @@ try {
         }
 
         default:
-            jsonResponse(['error' => 'Invalid action. Available: manifest, check, download'], 400);
+            jsonResponse(['error' => 'Invalid action. Available: manifest, check, download, list'], 400);
     }
 } catch (Exception $e) {
     Logger::log('playground_update', $_SERVER['REQUEST_METHOD'] ?? 'GET',

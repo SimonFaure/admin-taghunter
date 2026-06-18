@@ -1,0 +1,7 @@
+{
+  "title": "Détection de Carte",
+  "detected": "Carte détectée",
+  "reading": "Lecture de la carte...",
+  "noReader": "Aucun lecteur de carte trouvé",
+  "error": "Erreur de lecture de carte"
+}

@@ -1,5 +1,6 @@
 import { LayoutGrid, List as ListIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface ScenarioListControlsOption {
   value: string;
@@ -36,6 +37,7 @@ export function ScenarioListControls({
   sortOptions,
   extraActions,
 }: ScenarioListControlsProps) {
+  const { t } = useTranslation('scenarioListControls');
   const showSort = sortBy !== undefined && onSortByChange && sortOptions && sortOptions.length > 0;
 
   return (
@@ -44,7 +46,7 @@ export function ScenarioListControls({
 
       {showSort && (
         <label className="inline-flex items-center gap-2 text-xs text-slate-500">
-          <span className="font-medium uppercase tracking-wide">Sort</span>
+          <span className="font-medium uppercase tracking-wide">{t('sort')}</span>
           <select
             value={sortBy}
             onChange={(e) => onSortByChange!(e.target.value)}
@@ -58,7 +60,7 @@ export function ScenarioListControls({
       )}
 
       <label className="inline-flex items-center gap-2 text-xs text-slate-500">
-        <span className="font-medium uppercase tracking-wide">Group by</span>
+        <span className="font-medium uppercase tracking-wide">{t('groupBy')}</span>
         <select
           value={groupBy}
           onChange={(e) => onGroupByChange(e.target.value)}
@@ -75,7 +77,7 @@ export function ScenarioListControls({
           type="button"
           onClick={() => onViewModeChange('grid')}
           className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-          title="Grid view"
+          title={t('gridView')}
         >
           <LayoutGrid className="w-4 h-4" />
         </button>
@@ -83,7 +85,7 @@ export function ScenarioListControls({
           type="button"
           onClick={() => onViewModeChange('list')}
           className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-          title="List view"
+          title={t('listView')}
         >
           <ListIcon className="w-4 h-4" />
         </button>

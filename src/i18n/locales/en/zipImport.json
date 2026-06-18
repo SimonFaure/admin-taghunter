@@ -1,0 +1,12 @@
+{
+  "title": "Import Scenario from ZIP",
+  "selectFile": "Select ZIP File",
+  "dragDrop": "or drag and drop",
+  "fileSelected": "File selected",
+  "importing": "Importing...",
+  "importButton": "Import Scenario",
+  "success": "Scenario imported successfully",
+  "error": "Failed to import scenario",
+  "invalidFile": "Invalid ZIP file",
+  "processing": "Processing ZIP file..."
+}

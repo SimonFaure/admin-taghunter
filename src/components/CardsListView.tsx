@@ -9,7 +9,6 @@ import {
   X,
   Layers,
   Upload,
-  Tags,
 } from 'lucide-react';
 import {
   adminCardsApi,
@@ -18,8 +17,6 @@ import {
 import { CardsRegistryEditor, CardsEditorApi } from './CardsRegistryEditor';
 import { OnDemandPoolModal } from './OnDemandPoolModal';
 import { AssignOnDemandCardsModal } from './AssignOnDemandCardsModal';
-import { TeamNamePoolModal } from './TeamNamePoolModal';
-import type { TeamNamePoolScope } from '../lib/api';
 import { HelpButton } from '../help';
 
 export function CardsListView() {
@@ -30,9 +27,6 @@ export function CardsListView() {
   const [selectedClient, setSelectedClient] = useState<ClientCardSummary | null>(null);
   const [showPoolModal, setShowPoolModal] = useState(false);
   const [assignClient, setAssignClient] = useState<ClientCardSummary | null>(null);
-  // Team-name pool modal. scope = 'global' (catalog) or a numeric client_id.
-  const [namePoolScope, setNamePoolScope] = useState<TeamNamePoolScope | null>(null);
-  const [namePoolClientName, setNamePoolClientName] = useState<string | undefined>(undefined);
 
   const fetchList = async () => {
     setLoading(true);
@@ -122,13 +116,6 @@ export function CardsListView() {
           </p>
           <div className="flex items-center gap-2">
             <HelpButton chapter="cards" label="Help" className="mr-1 text-slate-500 hover:text-slate-800" />
-            <button
-              onClick={() => { setNamePoolClientName(undefined); setNamePoolScope('global'); }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
-            >
-              <Tags className="w-4 h-4" />
-              Team Name Catalog
-            </button>
             <button
               onClick={() => setShowPoolModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
@@ -253,15 +240,6 @@ export function CardsListView() {
                           <Layers className="w-4 h-4" />
                           <span>On Demand</span>
                         </button>
-                        <span className="text-slate-200">|</span>
-                        <button
-                          onClick={() => { setNamePoolClientName(client.name); setNamePoolScope(client.id); }}
-                          className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-                          title="Team Name Pool"
-                        >
-                          <Tags className="w-4 h-4" />
-                          <span>Team Names</span>
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -273,14 +251,6 @@ export function CardsListView() {
       )}
 
       {showPoolModal && <OnDemandPoolModal onClose={() => setShowPoolModal(false)} />}
-
-      {namePoolScope !== null && (
-        <TeamNamePoolModal
-          scope={namePoolScope}
-          clientName={namePoolClientName}
-          onClose={() => setNamePoolScope(null)}
-        />
-      )}
 
       {assignClient && (
         <AssignOnDemandCardsModal

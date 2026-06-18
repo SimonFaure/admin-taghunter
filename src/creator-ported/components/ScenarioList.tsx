@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Plus, CreditCard as Edit, Trash2, Eye, FileArchive, Book } from 'lucide-react';
 import { db } from '../lib/db';
 import { getMediaUrl } from '../utils/mediaUrl';
+import { GameTypeIcon } from '../../components/icons/GameTypeIcons';
 import { ConfirmDialog } from './ConfirmDialog';
 
 interface Scenario {
@@ -114,7 +115,7 @@ export function ScenarioList({ onCreateNew, onEdit, onConfigure, onImport, onVie
     const labels: Record<string, string> = {
       mystery: 'Mystery',
       tagquest: 'Tag Quest',
-      tracks: 'Tracks'
+      tracks: 'Track'
     };
     return labels[type] || type;
   };
@@ -235,7 +236,8 @@ export function ScenarioList({ onCreateNew, onEdit, onConfigure, onImport, onVie
             <div className="flex-1">
               <h3 className="text-xl font-semibold text-white mb-2">{scenario.title}</h3>
               <div className="flex items-center gap-2 mb-3">
-                <span className="px-2 py-1 text-xs rounded bg-blue-600 text-white">
+                <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded bg-blue-600 text-white">
+                  <GameTypeIcon type={scenario.game_type} className="w-3.5 h-3.5" />
                   {getGameTypeLabel(scenario.game_type)}
                 </span>
                 <span className={`px-2 py-1 text-xs rounded text-white ${getStatusColor(scenario.status)}`}>
@@ -315,7 +317,8 @@ export function ScenarioList({ onCreateNew, onEdit, onConfigure, onImport, onVie
 
       {Object.entries(groupedScenarios).map(([gameType, typeScenarios]) => (
         <div key={gameType} className="mb-12">
-          <h3 className="text-2xl font-bold text-white mb-4 border-b border-slate-700 pb-2">
+          <h3 className="flex items-center gap-2 text-2xl font-bold text-white mb-4 border-b border-slate-700 pb-2">
+            <GameTypeIcon type={gameType} className="w-6 h-6 text-slate-400" />
             {getGameTypeLabel(gameType)} <span className="text-slate-500 text-lg">({typeScenarios.length})</span>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

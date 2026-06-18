@@ -1,0 +1,22 @@
+{
+  "backToAccount": "Retour au compte",
+  "title": "Sécurité",
+  "authentication": {
+    "heading": "Authentification",
+    "body": "Votre compte est sécurisé par une authentification à mot de passe à usage unique. Il n'y a aucun mot de passe à changer — chaque connexion est vérifiée par un code envoyé par e-mail."
+  },
+  "signOutEverywhere": {
+    "heading": "Se déconnecter partout",
+    "body": "Révoque toutes les sessions actives de votre compte, sur tous les navigateurs et appareils. Vous serez également déconnecté de cette session et devrez vous reconnecter.",
+    "button": "Se déconnecter partout",
+    "confirmPrompt": "Cela vous déconnectera également de ce navigateur. Continuer ?",
+    "confirmButton": "Oui, déconnectez-moi partout",
+    "signingOut": "Déconnexion…",
+    "cancel": "Annuler"
+  },
+  "errors": {
+    "revokeFailed": "Échec de la révocation des sessions",
+    "network": "Erreur réseau"
+  },
+  "flash": "Toutes les sessions ont été déconnectées — veuillez vous reconnecter."
+}

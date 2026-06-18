@@ -102,6 +102,49 @@ export function validateMysteryConfig(config: any, scenarioTitle: string, scenar
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function validateClashConfig(config: any, scenarioTitle: string, scenarioDescription: string): ValidationResult {
+  const issues: ValidationIssue[] = [];
+
+  check(issues, !!scenarioTitle?.trim(), 'title', 'Scenario title is required', 'error');
+  check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
+  check(issues, !!config.map_image, 'map_image', 'Territory map image is required', 'error');
+  check(issues, !!config.neutral_seal, 'neutral_seal', 'Neutral seal image is required', 'warning');
+  check(issues, !!config.scenario_default_pattern, 'scenario_default_pattern', 'A default Clash pattern should be set', 'warning');
+
+  const clans = config.clans ?? [];
+  check(issues, clans.length >= 2, 'clans', 'At least 2 clans are required', 'error');
+  check(issues, clans.length <= 4, 'clans', 'Clash supports at most 4 clans', 'error');
+  clans.forEach((clan: any, i: number) => {
+    check(issues, !!clan.seal, `clans[${i}].seal`, `Clan ${i + 1}: seal image is required`, 'error');
+    check(issues, !!clan.name, `clans[${i}].name`, `Clan ${i + 1}: default name is required`, 'warning');
+  });
+
+  const territories = config.territories ?? [];
+  check(issues, territories.length === 4, 'territories', 'Clash requires exactly 4 territories', 'error');
+  territories.forEach((t: any, ti: number) => {
+    check(issues, !!t.points && t.points !== '0', `territories[${ti}].points`, `Territory ${ti + 1}: point value should be greater than 0`, 'warning');
+    if (t.size !== 'small') {
+      check(issues, !!t.complete_image, `territories[${ti}].complete_image`, `Territory ${ti + 1}: complete image is required`, 'warning');
+    }
+    const combos = t.combinations ?? [];
+    combos.forEach((c: any, ci: number) => {
+      check(issues, !!c.main, `territories[${ti}].combinations[${ci}].main`, `Territory ${ti + 1} / combination ${ci + 1}: main image is required`, 'error');
+      check(issues, !!c.piece_1, `territories[${ti}].combinations[${ci}].piece_1`, `Territory ${ti + 1} / combination ${ci + 1}: balise 1 image is required`, 'error');
+      check(issues, !!c.piece_2, `territories[${ti}].combinations[${ci}].piece_2`, `Territory ${ti + 1} / combination ${ci + 1}: balise 2 image is required`, 'error');
+      check(issues, !!c.piece_3, `territories[${ti}].combinations[${ci}].piece_3`, `Territory ${ti + 1} / combination ${ci + 1}: balise 3 image is required`, 'error');
+    });
+  });
+
+  check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
+
+  return {
+    valid: issues.filter((i) => i.severity === 'error').length === 0,
+    errors: issues.filter((i) => i.severity === 'error'),
+    warnings: issues.filter((i) => i.severity === 'warning'),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateTracksConfig(config: any, scenarioTitle: string, scenarioDescription: string): ValidationResult {
   const issues: ValidationIssue[] = [];
 

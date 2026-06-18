@@ -1,23 +1,25 @@
-import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, LayoutGrid, Gamepad2, Settings, BarChart3, HelpCircle } from 'lucide-react';
+import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, Settings, BarChart3, HelpCircle, Rocket } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { HelpProvider, studioOpenPdf } from '../help';
 
 const NAV_ITEMS = [
-  { to: '/my/home', label: 'Home', icon: Home, end: true },
-  { to: '/my/scenarios', label: 'My Scenarios', icon: Film, end: false },
-  { to: '/my/patterns', label: 'My Patterns', icon: Package, end: false },
-  { to: '/my/layouts', label: 'My Layouts', icon: LayoutGrid, end: false },
-  { to: '/my/cards', label: 'My Cards', icon: CreditCard, end: false },
-  { to: '/my/devices', label: 'My Devices', icon: Smartphone, end: false },
-  { to: '/my/game-types', label: 'Game Types', icon: Gamepad2, end: false },
-  { to: '/my/statistics', label: 'Statistics', icon: BarChart3, end: false },
-  { to: '/my/settings', label: 'Settings', icon: Settings, end: false },
-  { to: '/my/account', label: 'My Account', icon: User, end: false },
-  { to: '/my/help', label: 'Help', icon: HelpCircle, end: false },
+  { to: '/my/home', labelKey: 'nav.home', icon: Home, end: true },
+  { to: '/my/scenarios', labelKey: 'nav.scenarios', icon: Film, end: false },
+  { to: '/my/patterns', labelKey: 'nav.patterns', icon: Package, end: false },
+  { to: '/my/cards', labelKey: 'nav.cards', icon: CreditCard, end: false },
+  { to: '/my/devices', labelKey: 'nav.devices', icon: Smartphone, end: false },
+  { to: '/my/releases', labelKey: 'nav.releases', icon: Rocket, end: false },
+  { to: '/my/game-types', labelKey: 'nav.gameTypes', icon: Video, end: false },
+  { to: '/my/statistics', labelKey: 'nav.statistics', icon: BarChart3, end: false },
+  { to: '/my/settings', labelKey: 'nav.settings', icon: Settings, end: false },
+  { to: '/my/account', labelKey: 'nav.account', icon: User, end: false },
+  { to: '/my/help', labelKey: 'nav.help', icon: HelpCircle, end: false },
 ];
 
 export function ClientLayout() {
+  const { t } = useTranslation('client');
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -37,12 +39,12 @@ export function ClientLayout() {
               alt="Tag Hunter"
               className="h-12 w-auto object-contain max-w-full"
             />
-            <h1 className="text-lg font-bold">Client Portal</h1>
+            <h1 className="text-lg font-bold">{t('portal')}</h1>
           </div>
         </div>
 
         <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
-          {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+          {NAV_ITEMS.map(({ to, labelKey, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -56,7 +58,7 @@ export function ClientLayout() {
               }
             >
               <Icon className="w-5 h-5" />
-              <span className="font-medium">{label}</span>
+              <span className="font-medium">{t(labelKey)}</span>
             </NavLink>
           ))}
         </nav>
@@ -71,7 +73,7 @@ export function ClientLayout() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{user?.name || user?.email}</p>
-                <p className="text-xs text-slate-400">Client</p>
+                <p className="text-xs text-slate-400">{t('role')}</p>
               </div>
             </div>
           </div>
@@ -80,7 +82,7 @@ export function ClientLayout() {
             className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-all"
           >
             <LogOut className="w-4 h-4" />
-            <span className="text-sm font-medium">Sign Out</span>
+            <span className="text-sm font-medium">{t('signOut')}</span>
           </button>
         </div>
       </aside>

@@ -1,0 +1,14 @@
+{
+  "title": "Scénarios",
+  "create": "Créer un Nouveau Scénario Mystery",
+  "edit": "Modifier le Scénario",
+  "list": "Liste des Scénarios",
+  "import": "Importer un Scénario",
+  "noScenarios": "Aucun scénario disponible",
+  "loading": "Chargement des scénarios...",
+  "deleteConfirm": "Êtes-vous sûr de vouloir supprimer ce scénario ?",
+  "deleteSuccess": "Scénario supprimé avec succès",
+  "saveSuccess": "Scénario enregistré avec succès",
+  "importSuccess": "Scénario importé avec succès",
+  "lastModified": "Dernière modification"
+}

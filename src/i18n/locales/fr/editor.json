@@ -1,0 +1,34 @@
+{
+  "alert": {
+    "loadFailed": "Échec du chargement du scénario",
+    "saved": "Enregistré",
+    "saveFailed": "Échec de l'enregistrement",
+    "published": "Publié v{{version}}",
+    "publishFailed": "Échec de la publication",
+    "zipFailed": "Échec du téléchargement du ZIP",
+    "uploadFailed": "Échec du téléversement"
+  },
+  "saveBar": {
+    "saving": "Enregistrement...",
+    "save": "Enregistrer",
+    "publishing": "Publication...",
+    "publish": "Publier",
+    "downloadZip": "Télécharger le ZIP",
+    "preview": "Aperçu",
+    "expandAllTitle": "Développer toutes les sections",
+    "collapseAllTitle": "Réduire toutes les sections",
+    "expandAll": "Tout développer",
+    "collapseAll": "Tout réduire",
+    "layoutEditor": "Éditeur de mise en page"
+  },
+  "header": {
+    "back": "Retour",
+    "untitled": "Scénario sans titre",
+    "help": "Aide",
+    "unsavedChanges": "Modifications non enregistrées"
+  },
+  "field": {
+    "defaultLanguageTitle": "Langue par défaut ({{lang}})",
+    "translationTitle": "Traduction ({{lang}})"
+  }
+}

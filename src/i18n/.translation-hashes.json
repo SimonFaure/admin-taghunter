@@ -1,0 +1,536 @@
+{
+  "admin": {
+    "title": {
+      "fr": "5d2a72da"
+    },
+    "enterPassword": {
+      "fr": "d271b87f"
+    },
+    "unlock": {
+      "fr": "9c799975"
+    },
+    "invalidPassword": {
+      "fr": "04fb1999"
+    },
+    "apiLogs": {
+      "fr": "3bd51126"
+    },
+    "importLogs": {
+      "fr": "aa811ef7"
+    },
+    "documentation": {
+      "fr": "910529a1"
+    },
+    "clearLogs": {
+      "fr": "a3a6864d"
+    },
+    "viewLogs": {
+      "fr": "357a6e2b"
+    },
+    "noLogs": {
+      "fr": "8ca204de"
+    }
+  },
+  "alerts": {
+    "success": {
+      "fr": "6d8303b0"
+    },
+    "error": {
+      "fr": "f38d9cf1"
+    },
+    "warning": {
+      "fr": "37c4fc8f"
+    },
+    "info": {
+      "fr": "fdb25855"
+    }
+  },
+  "auth": {
+    "login": {
+      "fr": "55edebd2"
+    },
+    "logout": {
+      "fr": "877a6a0b"
+    },
+    "email": {
+      "fr": "43352167"
+    },
+    "password": {
+      "fr": "2cc30838"
+    },
+    "enterEmail": {
+      "fr": "6c4ab2a4"
+    },
+    "enterPassword": {
+      "fr": "7b5830fd"
+    },
+    "loginButton": {
+      "fr": "55edebd2"
+    },
+    "loggingIn": {
+      "fr": "75add499"
+    },
+    "loginError": {
+      "fr": "4d625586"
+    }
+  },
+  "cardReader": {
+    "title": {
+      "fr": "826e10b4"
+    },
+    "detected": {
+      "fr": "5b9cbf8b"
+    },
+    "reading": {
+      "fr": "dce5abaf"
+    },
+    "noReader": {
+      "fr": "9f6f6817"
+    },
+    "error": {
+      "fr": "251c6c0d"
+    }
+  },
+  "common": {
+    "save": {
+      "fr": "4d2d5d68"
+    },
+    "cancel": {
+      "fr": "35afca3b"
+    },
+    "delete": {
+      "fr": "5797ea6a"
+    },
+    "edit": {
+      "fr": "c2c76cb1"
+    },
+    "back": {
+      "fr": "c2954bc2"
+    },
+    "loading": {
+      "fr": "17b11033"
+    },
+    "search": {
+      "fr": "c646a2c9"
+    },
+    "create": {
+      "fr": "990de47d"
+    },
+    "export": {
+      "fr": "e86349d3"
+    },
+    "import": {
+      "fr": "573e0af4"
+    },
+    "close": {
+      "fr": "cd86acc3"
+    },
+    "confirm": {
+      "fr": "a183c9ef"
+    },
+    "yes": {
+      "fr": "b3a43630"
+    },
+    "no": {
+      "fr": "61e6be1a"
+    },
+    "add": {
+      "fr": "9dc3aa14"
+    },
+    "remove": {
+      "fr": "21a5901d"
+    },
+    "upload": {
+      "fr": "826f7f7c"
+    },
+    "download": {
+      "fr": "6964bb19"
+    },
+    "refresh": {
+      "fr": "0815aad4"
+    },
+    "settings": {
+      "fr": "4b058728"
+    },
+    "language": {
+      "fr": "9a73db9b"
+    },
+    "version": {
+      "fr": "5dcdd537"
+    },
+    "help": {
+      "fr": "b89df01a"
+    }
+  },
+  "config": {
+    "title": {
+      "fr": "1a5ee459"
+    },
+    "adminTools": {
+      "fr": "ca7f700f"
+    },
+    "viewApiDocs": {
+      "fr": "23a83b0a"
+    },
+    "viewApiLogs": {
+      "fr": "37fb7f88"
+    },
+    "viewImportLogs": {
+      "fr": "a9207784"
+    },
+    "translations": {
+      "fr": "5901bcad"
+    },
+    "importTranslations": {
+      "fr": "43610d7c"
+    },
+    "importTranslationsDesc": {
+      "fr": "2a8d9f88"
+    },
+    "exportTranslations": {
+      "fr": "ab93ce21"
+    },
+    "exportTranslationsDesc": {
+      "fr": "9f388bb3"
+    },
+    "selectFile": {
+      "fr": "6bdb8fb1"
+    },
+    "invalidFileType": {
+      "fr": "6fce37cc"
+    },
+    "importSuccess": {
+      "fr": "48c47c9d"
+    },
+    "importError": {
+      "fr": "8490c2ca"
+    },
+    "exportEnglish": {
+      "fr": "2333bed7"
+    },
+    "exportFrench": {
+      "fr": "04a48411"
+    }
+  },
+  "configuration": {
+    "title": {
+      "fr": "1a5ee459"
+    },
+    "general": {
+      "fr": "1595789c"
+    },
+    "database": {
+      "fr": "f09430d8"
+    },
+    "api": {
+      "fr": "af27e2a8"
+    },
+    "system": {
+      "fr": "8f3184bc"
+    },
+    "mysqlConfig": {
+      "fr": "7da38497"
+    },
+    "host": {
+      "fr": "302af18f"
+    },
+    "port": {
+      "fr": "e2c53cc6"
+    },
+    "user": {
+      "fr": "e0a63e12"
+    },
+    "password": {
+      "fr": "2cc30838"
+    },
+    "testConnection": {
+      "fr": "bd264e97"
+    },
+    "connectionSuccess": {
+      "fr": "515fb6d9"
+    },
+    "connectionFailed": {
+      "fr": "072cefb6"
+    },
+    "saveConfig": {
+      "fr": "5b7f219a"
+    },
+    "configSaved": {
+      "fr": "e18c745f"
+    }
+  },
+  "footer": {
+    "madeBy": {
+      "fr": "e8ff7e65"
+    },
+    "rights": {
+      "fr": "ca680ca5"
+    },
+    "version": {
+      "fr": "5dcdd537"
+    }
+  },
+  "games": {
+    "title": {
+      "fr": "73f99d3c"
+    },
+    "browse": {
+      "fr": "9d755a2b"
+    },
+    "launch": {
+      "fr": "535843e0"
+    },
+    "details": {
+      "fr": "b0cb6485"
+    },
+    "noGames": {
+      "fr": "e5eaa95e"
+    },
+    "loading": {
+      "fr": "9d883a02"
+    }
+  },
+  "launchedGames": {
+    "title": {
+      "fr": "c054831c"
+    },
+    "active": {
+      "fr": "71cd75b4"
+    },
+    "completed": {
+      "fr": "7c4de61d"
+    },
+    "noGames": {
+      "fr": "70a3c843"
+    },
+    "teamCount": {
+      "fr": "a2fd7d0c"
+    },
+    "teamCount_plural": {
+      "fr": "140c8eed"
+    },
+    "startTime": {
+      "fr": "cdfa3c6c"
+    },
+    "endTime": {
+      "fr": "2a6cc6d7"
+    },
+    "duration": {
+      "fr": "d4c7492d"
+    },
+    "status": {
+      "fr": "005ef20f"
+    },
+    "configure": {
+      "fr": "163e25eb"
+    },
+    "viewDetails": {
+      "fr": "e2c15a0e"
+    }
+  },
+  "mysteryConfig": {
+    "title": {
+      "fr": "1baf2702"
+    },
+    "basicSettings": {
+      "fr": "c747893a"
+    },
+    "story": {
+      "fr": "59a30e52"
+    },
+    "timing": {
+      "fr": "222ddc13"
+    },
+    "styling": {
+      "fr": "afae4061"
+    },
+    "scoring": {
+      "fr": "7e86bdae"
+    },
+    "enigmas": {
+      "fr": "4ae5d29d"
+    },
+    "media": {
+      "fr": "d10fcaa3"
+    },
+    "gameTitle": {
+      "fr": "24d471a9"
+    },
+    "gamePublic": {
+      "fr": "45c702e0"
+    },
+    "numberOfEnigmas": {
+      "fr": "d7d43153"
+    },
+    "scoreFullGame": {
+      "fr": "73401c74"
+    },
+    "overscoreSteps": {
+      "fr": "796c9ef0"
+    },
+    "gameVersion": {
+      "fr": "71960e77"
+    },
+    "description": {
+      "fr": "66de7a09"
+    },
+    "storyText": {
+      "fr": "59a30e52"
+    },
+    "descriptionPlaceholder": {
+      "fr": "bccd5c83"
+    },
+    "storyPlaceholder": {
+      "fr": "0f38be61"
+    },
+    "defaultTime": {
+      "fr": "4d3f4f2b"
+    },
+    "defaultTimeMalus": {
+      "fr": "e2e0c9e5"
+    },
+    "animationImageDuration": {
+      "fr": "9167be40"
+    },
+    "animationEnigmaDuration": {
+      "fr": "0b9226fe"
+    },
+    "animationMessageDuration": {
+      "fr": "1c95bcae"
+    },
+    "primaryColor": {
+      "fr": "f1131d9a"
+    },
+    "secondaryColor": {
+      "fr": "f6f34602"
+    },
+    "backgroundColor": {
+      "fr": "ac01b156"
+    },
+    "textColor": {
+      "fr": "328fc54d"
+    },
+    "fontFamily": {
+      "fr": "23262680"
+    },
+    "fontSize": {
+      "fr": "b21ca2e1"
+    },
+    "publicTypes.mini_kids": {
+      "fr": "de27a093"
+    },
+    "publicTypes.kids": {
+      "fr": "3504059c"
+    },
+    "publicTypes.ado_adultes": {
+      "fr": "5a41c393"
+    }
+  },
+  "navigation": {
+    "home": {
+      "fr": "52f50eae"
+    },
+    "scenarios": {
+      "fr": "abfe5074"
+    },
+    "games": {
+      "fr": "73f99d3c"
+    },
+    "launched": {
+      "fr": "c054831c"
+    },
+    "configuration": {
+      "fr": "1a5ee459"
+    },
+    "admin": {
+      "fr": "dcffa3b4"
+    }
+  },
+  "scenarios": {
+    "title": {
+      "fr": "abfe5074"
+    },
+    "create": {
+      "fr": "8309bc20"
+    },
+    "edit": {
+      "fr": "c88c7159"
+    },
+    "list": {
+      "fr": "d9e0e8f9"
+    },
+    "import": {
+      "fr": "772b70de"
+    },
+    "noScenarios": {
+      "fr": "750793de"
+    },
+    "loading": {
+      "fr": "d8f9e63a"
+    },
+    "deleteConfirm": {
+      "fr": "c7e4c009"
+    },
+    "deleteSuccess": {
+      "fr": "d830b1f3"
+    },
+    "saveSuccess": {
+      "fr": "7a6485c9"
+    },
+    "importSuccess": {
+      "fr": "fad7ce4e"
+    },
+    "lastModified": {
+      "fr": "4e1d0358"
+    }
+  },
+  "validation": {
+    "required": {
+      "fr": "b07f696c"
+    },
+    "invalidEmail": {
+      "fr": "32bd22b8"
+    },
+    "invalidNumber": {
+      "fr": "824ba6e1"
+    },
+    "minLength": {
+      "fr": "af2d3167"
+    },
+    "maxLength": {
+      "fr": "bc1319f3"
+    }
+  },
+  "zipImport": {
+    "title": {
+      "fr": "ad7c6841"
+    },
+    "selectFile": {
+      "fr": "ff552adc"
+    },
+    "dragDrop": {
+      "fr": "82dc4c48"
+    },
+    "fileSelected": {
+      "fr": "52833c78"
+    },
+    "importing": {
+      "fr": "21a29d7a"
+    },
+    "importButton": {
+      "fr": "772b70de"
+    },
+    "success": {
+      "fr": "fad7ce4e"
+    },
+    "error": {
+      "fr": "6fc2de88"
+    },
+    "invalidFile": {
+      "fr": "c8c2574b"
+    },
+    "processing": {
+      "fr": "54c1b9b9"
+    }
+  }
+}

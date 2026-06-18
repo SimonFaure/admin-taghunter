@@ -528,6 +528,101 @@ export const recoveryCodesApi = {
   },
 };
 
+// Mission-report PDF layout defaults (the "PDF editor"). Global, admin-owned;
+// one layout per game type, synced to playground. See backend/api/report_layouts.php.
+export type ReportBlockType =
+  | 'logo' | 'game_title' | 'pdf_title' | 'team_name' | 'date'
+  | 'duration' | 'score' | 'rank' | 'stat_grid' | 'text'
+  // Structural blocks: `divider`/`spacer` are leaves; `row`/`frame` are
+  // containers that hold other blocks in `children`.
+  | 'divider' | 'spacer' | 'row' | 'frame';
+
+export interface ReportBlock {
+  type: ReportBlockType;
+  show: boolean;
+  font?: string | null;
+  size?: number;
+  color?: string;
+  align?: 'left' | 'center' | 'right';
+  bold?: boolean;
+  fields?: string[];
+  text?: string;
+  logoSize?: number;
+  /** `divider` — line thickness in px (default 1). */
+  thickness?: number;
+  /** `divider` — line width as a % of the page (default 70). */
+  width?: number;
+  /** `spacer` — vertical gap height in px. */
+  height?: number;
+  /** `row` — horizontal gap between children in px (default 16). */
+  gap?: number;
+  /** `row` — horizontal distribution of children. */
+  justify?: 'start' | 'center' | 'end' | 'between';
+  /** `frame` — draw a border (default true). */
+  bordered?: boolean;
+  /** `frame` — border color (default #333333). */
+  borderColor?: string;
+  /** `frame` — background fill; empty/absent ⇒ transparent. */
+  bgColor?: string;
+  /** `frame` — inner padding in px (default 12). */
+  padding?: number;
+  /** `frame` — corner radius in px. */
+  radius?: number;
+  /** `row` / `frame` — nested blocks. */
+  children?: ReportBlock[];
+}
+
+export interface ReportLayout {
+  version: number;
+  font: string;
+  background: { mode: 'none' | 'color'; color?: string };
+  blocks: ReportBlock[];
+  /**
+   * Per-game-type default report texts. The mission-report heading (the
+   * "pdf_title" block) and the label above the team name (the "team_name"
+   * block). A scenario can override these via game_meta.pdf_title /
+   * game_meta.team_title; a blank scenario value falls back to these.
+   */
+  pdfTitle?: string;
+  teamTitle?: string;
+  /**
+   * Optional literal overrides for the standard block labels, keyed by label id
+   * (`date`, `duration`, `score`, `rank`, and `stat_<field>` e.g. `stat_rate`).
+   * Blank / absent ⇒ the playground falls back to its built-in `report` i18n
+   * label, translated into each team's language at print time. A non-blank value
+   * is printed verbatim in every language.
+   */
+  labels?: Record<string, string>;
+}
+
+export interface ReportLayoutsResponse {
+  success: boolean;
+  version: number;
+  game_types: string[];
+  stat_fields: Record<string, string[]>;
+  layouts: Record<string, ReportLayout>;
+}
+
+export const reportLayoutsApi = {
+  async getAll(): Promise<ApiResponse<ReportLayoutsResponse>> {
+    return apiRequest('/report_layouts.php?action=get_all', { method: 'GET' });
+  },
+
+  async save(gameType: string, layout: ReportLayout): Promise<ApiResponse<{ success: boolean; version: number }>> {
+    return apiRequest('/report_layouts.php?action=save', {
+      method: 'POST',
+      body: JSON.stringify({ game_type: gameType, layout }),
+    });
+  },
+
+  async reset(gameType: string): Promise<ApiResponse<{ success: boolean; version: number; layout: ReportLayout }>> {
+    return apiRequest('/report_layouts.php?action=reset', {
+      method: 'POST',
+      body: JSON.stringify({ game_type: gameType }),
+    });
+  },
+};
+
 export interface ImportSummary {
   total: number;
   created: number;

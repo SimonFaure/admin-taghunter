@@ -14,6 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import { Upload, Trash2, Type, AlertTriangle } from 'lucide-react';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { parseFontFile } from '../../../fonts/parseFontFile';
@@ -23,19 +24,20 @@ import type { CustomFont, CustomFontFace } from '../../../types/scenario-data';
 
 const ACCEPT = '.ttf,.otf,.woff,.woff2';
 
-const WEIGHT_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
-  { value: 100, label: 'Thin (100)' },
-  { value: 200, label: 'Extra Light (200)' },
-  { value: 300, label: 'Light (300)' },
-  { value: 400, label: 'Regular (400)' },
-  { value: 500, label: 'Medium (500)' },
-  { value: 600, label: 'Semi Bold (600)' },
-  { value: 700, label: 'Bold (700)' },
-  { value: 800, label: 'Extra Bold (800)' },
-  { value: 900, label: 'Black (900)' },
+const WEIGHT_OPTIONS: ReadonlyArray<{ value: number; labelKey: string }> = [
+  { value: 100, labelKey: 'customFonts.weight.thin' },
+  { value: 200, labelKey: 'customFonts.weight.extraLight' },
+  { value: 300, labelKey: 'customFonts.weight.light' },
+  { value: 400, labelKey: 'customFonts.weight.regular' },
+  { value: 500, labelKey: 'customFonts.weight.medium' },
+  { value: 600, labelKey: 'customFonts.weight.semiBold' },
+  { value: 700, labelKey: 'customFonts.weight.bold' },
+  { value: 800, labelKey: 'customFonts.weight.extraBold' },
+  { value: 900, labelKey: 'customFonts.weight.black' },
 ];
 
 export function CustomFontsManager() {
+  const { t } = useTranslation('editorSections3');
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const customFonts: CustomFont[] = Array.isArray(meta.custom_fonts)
@@ -146,10 +148,10 @@ export function CustomFontsManager() {
 
       const fellBack = uploaded.filter((u) => !u.detected).length;
       const parts: string[] = [];
-      if (uploaded.length > 0) parts.push(`${uploaded.length} file(s) added`);
-      if (fellBack > 0) parts.push(`${fellBack} used filename detection — check the details`);
+      if (uploaded.length > 0) parts.push(t('customFonts.filesAdded', { count: uploaded.length }));
+      if (fellBack > 0) parts.push(t('customFonts.usedFilenameDetection', { count: fellBack }));
       if (parts.length > 0) setNotice(parts.join('; '));
-      if (failures > 0) setError(`${failures} file(s) failed to upload.`);
+      if (failures > 0) setError(t('customFonts.uploadFailed', { count: failures }));
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -161,7 +163,7 @@ export function CustomFontsManager() {
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
           <Type className="w-4 h-4 text-gray-400" />
-          Custom fonts
+          {t('customFonts.title')}
         </div>
         <button
           type="button"
@@ -170,7 +172,7 @@ export function CustomFontsManager() {
           className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:opacity-50 inline-flex items-center gap-1"
         >
           <Upload className="w-3 h-3" />
-          {busy ? 'Uploading…' : 'Upload font files'}
+          {busy ? t('customFonts.uploading') : t('customFonts.uploadFiles')}
         </button>
         <input
           ref={inputRef}
@@ -183,16 +185,18 @@ export function CustomFontsManager() {
       </div>
 
       <p className="text-[11px] text-gray-500 mb-2">
-        Upload <code>.ttf</code>, <code>.otf</code>, <code>.woff</code> or <code>.woff2</code> files.
-        Family, weight and style are detected automatically — edit them below if needed. Uploaded
-        fonts travel with the scenario to the playground.
+        <Trans
+          t={t}
+          i18nKey="customFonts.hint"
+          components={[<code />, <code />, <code />, <code />]}
+        />
       </p>
 
       {error && <div className="text-[11px] text-red-600 mb-2">{error}</div>}
       {notice && <div className="text-[11px] text-amber-700 mb-2">{notice}</div>}
 
       {customFonts.length === 0 ? (
-        <div className="text-[11px] text-gray-400 italic">No custom fonts uploaded yet.</div>
+        <div className="text-[11px] text-gray-400 italic">{t('customFonts.noneYet')}</div>
       ) : (
         <div className="space-y-2">
           {customFonts.map((cf, idx) => {
@@ -204,7 +208,7 @@ export function CustomFontsManager() {
                     type="text"
                     value={cf.family}
                     onChange={(e) => renameFamily(idx, e.target.value)}
-                    placeholder="Family name"
+                    placeholder={t('customFonts.familyNamePlaceholder')}
                     className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm font-medium"
                     style={{ fontFamily: `"${cf.family}", sans-serif` }}
                   />
@@ -212,7 +216,7 @@ export function CustomFontsManager() {
                     type="button"
                     onClick={() => removeFamily(idx)}
                     className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 inline-flex items-center gap-1"
-                    aria-label={`Remove ${cf.family}`}
+                    aria-label={t('customFonts.removeFamily', { family: cf.family })}
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -221,8 +225,7 @@ export function CustomFontsManager() {
                 {collides && (
                   <div className="text-[11px] text-amber-700 mb-1.5 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
-                    A built-in font is already named “{cf.family}” — it will be used instead of this
-                    upload. Rename this family to avoid the clash.
+                    {t('customFonts.collision', { family: cf.family })}
                   </div>
                 )}
 
@@ -238,7 +241,7 @@ export function CustomFontsManager() {
                       >
                         {WEIGHT_OPTIONS.map((w) => (
                           <option key={w.value} value={w.value}>
-                            {w.label}
+                            {t(w.labelKey)}
                           </option>
                         ))}
                       </select>
@@ -251,8 +254,8 @@ export function CustomFontsManager() {
                         }
                         className="px-1.5 py-1 border border-gray-300 rounded text-xs"
                       >
-                        <option value="normal">Normal</option>
-                        <option value="italic">Italic</option>
+                        <option value="normal">{t('customFonts.styleNormal')}</option>
+                        <option value="italic">{t('customFonts.styleItalic')}</option>
                       </select>
                       <span className="flex-1 text-[11px] text-gray-500 truncate" title={face.filename}>
                         {face.filename}
@@ -261,7 +264,7 @@ export function CustomFontsManager() {
                         type="button"
                         onClick={() => removeFace(idx, faceIdx)}
                         className="text-xs p-1 text-red-600 hover:bg-red-50 rounded"
-                        aria-label="Remove this face"
+                        aria-label={t('customFonts.removeFace')}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

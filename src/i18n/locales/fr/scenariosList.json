@@ -1,0 +1,41 @@
+{
+  "subtitle": "Consultez et gérez vos scénarios de jeu disponibles",
+  "premiumBadge": "Premium — tous les scénarios débloqués",
+  "newScenario": "Nouveau scénario",
+  "filters": {
+    "all": "Tous",
+    "products": "Produits",
+    "mine": "Les miens",
+    "drafts": "Brouillons"
+  },
+  "groupBy": {
+    "none": "Aucun",
+    "gameType": "Type de jeu",
+    "scenarioType": "Type de scénario"
+  },
+  "sortBy": {
+    "recent": "Récemment utilisé",
+    "created": "Date de création",
+    "name": "Nom"
+  },
+  "errors": {
+    "fetchFailed": "Échec du chargement des scénarios",
+    "network": "Erreur réseau"
+  },
+  "empty": {
+    "title": "Aucun scénario correspondant",
+    "description": "Essayez un autre filtre, ou créez un nouveau scénario.",
+    "cta": "Créer un scénario"
+  },
+  "editInStudio": "Modifier dans Studio",
+  "view": "Voir",
+  "versionShort": "v{{version}}",
+  "table": {
+    "title": "Titre",
+    "gameType": "Type de jeu",
+    "audience": "Public",
+    "difficulty": "Difficulté",
+    "type": "Type",
+    "version": "Version"
+  }
+}

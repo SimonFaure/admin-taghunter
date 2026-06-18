@@ -1,0 +1,57 @@
+{
+  "maxSize": "Máx. 2 MB",
+  "title": "Información de la cuenta",
+  "subtitle": "Gestiona tu perfil y la configuración de tu cuenta",
+  "yourAvatar": "Tu avatar",
+  "fields": {
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "clientId": "ID de cliente",
+    "licenseType": "Tipo de licencia",
+    "paymentStatus": "Estado del pago",
+    "memberSince": "Miembro desde",
+    "notSet": "Sin definir"
+  },
+  "license": { "premium": "Premium", "access": "Access" },
+  "payment": { "upToDate": "Al día", "required": "Pago requerido" },
+  "brand": {
+    "title": "Identidad de marca",
+    "desc": "Esta imagen se envía a la aplicación playground para personalizar tus sesiones.",
+    "logoAlt": "Logotipo de marca",
+    "usingAvatar": "Usando el avatar",
+    "usingLogo": "Usando el logotipo de empresa",
+    "useAvatar": "Usar mi avatar como logotipo de empresa",
+    "replace": "Reemplazar el logotipo de empresa",
+    "upload": "Subir logotipo de empresa",
+    "constraints": "Máx. 2 MB. JPEG, PNG, GIF o WebP."
+  },
+  "language": {
+    "title": "Idioma",
+    "desc": "El idioma de tu interfaz de Studio. También se convierte en el idioma predeterminado de los nuevos escenarios que crees y el idioma sugerido al configurar la aplicación playground."
+  },
+  "security": {
+    "title": "Seguridad",
+    "desc": "Tu cuenta está protegida con autenticación de contraseña de un solo uso.",
+    "manage": "Gestionar la seguridad"
+  },
+  "memberSince": {
+    "na": "N/D",
+    "years_one": "{{count}} año",
+    "years_other": "{{count}} años",
+    "months_one": "{{count}} mes",
+    "months_other": "{{count}} meses",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días"
+  },
+  "messages": {
+    "imageFile": "Sube un archivo de imagen",
+    "imageSize": "La imagen debe pesar menos de 2 MB",
+    "logoUploadFail": "Error al subir el logotipo",
+    "logoUpdated": "Logotipo de empresa actualizado",
+    "prefFail": "Error al actualizar la preferencia",
+    "languageFail": "Error al actualizar el idioma",
+    "languageUpdated": "Idioma actualizado",
+    "avatarFail": "Error al subir el avatar",
+    "avatarUpdated": "Avatar actualizado correctamente"
+  }
+}

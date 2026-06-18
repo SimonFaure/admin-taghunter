@@ -12,7 +12,9 @@ import { registerAdapter } from './registry';
 import { tagquestAdapter } from './bodies/tagquest/adapter';
 import { mysteryAdapter } from './bodies/mystery/adapter';
 import { tracksAdapter } from './bodies/tracks/adapter';
+import { clashAdapter } from './bodies/clash/adapter';
 
 registerAdapter(tagquestAdapter as Parameters<typeof registerAdapter>[0]);
 registerAdapter(mysteryAdapter as Parameters<typeof registerAdapter>[0]);
 registerAdapter(tracksAdapter as Parameters<typeof registerAdapter>[0]);
+registerAdapter(clashAdapter as Parameters<typeof registerAdapter>[0]);

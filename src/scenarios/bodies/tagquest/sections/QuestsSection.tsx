@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { AlertTriangle, Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Plus, Trash2, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
@@ -17,6 +17,7 @@ import type { Lang } from '../../../i18n/types';
 import type { Quest } from '../../../../types/scenario-data';
 import type { MediaSlot } from '../../../types';
 import { TAGQUEST_MAX_QUESTS } from '../adapter';
+import { useTagquestPatternStations, type QuestStations } from '../useTagquestPatternStations';
 
 type PieceKey = 'image_1' | 'image_2' | 'image_3' | 'image_4';
 
@@ -51,9 +52,22 @@ interface QuestCardProps {
   defaultLang: Lang;
   onChange: (patch: Partial<Quest>) => void;
   onRemove: () => void;
+  /** Station correspondence for this quest's image slots (from the default pattern). */
+  stations?: QuestStations;
 }
 
-function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove }: QuestCardProps) {
+function StationHint({ station }: { station?: { stationId: number | null; stationName: string | null } }) {
+  if (!station || station.stationId == null) return null;
+  return (
+    <span className="mt-1 flex items-center gap-1 text-[11px] text-gray-500">
+      <MapPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
+      <span className="font-mono text-gray-600">#{station.stationId}</span>
+      <span className="truncate">{station.stationName ?? 'Unknown station'}</span>
+    </span>
+  );
+}
+
+function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, stations }: QuestCardProps) {
   const editor = useScenarioEditor();
   const [expanded, setExpanded] = useState(true);
 
@@ -124,17 +138,27 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove }: Ques
             </div>
           </div>
 
-          {/* Puzzle layout — main image (left) + 2x2 pieces (right) */}
+          {/* Puzzle layout — main image + sound (left) + 2x2 pieces (right) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">
-                The complete picture revealed when all 4 pieces are found
-              </p>
-              <AssetUploadField
-                slot={makeSlot('main_image', 'Main image', 'image', 'error')}
-                value={quest.main_image ?? ''}
-                onChange={(filename) => onChange({ main_image: filename })}
-              />
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-gray-500 mb-1">
+                  The complete picture revealed when all 4 pieces are found
+                </p>
+                <AssetUploadField
+                  slot={makeSlot('main_image', 'Main image', 'image', 'error')}
+                  value={quest.main_image ?? ''}
+                  onChange={(filename) => onChange({ main_image: filename })}
+                />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Played when the quest is completed</p>
+                <AssetUploadField
+                  slot={makeSlot('sound', 'Quest sound', 'sound', false)}
+                  value={quest.sound ?? ''}
+                  onChange={(filename) => onChange({ sound: filename })}
+                />
+              </div>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">
@@ -142,25 +166,17 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove }: Ques
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {PIECE_SLOTS.map((p) => (
-                  <AssetUploadField
-                    key={p.key}
-                    slot={makeSlot(p.key, p.label, 'image', 'error')}
-                    value={(quest[p.key] as string | undefined) ?? ''}
-                    onChange={(filename) => onChange({ [p.key]: filename } as Partial<Quest>)}
-                  />
+                  <div key={p.key}>
+                    <AssetUploadField
+                      slot={makeSlot(p.key, p.label, 'image', 'error')}
+                      value={(quest[p.key] as string | undefined) ?? ''}
+                      onChange={(filename) => onChange({ [p.key]: filename } as Partial<Quest>)}
+                    />
+                    <StationHint station={stations?.[p.key]} />
+                  </div>
                 ))}
               </div>
             </div>
-          </div>
-
-          {/* Sound */}
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Played when the quest is completed</p>
-            <AssetUploadField
-              slot={makeSlot('sound', 'Quest sound', 'sound', false)}
-              value={quest.sound ?? ''}
-              onChange={(filename) => onChange({ sound: filename })}
-            />
           </div>
         </div>
       )}
@@ -173,6 +189,8 @@ export function QuestsSection() {
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
   const quests = ((editor.gameMeta as Record<string, unknown>).quests ?? []) as Quest[];
+  const patternUniqid = ((editor.gameMeta as Record<string, unknown>).scenario_default_pattern as string | null | undefined) ?? null;
+  const patternStations = useTagquestPatternStations(patternUniqid);
 
   function setQuests(next: Quest[]) {
     editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), quests: next }) as typeof m);
@@ -231,6 +249,7 @@ export function QuestsSection() {
               defaultLang={defaultLang}
               onChange={(patch) => updateQuest(i, patch)}
               onRemove={() => removeQuest(i)}
+              stations={patternStations[i]}
             />
           ))}
         </div>

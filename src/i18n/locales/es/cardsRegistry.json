@@ -1,0 +1,78 @@
+{
+  "title": "Tarjetas",
+  "save": "Guardar",
+  "cancel": "Cancelar",
+  "importCsv": "Importar CSV",
+  "registerCard": "Registrar tarjeta",
+  "cardCount_one": "{{count}} tarjeta · versión {{version}}",
+  "cardCount_other": "{{count}} tarjetas · versión {{version}}",
+  "registerNew": "Registrar una nueva tarjeta",
+  "fields": {
+    "chipId": "ID de chip",
+    "chipIdHint": "del chip de la tarjeta",
+    "chipIdPlaceholder": "ej. 2145811",
+    "keyNumber": "N.º de llave",
+    "keyNumberHint": "número de visualización",
+    "name": "Nombre",
+    "nameHint": "obligatorio",
+    "namePlaceholder": "ej. Alpha",
+    "color": "Color",
+    "colorHint": "opcional",
+    "colorPlaceholder": "ej. rojo"
+  },
+  "table": {
+    "keyNumber": "N.º de llave",
+    "name": "Nombre",
+    "color": "Color",
+    "chipId": "ID de chip",
+    "actions": "Acciones"
+  },
+  "actions": {
+    "edit": "Editar",
+    "delete": "Eliminar"
+  },
+  "empty": {
+    "title": "Aún no hay tarjetas registradas",
+    "registerStrong": "Registrar tarjeta",
+    "importStrong": "Importar CSV",
+    "lead": "Haz clic en <0>Registrar tarjeta</0> para añadir una manualmente, o en <1>Importar CSV</1> para importar en lote."
+  },
+  "import": {
+    "title": "Importar tarjetas desde CSV",
+    "importing": "Importando…",
+    "dropPrompt": "Suelta el CSV aquí o haz clic para explorar",
+    "expectedHeaders": "Encabezados esperados:",
+    "upsertNote": "Las filas existentes se actualizan por ID de chip.",
+    "cancel": "Cancelar"
+  },
+  "confirmDelete": {
+    "title": "¿Eliminar tarjeta?",
+    "cardLine": "<0>{{name}}</0> (chip <1>{{chipId}}</1>, llave n.º{{keyNumber}})",
+    "warning": "Esto elimina la tarjeta en el studio y en cada dispositivo en la próxima sincronización. No se puede deshacer.",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando…"
+  },
+  "toast": {
+    "loadFailed": "Error al cargar las tarjetas",
+    "keyNumberTaken": "Este número de llave ya está en uso por otra tarjeta",
+    "keyNumberInUse": "Número de llave ya en uso — elige otro",
+    "chipIdRegistered": "Ya hay una tarjeta registrada con este ID de chip",
+    "chipIdPositive": "El ID de chip debe ser un entero positivo",
+    "keyNumberPositive": "El número de llave debe ser un entero positivo",
+    "nameRequired": "El nombre es obligatorio",
+    "registered": "{{name}} registrada (n.º{{keyNumber}})",
+    "registerFailed": "Error al registrar la tarjeta",
+    "cardUpdated": "Tarjeta actualizada",
+    "updateFailed": "Error al actualizar la tarjeta",
+    "cardDeleted": "Tarjeta eliminada",
+    "deleteFailed": "Error al eliminar la tarjeta",
+    "onlyCsv": "Solo se permiten archivos CSV",
+    "inserted": "{{count}} insertada(s)",
+    "updated": "{{count}} actualizada(s)",
+    "skipped": "{{count}} omitida(s)",
+    "importDone": "Importación completada: {{summary}}",
+    "importErrors": "Errores: {{errors}}",
+    "importFailed": "Error en la importación"
+  }
+}
