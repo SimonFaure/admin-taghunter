@@ -301,6 +301,13 @@ try {
                 $isDefault = $data['is_default'] ?? false;
                 $patternUniqid = $data['pattern_uniqid'] ?? $data['uniqid'] ?? null;
                 $patternSlug = $data['pattern_slug'] ?? $data['slug'] ?? null;
+                // Tag Hunter GO: 'go' patterns map letters -> image slots (vs RFID
+                // 'playground' patterns mapping balises). answer_count is 2 or 4 for
+                // GO, null otherwise. Defaults keep RFID patterns unchanged.
+                $mode = ($data['mode'] ?? 'playground') === 'go' ? 'go' : 'playground';
+                $answerCount = isset($data['answer_count']) && in_array((int)$data['answer_count'], [2, 4], true)
+                    ? (int)$data['answer_count']
+                    : null;
                 // Studio's editor always carries the row's numeric primary key; the
                 // external Creator app does not. Used to upsert the right row below.
                 $patternRowId = (isset($data['id']) && is_numeric($data['id'])) ? (int)$data['id'] : null;
@@ -393,7 +400,7 @@ try {
                 ], ['step' => 'about to run INSERT'], 200, 'creator');
 
                 // Upsert an existing pattern. Re-publishing from the studio editor
-                // must UPDATE the row and mark it published — inserting a duplicate
+                // must UPDATE the row and mark it published - inserting a duplicate
                 // would break the editor route, which loads patterns by uniqid via
                 // maybeSingle(). Match by numeric id first (the editor always sends
                 // it), then fall back to pattern_uniqid. A genuinely new pattern
@@ -410,14 +417,14 @@ try {
                 if ($existing) {
                     $patternId = $existing['id'];
                     $db->execute(
-                        'UPDATE patterns SET name = ?, game_type = ?, version = ?, pattern_data = ?, pattern_slug = COALESCE(?, pattern_slug), status = ? WHERE id = ?',
-                        [$name, $gameType, $version, $jsonData, $patternSlug, 'published', $patternId]
+                        'UPDATE patterns SET name = ?, game_type = ?, version = ?, pattern_data = ?, pattern_slug = COALESCE(?, pattern_slug), status = ?, mode = ?, answer_count = ? WHERE id = ?',
+                        [$name, $gameType, $version, $jsonData, $patternSlug, 'published', $mode, $answerCount, $patternId]
                     );
                 } else {
                     $patternId = $db->execute(
-                        'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid, pattern_slug, status)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                        [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid, $patternSlug, 'draft']
+                        'INSERT INTO patterns (name, game_type, version, pattern_data, is_default, owner_type, owner_id, created_by_email, pattern_uniqid, pattern_slug, status, mode, answer_count)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                        [$name, $gameType, $version, $jsonData, $isDefaultInt, $ownerType, $ownerId, $email, $patternUniqid, $patternSlug, 'draft', $mode, $answerCount]
                     );
                 }
 
@@ -504,6 +511,11 @@ try {
             $isDefault = $data['is_default'] ?? false;
             $patternUniqid = $data['pattern_uniqid'] ?? null;
             $patternSlug = $data['pattern_slug'] ?? null;
+            // Tag Hunter GO (see the 'save' action for rationale).
+            $mode = ($data['mode'] ?? 'playground') === 'go' ? 'go' : 'playground';
+            $answerCount = isset($data['answer_count']) && in_array((int)$data['answer_count'], [2, 4], true)
+                ? (int)$data['answer_count']
+                : null;
 
             if ($userType !== 'admin' && $isDefault) {
                 Logger::log('patterns', 'POST', 'create', $userId, ['user_type' => $userType], ['error' => 'Only admins can create default patterns'], 403);
@@ -544,9 +556,9 @@ try {
             }
 
             $db->execute(
-                'INSERT INTO patterns (name, description, version, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email, status, pattern_uniqid, pattern_slug)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                [$name, $description, $version, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email, 'draft', $patternUniqid, $patternSlug]
+                'INSERT INTO patterns (name, description, version, game_type, pattern_data, is_default, owner_type, owner_id, created_by_email, status, pattern_uniqid, pattern_slug, mode, answer_count)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [$name, $description, $version, $gameType, $jsonData, $isDefault ? 1 : 0, $userType, $userId, $email, 'draft', $patternUniqid, $patternSlug, $mode, $answerCount]
             );
 
             $patternId = $db->lastInsertId();
@@ -610,6 +622,13 @@ try {
             $gameType = $data['game_type'] ?? $pattern['game_type'];
             $patternData = $data['pattern_data'] ?? null;
             $isDefault = isset($data['is_default']) ? $data['is_default'] : $pattern['is_default'];
+            // Tag Hunter GO: preserve existing values when the caller omits them.
+            $mode = isset($data['mode'])
+                ? ($data['mode'] === 'go' ? 'go' : 'playground')
+                : ($pattern['mode'] ?? 'playground');
+            $answerCount = isset($data['answer_count'])
+                ? (in_array((int)$data['answer_count'], [2, 4], true) ? (int)$data['answer_count'] : null)
+                : ($pattern['answer_count'] ?? null);
 
             if ($userType !== 'admin' && $isDefault && !$pattern['is_default']) {
                 Logger::log('patterns', $_SERVER['REQUEST_METHOD'], 'update', $userId, ['id' => $id], ['error' => 'Cannot set pattern as default'], 403);
@@ -633,8 +652,8 @@ try {
             $newStatus = $patternDataChanged ? 'draft' : ($pattern['status'] ?? 'draft');
 
             $db->execute(
-                'UPDATE patterns SET name = ?, description = ?, game_type = ?, pattern_data = ?, is_default = ?, status = ? WHERE id = ?',
-                [$name, $description, $gameType, $jsonData, $isDefault ? 1 : 0, $newStatus, $id]
+                'UPDATE patterns SET name = ?, description = ?, game_type = ?, pattern_data = ?, is_default = ?, status = ?, mode = ?, answer_count = ? WHERE id = ?',
+                [$name, $description, $gameType, $jsonData, $isDefault ? 1 : 0, $newStatus, $mode, $answerCount, $id]
             );
 
             $updatedPattern = $db->fetch('SELECT * FROM patterns WHERE id = ?', [$id]);

@@ -8,7 +8,7 @@
 //   - difficulty     : coerced from the legacy easy/medium/hard enum to int 1–5
 //   - univers        : ensured to be an array (defaults to [])
 //
-// Idempotent — already-migrated rows resolve to the same values, so re-running is
+// Idempotent - already-migrated rows resolve to the same values, so re-running is
 // safe. A read-side fallback in playground.php covers any row this misses
 // (legacy ZIP imports, rows edited between this run and the deploy).
 //
@@ -94,7 +94,7 @@ foreach ($scenarios as $row) {
         $updated++;
         echo "scenario {$id}: bands=[" . implode(',', $bands) . "] tier={$newGamePublic} difficulty={$newDifficulty}\n";
     } catch (Throwable $e) {
-        echo "scenario {$id}: UPDATE failed — {$e->getMessage()}\n";
+        echo "scenario {$id}: UPDATE failed - {$e->getMessage()}\n";
         $failed++;
     }
 }

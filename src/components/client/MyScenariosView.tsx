@@ -1,4 +1,5 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
+import { getAppAccess } from '../../auth/appAccess';
 import { secureAuth } from '../../lib/secureAuth';
 import {
   Film,
@@ -77,6 +78,11 @@ export function MyScenariosView() {
   const { t } = useTranslation('scenariosList');
   const navigate = useNavigate();
   const { user } = useSecureAuth();
+  // GO-only portal (client has GO/Drop but not Playground): show ONLY GO
+  // scenarios, and keep just the cards/list view toggle + the audience filter;
+  // hide the subtitle header, sort/group/new-scenario controls, and the
+  // provenance/game-type filter chips. Derived per-app (project_client_app_section).
+  const goClientOnly = getAppAccess(user).scenariosGoOnly;
   const [scenarios, setScenarios] = useState<ClientScenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +92,7 @@ export function MyScenariosView() {
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [sortBy, setSortBy] = useState<SortBy>('recent');
 
-  // One filter chip per registered game type, driven by the adapter registry —
+  // One filter chip per registered game type, driven by the adapter registry -
   // but only for types actually present in this client's scenarios. The server
   // already hides scenarios of disabled game types (client_scenarios.php), so an
   // absent type means it's either unused or disabled for this client; either way
@@ -132,7 +138,7 @@ export function MyScenariosView() {
 
   const visible = useMemo(() => {
     const isProduct = (s: ClientScenario) => s.scenario_type === 'product';
-    // client_id is a number on the wire and a string on AuthUser — coerce both sides.
+    // client_id is a number on the wire and a string on AuthUser - coerce both sides.
     const isMine = (s: ClientScenario) =>
       !isProduct(s) && String(s.client_id ?? '') === String(user?.client_id ?? '');
 
@@ -147,6 +153,9 @@ export function MyScenariosView() {
         case 'drafts':
           // Products are explicitly never "drafts" to the client, regardless of data.
           return !isProduct(s) && (s.status || 'draft') === 'draft';
+        case 'go':
+          // Tag Hunter GO: scenarios that exist in GO mode.
+          return s.adaptable_go === true;
         default:
           // Audience pills carry an `audience:` prefix so their values can't
           // collide with game-type kinds (e.g. 'audience:kids').
@@ -158,7 +167,11 @@ export function MyScenariosView() {
       }
     };
 
-    const filtered = scenarios.filter(passesFilter);
+    // GO-only portal: hard-restrict to GO scenarios regardless of the active
+    // filter, so a GO/Drop-without-Playground client only ever sees GO content.
+    const filtered = scenarios.filter(
+      (s) => (!goClientOnly || s.adaptable_go === true) && passesFilter(s),
+    );
 
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -173,7 +186,7 @@ export function MyScenariosView() {
     });
 
     return sorted;
-  }, [scenarios, filter, sortBy, user?.client_id]);
+  }, [scenarios, filter, sortBy, user?.client_id, goClientOnly]);
 
   const groups = useMemo(() => {
     if (groupBy === 'none') {
@@ -193,18 +206,20 @@ export function MyScenariosView() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <p className="text-slate-600">{t('subtitle')}</p>
-          <HelpButton chapter="scenarios" className="text-slate-400 hover:text-slate-700" />
+      {!goClientOnly && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <p className="text-slate-600">{t('subtitle')}</p>
+            <HelpButton chapter="scenarios" className="text-slate-400 hover:text-slate-700" />
+          </div>
+          {user?.license_type === 'premium' && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-sm font-medium">
+              <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
+              {t('premiumBadge')}
+            </span>
+          )}
         </div>
-        {user?.license_type === 'premium' && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-sm font-medium">
-            <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
-            {t('premiumBadge')}
-          </span>
-        )}
-      </div>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
         <ScenarioListControls
@@ -216,6 +231,7 @@ export function MyScenariosView() {
           sortBy={sortBy}
           onSortByChange={(v) => setSortBy(v as SortBy)}
           sortOptions={SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
+          viewToggleOnly={goClientOnly}
           extraActions={
             <button
               type="button"
@@ -230,7 +246,7 @@ export function MyScenariosView() {
       </div>
 
       <div className="mb-6 flex items-center gap-2 flex-wrap">
-        {FILTERS.map((f) => (
+        {!goClientOnly && FILTERS.map((f) => (
           <button
             key={f.value}
             type="button"
@@ -245,11 +261,31 @@ export function MyScenariosView() {
           </button>
         ))}
 
-        {gameTypeFilters.length > 0 && (
+        {/* Tag Hunter GO filter - only when the client has a MIX of GO and
+            non-GO scenarios (a GO-only client needs no differentiation). */}
+        {!goClientOnly && (() => {
+          const goCount = scenarios.filter((s) => s.adaptable_go).length;
+          if (goCount === 0 || goCount === scenarios.length) return null;
+          return (
+            <button
+              type="button"
+              onClick={() => setFilter('go')}
+              className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                filter === 'go'
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-300'
+              }`}
+            >
+              GO
+            </button>
+          );
+        })()}
+
+        {!goClientOnly && gameTypeFilters.length > 0 && (
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
         )}
 
-        {gameTypeFilters.map(({ key, label }) => (
+        {!goClientOnly && gameTypeFilters.map(({ key, label }) => (
           <button
             key={key}
             type="button"
@@ -265,7 +301,9 @@ export function MyScenariosView() {
           </button>
         ))}
 
-        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+        {!goClientOnly && (
+          <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+        )}
 
         {AUDIENCE_OPTIONS.map(({ value }) => {
           const key = `audience:${value}`;
@@ -407,12 +445,17 @@ function ScenarioGrid({
               </div>
               <p className="text-sm text-slate-500 line-clamp-2 mb-3">{scenario.description}</p>
 
-              {(scenario.game_type || scenario.difficulty || scenario.audience || scenario.scenario_type || scenario.version) && (
+              {(scenario.game_type || scenario.difficulty || scenario.audience || scenario.scenario_type || scenario.version || scenario.adaptable_go) && (
                 <div className="flex gap-2 flex-wrap items-center">
                   {scenario.game_type && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
                       <GameTypeIcon type={scenario.game_type} className="w-3 h-3" />
                       {scenario.game_type}
+                    </span>
+                  )}
+                  {scenario.adaptable_go && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
+                      GO{scenario.go_answer_count ? ` · ${scenario.go_answer_count === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
                     </span>
                   )}
                   {scenario.difficulty && (
@@ -497,7 +540,7 @@ function ScenarioTable({
                       <GameTypeIcon type={scenario.game_type} className="w-4 h-4 text-slate-400" />
                       {scenario.game_type}
                     </span>
-                  ) : '—'}
+                  ) : '-'}
                 </td>
                 <td className="px-4 py-2">
                   {scenario.audience ? (
@@ -505,17 +548,17 @@ function ScenarioTable({
                       <User className="w-3 h-3" />
                       {getAudienceLabel(scenario.audience, t)}
                     </span>
-                  ) : <span className="text-slate-400">—</span>}
+                  ) : <span className="text-slate-400">-</span>}
                 </td>
                 <td className="px-4 py-2">
                   {scenario.difficulty ? (
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${getDifficultyBadgeClass(scenario.difficulty)}`}>
                       {getDifficultyLabel(scenario.difficulty, t)}
                     </span>
-                  ) : <span className="text-slate-400">—</span>}
+                  ) : <span className="text-slate-400">-</span>}
                 </td>
-                <td className="px-4 py-2 text-slate-600 capitalize">{scenario.scenario_type || '—'}</td>
-                <td className="px-4 py-2 text-slate-600">{scenario.version ? t('versionShort', { version: scenario.version }) : '—'}</td>
+                <td className="px-4 py-2 text-slate-600 capitalize">{scenario.scenario_type || '-'}</td>
+                <td className="px-4 py-2 text-slate-600">{scenario.version ? t('versionShort', { version: scenario.version }) : '-'}</td>
                 <td className="px-4 py-2 text-right">
                   {editable && (
                     <button

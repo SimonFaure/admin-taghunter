@@ -1,0 +1,109 @@
+{
+  "ingameLayout": {
+    "title": {
+      "ingame": "In-game layout",
+      "idle": "Idle screen layout"
+    },
+    "mode": {
+      "ingame": "In-game",
+      "idle": "Idle"
+    },
+    "hint": {
+      "ingame": "Drag to place the 4 text elements. The font auto-fits the box width - size each box to the maximum space its text should occupy.",
+      "idle": "Background-only screen shown between teams (when \"reveal on Enter/click\" is off). Add a title and/or subtitle."
+    },
+    "save": "Save scenario",
+    "saving": "Saving…",
+    "close": "Close",
+    "elements": "Elements",
+    "roles": {
+      "enigma_name": "Enigma name",
+      "timer": "Timer",
+      "score": "Score",
+      "team_name": "Team name"
+    },
+    "idleRoles": {
+      "title": "Title",
+      "subtitle": "Subtitle"
+    },
+    "alignmentLabel": "{{element}} - alignment",
+    "align": {
+      "left": "left",
+      "center": "center",
+      "right": "right"
+    },
+    "field": {
+      "left": "left",
+      "top": "top",
+      "width": "width",
+      "height": "height"
+    },
+    "autoFitNote": "The text size is set automatically to fill the box: it grows to fill the <b>width</b> and shrinks if it would overflow. Make the box as <b>wide</b> as the space you want the text to occupy at most.",
+    "previewTeamName": "Preview team name",
+    "teamNamePlaceholder": "Type the longest expected name",
+    "teamNameHint": "Preview only - paste a long name to check the team-name box still reads.",
+    "resetDefaults": "Reset to defaults",
+    "showElement": "Show {{element}}",
+    "idleTickHint": "Tick to show an element on the idle screen, then drag it on the background.",
+    "fontSize": "Font size (%)",
+    "color": "Color",
+    "useScenarioColor": "Use scenario color",
+    "inheritingColor": "Inheriting the scenario font color.",
+    "elementHidden": "{{element}} is hidden. Tick it above to place and style it.",
+    "previewSubtitle": "Preview subtitle",
+    "subtitleHint": "Preview only - the real subtitle is typed in the Launch Game window. The title shows the scenario name.",
+    "sample": {
+      "enigmaName": "Enigma name",
+      "enigmaNumber": "Enigma {{number}}",
+      "scenarioTitle": "Scenario title",
+      "teamName": "Team name"
+    }
+  },
+  "mysteryPreview": {
+    "title": "Preview",
+    "screen": {
+      "ingame": "In-game",
+      "endgame": "Endgame"
+    },
+    "locked": "Locked",
+    "revealed": "Revealed",
+    "gauge": "Gauge",
+    "overscore": "Overscore",
+    "none": "None",
+    "step": "Step {{number}}",
+    "enigma": "Enigma",
+    "enterFullscreen": "Enter fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "fullscreen": "Fullscreen",
+    "closePreview": "Close preview"
+  },
+  "tagquestPreview": {
+    "title": "Preview",
+    "previousQuest": "Previous quest",
+    "nextQuest": "Next quest",
+    "noQuests": "No quests",
+    "questCounter": "Quest {{current}} / {{total}}",
+    "questCounterNamed": "Quest {{current}} / {{total}} - {{name}}",
+    "questFallback": "Quest {{number}}",
+    "pieces": "Pieces",
+    "revealed": "Revealed",
+    "malusOverlay": "Malus overlay",
+    "lateMalusOverlay": "Late-malus overlay",
+    "enterFullscreen": "Enter fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "fullscreen": "Fullscreen",
+    "closePreview": "Close preview"
+  },
+  "viewport": {
+    "label": "Viewport",
+    "legacy": "{{size}} (legacy)",
+    "custom": "Custom…",
+    "customWidth": "Custom width",
+    "customHeight": "Custom height"
+  },
+  "toc": {
+    "sections": "Sections",
+    "jumpToSection": "Jump to section",
+    "noSections": "No sections loaded yet."
+  }
+}

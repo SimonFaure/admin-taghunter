@@ -58,7 +58,7 @@ export function ManageGameTypesModal({ open, onClose, onChanged }: Props) {
         const imp = await authFetch(`${API_BASE_URL}/game_types.php?action=admin_disable_impact&code=${encodeURIComponent(code)}`);
         if (imp.ok) {
           const j = await imp.json();
-          msg = `Disable "${code}" globally?\n\nUp to ${j.scenario_count} published scenario(s) across ${j.client_count} client(s) are affected — those will stop syncing and be removed on the next online sync. Clients with an explicit per-client override for this type keep access.\n\nAlready-downloaded copies on offline devices remain until they reconnect.`;
+          msg = `Disable "${code}" globally?\n\nUp to ${j.scenario_count} published scenario(s) across ${j.client_count} client(s) are affected - those will stop syncing and be removed on the next online sync. Clients with an explicit per-client override for this type keep access.\n\nAlready-downloaded copies on offline devices remain until they reconnect.`;
         }
       } catch {
         /* fall back to the generic message */
@@ -104,7 +104,7 @@ export function ManageGameTypesModal({ open, onClose, onChanged }: Props) {
             This is the global default. Disabling a type hides it from clients, blocks
             creation, and stops syncing its scenarios to playground. Admins can still
             author disabled types here in Studio. Per-client overrides on each client's
-            detail page take precedence — you can grant a disabled type to a specific client.
+            detail page take precedence - you can grant a disabled type to a specific client.
           </p>
 
           {error && (

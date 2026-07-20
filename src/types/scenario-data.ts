@@ -3,7 +3,7 @@
  *
  * Stage 1 of the game-creation refactor (see plans/game-creation-stage-1-types-zod.md):
  * shape-preserving. Mirrors what MysteryConfig / TagquestConfig currently write.
- * No discriminator inside `data` — narrow externally by `Scenario.game_type`.
+ * No discriminator inside `data` - narrow externally by `Scenario.game_type`.
  *
  * Plan: C:\Users\faure\.claude\plans\game-creation-stage-1-types-zod.md
  */
@@ -11,7 +11,7 @@
 import { z } from 'zod';
 
 /* -------------------------------------------------------------------------- */
-/* Stage 3 — Localized<T> primitives                                          */
+/* Stage 3 - Localized<T> primitives                                          */
 /*                                                                            */
 /* `data.translations[lang] = {full copy}` is GONE. Translatable fields live  */
 /* as `Localized<string>` (i.e. `Record<Lang, string>`) maps inline in        */
@@ -36,7 +36,7 @@ export type LocalizedStringValue = z.infer<typeof LocalizedStringSchema>;
 // `Localized<string>` records during the Stage 3 transition. Tightened to
 // record-only in Slice 3C.
 //
-// All fields are optional — legacy data is sparse and these schemas are
+// All fields are optional - legacy data is sparse and these schemas are
 // warn-only (not gating saves). Validation flags drift in TYPES, not
 // missing-by-convention fields.
 
@@ -60,6 +60,16 @@ export const EnigmaSchema = z.looseObject({
   wrong_answer_image: z.string().optional(),
   good_answer_points: z.string().optional(),
   wrong_answer_points: z.string().optional(),
+
+  // Tag Hunter GO additions (only used when the scenario is `adaptable_go`).
+  // `short_code` is the per-panneau code printed on the dibond that the player
+  // types to identify the enigma (e.g. "AXQ"); it lives on the scenario and is
+  // shared across all GO patterns. The two extra wrong-answer images are only
+  // present when `go_answer_count` is 4 (1 good + 3 wrong). See
+  // memory project_taghunter_go / plans/tag-hunter-go.md.
+  short_code: z.string().optional(),
+  wrong_answer_image_2: z.string().optional(),
+  wrong_answer_image_3: z.string().optional(),
 });
 
 export const QuestSchema = z.looseObject({
@@ -74,11 +84,11 @@ export const QuestSchema = z.looseObject({
 });
 
 /* -------------------------------------------------------------------------- */
-/* Custom fonts — author-uploaded font families bundled with the scenario.    */
+/* Custom fonts - author-uploaded font families bundled with the scenario.    */
 /*                                                                            */
 /* `game_meta.custom_fonts` is the per-scenario registry; `game_meta.font`    */
 /* (a plain string) references a family by name. Each face's `filename` is an */
-/* uploaded file under `media/<uniqid>/` — synced to the playground alongside */
+/* uploaded file under `media/<uniqid>/` - synced to the playground alongside */
 /* every other scenario asset. See the plan for the locked data model.        */
 /* -------------------------------------------------------------------------- */
 
@@ -91,7 +101,7 @@ export const CustomFontFaceSchema = z.object({
 });
 
 export const CustomFontSchema = z.object({
-  /** Family name — also the value stored in `game_meta.font` to select it. */
+  /** Family name - also the value stored in `game_meta.font` to select it. */
   family: z.string(),
   faces: z.array(CustomFontFaceSchema),
 });
@@ -100,14 +110,14 @@ export type CustomFontFace = z.infer<typeof CustomFontFaceSchema>;
 export type CustomFont = z.infer<typeof CustomFontSchema>;
 
 /* -------------------------------------------------------------------------- */
-/* game_meta — the gameplay-config bag                                        */
+/* game_meta - the gameplay-config bag                                        */
 /*                                                                            */
 /* Numeric-looking fields are stored as strings on disk ("60", "100", ...).   */
 /* We preserve that as `z.string()` so the schema matches the editor output;  */
 /* later refactors can coerce to numbers.                                     */
 /* -------------------------------------------------------------------------- */
 
-// All fields optional — legacy data is sparse and these schemas are
+// All fields optional - legacy data is sparse and these schemas are
 // warn-only. Stage 3 validation flags shape drift (e.g. boolean where string
 // expected), not missing-by-convention fields.
 const BaseGameMetaSchema = z.looseObject({
@@ -118,12 +128,6 @@ const BaseGameMetaSchema = z.looseObject({
   story: LocalizedStringSchema.optional(),
   background_image: z.string().optional(),
   game_visual: z.string().optional(),
-  top_1_image: z.string().optional(),
-  top_3_image: z.string().optional(),
-  top_10_image: z.string().optional(),
-  top_1_sound: z.string().optional(),
-  top_3_sound: z.string().optional(),
-  top_10_sound: z.string().optional(),
   final_image_sound: z.string().optional(),
   // Name-pool tier (mini_kids/kids/ado_adultes), kept as a derived shadow of
   // `audience_bands` (written on save). Legacy source of truth for team-name
@@ -203,9 +207,40 @@ export const MysteryGameMetaSchema = BaseGameMetaSchema.extend({
   enigma_no_answer: z.string().optional(),
   points_units: z.string().optional(),
 
+  // Signed per-enigma maluses (default 0; negative = penalty, positive = bonus).
+  // Applied once per enigma in the matching outcome state, in both the live
+  // scoring path and the operator override path. See plan
+  // mystery-both-answers-no-answer-malus-images.md.
+  malus_both_answers_biped: z.string().optional(),
+  malus_no_answer: z.string().optional(),
+  // Game-level (whole-scenario) images for the "both answers biped" and
+  // "no answer" enigma states. Empty → playground falls back to the per-enigma
+  // good-answer image, with the status color tint always applied.
+  both_answers_image: z.string().optional(),
+  no_answer_image: z.string().optional(),
+
   // Default mystery pattern (each enigma's good/wrong answer image → station).
   // Stored as the pattern's uniqid; overridable at launch. See PatternSection.
   scenario_default_pattern: z.string().nullable().optional(),
+
+  // Tag Hunter GO - the hardware-free, phone-browser variant of Mystery.
+  // `adaptable_go` flips the scenario into a GO-capable scenario (the editor
+  // reveals GO fields + the GO payload contract). `go_answer_count` is the
+  // number of on-screen letter options per enigma (2 = A/B, 4 = A/B/C/D); 4 is
+  // GO-only and drives the two extra per-enigma wrong-answer images. See
+  // memory project_taghunter_go / plans/tag-hunter-go.md.
+  adaptable_go: z.boolean().optional(),
+  go_answer_count: z.union([z.literal(2), z.literal(4)]).optional(),
+  // The GO pattern (answer key) this scenario uses, stored as the pattern's
+  // uniqid. One default per scenario (not per client) - go.php resolves the
+  // enigma correct letters from it. Set in the editor's Default pattern section.
+  scenario_default_go_pattern: z.string().nullable().optional(),
+
+  // Tag Hunter Drop - the hardware-free, on-screen-image variant of Mystery.
+  // When true, this scenario is also usable in Drop (answer images shown on the
+  // device, no RFID). A scenario can be BOTH RFID/GO and Drop - enabling this
+  // never removes RFID data. See memory project_taghunter_drop.
+  adaptable_drop: z.boolean().optional(),
 });
 
 export const TagquestGameMetaSchema = BaseGameMetaSchema.extend({
@@ -228,7 +263,7 @@ export const TagquestGameMetaSchema = BaseGameMetaSchema.extend({
 });
 
 /* -------------------------------------------------------------------------- */
-/* Tracks (legacy `maximus`) — checkpoint-based course gameplay.              */
+/* Tracks (legacy `maximus`) - checkpoint-based course gameplay.              */
 /*                                                                            */
 /* Design plan: C:\Users\faure\.claude\plans\tracks-game-type-design.md       */
 /*                                                                            */
@@ -294,7 +329,7 @@ export const TextElementSchema = z.looseObject({
 });
 
 /**
- * Per-category typography defaults. Every field independently optional — an
+ * Per-category typography defaults. Every field independently optional - an
  * unset field falls back to the scenario default at resolution time.
  *
  * Plan: C:\Users\faure\.claude\plans\tracks-text-elements-categories.md
@@ -311,7 +346,7 @@ export const TextCategoryTypographySchema = z.looseObject({
 });
 
 /**
- * Author-defined text-element category — first-class object with id + name +
+ * Author-defined text-element category - first-class object with id + name +
  * typography defaults. Elements reference by `id` so renames don't break refs.
  *
  * Plan: C:\Users\faure\.claude\plans\tracks-text-elements-categories.md
@@ -349,7 +384,7 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
   checkpoints_unique_image_id: z.string().optional(),
   checkpoint_image_width_percentage: z.string().optional(),
 
-  // Routes (parcours) — 5 fixed presets, multi-enable at scenario level.
+  // Routes (parcours) - 5 fixed presets, multi-enable at scenario level.
   // Legacy key renames: half_first → first_half, half_last → last_half,
   // half_one_out_of_two → odd, half_one_out_of_two_plus → even.
   routes: z
@@ -362,7 +397,7 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
     })
     .optional(),
 
-  // Display modes — full / map / simple (operator picks one at launch from
+  // Display modes - full / map / simple (operator picks one at launch from
   // the enabled set).
   displays: z
     .looseObject({
@@ -372,7 +407,7 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
     })
     .optional(),
 
-  // Play modes — itinerary (ordered) vs free (any order).
+  // Play modes - itinerary (ordered) vs free (any order).
   play_modes: z
     .looseObject({
       itinerary: ToggleSchema.optional(),
@@ -380,7 +415,7 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
     })
     .optional(),
 
-  // Score types — one is pre-selected at launch via the `default` flag.
+  // Score types - one is pre-selected at launch via the `default` flag.
   score_types: z
     .looseObject({
       percentage: ToggleWithDefaultSchema.optional(),
@@ -420,67 +455,73 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
 });
 
 /* -------------------------------------------------------------------------- */
-/* Clash — TagQuest-derived clans/territories mode.                           */
+/* Clash - TagQuest-derived clans/territories mode.                           */
 /*                                                                            */
 /* Design: project_clash_game_type_design (grill-me decision record).         */
 /*                                                                            */
-/* Fixed skeleton (v1): exactly 4 territory slots — 1 large (3 combinations), */
-/* 2 medium (2 combinations each), 1 small (1 combination) — totalling 8      */
-/* combinations over 24 balises. The scenario authors per-territory           */
-/* name/points/complete-image and per-combination piece+main images + clans.  */
-/* The balise station -> combination assignment lives in a separate Clash     */
-/* PATTERN (game_type='clash'), selected/overridable at launch.               */
+/* V2 (redesign 2026-07-02): 8 territories, each = ONE variable-size balise    */
+/* set (5/4/4/3/3/2/2/1 = 24 balises, no shared balises). No nested            */
+/* combinations, no Patterns system - each territory carries its physical       */
+/* balise station codes inline (overridable at launch). Per-minute domination   */
+/* scoring; control = strict-max count (tie ⇒ neutral). Layout seeded but       */
+/* editable. See project_clash_game_type_design (V2 section).                   */
 /* -------------------------------------------------------------------------- */
 
+const ClashAnchorSchema = z.looseObject({ top: z.number(), left: z.number() });
+
 export const ClashClanSchema = z.looseObject({
-  /** Stable id so launch-time name overrides + seals don't break on reorder. */
+  /** Stable id so launch-time name overrides + images don't break on reorder. */
   id: z.string(),
   /** Default clan name (overridable at launch). */
   name: LocalizedStringSchema.optional(),
-  /** Hex colour used for this clan's bars/highlights. */
+  /** Hex colour used for this clan's bar segment / ranking highlight (author-picked). */
   color: z.string().optional(),
-  /** Seal/logo image filename (partitioned into medias.clans on save). */
-  seal: z.string().optional(),
-});
-
-export const ClashCombinationSchema = z.looseObject({
-  /** Stable id; referenced by the Clash pattern's station assignments. */
-  id: z.string(),
-  name: LocalizedStringSchema.optional(),
-  /** The 3 balise piece images (revealed one per balise bip). */
-  piece_1: z.string().optional(),
-  piece_2: z.string().optional(),
-  piece_3: z.string().optional(),
-  /** Main combination image (shown when the 3 balises are validated). */
-  main: z.string().optional(),
+  /** Banner/flag image drawn over a territory this clan controls (V2). */
+  banner: z.string().optional(),
+  /** Emblem/logo image shown in the ranking row + event feed (V2). */
+  logo: z.string().optional(),
+  /** Score-card frame image for this clan's ranking row (V2, optional). */
+  score_card: z.string().optional(),
 });
 
 export const ClashTerritorySchema = z.looseObject({
   id: z.string(),
   name: LocalizedStringSchema.optional(),
-  /** Fixes the combo count + control mode: large/medium = volume, small = last-bipper. */
-  size: z.enum(['large', 'medium', 'small']),
-  /** Point value awarded to the controlling clan (string like the rest of the bag). */
+  /** Physical balise station codes composing this territory (V2, variable count). */
+  balises: z.array(z.number()).optional(),
+  /** Points-per-minute paid to the controlling clan (string like the rest of the bag). */
   points: z.string().optional(),
-  /** Territory-complete image shown on full conquest (small reuses combo main). */
-  complete_image: z.string().optional(),
-  /** Seal anchor on the map (percent of the map box). Placed in the editor. */
-  position: z.looseObject({ top: z.number(), left: z.number() }).optional(),
-  /** Nested combinations (length 3/2/2/1 by size) — encodes the grouping. */
-  combinations: z.array(ClashCombinationSchema).optional(),
+  /** Banner anchor on the map (percent of the map box). Placed in the editor (V2). */
+  banner_position: ClashAnchorSchema.optional(),
+  /** Name-frame + gauge-bar cluster anchor on the map (percent). Placed in the editor (V2). */
+  label_position: ClashAnchorSchema.optional(),
+  /** Purge-image anchor on the map (percent). Placed in the editor. The purge
+   *  image is drawn here while this territory is the current purge target. */
+  purge_position: ClashAnchorSchema.optional(),
 });
 
 export const ClashGameMetaSchema = BaseGameMetaSchema.extend({
-  /** Map background image (layout-editor surface for territory seal anchors). */
+  /** Map background image (layout-editor surface for territory anchors). */
   map_image: z.string().optional(),
-  /** Neutral seal shown on contested/untouched territories. */
-  neutral_seal: z.string().optional(),
   /** Up to 4 clans authored here; launch picks 2-4 active + name overrides. */
   clans: z.array(ClashClanSchema).optional(),
-  /** Exactly 4 territory slots in the fixed skeleton. */
+  /** 8 territory slots (seeded skeleton, editable). */
   territories: z.array(ClashTerritorySchema).optional(),
-  /** Default Clash pattern (station->combination assignments), overridable at launch. */
-  scenario_default_pattern: z.string().nullable().optional(),
+  /** Timer widget anchor on the map (percent). Placed in the editor; defaults top-centre (V2). */
+  timer_position: ClashAnchorSchema.optional(),
+  /** Optional dashboard chrome frames (fall back to default styling if unset) (V2). */
+  frame_separator: z.string().optional(),
+  frame_ranking: z.string().optional(),
+  frame_territory_name: z.string().optional(),
+  frame_gauge: z.string().optional(),
+  frame_event: z.string().optional(),
+  frame_timer: z.string().optional(),
+  /** "The Purge" marker image - drawn on the current purge-target territory and
+   *  in the game-wide purge announcement. OPTIONAL: when unset, the purge
+   *  feature is unavailable at launch in the playground (no built-in fallback). */
+  purge_image: z.string().optional(),
+  /** Sound played on every in-game device when a purge fires (optional). */
+  purge_sound: z.string().optional(),
   /** Authored text overlays placed on the map via the LayoutEditor (reused from tracks). */
   text_elements: z.array(TextElementSchema).optional(),
   text_categories: z.array(TextCategorySchema).optional(),
@@ -489,7 +530,7 @@ export const ClashGameMetaSchema = BaseGameMetaSchema.extend({
 /* -------------------------------------------------------------------------- */
 /* Top-level scenarios.data wrapper                                           */
 /*                                                                            */
-/* Slice 3C: strict — extra top-level keys log as drift. The legacy           */
+/* Slice 3C: strict - extra top-level keys log as drift. The legacy           */
 /* `translations` envelope is GONE; per-field `Localized<string>` maps live   */
 /* inline in `game_meta`. The PHP migration converted all rows; the           */
 /* `playground.php` compat layer synthesizes the legacy envelope on the way   */
@@ -542,7 +583,6 @@ export type TextElement = z.infer<typeof TextElementSchema>;
 export type TextCategoryTypography = z.infer<typeof TextCategoryTypographySchema>;
 export type TextCategory = z.infer<typeof TextCategorySchema>;
 export type ClashClan = z.infer<typeof ClashClanSchema>;
-export type ClashCombination = z.infer<typeof ClashCombinationSchema>;
 export type ClashTerritory = z.infer<typeof ClashTerritorySchema>;
 
 export type MysteryGameMeta = z.infer<typeof MysteryGameMetaSchema>;
@@ -559,7 +599,7 @@ export type ScenarioData = MysteryScenarioData | TagquestScenarioData | TracksSc
 export type MediasField = z.infer<typeof MediasSchema>;
 
 /* -------------------------------------------------------------------------- */
-/* Validation helper — warn-only logging for Stage 1                          */
+/* Validation helper - warn-only logging for Stage 1                          */
 /*                                                                            */
 /* Pick the schema by row-level game_type, run safeParse, log on failure.     */
 /* Always returns the original data unchanged; never blocks the save.         */

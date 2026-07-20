@@ -1,0 +1,36 @@
+{
+  "gameConfig": {
+    "subtitle": "Configura los ajustes y preferencias de tu juego",
+    "audioSettings": "Ajustes de audio",
+    "soundEnabled": "Sonido activado",
+    "musicVolume": "Volumen de la música: {{volume}} %",
+    "sfxVolume": "Volumen de los efectos: {{volume}} %",
+    "displaySettings": "Ajustes de pantalla",
+    "displayMode": "Modo de pantalla",
+    "fullscreen": "Pantalla completa",
+    "windowed": "En ventana",
+    "borderless": "Ventana sin bordes",
+    "gameplaySettings": "Ajustes de juego",
+    "difficulty": "Dificultad",
+    "easy": "Fácil",
+    "normal": "Normal",
+    "hard": "Difícil",
+    "autoSave": "Guardado automático",
+    "notifications": "Notificaciones",
+    "saveConfiguration": "Guardar la configuración"
+  },
+  "stationSelect": {
+    "placeholder": "Seleccionar estación…",
+    "clear": "Borrar",
+    "searchPlaceholder": "Buscar estaciones…",
+    "noStationsFound": "No se encontraron estaciones",
+    "used": "(en uso)"
+  },
+  "qrCodes": {
+    "title": "Códigos QR",
+    "subtitle": "Imprímelos y colócalos en tu local. Los jugadores escanean un código para abrir la aplicación de ese escenario.",
+    "noScenarios": "Aún no hay escenarios de {{heading}}",
+    "willAppear": "Aparecerán aquí en cuanto se asignen a tu cuenta.",
+    "downloadSvg": "Descargar SVG"
+  }
+}

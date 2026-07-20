@@ -12,7 +12,7 @@ import { SUPPORTED_LANGS, isLocalized } from './types';
 
 /**
  * Read the value for `lang` out of a localized map, with fallback chain:
- *   1. exact match `loc[lang]` (even if empty string — empty means
+ *   1. exact match `loc[lang]` (even if empty string - empty means
  *      'explicitly cleared', not 'fall back')
  *   2. `loc[defaultLang]`
  *   3. first available lang with a non-undefined value

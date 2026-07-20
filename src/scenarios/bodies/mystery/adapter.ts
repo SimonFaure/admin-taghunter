@@ -1,5 +1,5 @@
 /**
- * Mystery adapter — type-specific contract for the shell.
+ * Mystery adapter - type-specific contract for the shell.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
@@ -13,6 +13,7 @@ import { synthesizeLegacyTranslations, flattenToDefault } from '../../i18n/synth
 import type { Lang } from '../../i18n/types';
 import type { ScenarioAdapter, MediasColumn, EnumeratedMedia, ZipPayloadContext } from '../../types';
 import { MysteryBody } from './MysteryBody';
+import { MysteryTopSection } from './sections/MysteryTopSection';
 import {
   mysteryMediaSlots,
   mysteryImageFields,
@@ -48,6 +49,10 @@ function buildMediasColumn(gameMeta: MysteryGameMeta, uniqid: string): MediasCol
     enigma_number: e.number,
     good_answer_image: extractFileName(e.good_answer_image ?? ''),
     wrong_answer_image: extractFileName(e.wrong_answer_image ?? ''),
+    // GO 4-answer mode adds two more wrong-answer images per enigma. Harmless
+    // empty strings for RFID/2-answer scenarios.
+    wrong_answer_image_2: extractFileName(e.wrong_answer_image_2 ?? ''),
+    wrong_answer_image_3: extractFileName(e.wrong_answer_image_3 ?? ''),
   }));
   const overscores = (gameMeta.overscores ?? []).map((o: Overscore) => ({
     overscore_step: o.overscore_step,
@@ -74,6 +79,9 @@ function cleanGameMetaForData(gameMeta: MysteryGameMeta): Record<string, unknown
       text: e.text,
       good_answer_points: e.good_answer_points,
       wrong_answer_points: e.wrong_answer_points,
+      // GO: the per-panneau short code is plain data (not media), so it stays in
+      // game_meta. Only keep the key when set, to avoid noise on RFID scenarios.
+      ...(e.short_code ? { short_code: e.short_code } : {}),
     }));
   }
   if (Array.isArray(copy.overscores)) {
@@ -112,6 +120,13 @@ function enumerateMedia(gameMeta: MysteryGameMeta): readonly EnumeratedMedia[] {
     if (e.wrong_answer_image) {
       out.push({ fieldName: `enigma_${eIdx}_wrong_answer_image`, filename: e.wrong_answer_image, kind: 'image' });
     }
+    // GO 4-answer extra wrong images - enumerated so publish/ZIP collect them.
+    if (e.wrong_answer_image_2) {
+      out.push({ fieldName: `enigma_${eIdx}_wrong_answer_image_2`, filename: e.wrong_answer_image_2, kind: 'image' });
+    }
+    if (e.wrong_answer_image_3) {
+      out.push({ fieldName: `enigma_${eIdx}_wrong_answer_image_3`, filename: e.wrong_answer_image_3, kind: 'image' });
+    }
   });
   (gameMeta.overscores ?? []).forEach((o: Overscore, oIdx: number) => {
     if (o.image_overscore_step) {
@@ -122,7 +137,7 @@ function enumerateMedia(gameMeta: MysteryGameMeta): readonly EnumeratedMedia[] {
       });
     }
   });
-  // Author-uploaded custom font files — bundled so they travel in the ZIP.
+  // Author-uploaded custom font files - bundled so they travel in the ZIP.
   ((gameMeta.custom_fonts as CustomFont[] | undefined) ?? []).forEach((cf, cfIdx) => {
     (cf.faces ?? []).forEach((face, faceIdx) => {
       if (face.filename) {
@@ -134,7 +149,7 @@ function enumerateMedia(gameMeta: MysteryGameMeta): readonly EnumeratedMedia[] {
 }
 
 /**
- * Mystery's ZIP `game-data.json` shape — meaningfully different from
+ * Mystery's ZIP `game-data.json` shape - meaningfully different from
  * tagquest's. Faithfully reproduces the legacy MysteryConfig.tsx:1026 output
  * so the playground keeps consuming it without any runtime change.
  */
@@ -182,6 +197,8 @@ function buildZipPayload(
     gauge_filling: gm.gauge_filling,
     overscore_steps: gm.overscore_steps,
     score_full_game: gm.score_full_game,
+    malus_both_answers_biped: gm.malus_both_answers_biped,
+    malus_no_answer: gm.malus_no_answer,
     level_font_color: gm.level_font_color,
     scenario_version: gm.scenario_version,
     number_of_enigmas: gm.number_of_enigmas,
@@ -261,7 +278,6 @@ export const mysteryAdapter: ScenarioAdapter<MysteryGameMeta> = {
   capabilities: {
     hasLevels: true,
     hasOverscores: true,
-    hasPodium: true,
     supportsProductTemplate: false,
     hasTranslatableArrays: ['enigmas', 'levels', 'overscores'],
   },
@@ -271,6 +287,7 @@ export const mysteryAdapter: ScenarioAdapter<MysteryGameMeta> = {
     validateMysteryConfig(gm as unknown, title, description),
   dataSchema: MysteryScenarioDataSchema,
   Body: MysteryBody,
+  TopSection: MysteryTopSection,
   buildMediasColumn,
   cleanGameMetaForData,
   enumerateMedia,

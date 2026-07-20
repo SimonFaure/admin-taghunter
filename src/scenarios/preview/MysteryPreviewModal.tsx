@@ -1,5 +1,5 @@
 /**
- * Mystery preview modal — chrome around `<MysteryPreviewRenderer>`.
+ * Mystery preview modal - chrome around `<MysteryPreviewRenderer>`.
  *
  * Reads live in-memory `gameMeta` from the scenario editor (no save required).
  * Header controls: Locked/Revealed toggle, gauge fill %, overscore stage,
@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../shell/useScenarioEditor';
 import { getLocalized } from '../i18n/getLocalized';
 import type { Lang } from '../i18n/types';
@@ -27,6 +28,7 @@ interface MysteryPreviewModalProps {
 }
 
 export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps) {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const [enigmaView, setEnigmaView] = useState<EnigmaView>('locked');
   const [gaugePercent, setGaugePercent] = useState(60);
@@ -78,14 +80,13 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
       >
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-slate-50 flex-wrap">
-          <h2 className="text-sm font-semibold text-gray-900 mr-2">Preview</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mr-2">{t('scenarioPreview:mysteryPreview.title')}</h2>
 
           {/* Screen selector */}
           <div className="flex items-center gap-1 border border-gray-300 rounded-md overflow-hidden">
             {([
-              ['instructions', 'Instructions'],
-              ['ingame', 'In-game'],
-              ['endgame', 'Endgame'],
+              ['ingame', t('scenarioPreview:mysteryPreview.screen.ingame')],
+              ['endgame', t('scenarioPreview:mysteryPreview.screen.endgame')],
             ] as Array<[MysteryScreen, string]>).map(([id, label]) => (
               <button
                 key={id}
@@ -109,7 +110,7 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
                 enigmaView === 'locked' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
               }`}
             >
-              Locked
+              {t('scenarioPreview:mysteryPreview.locked')}
             </button>
             <button
               type="button"
@@ -118,13 +119,13 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
                 enigmaView === 'revealed' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
               }`}
             >
-              Revealed
+              {t('scenarioPreview:mysteryPreview.revealed')}
             </button>
           </div>
 
           {/* Gauge fill slider */}
           <label className="flex items-center gap-2 text-xs text-gray-700">
-            <span>Gauge</span>
+            <span>{t('scenarioPreview:mysteryPreview.gauge')}</span>
             <input
               type="range"
               min={0}
@@ -139,16 +140,16 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
 
           {/* Overscore stage */}
           <label className="flex items-center gap-1 text-xs text-gray-700">
-            <span>Overscore</span>
+            <span>{t('scenarioPreview:mysteryPreview.overscore')}</span>
             <select
               value={overscoreStage}
               onChange={(e) => setOverscoreStage(parseInt(e.target.value, 10))}
               className="border border-gray-300 rounded px-2 py-1 text-xs bg-white"
             >
-              <option value={0}>None</option>
+              <option value={0}>{t('scenarioPreview:mysteryPreview.none')}</option>
               {Array.from({ length: overscoreCount }, (_, i) => (
                 <option key={i} value={i + 1}>
-                  Step {i + 1}
+                  {t('scenarioPreview:mysteryPreview.step', { number: i + 1 })}
                 </option>
               ))}
             </select>
@@ -156,14 +157,14 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
 
           {/* Enigma selector */}
           <label className="flex items-center gap-1 text-xs text-gray-700">
-            <span>Enigma</span>
+            <span>{t('scenarioPreview:mysteryPreview.enigma')}</span>
             <select
               value={selectedEnigmaIndex}
               onChange={(e) => setSelectedEnigmaIndex(parseInt(e.target.value, 10))}
               className="border border-gray-300 rounded px-2 py-1 text-xs bg-white"
               disabled={enigmaCount === 0}
             >
-              {enigmaCount === 0 && <option value={0}>—</option>}
+              {enigmaCount === 0 && <option value={0}>-</option>}
               {Array.from({ length: enigmaCount }, (_, i) => (
                 <option key={i} value={i}>
                   #{(meta.enigmas ?? [])[i]?.number || i + 1}
@@ -178,8 +179,8 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
               type="button"
               onClick={() => setFullscreen((f) => !f)}
               className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
-              aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-              title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              aria-label={fullscreen ? t('scenarioPreview:mysteryPreview.exitFullscreen') : t('scenarioPreview:mysteryPreview.enterFullscreen')}
+              title={fullscreen ? t('scenarioPreview:mysteryPreview.exitFullscreen') : t('scenarioPreview:mysteryPreview.fullscreen')}
             >
               {fullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
             </button>
@@ -187,7 +188,7 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
               type="button"
               onClick={onClose}
               className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
-              aria-label="Close preview"
+              aria-label={t('scenarioPreview:mysteryPreview.closePreview')}
             >
               <X className="w-5 h-5" />
             </button>

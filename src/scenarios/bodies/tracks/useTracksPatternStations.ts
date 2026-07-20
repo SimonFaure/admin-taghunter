@@ -1,6 +1,6 @@
 /**
  * Resolves the scenario's selected tracks pattern (by uniqid) into an ordered
- * list of stations — one entry per checkpoint, in checkpoint order. Index 0 is
+ * list of stations - one entry per checkpoint, in checkpoint order. Index 0 is
  * the first checkpoint.
  *
  * Mirrors PatternCorrespondence's semantics: pattern_items is the source of

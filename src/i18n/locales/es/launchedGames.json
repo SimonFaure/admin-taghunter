@@ -1,0 +1,14 @@
+{
+  "title": "Juegos Lanzados",
+  "active": "Juegos Activos",
+  "completed": "Juegos Terminados",
+  "noGames": "No hay juegos lanzados",
+  "teamCount": "equipo",
+  "teamCount_plural": "equipos",
+  "startTime": "Hora de Inicio",
+  "endTime": "Hora de Fin",
+  "duration": "Duración",
+  "status": "Estado",
+  "configure": "Configurar",
+  "viewDetails": "Ver Detalles"
+}

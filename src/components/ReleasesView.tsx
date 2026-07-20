@@ -26,6 +26,13 @@ const ARCHS = ['x86_64', 'aarch64', 'universal'];
 const CHANNELS = ['stable', 'test'];
 const SEMVER = /^\d+\.\d+\.\d+$/;
 
+// Pull a semver out of an artifact filename, e.g.
+// "Tag Hunter Playground_1.1.22_x64-setup" -> "1.1.22". Returns null if none.
+function versionFromFilename(filename: string): string | null {
+  const m = filename.match(/\d+\.\d+\.\d+/);
+  return m ? m[0] : null;
+}
+
 // Small coloured badge for a release's channel. Stable is neutral; test is amber
 // so a pre-release build is obvious at a glance in the combined list.
 function ChannelBadge({ channel }: { channel: string }) {
@@ -44,13 +51,13 @@ function ChannelBadge({ channel }: { channel: string }) {
 }
 
 function formatSize(bytes: number | null): string {
-  if (!bytes) return '—';
+  if (!bytes) return '-';
   const mb = bytes / (1024 * 1024);
   return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso.replace(' ', 'T'));
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
@@ -134,7 +141,11 @@ export function ReleasesView() {
         `${rel.target}/${rel.arch} will be promoted to latest automatically ` +
         '(or no release will be latest if this is the only one).'
       : '';
-    if (!window.confirm(`Delete release ${rel.version} (${rel.target}/${rel.arch})?${latestWarning}`))
+    if (
+      !window.confirm(
+        `Are you sure you want to delete release ${rel.version} (${rel.target}/${rel.arch})?${latestWarning}\n\nThis action cannot be undone.`,
+      )
+    )
       return;
     void postAction('delete', { id: rel.id });
   };
@@ -409,7 +420,19 @@ function NewDesktopRelease({ onDone, onError }: FormProps) {
           className="input"
         />
       </Field>
-      <FileDrop label="Artifact (updater bundle)" file={artifact} onFile={setArtifact} />
+      <FileDrop
+        label="Artifact (updater bundle)"
+        file={artifact}
+        onFile={(f) => {
+          setArtifact(f);
+          // Auto-fill the version from the filename (e.g. "…_1.1.22_x64-setup")
+          // unless the user has already typed one.
+          if (f && !version.trim()) {
+            const detected = versionFromFilename(f.name);
+            if (detected) setVersion(detected);
+          }
+        }}
+      />
       <FileDrop label="Signature (.sig)" file={signature} accept=".sig" onFile={setSignature} />
       <button
         type="submit"

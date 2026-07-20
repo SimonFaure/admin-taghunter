@@ -1,7 +1,4 @@
 {
-  "podium": {
-    "title": "Podium et fin de jeu"
-  },
   "levels": {
     "title": "Niveaux",
     "addLevel": "Ajouter un niveau",

@@ -1,5 +1,5 @@
 /**
- * Adapter bootstrap — side-effect module that registers every shipped adapter
+ * Adapter bootstrap - side-effect module that registers every shipped adapter
  * with the registry. Imported once (in App.tsx or the route) so the registry
  * is populated before any scenario lookup runs.
  *

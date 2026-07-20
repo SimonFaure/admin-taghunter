@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { ClientSelector } from './ClientSelector';

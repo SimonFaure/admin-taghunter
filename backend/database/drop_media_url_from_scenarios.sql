@@ -3,7 +3,7 @@
 -- Background: media_url stored a single ZIP path for the scenario bundle. This
 -- overlapped with the scenario_files table (which stores per-file rows including
 -- the bundled ZIP as mime_type='application/zip'). Verified empty across all
--- rows before drop. The MySQL column was also typed `date` (a schema bug — it
+-- rows before drop. The MySQL column was also typed `date` (a schema bug - it
 -- should have been `text`), but no rows were populated so no data is lost.
 --
 -- Reads were removed from:

@@ -530,7 +530,7 @@ export function CardsRegistryEditor({
                       </td>
                       <td className="px-4 py-2 text-sm text-slate-900">{card.key_name}</td>
                       <td className="px-4 py-2 text-sm text-slate-600">
-                        {card.color || <span className="text-slate-400">—</span>}
+                        {card.color || <span className="text-slate-400">-</span>}
                       </td>
                       <td className="px-4 py-2 text-sm text-slate-500 font-mono">{card.id}</td>
                       <td className="px-4 py-2 text-right">

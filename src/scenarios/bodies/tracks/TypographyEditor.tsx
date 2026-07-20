@@ -1,12 +1,12 @@
 /**
- * Typography editor — shared 8-field form used in the LayoutEditor sidebar:
+ * Typography editor - shared 8-field form used in the LayoutEditor sidebar:
  *
- *   - `mode='category'` — edits a `TextCategoryTypography`. The font picker
- *     has a "— Scenario default —" option (clear → inherit scenario font);
+ *   - `mode='category'` - edits a `TextCategoryTypography`. The font picker
+ *     has a "- Scenario default -" option (clear → inherit scenario font);
  *     the color has a "Custom color" toggle; booleans/align are stored as
  *     explicit values (no inherit toggle).
  *
- *   - `mode='element'` — edits a `TextElement`'s per-field overrides over a
+ *   - `mode='element'` - edits a `TextElement`'s per-field overrides over a
  *     RESOLVED category typography. Each of the 8 fields has its own
  *     [Override] checkbox: OFF → field disabled, displays the inherited
  *     value from `inheritedFrom`; ON → field active, author edits the
@@ -23,6 +23,7 @@ import {
   AlignCenter,
   AlignRight,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { CustomFont, TextCategoryTypography } from '../../../types/scenario-data';
 import { FONT_CATALOG } from '../../../fonts/catalog';
 import { TEXT_ELEMENT_DEFAULT_ALIGN } from './textElementStyle';
@@ -47,7 +48,7 @@ export interface TypographyEditorProps {
 }
 
 /**
- * Fully resolved typography — every field has a concrete value. Used for
+ * Fully resolved typography - every field has a concrete value. Used for
  * displaying the inherited value next to an OFF [Override] toggle, and as
  * the starting point when the author flips a toggle ON.
  */
@@ -114,12 +115,13 @@ function OverrideCheckbox({
   on: boolean;
   onToggle: (next: boolean) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <input
       type="checkbox"
       checked={on}
       onChange={(e) => onToggle(e.target.checked)}
-      title={on ? 'Override on — element wins' : 'Inherit from category'}
+      title={on ? t('editorTracks:typography.overrideOn') : t('editorTracks:typography.inheritFromCategory')}
       className="rounded flex-shrink-0"
     />
   );
@@ -134,6 +136,7 @@ export function TypographyEditor({
   inheritedFrom,
   customFonts,
 }: TypographyEditorProps) {
+  const { t } = useTranslation();
   const set = <K extends keyof TextCategoryTypography>(
     key: K,
     v: TextCategoryTypography[K],
@@ -207,7 +210,7 @@ export function TypographyEditor({
             onToggle={(on) => handleToggleOverride('font', on)}
           />
         )}
-        <FieldLabel text="Font" />
+        <FieldLabel text={t('editorTracks:typography.font')} />
         <select
           value={dispFont}
           disabled={isElementMode && !overrides.font}
@@ -215,16 +218,16 @@ export function TypographyEditor({
           className="flex-1 min-w-0 text-xs px-1.5 py-1 border border-gray-700 rounded bg-gray-900 text-gray-200 disabled:opacity-60"
         >
           {!isElementMode && (
-            <option value="">— Scenario default —</option>
+            <option value="">{t('editorTracks:typography.scenarioDefault')}</option>
           )}
-          <optgroup label="Standard">
+          <optgroup label={t('editorTracks:typography.groupStandard')}>
             {standard.map((f) => (
               <option key={f.family} value={f.family} style={{ fontFamily: f.stack }}>
                 {f.label}
               </option>
             ))}
           </optgroup>
-          <optgroup label="Themed">
+          <optgroup label={t('editorTracks:typography.groupThemed')}>
             {themed.map((f) => (
               <option key={f.family} value={f.family} style={{ fontFamily: f.stack }}>
                 {f.label}
@@ -232,7 +235,7 @@ export function TypographyEditor({
             ))}
           </optgroup>
           {customFamilies.length > 0 && (
-            <optgroup label="Custom fonts">
+            <optgroup label={t('editorTracks:typography.groupCustomFonts')}>
               {customFamilies.map((c) => (
                 <option key={c} value={c} style={{ fontFamily: `"${c}", sans-serif` }}>
                   {c}
@@ -251,7 +254,7 @@ export function TypographyEditor({
             onToggle={(on) => handleToggleOverride('font_color', on)}
           />
         )}
-        <FieldLabel text="Color" />
+        <FieldLabel text={t('editorTracks:typography.color')} />
         <input
           type="color"
           value={dispColor || '#000000'}
@@ -270,7 +273,7 @@ export function TypographyEditor({
               }}
               className="rounded"
             />
-            Custom
+            {t('editorTracks:typography.custom')}
           </label>
         )}
       </Row>
@@ -283,7 +286,7 @@ export function TypographyEditor({
             onToggle={(on) => {
               // Group toggle: turning ON gives the element explicit values for
               // all three (seeded from inheritedFrom). Turning OFF clears all
-              // three. This is per-character-set rather than per-character —
+              // three. This is per-character-set rather than per-character -
               // simpler than three separate toggles, still covers the use case.
               if (on) {
                 onChange({
@@ -302,7 +305,7 @@ export function TypographyEditor({
             }}
           />
         )}
-        <FieldLabel text="Style" />
+        <FieldLabel text={t('editorTracks:typography.style')} />
         <div className="inline-flex items-center rounded border border-gray-700 bg-gray-900 overflow-hidden">
           {([
             { key: 'bold', Icon: Bold, on: dispBold },
@@ -338,7 +341,7 @@ export function TypographyEditor({
             onToggle={(on) => handleToggleOverride('align', on)}
           />
         )}
-        <FieldLabel text="Align" />
+        <FieldLabel text={t('editorTracks:typography.align')} />
         <div className="inline-flex items-center rounded border border-gray-700 bg-gray-900 overflow-hidden">
           {([
             { key: 'left', Icon: AlignLeft },
@@ -375,7 +378,7 @@ export function TypographyEditor({
             onToggle={(on) => handleToggleOverride('shadow', on)}
           />
         )}
-        <FieldLabel text="Shadow" />
+        <FieldLabel text={t('editorTracks:typography.shadow')} />
         <label className="inline-flex items-center gap-1 text-[11px] text-gray-300 select-none">
           <input
             type="checkbox"
@@ -384,7 +387,7 @@ export function TypographyEditor({
             onChange={(e) => set('shadow', e.target.checked)}
             className="rounded"
           />
-          enabled
+          {t('editorTracks:typography.enabled')}
         </label>
       </Row>
       <Row>
@@ -394,7 +397,7 @@ export function TypographyEditor({
             onToggle={(on) => handleToggleOverride('background', on)}
           />
         )}
-        <FieldLabel text="BG fill" />
+        <FieldLabel text={t('editorTracks:typography.bgFill')} />
         <label className="inline-flex items-center gap-1 text-[11px] text-gray-300 select-none">
           <input
             type="checkbox"
@@ -403,7 +406,7 @@ export function TypographyEditor({
             onChange={(e) => set('background', e.target.checked)}
             className="rounded"
           />
-          enabled
+          {t('editorTracks:typography.enabled')}
         </label>
       </Row>
     </div>

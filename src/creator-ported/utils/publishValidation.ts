@@ -28,9 +28,6 @@ export function validateTagquestConfig(config: any, scenarioTitle: string, scena
   if (config.use_default_template === false) {
     check(issues, !!config.custom_template, 'custom_template', 'Custom template is required when "Use default template" is off', 'error');
   }
-  check(issues, !!config.top_1_image, 'top_1_image', 'Top 1 image is required', 'warning');
-  check(issues, !!config.top_3_image, 'top_3_image', 'Top 3 image is required', 'warning');
-  check(issues, !!config.top_10_image, 'top_10_image', 'Top 10 image is required', 'warning');
 
   const questCount = config.quests?.length ?? 0;
   check(issues, questCount > 0, 'quests', 'At least one quest is required', 'error');
@@ -73,9 +70,6 @@ export function validateMysteryConfig(config: any, scenarioTitle: string, scenar
   check(issues, !!config.time_background_image, 'time_background_image', 'Time background image is required', 'warning');
   check(issues, !!config.score_background_image, 'score_background_image', 'Score background image is required', 'warning');
   check(issues, !!config.enigmas_header_image, 'enigmas_header_image', 'Enigmas header image is required', 'warning');
-  check(issues, !!config.top_1_image, 'top_1_image', 'Top 1 image is required', 'warning');
-  check(issues, !!config.top_3_image, 'top_3_image', 'Top 3 image is required', 'warning');
-  check(issues, !!config.top_10_image, 'top_10_image', 'Top 10 image is required', 'warning');
 
   const enigmaCount = config.enigmas?.length ?? 0;
   check(issues, enigmaCount > 0, 'enigmas', 'At least one enigma is required', 'error');
@@ -108,32 +102,27 @@ export function validateClashConfig(config: any, scenarioTitle: string, scenario
   check(issues, !!scenarioTitle?.trim(), 'title', 'Scenario title is required', 'error');
   check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
   check(issues, !!config.map_image, 'map_image', 'Territory map image is required', 'error');
-  check(issues, !!config.neutral_seal, 'neutral_seal', 'Neutral seal image is required', 'warning');
-  check(issues, !!config.scenario_default_pattern, 'scenario_default_pattern', 'A default Clash pattern should be set', 'warning');
 
   const clans = config.clans ?? [];
   check(issues, clans.length >= 2, 'clans', 'At least 2 clans are required', 'error');
   check(issues, clans.length <= 4, 'clans', 'Clash supports at most 4 clans', 'error');
   clans.forEach((clan: any, i: number) => {
-    check(issues, !!clan.seal, `clans[${i}].seal`, `Clan ${i + 1}: seal image is required`, 'error');
+    check(issues, !!clan.banner, `clans[${i}].banner`, `Clan ${i + 1}: banner image is required`, 'error');
+    check(issues, !!clan.logo, `clans[${i}].logo`, `Clan ${i + 1}: logo/emblem image is required`, 'error');
     check(issues, !!clan.name, `clans[${i}].name`, `Clan ${i + 1}: default name is required`, 'warning');
   });
 
   const territories = config.territories ?? [];
-  check(issues, territories.length === 4, 'territories', 'Clash requires exactly 4 territories', 'error');
+  check(issues, territories.length >= 2, 'territories', 'Clash requires at least 2 territories', 'error');
   territories.forEach((t: any, ti: number) => {
-    check(issues, !!t.points && t.points !== '0', `territories[${ti}].points`, `Territory ${ti + 1}: point value should be greater than 0`, 'warning');
-    if (t.size !== 'small') {
-      check(issues, !!t.complete_image, `territories[${ti}].complete_image`, `Territory ${ti + 1}: complete image is required`, 'warning');
-    }
-    const combos = t.combinations ?? [];
-    combos.forEach((c: any, ci: number) => {
-      check(issues, !!c.main, `territories[${ti}].combinations[${ci}].main`, `Territory ${ti + 1} / combination ${ci + 1}: main image is required`, 'error');
-      check(issues, !!c.piece_1, `territories[${ti}].combinations[${ci}].piece_1`, `Territory ${ti + 1} / combination ${ci + 1}: balise 1 image is required`, 'error');
-      check(issues, !!c.piece_2, `territories[${ti}].combinations[${ci}].piece_2`, `Territory ${ti + 1} / combination ${ci + 1}: balise 2 image is required`, 'error');
-      check(issues, !!c.piece_3, `territories[${ti}].combinations[${ci}].piece_3`, `Territory ${ti + 1} / combination ${ci + 1}: balise 3 image is required`, 'error');
-    });
+    const balises = Array.isArray(t.balises) ? t.balises : [];
+    check(issues, balises.length > 0, `territories[${ti}].balises`, `Territory ${ti + 1}: at least one balise station is required`, 'error');
+    check(issues, !!t.points && t.points !== '0', `territories[${ti}].points`, `Territory ${ti + 1}: points/minute should be greater than 0`, 'warning');
   });
+
+  // The Purge media is optional (no image ⇒ feature disabled at launch), but a
+  // sound without an image will never play - flag the likely oversight.
+  check(issues, !(config.purge_sound && !config.purge_image), 'purge_sound', 'Purge sound is set but there is no purge image - the purge is disabled (and the sound never plays) until an image is uploaded', 'warning');
 
   check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
 
@@ -157,9 +146,6 @@ export function validateTracksConfig(config: any, scenarioTitle: string, scenari
   check(issues, !!config.timer_background_image, 'timer_background_image', 'Timer frame is required', 'warning');
   check(issues, !!config.score_background_image, 'score_background_image', 'Score frame is required', 'warning');
   check(issues, !!config.time_background_image, 'time_background_image', 'Time frame is required', 'warning');
-  check(issues, !!config.top_1_image, 'top_1_image', 'Top 1 image is required', 'warning');
-  check(issues, !!config.top_3_image, 'top_3_image', 'Top 3 image is required', 'warning');
-  check(issues, !!config.top_10_image, 'top_10_image', 'Top 10 image is required', 'warning');
 
   const checkpointCount = config.checkpoints?.length ?? 0;
   check(issues, checkpointCount > 0, 'checkpoints', 'At least one checkpoint is required', 'error');

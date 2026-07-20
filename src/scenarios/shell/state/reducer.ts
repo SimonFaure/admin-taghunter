@@ -1,7 +1,7 @@
 /**
- * Editor reducer — common chrome state for the scenario shell.
+ * Editor reducer - common chrome state for the scenario shell.
  *
- * Slice 3B: simplified — `title`, `description`, `story`, and `translations`
+ * Slice 3B: simplified - `title`, `description`, `story`, and `translations`
  * fields removed. They now live as `Localized<string>` inside `gameMeta`
  * (per Stage 3 D5). The shell reads them via `getLocalized` at render/save time.
  *

@@ -1,5 +1,5 @@
 /**
- * Overscores section — gated by capabilities.hasOverscores (mystery only).
+ * Overscores section - gated by capabilities.hasOverscores (mystery only).
  *
  * Layout mirrors EnigmasSection: each overscore is a labeled card with a
  * left column of stacked text inputs (step, score, name) and a right column

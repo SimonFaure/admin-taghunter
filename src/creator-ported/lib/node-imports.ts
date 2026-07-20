@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 export const isElectron = () => {
   return typeof window !== 'undefined' &&
          typeof window.process !== 'undefined' &&

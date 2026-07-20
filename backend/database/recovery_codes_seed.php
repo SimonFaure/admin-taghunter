@@ -1,7 +1,7 @@
 <?php
 // Backfill: ensure every existing client has an offline PIN-recovery pool.
 //
-// Idempotent — a client that already has codes is skipped, so re-running only
+// Idempotent - a client that already has codes is skipped, so re-running only
 // fills gaps. New clients get a pool automatically on creation (clients.php)
 // and on first pool view (recovery_codes.php), so this only needs to run once
 // to cover clients that predate the feature.

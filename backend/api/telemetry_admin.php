@@ -98,6 +98,7 @@ try {
                     d.is_default_mother,
                     d.operator_only,
                     d.update_channel,
+                    d.billing_reprieve_until,
                     d.last_seen_at,
                     d.created_at,
                     d.updated_at,
@@ -178,7 +179,7 @@ try {
 
             // Per-item content-sync failures: all currently-failed items, plus
             // any that recovered in the last 7 days. Failed sort to the top.
-            // Guarded — an un-migrated studio simply returns an empty list.
+            // Guarded - an un-migrated studio simply returns an empty list.
             $syncFailures = [];
             try {
                 $syncFailures = $db->fetchAll(
@@ -248,7 +249,7 @@ try {
         case 'rename_device': {
             // Admin sets the display_name of any client's device. Unlike the
             // playground/client rename (devices.php / secure_auth), this is not
-            // scoped to the caller — an admin may rename any device by id.
+            // scoped to the caller - an admin may rename any device by id.
             // device_label (the OS hostname) is left untouched.
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse(['error' => 'Method not allowed'], 405);

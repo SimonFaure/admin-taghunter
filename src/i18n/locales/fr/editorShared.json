@@ -12,5 +12,7 @@
     "asset": "ressource"
   },
   "fileTypeNotAccepted": "Type de fichier non accepté ({{kind}} requis)",
-  "dragDropHint": "Glissez-déposez un fichier {{kind}} ici, ou cliquez sur Téléverser."
+  "dragDropHint": "Glissez-déposez un fichier {{kind}} ici, ou cliquez sur Téléverser.",
+  "notUsedInGo": "Non utilisé dans GO",
+  "removeTag": "Retirer {{tag}}"
 }

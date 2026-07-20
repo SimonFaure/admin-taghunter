@@ -33,7 +33,7 @@ function clientName(r: FleetErrorRow): string {
 }
 
 function formatRelative(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return iso;
   const diff = Date.now() - then;

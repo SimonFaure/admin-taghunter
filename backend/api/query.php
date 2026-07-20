@@ -28,6 +28,7 @@ session_start();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
+require_once __DIR__ . '/../utils/ScenarioHashes.php';
 
 function respond($payload, int $status = 200): void {
     http_response_code($status);
@@ -36,7 +37,7 @@ function respond($payload, int $status = 200): void {
 }
 
 function requireAuth() {
-    // Bearer/X-Auth-Token takes precedence — a stale session cookie from a
+    // Bearer/X-Auth-Token takes precedence - a stale session cookie from a
     // prior admin login must not shadow the current user's token.
     $header = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
     if ($header !== '') {
@@ -44,7 +45,7 @@ function requireAuth() {
         if ($tokenData) return $tokenData;
     }
     // Fallback: legacy session auth. Requires BOTH user_id and user_type to be
-    // set — no defaulting user_type to 'admin' (the old bug that let clients
+    // set - no defaulting user_type to 'admin' (the old bug that let clients
     // escalate if their session predated this code).
     if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
         return ['user_id' => $_SESSION['user_id'], 'user_type' => $_SESSION['user_type']];
@@ -67,7 +68,7 @@ $ALLOWED_TABLES = [
 
 // Tables only admin tokens may touch through this endpoint. Client tokens get 403
 // before any SQL runs. client_scenarios is admin-only because it's the grant join
-// table — admins manage which clients can access which product scenarios.
+// table - admins manage which clients can access which product scenarios.
 $ADMIN_ONLY_TABLES = [
     'client_scenarios',
 ];
@@ -75,7 +76,7 @@ $ADMIN_ONLY_TABLES = [
 // Columns a non-admin token may not set/change via this endpoint. A client
 // cannot promote their scenario to a product (client_id = NULL, scenario_type
 // = 'product') or masquerade ownership on patterns/layouts. Admin tokens
-// bypass all of this — they own the data model.
+// bypass all of this - they own the data model.
 $PROTECTED_WRITE_COLUMNS = [
     'scenarios' => ['client_id', 'scenario_type'],
     'patterns'  => ['owner_type', 'owner_id'],
@@ -100,7 +101,7 @@ function enforceInsertAcl(string $table, array $row, array $tokenData): array {
 
 // Returns ['column', 'value'] for the row-ownership predicate that pins UPDATE/DELETE
 // to rows owned by the current non-admin user, or null if the table is unrestricted.
-// Admin tokens always return null (no extra constraint — admins write anything).
+// Admin tokens always return null (no extra constraint - admins write anything).
 function ownerPredicate(string $table, array $tokenData): ?array {
     if (($tokenData['user_type'] ?? '') === 'admin') return null;
     $userId = $tokenData['user_id'] ?? null;
@@ -181,6 +182,36 @@ function normalizeValue($v) {
     if (is_array($v) || is_object($v)) return json_encode($v);
     if (is_bool($v)) return $v ? 1 : 0;
     return $v;
+}
+
+// Refresh data_hash/content_hash for the given scenarios after a write through
+// this generic endpoint. The studio editor saves scenarios via db-adapter
+// (this file), NOT scenarios.php, so without this the incremental-sync content
+// hash never changes and already-synced playgrounds never re-download edits.
+// Never let a hashing hiccup fail the write - the manifest builder has a
+// NULL-hash fallback.
+function recomputeScenarioHashesSafe(PDO $pdo, array $uniqids): void {
+    foreach (array_unique(array_filter($uniqids)) as $uniqid) {
+        try {
+            ScenarioHashes::recompute($pdo, (string)$uniqid);
+        } catch (Throwable $e) {
+            // Best-effort; swallow so the save still succeeds.
+        }
+    }
+}
+
+// Resolve the uniqids an UPDATE/DELETE-style where (+ owner predicate) targets,
+// so we can recompute their hashes after the write.
+function scenarioUniqidsForWhere(PDO $pdo, array $where, ?array $owner): array {
+    $params = [];
+    $whereSql = buildWhere($where, $params);
+    if ($owner !== null) {
+        $whereSql .= " AND $owner[0] = ?";
+        $params[] = $owner[1];
+    }
+    $sel = $pdo->prepare("SELECT uniqid FROM scenarios$whereSql");
+    $sel->execute($params);
+    return $sel->fetchAll(PDO::FETCH_COLUMN);
 }
 
 function buildOrder(array $order): string {
@@ -283,10 +314,21 @@ try {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
 
+            // Capture the auto-increment id + affected count NOW, before any
+            // follow-up statement runs. recomputeScenarioHashesSafe() issues an
+            // UPDATE on `scenarios` (an auto-increment table), and in MySQL such
+            // an UPDATE resets lastInsertId() to 0 - reading it afterwards would
+            // lose the id and make `returning` come back empty ("No rows
+            // returned") even though the row was inserted fine.
+            $firstId = $pdo->lastInsertId();
+            $affected = $stmt->rowCount();
+
+            if ($table === 'scenarios') {
+                recomputeScenarioHashesSafe($pdo, array_column($rows, 'uniqid'));
+            }
+
             if (!empty($body['returning'])) {
-                $firstId = $pdo->lastInsertId();
                 if ($firstId) {
-                    $affected = $stmt->rowCount();
                     $select = $pdo->prepare("SELECT * FROM $table WHERE id >= ? AND id < ?");
                     $select->execute([$firstId, $firstId + $affected]);
                     $returned = $select->fetchAll(PDO::FETCH_ASSOC);
@@ -295,7 +337,7 @@ try {
                 }
                 respond(['data' => $returned, 'error' => null]);
             }
-            respond(['data' => ['affected' => $stmt->rowCount()], 'error' => null]);
+            respond(['data' => ['affected' => $affected], 'error' => null]);
         }
 
         case 'update': {
@@ -322,9 +364,19 @@ try {
                 $params[] = $owner[1];
             }
 
+            // Capture the targeted uniqids BEFORE recompute (the where still
+            // matches - we only changed non-key columns like data/version).
+            $scenarioUniqids = $table === 'scenarios'
+                ? scenarioUniqidsForWhere($pdo, $body['where'] ?? [], $owner)
+                : [];
+
             $sql = "UPDATE $table SET " . implode(',', $setClauses) . $whereSql;
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
+
+            if ($table === 'scenarios') {
+                recomputeScenarioHashesSafe($pdo, $scenarioUniqids);
+            }
 
             if (!empty($body['returning'])) {
                 $selParams = [];
@@ -389,6 +441,10 @@ try {
                  . " ON DUPLICATE KEY UPDATE " . implode(',', $updateList);
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
+
+            if ($table === 'scenarios') {
+                recomputeScenarioHashesSafe($pdo, array_column($rows, 'uniqid'));
+            }
 
             if (!empty($body['returning']) && $onConflict !== null) {
                 $keys = array_column($rows, $onConflict);

@@ -58,14 +58,13 @@ export const DEFAULT_DISPLAY_LANG: Lang = 'fr';
  * The operator-facing subset chrome ships today. Grow this (add `'es'`, …) as
  * markets come online and the corresponding chrome XLSX is translated + imported.
  */
-export const CHROME_LANGS: readonly Lang[] = ['fr', 'en'] as const;
+export const CHROME_LANGS: readonly Lang[] = ['fr', 'en', 'es'] as const;
 
 /**
  * The languages a *client* can pick as their account language (drives their
  * Studio UI language + seeds playground onboarding + scenario defaults).
- * Superset of `CHROME_LANGS` by `es`: a client may select Spanish even though
- * the operator chrome switcher doesn't offer it yet. Until the `es` chrome
- * catalogs land (Phase 2), an `es` client resolves keys via the `en` pivot.
+ * Now matches `CHROME_LANGS` (fr/en/es): the `es` chrome catalogs have landed,
+ * so a Spanish client resolves keys directly instead of via the `en` pivot.
  * Design: project_client_language.
  */
 export const CLIENT_LANGS: readonly Lang[] = ['fr', 'en', 'es'] as const;

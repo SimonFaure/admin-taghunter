@@ -1,0 +1,66 @@
+{
+  "malusCombo": {
+    "sectionTitle": "Penalización y combo",
+    "keys": {
+      "malus_points": "puntos de penalización",
+      "late_malus_points": "puntos de penalización por retraso",
+      "combo_2_quests": "combo 2 misiones",
+      "combo_4_quests": "combo 4 misiones",
+      "combo_6_quests": "combo 6 misiones"
+    }
+  },
+  "pattern": {
+    "sectionTitle": "Patrón por defecto",
+    "label": "Patrón tagquest por defecto (imágenes de misión → correspondencia de estaciones)",
+    "none": "- Ninguno -",
+    "notFoundOption": "{{value}} (no encontrado)",
+    "hint": "Asigna las cuatro imágenes de pieza de cada misión a estaciones/balizas. Crea patrones tagquest en la página Patrones. La correspondencia se muestra junto a cada imagen debajo. Modificable al lanzar."
+  },
+  "productTemplate": {
+    "notice": "<0>Plantilla de producto:</0> las opciones «usar imágenes/textos por defecto» del editor anterior aún no están portadas. Volverán en una próxima actualización; por ahora, crea los nuevos escenarios tagquest desde cero."
+  },
+  "quests": {
+    "sectionTitle": "Misiones",
+    "addQuest": "Añadir misión",
+    "addQuestTitle": "Añadir una nueva misión",
+    "maxQuestsTitle": "Máximo {{max}} misiones",
+    "collapseQuest": "Contraer misión",
+    "expandQuest": "Expandir misión",
+    "removeQuest": "Eliminar misión",
+    "unnamedQuest": "Misión sin nombre",
+    "unknownStation": "Estación desconocida",
+    "piecesProgress": "{{n}}/4 piezas",
+    "pts": "{{points}} pts",
+    "questName": "Nombre de la misión",
+    "points": "Puntos",
+    "mainImageHint": "La imagen completa revelada cuando se encuentran las 4 piezas",
+    "mainImageLabel": "Imagen principal",
+    "soundHint": "Se reproduce cuando se completa la misión",
+    "soundLabel": "Sonido de la misión",
+    "fourImages": "Cuatro imágenes por encontrar <1>- cada una forma un cuadrante de la imagen principal</1>",
+    "noQuests": "Aún no hay misiones.",
+    "overCapWarning_one": "Este escenario tiene {{total}} misiones, pero Tagquest ahora admite un máximo de {{max}}. La {{count}} misión sobrante se eliminará al guardar. Elimina las misiones no deseadas para elegir cuáles conservar.",
+    "overCapWarning_other": "Este escenario tiene {{total}} misiones, pero Tagquest ahora admite un máximo de {{max}}. Las {{count}} misiones sobrantes se eliminarán al guardar. Elimina las misiones no deseadas para elegir cuáles conservar.",
+    "pieces": {
+      "topLeft": "Arriba a la izquierda",
+      "topRight": "Arriba a la derecha",
+      "bottomLeft": "Abajo a la izquierda",
+      "bottomRight": "Abajo a la derecha"
+    }
+  },
+  "images": {
+    "sectionTitle": "Imágenes tagquest",
+    "useDefaultTemplate": "Usar plantilla por defecto",
+    "downloadDefault": "Descargar la plantilla por defecto (úsala como guía para un diseño personalizado)",
+    "customTemplateHint": "La plantilla personalizada debe ser un PNG 16:9 con fondo transparente. Las posiciones del texto (temporizador, puntuación, penalización, combo, lista de misiones) permanecen fijas - alinea tu diseño con la plantilla por defecto descargable.",
+    "downloadFailed": "Error de descarga",
+    "errTooLarge": "El archivo es demasiado grande ({{mb}} MB). Máximo 5 MB.",
+    "errNotPng": "La plantilla debe ser un PNG (con fondo transparente).",
+    "errDecode": "No se pudo decodificar la imagen.",
+    "errAspect": "La plantilla debe ser 16:9 (obtenido {{width}}×{{height}}, ratio {{ratio}}).",
+    "errOpaque": "La plantilla debe tener un fondo transparente (las cuatro esquinas parecen opacas)."
+  },
+  "sounds": {
+    "sectionTitle": "Sonidos tagquest"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "enigmaTiming": {
+    "title": "Enigma sounds"
+  },
+  "frame": {
+    "title": "Frame & chrome"
+  },
+  "gauge": {
+    "title": "Levels gauge",
+    "gaugeFilling": "Gauge filling"
+  },
+  "instructions": {
+    "title": "Refresh button"
+  },
+  "scoring": {
+    "title": "Scoring",
+    "numberOfEnigmas": "number of enigmas",
+    "scoreFullGame": "score full game",
+    "malusBothAnswers": "malus if both answers are biped",
+    "malusNoAnswer": "malus if no answer",
+    "pointsUnits": "points units",
+    "unitPts": "pts",
+    "unitPercent": "%"
+  },
+  "enigmas": {
+    "title": "Enigmas",
+    "generateMissingCodes": "Generate missing codes",
+    "addEnigma": "Add enigma",
+    "empty": "No enigmas yet.",
+    "enigmaLabel": "Enigma {{number}}",
+    "removeEnigma": "Remove enigma",
+    "number": "Number",
+    "goShortCode": "GO short code (printed on the panneau)",
+    "shortCodePlaceholder": "e.g. AXQ",
+    "generateUniqueCode": "Generate a unique code",
+    "questionText": "Question / text ({{lang}})",
+    "goodAnswerPoints": "Good answer points",
+    "wrongAnswerPoints": "Wrong answer points",
+    "goodAnswerImage": "Good answer image",
+    "wrongAnswerImage": "Wrong answer image",
+    "wrongAnswerImage2": "Wrong answer image 2 (GO)",
+    "wrongAnswerImage3": "Wrong answer image 3 (GO)",
+    "unknownStation": "Unknown station"
+  },
+  "goOption": {
+    "sectionTitle": "Tag Hunter GO",
+    "toggleLabel": "Adaptable to Tag Hunter GO",
+    "description": "Hardware-free, phone-browser version of this Mystery. Players type a short code on each panneau and tap a letter - no RFID. Greyed sections below aren’t used in GO.",
+    "answerOptions": "Number of answer options",
+    "option2": "2 - A / B",
+    "option4": "4 - A / B / C / D",
+    "hint": "4 options is GO-only and adds two extra wrong-answer images per enigma. Each enigma needs a short code; the correct letter per enigma comes from the GO pattern (modèle)."
+  },
+  "dropOption": {
+    "sectionTitle": "Tag Hunter Drop",
+    "toggleLabel": "Adaptable to Tag Hunter Drop",
+    "description": "Hardware-free, on-screen version of this Mystery. Answer images appear on the device instead of being scanned via RFID stations - no chips needed. Enabling this keeps the scenario usable with RFID and GO too."
+  },
+  "gradient": {
+    "rawCss": "Raw CSS gradient",
+    "parseIntoStops": "Parse into stops",
+    "keepEditing": "(or keep editing raw CSS)",
+    "stopColor": "Stop color",
+    "alpha": "Alpha",
+    "pos": "Pos",
+    "removeStop": "Remove stop",
+    "addStop": "Add stop",
+    "editRawCss": "Edit raw CSS"
+  },
+  "pattern": {
+    "title": "Default pattern",
+    "defaultMysteryPattern": "Default mystery pattern (enigma answer images → station mapping)",
+    "none": "- None -",
+    "notFound": "{{value}} (not found)",
+    "rfidHint": "Assigns each enigma's good/wrong answer images to stations/balises (RFID Playground). The mapping is shown next to each image below. Overridable at launch.",
+    "defaultGoPattern": "Default GO pattern (letter answer key for Tag Hunter GO)",
+    "createRandom": "Create random",
+    "goHint": "Every client granted this scenario in GO uses this pattern. “Create random” builds one with a randomised correct letter per enigma; edit it later from the Patterns page.",
+    "createModalTitle": "Create random GO pattern",
+    "numberOfEnigmas": "Number of enigmas",
+    "generateHint": "Generates {{answers}} answers with the correct letter randomised per enigma, and selects it as this scenario’s default GO pattern.",
+    "cancel": "Cancel",
+    "creating": "Creating…",
+    "create": "Create",
+    "insertFailed": "Insert failed",
+    "createFailed": "Failed to create pattern"
+  }
+}

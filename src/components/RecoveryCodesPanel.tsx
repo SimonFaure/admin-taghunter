@@ -9,7 +9,7 @@ interface RecoveryCodesPanelProps {
 // Per-client offline PIN-recovery codes, rendered inline inside the client
 // detail page. The admin reads one to an operator who has forgotten the device
 // PIN at an offline event; the playground validates it locally and clears the
-// PIN. "Regenerate all" issues a fresh set and invalidates the old — but only
+// PIN. "Regenerate all" issues a fresh set and invalidates the old - but only
 // on a device AFTER it re-syncs, so regenerate while devices are online.
 //
 // The server auto-provisions a pool on first view (get_pool), so this always
@@ -80,7 +80,7 @@ export function RecoveryCodesPanel({ clientId }: RecoveryCodesPanelProps) {
       setCopiedIndex(entry.code_index);
       setTimeout(() => setCopiedIndex((i) => (i === entry.code_index ? null : i)), 1500);
     } catch {
-      /* clipboard blocked — ignore */
+      /* clipboard blocked - ignore */
     }
   };
 
@@ -92,7 +92,7 @@ export function RecoveryCodesPanel({ clientId }: RecoveryCodesPanelProps) {
         Read one of these to an operator who has forgotten the device PIN at an
         offline event. Each code works <strong>once per device</strong>, then
         clears that device’s PIN. Codes sync to the client’s devices while
-        they’re online — regenerate before sending devices to an offline event.
+        they’re online - regenerate before sending devices to an offline event.
       </p>
 
       {error && (
@@ -138,7 +138,12 @@ export function RecoveryCodesPanel({ clientId }: RecoveryCodesPanelProps) {
                   </div>
                   {entry.used_at ? (
                     <div className="text-[11px] text-slate-500 truncate">
-                      used · {entry.used_device_label ?? 'a device'} · {formatUsedAt(entry.used_at)}
+                      {entry.used_context === 'billing'
+                        ? 'billing reprieve'
+                        : entry.used_context === 'pin'
+                        ? 'PIN reset'
+                        : 'used'}{' '}
+                      · {entry.used_device_label ?? 'a device'} · {formatUsedAt(entry.used_at)}
                     </div>
                   ) : (
                     <div className="text-[11px] text-emerald-600">unused</div>

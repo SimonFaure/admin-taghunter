@@ -4,10 +4,10 @@ Token + OTP auth for the admin app and its clients. Entry points: [backend/api/s
 
 ## Model
 
-- **Session token** — 24 h, SHA-256 hashed at rest, refreshable, revoked on logout. Sent via `X-Auth-Token` header.
-- **OTP** — 6-digit code, 15 min TTL, single-use. Delivered via PHP `mail()` (swap for SendGrid/SES/Mailgun in prod).
-- **Long-lived "remember me" token** — 30 day TTL, `long_lived = 1` in `auth_tokens`. Its only job is to let a subsequent email/password login skip OTP. It's never used as a session token itself — successful smart login still mints a fresh 24 h session token.
-- **Rate limiting** — 5 failed attempts/hour/email, 10 failed attempts/15 min/IP, 3 code requests/hour/email. HTTP 429 on overflow.
+- **Session token** - 24 h, SHA-256 hashed at rest, refreshable, revoked on logout. Sent via `X-Auth-Token` header.
+- **OTP** - 6-digit code, 15 min TTL, single-use. Delivered via PHP `mail()` (swap for SendGrid/SES/Mailgun in prod).
+- **Long-lived "remember me" token** - 30 day TTL, `long_lived = 1` in `auth_tokens`. Its only job is to let a subsequent email/password login skip OTP. It's never used as a session token itself - successful smart login still mints a fresh 24 h session token.
+- **Rate limiting** - 5 failed attempts/hour/email, 10 failed attempts/15 min/IP, 3 code requests/hour/email. HTTP 429 on overflow.
 - **Security headers** applied to every response: `X-Content-Type-Options`, `X-Frame-Options: DENY`, `X-XSS-Protection`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`.
 - **CORS allowlist:** `http://localhost:{5173,3000,4173}` in dev, `https://admin.taghunter.fr` in prod. Everything else → 403.
 
@@ -20,11 +20,11 @@ const LONG_LIVED_TOKEN_EXPIRY_DAYS = 30;
 
 ## Schema
 
-**`auth_tokens`** — `id`, `client_id`, `token` (hashed), `expires_at`, `created_at`, `ip_address`, `user_agent`, `revoked`, `long_lived`.
+**`auth_tokens`** - `id`, `client_id`, `token` (hashed), `expires_at`, `created_at`, `ip_address`, `user_agent`, `revoked`, `long_lived`.
 
-**`login_attempts`** — `id`, `email`, `ip_address`, `success`, `attempted_at`, `failure_reason`. Used by the rate limiter.
+**`login_attempts`** - `id`, `email`, `ip_address`, `success`, `attempted_at`, `failure_reason`. Used by the rate limiter.
 
-**`one_time_codes`** — `id`, `email`, `code`, `expires_at`, `used`, `created_at`, `ip_address`.
+**`one_time_codes`** - `id`, `email`, `code`, `expires_at`, `used`, `created_at`, `ip_address`.
 
 ### Applying the `long_lived` column
 
@@ -55,7 +55,7 @@ PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
 
 All `POST`, all under `backend/api/secure_auth.php`.
 
-### `action=login` — smart login
+### `action=login` - smart login
 
 Validates email + password, then checks for a valid `long_lived` token for that user.
 
@@ -178,6 +178,6 @@ Run via cron (not per-request):
 
 ## Operational notes
 
-- Never put tokens in URLs — headers or bodies only. Consider `httpOnly` cookies in prod.
-- Email delivery is `mail()` today — for production, move to a proper SMTP provider with bounce handling.
+- Never put tokens in URLs - headers or bodies only. Consider `httpOnly` cookies in prod.
+- Email delivery is `mail()` today - for production, move to a proper SMTP provider with bounce handling.
 - Indexes on `auth_tokens(user_id, long_lived, expires_at)` and `login_attempts(email, attempted_at)` keep rate limiting cheap. Consider caching validated tokens in Redis at higher traffic.

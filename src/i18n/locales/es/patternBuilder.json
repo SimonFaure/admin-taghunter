@@ -6,7 +6,7 @@
   "close": "Cerrar",
   "gameType": "Tipo de juego",
   "name": "Nombre",
-  "namePlaceholder": "p. ej. Sala A — recorrido 1",
+  "namePlaceholder": "p. ej. Sala A - recorrido 1",
   "description": "Descripción (opcional)",
   "importExcel": "Importar CSV / Excel",
   "orDownloadTemplate": "o descargue una plantilla:",

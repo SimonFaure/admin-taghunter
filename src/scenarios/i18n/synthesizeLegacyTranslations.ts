@@ -5,7 +5,7 @@
  * Used by:
  *   - `buildZipPayload` in adapters (back-compat ZIP shape until consumers
  *     are updated)
- *   - `playground.php` compat layer (PHP equivalent — keep them in sync)
+ *   - `playground.php` compat layer (PHP equivalent - keep them in sync)
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 3 section)
  */

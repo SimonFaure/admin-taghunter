@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BarChart3, Users, TrendingUp, Gamepad2, UserCircle } from 'lucide-react';
+import { Users, TrendingUp, Gamepad2, UserCircle } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { HelpButton } from '../help';
+import { StatsActivityChart, type TimeseriesRow } from './StatsActivityChart';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -69,6 +70,7 @@ const EMPTY_FILTERS: FilterState = { from: '', to: '', game_type: '', scenario_u
 export function StatisticsView() {
   const { t, i18n } = useTranslation('statistics');
   const [stats, setStats] = useState<OverviewResp | null>(null);
+  const [series, setSeries] = useState<TimeseriesRow[]>([]);
   const [games, setGames] = useState<GameRow[]>([]);
   const [options, setOptions] = useState<FiltersResp | null>(null);
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
@@ -92,17 +94,19 @@ export function StatisticsView() {
       setError(null);
       const qs = queryString();
       const suffix = qs ? `&${qs}` : '';
-      const [overviewRes, listRes, filtersRes] = await Promise.all([
+      const [overviewRes, listRes, filtersRes, seriesRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/statistics.php?action=overview${suffix}`),
         authFetch(`${API_BASE_URL}/statistics.php?action=list&limit=200${suffix}`),
         authFetch(`${API_BASE_URL}/statistics.php?action=filters${suffix}`),
+        authFetch(`${API_BASE_URL}/statistics.php?action=timeseries${suffix}`),
       ]);
-      if (!overviewRes.ok || !listRes.ok || !filtersRes.ok) {
+      if (!overviewRes.ok || !listRes.ok || !filtersRes.ok || !seriesRes.ok) {
         throw new Error(t('errors.fetchFailed'));
       }
       setStats(await overviewRes.json());
       setGames((await listRes.json()).games ?? []);
       setOptions(await filtersRes.json());
+      setSeries((await seriesRes.json()).rows ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.loadFailed'));
     } finally {
@@ -115,7 +119,6 @@ export function StatisticsView() {
   }, [fetchData]);
 
   const isAdmin = stats?.is_admin ?? false;
-  const maxPerDay = stats ? Math.max(1, ...stats.games_per_day.map((d) => d.count)) : 1;
 
   const setFilter = (k: keyof FilterState, v: string) => setFilters((prev) => ({ ...prev, [k]: v }));
 
@@ -195,6 +198,8 @@ export function StatisticsView() {
             <KpiCard icon={<UserCircle className="w-6 h-6 text-amber-600" />} bg="bg-amber-100" value={stats.overview.total_players} label={t('kpi.players')} lang={i18n.language} />
           </div>
 
+          <StatsActivityChart rows={series} allGameTypes={options?.game_types ?? []} from={filters.from} to={filters.to} />
+
           <div className={`grid grid-cols-1 ${isAdmin ? 'lg:grid-cols-2' : ''} gap-6`}>
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
               <div className="flex items-center space-x-2 mb-4">
@@ -242,25 +247,6 @@ export function StatisticsView() {
             )}
           </div>
 
-          {stats.games_per_day.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <BarChart3 className="w-5 h-5 text-slate-700" />
-                <h3 className="text-lg font-bold text-slate-900">{t('perDay.title')}</h3>
-              </div>
-              <div className="space-y-2">
-                {stats.games_per_day.slice(0, 14).map((day) => (
-                  <div key={day.date} className="flex items-center space-x-4">
-                    <span className="text-sm text-slate-600 w-24">{new Date(day.date).toLocaleDateString(i18n.language)}</span>
-                    <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
-                      <div className="bg-blue-600 h-full rounded-full" style={{ width: `${Math.min((day.count / maxPerDay) * 100, 100)}%` }} />
-                    </div>
-                    <span className="text-sm font-semibold text-slate-900 w-12 text-right">{day.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

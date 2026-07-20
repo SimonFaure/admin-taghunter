@@ -19,3 +19,22 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 
 # Deny access to config and database directories
 RewriteRule ^(config|database)/ - [F,L]
+
+# Raise upload limits for large media POSTs (game-type tutorial videos,
+# scenario imports). This block ONLY applies on legacy mod_php hosts; on
+# CGI/FastCGI/FPM hosts these directives are ignored and backend/.user.ini
+# takes effect instead. Wrapped in <IfModule> so a FastCGI host doesn't 500.
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 512M
+    php_value post_max_size 520M
+    php_value memory_limit 512M
+    php_value max_execution_time 600
+    php_value max_input_time 600
+</IfModule>
+<IfModule mod_php.c>
+    php_value upload_max_filesize 512M
+    php_value post_max_size 520M
+    php_value memory_limit 512M
+    php_value max_execution_time 600
+    php_value max_input_time 600
+</IfModule>

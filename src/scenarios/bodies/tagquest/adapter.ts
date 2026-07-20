@@ -1,5 +1,5 @@
 /**
- * Tagquest adapter — type-specific contract for the shell.
+ * Tagquest adapter - type-specific contract for the shell.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
@@ -109,7 +109,7 @@ function enumerateMedia(gameMeta: TagquestGameMeta): readonly EnumeratedMedia[] 
       });
     }
   });
-  // Author-uploaded custom font files — bundled so they travel in the ZIP.
+  // Author-uploaded custom font files - bundled so they travel in the ZIP.
   ((gameMeta.custom_fonts as CustomFont[] | undefined) ?? []).forEach((cf, cfIdx) => {
     (cf.faces ?? []).forEach((face, faceIdx) => {
       if (face.filename) {
@@ -214,7 +214,6 @@ export const tagquestAdapter: ScenarioAdapter<TagquestGameMeta> = {
   capabilities: {
     hasLevels: true,
     hasOverscores: false,
-    hasPodium: true,
     supportsProductTemplate: true,
     hasTranslatableArrays: ['quests', 'levels'],
   },

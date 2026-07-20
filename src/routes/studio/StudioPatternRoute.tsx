@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PatternEditor } from '../../creator-ported/components/PatternEditor';
+import { GoPatternEditor } from '../../creator-ported/components/GoPatternEditor';
 import { db } from '../../creator-ported/lib/db';
 import { useAuth } from '../../auth/AuthContext';
 
@@ -9,6 +10,8 @@ interface PatternRow {
   pattern_uniqid: string;
   name: string;
   game_type: string;
+  mode?: string | null;
+  answer_count?: number | null;
 }
 
 export function StudioPatternRoute() {
@@ -35,7 +38,7 @@ export function StudioPatternRoute() {
       try {
         const { data, error: e } = await db
           .from('patterns')
-          .select('id, pattern_uniqid, name, game_type')
+          .select('id, pattern_uniqid, name, game_type, mode, answer_count')
           .eq('pattern_uniqid', uniqid)
           .maybeSingle();
         if (cancelled) return;
@@ -69,6 +72,17 @@ export function StudioPatternRoute() {
           Back
         </button>
       </div>
+    );
+  }
+
+  if (pattern.mode === 'go') {
+    return (
+      <GoPatternEditor
+        patternId={String(pattern.id)}
+        patternName={pattern.name}
+        answerCount={pattern.answer_count === 4 ? 4 : 2}
+        onBack={goToPatternsList}
+      />
     );
   }
 

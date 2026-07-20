@@ -105,7 +105,7 @@ export function PatternBuilderModal({ token, pattern, onClose, onCreated }: Patt
     );
   };
 
-  // Station ids already assigned anywhere in this pattern — used to stop a
+  // Station ids already assigned anywhere in this pattern - used to stop a
   // station being picked twice (each disabled in the other cells' dropdowns).
   const usedStationKeys = useMemo(() => {
     const used = new Set<number>();
@@ -129,7 +129,7 @@ export function PatternBuilderModal({ token, pattern, onClose, onCreated }: Patt
       const XLSX = await import('xlsx');
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
-      // A downloaded pattern carries a "meta" sheet + a "pattern" grid sheet —
+      // A downloaded pattern carries a "meta" sheet + a "pattern" grid sheet -
       // prefer the grid; otherwise fall back to the first sheet.
       const sheetName = wb.SheetNames.find((n) => n.toLowerCase() === 'pattern') ?? wb.SheetNames[0];
       const sheet = wb.Sheets[sheetName];

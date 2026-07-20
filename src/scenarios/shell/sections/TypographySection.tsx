@@ -1,12 +1,12 @@
 /**
- * Typography section — font picker, custom-font uploads, and the two colors.
+ * Typography section - font picker, custom-font uploads, and the two colors.
  *
  * `game_meta.font` holds a plain family-name string selected from the curated
  * catalog OR the scenario's uploaded `custom_fonts`. A value that matches
  * neither (legacy free-text) is preserved as its own picker entry. The chosen
  * font becomes the in-game text font (see the playground renderer).
  *
- * The preview text is editable (authoring convenience only — not persisted)
+ * The preview text is editable (authoring convenience only - not persisted)
  * and defaults to the scenario title plus a glyph sampler.
  *
  * Plan: C:\Users\faure\.claude\plans\studio-custom-fonts-typography.md
@@ -54,8 +54,8 @@ export function TypographySection() {
 
   const previewStack = resolveFontFamily(fontValue);
 
-  // Preview text — editable, authoring-only (never written to the scenario).
-  // Default = "<scenario title> — AaBbCc 0123 éèàâëù". `customPreviewText`
+  // Preview text - editable, authoring-only (never written to the scenario).
+  // Default = "<scenario title> - AaBbCc 0123 éèàâëù". `customPreviewText`
   // stays null until the author types, so the default keeps tracking the
   // title as it is edited; once edited, the author's text is kept.
   const scenarioTitle = getLocalized(
@@ -64,12 +64,12 @@ export function TypographySection() {
     editor.defaultLanguage as Lang,
   );
   const defaultPreviewText = scenarioTitle
-    ? `${scenarioTitle} — ${PREVIEW_SAMPLE}`
+    ? `${scenarioTitle} - ${PREVIEW_SAMPLE}`
     : PREVIEW_SAMPLE;
   const [customPreviewText, setCustomPreviewText] = useState<string | null>(null);
   const previewText = customPreviewText ?? defaultPreviewText;
 
-  // Preview background — authoring-only toggle so light/dark fonts can be
+  // Preview background - authoring-only toggle so light/dark fonts can be
   // checked against either backdrop. Not persisted.
   const [previewBg, setPreviewBg] = useState<'white' | 'black'>('white');
 
@@ -155,7 +155,7 @@ export function TypographySection() {
                 {t('typography.resetToDefault')}
               </button>
             )}
-            {/* Preview background swatches — black / white. */}
+            {/* Preview background swatches - black / white. */}
             <div className="flex items-center gap-1" role="group" aria-label={t('typography.previewBackground')}>
               <button
                 type="button"

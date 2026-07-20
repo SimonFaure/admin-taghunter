@@ -38,7 +38,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- devices.device_uniq  (per-install unique id, required by the new auth flow)
 -- This column is created by cards_and_devices_migration.sql, but on legacy
--- schemas it may be missing — add it here defensively. Without it, the
+-- schemas it may be missing - add it here defensively. Without it, the
 -- playground client cannot identify itself to the server.
 -- (Comments here intentionally avoid semicolons: some migration runners split
 --  on `;` before stripping comments, so a `;` in prose corrupts the next stmt.)
@@ -53,7 +53,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- Unique index on devices.device_uniq (only if not already present).
 -- Skipped if there are existing rows with NULL/duplicate device_uniq values
--- — the index creation will fail in that case. Manual cleanup required.
+-- - the index creation will fail in that case. Manual cleanup required.
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
        WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'devices' AND COLUMN_NAME = 'device_uniq' AND NON_UNIQUE = 0) > 0,
@@ -65,7 +65,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- devices.playground_version  (last app version seen from this device)
 -- Created by cards_and_devices_migration.sql CREATE TABLE, but that is a no-op
--- on legacy `devices` tables that predate it — so backfill defensively here.
+-- on legacy `devices` tables that predate it - so backfill defensively here.
 -- DeviceManager INSERTs and SELECTs this column, so login fails without it.
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @sql = (SELECT IF(

@@ -1,9 +1,10 @@
 /**
- * Malus / combo section — malus_points, late_malus_points, combo_2/4/6_quests.
+ * Malus / combo section - malus_points, late_malus_points, combo_2/4/6_quests.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 
@@ -11,12 +12,13 @@ const MALUS_KEYS = ['malus_points', 'late_malus_points'] as const;
 const COMBO_KEYS = ['combo_2_quests', 'combo_4_quests', 'combo_6_quests'] as const;
 
 export function MalusComboSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
 
   const field = (key: string) => (
     <label key={key} className="block">
-      <span className="text-xs font-medium text-gray-700 mb-1 block">{prettyKey(key)}</span>
+      <span className="text-xs font-medium text-gray-700 mb-1 block">{t(`editorTagquest:malusCombo.keys.${key}`)}</span>
       <input
         type="text"
         value={String(meta[key] ?? '')}
@@ -31,7 +33,7 @@ export function MalusComboSection() {
   );
 
   return (
-    <CollapsibleSection title="Malus & combo">
+    <CollapsibleSection title={t('editorTagquest:malusCombo.sectionTitle')}>
       <div className="grid grid-cols-2 gap-3">
         {MALUS_KEYS.map(field)}
       </div>
@@ -41,8 +43,4 @@ export function MalusComboSection() {
       </div>
     </CollapsibleSection>
   );
-}
-
-function prettyKey(k: string): string {
-  return k.replace(/_/g, ' ');
 }

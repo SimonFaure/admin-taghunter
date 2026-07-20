@@ -11,4 +11,9 @@ export interface ClientScenario extends Scenario {
   // cards/filters can show audience + difficulty without parsing the data blob.
   difficulty?: string | null;
   audience?: string | null;
+  // Tag Hunter GO: whether this scenario exists in GO mode (+ answer count).
+  adaptable_go?: boolean;
+  go_answer_count?: number | null;
+  // Tag Hunter Drop: whether this scenario is Drop-capable.
+  adaptable_drop?: boolean;
 }

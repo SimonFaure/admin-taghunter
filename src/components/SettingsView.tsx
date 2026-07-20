@@ -200,7 +200,7 @@ export function SettingsView() {
           <div className="flex justify-between items-center py-2">
             <span className="text-sm text-slate-600">MySQL server</span>
             <span className="text-sm font-medium text-slate-900 font-mono">
-              {dbInfo?.server_version ?? (dbInfoError ? '—' : 'loading…')}
+              {dbInfo?.server_version ?? (dbInfoError ? '-' : 'loading…')}
             </span>
           </div>
         </div>

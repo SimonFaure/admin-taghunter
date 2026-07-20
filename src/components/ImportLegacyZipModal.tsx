@@ -260,7 +260,7 @@ export function ImportLegacyZipModal({ open, onClose, onSuccess }: ImportLegacyZ
                   <strong>Format:</strong> <code>main_export_file.csv</code> + <code>games/{'{slug}'}/csv/*.csv</code> + <code>games/{'{slug}'}/media/*</code>.
                 </p>
                 <p><strong>Game types:</strong> mystery and tagquest (survival rows are skipped).</p>
-                <p><strong>Conflicts:</strong> scenarios whose <code>uniqid</code> already exists are skipped — delete them first to re-import.</p>
+                <p><strong>Conflicts:</strong> scenarios whose <code>uniqid</code> already exists are skipped - delete them first to re-import.</p>
               </div>
             </>
           )}

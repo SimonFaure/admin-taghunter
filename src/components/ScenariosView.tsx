@@ -76,15 +76,24 @@ function getScenarioUnivers(scenario: Scenario): string[] {
   return normalizeUnivers(getScenarioMeta(scenario).univers);
 }
 
+// Tag Hunter GO: whether the scenario exists in GO mode, and its answer count.
+function isScenarioGo(scenario: Scenario): boolean {
+  return getScenarioMeta(scenario).adaptable_go === true;
+}
+function getScenarioGoAnswerCount(scenario: Scenario): number | null {
+  const n = getScenarioMeta(scenario).go_answer_count;
+  return n === 4 ? 4 : n === 2 ? 2 : null;
+}
+
 // The base provenance/status filters plus, dynamically, one entry per
 // registered game type (its `kind`, e.g. 'mystery' | 'tagquest' | 'tracks').
 // The `(string & {})` keeps literal autocomplete while accepting any game-type kind.
 type ScenarioFilter = 'all' | 'products' | 'client-authored' | 'drafts' | (string & {});
 
-export function ScenariosView() {
+export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: ScenarioFilter } = {}) {
   const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [filter, setFilter] = useState<ScenarioFilter>('all');
+  const [filter, setFilter] = useState<ScenarioFilter>(initialFilter);
   // One filter chip per registered game type. Driven by the adapter registry,
   // so adding a game type (a `registerAdapter(...)` line in bootstrap.ts) makes
   // its chip appear here automatically.
@@ -120,7 +129,7 @@ export function ScenariosView() {
   const [groupBy, setGroupBy] = useState<'scenario_type' | 'game_type'>('scenario_type');
   const [showImportModal, setShowImportModal] = useState(false);
   const [showGameTypesModal, setShowGameTypesModal] = useState(false);
-  // Catalog metadata filters — independent multi-selects, AND across categories,
+  // Catalog metadata filters - independent multi-selects, AND across categories,
   // OR within each. A scenario passes the band filter if it includes ANY selected
   // band; the difficulty filter if its level is in the selected set; the univers
   // filter if it carries ANY selected tag.
@@ -133,7 +142,7 @@ export function ScenariosView() {
     fetchScenarios();
   }, []);
 
-  // Distinct univers tags across all loaded scenarios — drives the univers filter chips.
+  // Distinct univers tags across all loaded scenarios - drives the univers filter chips.
   const universPool = useMemo(() => {
     const pool = new Set<string>();
     for (const s of scenarios) for (const tag of getScenarioUnivers(s)) pool.add(tag);
@@ -1014,6 +1023,7 @@ export function ScenariosView() {
     if (filter === 'products') return s.scenario_type === 'product' || s.client_id === null;
     if (filter === 'client-authored') return s.scenario_type === 'custom' || s.client_id !== null;
     if (filter === 'drafts') return (s.status || 'draft') === 'draft';
+    if (filter === 'go') return isScenarioGo(s);
     // Otherwise `filter` is a game-type kind (e.g. 'mystery' | 'tagquest' | 'tracks').
     return s.game_type === filter;
   };
@@ -1195,6 +1205,11 @@ export function ScenariosView() {
                   <span>v{getGameVersion(scenario)}</span>
                 </div>
               )}
+              {isScenarioGo(scenario) && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-100">
+                  GO{getScenarioGoAnswerCount(scenario) ? ` · ${getScenarioGoAnswerCount(scenario) === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
+                </span>
+              )}
               {bands.length > 0 && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50">
                   <User className="w-3 h-3" />
@@ -1283,7 +1298,7 @@ export function ScenariosView() {
               {scenario.scenario_type}
             </span>
           ) : (
-            <span className="text-slate-300 text-xs">—</span>
+            <span className="text-slate-300 text-xs">-</span>
           )}
         </td>
         <td className="px-4 py-3">
@@ -1294,7 +1309,7 @@ export function ScenariosView() {
                 {bands.map((b) => getBandLabel(b)).join(' · ')}
               </span>
             ) : (
-              <span className="text-slate-300 text-xs">—</span>
+              <span className="text-slate-300 text-xs">-</span>
             );
           })()}
         </td>
@@ -1306,7 +1321,7 @@ export function ScenariosView() {
                 {formatDifficultyStars(difficulty)}
               </span>
             ) : (
-              <span className="text-slate-300 text-xs">—</span>
+              <span className="text-slate-300 text-xs">-</span>
             );
           })()}
         </td>
@@ -1316,7 +1331,7 @@ export function ScenariosView() {
               v{version}
             </span>
           ) : (
-            <span className="text-slate-300 text-xs">—</span>
+            <span className="text-slate-300 text-xs">-</span>
           )}
         </td>
         <td className="px-4 py-3">
@@ -1331,14 +1346,14 @@ export function ScenariosView() {
               {scenario.status}
             </span>
           ) : (
-            <span className="text-slate-300 text-xs">—</span>
+            <span className="text-slate-300 text-xs">-</span>
           )}
         </td>
         <td className="px-4 py-3">
           {scenario.client_name ? (
             <span className="text-sm text-slate-600 truncate max-w-[140px] block">{scenario.client_name}</span>
           ) : (
-            <span className="text-slate-300 text-xs">—</span>
+            <span className="text-slate-300 text-xs">-</span>
           )}
         </td>
         <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">
@@ -1453,6 +1468,21 @@ export function ScenariosView() {
             {label}
           </button>
         ))}
+
+        {/* Tag Hunter GO filter - scenarios that exist in GO mode. */}
+        {scenarios.some((s) => isScenarioGo(s)) && (
+          <button
+            type="button"
+            onClick={() => setFilter('go')}
+            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              filter === 'go'
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-300'
+            }`}
+          >
+            GO
+          </button>
+        )}
 
         {gameTypeFilters.length > 0 && (
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />

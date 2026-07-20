@@ -21,17 +21,18 @@
   "defaultGameServer": "Serveur de jeu par défaut",
   "deleteDevice": "Supprimer l'appareil",
   "labelVersion": "Version :",
-  "labelCards": "Cartes :",
+  "labelCards": "Puces :",
   "labelRegistered": "Enregistré :",
   "labelLastSeen": "Vu pour la dernière fois :",
   "notAvailable": "N/D",
   "hotspots": {
     "title": "Points d'accès Wi-Fi par défaut",
-    "subtitle": "Réseaux diffusés par vos appareils afin que d'autres appareils de ce compte puissent s'y connecter automatiquement.",
-    "unknownDevice": "Appareil inconnu"
+    "subtitle": "Le point d'accès de votre compte. Les appareils s'y connectent automatiquement ; scannez le QR code pour connecter un téléphone.",
+    "unknownDevice": "Appareil inconnu",
+    "togglePassword": "Afficher ou masquer le mot de passe"
   },
   "about": {
     "title": "À propos des appareils",
-    "body": "Les appareils sont enregistrés automatiquement lors de leur première connexion à votre compte. Le système suit leur version et l'état de leur fichier de cartes pour garantir qu'ils restent à jour."
+    "body": "Les appareils sont enregistrés automatiquement lors de leur première connexion à votre compte. Le système suit leur version et l'état de leur fichier de puces pour garantir qu'ils restent à jour."
   }
 }

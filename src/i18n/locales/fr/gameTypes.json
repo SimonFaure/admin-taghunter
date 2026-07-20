@@ -9,6 +9,7 @@
   "error": {
     "failedToLoad": "Échec du chargement",
     "uploadFailed": "Échec du téléversement",
+    "fileTooLarge": "Cette vidéo fait {{size}} Mo, ce qui dépasse la limite de {{max}} Mo. Veuillez la compresser ou téléverser un fichier plus petit.",
     "removeFailed": "Échec de la suppression",
     "updateFailed": "Échec de la mise à jour"
   },
@@ -31,6 +32,7 @@
     "yourOverrideHeading": "Votre remplacement de vidéo tutorielle",
     "activeOverride": "Remplacement actif",
     "usingLegacyVideo": "Utilisation de la vidéo historique. Téléversez la vôtre pour la remplacer :",
+    "maxVideoSize": "Taille maximale du fichier : {{size}} Mo",
     "subtitleTracksLegacy": "Pistes de sous-titres (historique)",
     "subtitleTracksOverride": "Pistes de sous-titres (remplacement)",
     "pillVideo": "Vidéo définie",
@@ -39,7 +41,7 @@
     "subtitleSelectLabel": "Sous-titres :",
     "subtitleOff": "Désactivés",
     "langCode": "({{lang}})",
-    "missing": "— manquant"
+    "missing": "- manquant"
   },
   "actions": {
     "replace": "Remplacer",

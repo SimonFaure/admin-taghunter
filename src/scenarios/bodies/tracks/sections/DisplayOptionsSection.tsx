@@ -1,5 +1,5 @@
 /**
- * Display options section — scenario-locked toggles (not overridable at launch).
+ * Display options section - scenario-locked toggles (not overridable at launch).
  *
  *   - display_score: show score during play
  *
@@ -8,10 +8,12 @@
  * playground launch modal as a per-launch option (see GameConfig.cluesPage).
  */
 
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 
 export function DisplayOptionsSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const displayScore = meta.display_score !== false;
@@ -21,7 +23,7 @@ export function DisplayOptionsSection() {
   }
 
   return (
-    <CollapsibleSection title="Display options">
+    <CollapsibleSection title={t('editorTracks:displayOptions.sectionTitle')}>
       <div className="space-y-4">
         <label className="flex items-start gap-2 text-sm">
           <input
@@ -31,9 +33,9 @@ export function DisplayOptionsSection() {
             className="mt-0.5"
           />
           <span>
-            <span className="font-medium text-gray-900">Display score during play</span>
+            <span className="font-medium text-gray-900">{t('editorTracks:displayOptions.displayScore')}</span>
             <span className="block text-gray-500 text-xs">
-              Show the running score in the HUD throughout the game.
+              {t('editorTracks:displayOptions.displayScoreHint')}
             </span>
           </span>
         </label>

@@ -13,7 +13,7 @@ require_once __DIR__ . '/../utils/RecoveryCodes.php';
 // Admin API for per-client offline PIN-recovery codes. The admin issues a pool
 // of one-time codes here; they sync down to the client's playground devices
 // (playground.php get_recovery_codes) and are validated offline. A code is
-// consumed ONCE PER DEVICE — `used_at` here is a best-effort report-up from the
+// consumed ONCE PER DEVICE - `used_at` here is a best-effort report-up from the
 // device (recovery_codes.php is the plaintext source of truth so the admin can
 // read a code aloud over the phone). Mirrors team_name_pools.php conventions.
 
@@ -65,7 +65,7 @@ try {
             RecoveryCodes::ensureForClient($db, $clientId);
 
             $rows = $db->fetchAll(
-                'SELECT code_index, code, used_at, used_device_label FROM recovery_codes
+                'SELECT code_index, code, used_at, used_device_label, used_context FROM recovery_codes
                  WHERE client_id = ? ORDER BY code_index ASC',
                 [$clientId]
             );
@@ -76,6 +76,8 @@ try {
                     'code' => $r['code'],
                     'used_at' => $r['used_at'],
                     'used_device_label' => $r['used_device_label'],
+                    // 'pin' (forgot-PIN reset) | 'billing' (device-lock reprieve) | null.
+                    'used_context' => $r['used_context'] ?? null,
                 ];
             }
             jsonResponse([

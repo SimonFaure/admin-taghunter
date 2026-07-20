@@ -1,11 +1,11 @@
 /**
- * Mystery in-game / idle layout editor — full-screen modal launched from the
+ * Mystery in-game / idle layout editor - full-screen modal launched from the
  * Mystery scenario editor. Two authoring modes, switched by a header toggle:
  *
- *   • In-game — place the 4 in-game text roles (enigma name, timer, score, team
+ *   • In-game - place the 4 in-game text roles (enigma name, timer, score, team
  *     name) over the real in-game board; each box's dimensions drive its font
  *     size (long team names shrink to fit). Stored at `gameMeta.ingame_layout`.
- *   • Idle — place up to two fully styled text elements (scenario title +
+ *   • Idle - place up to two fully styled text elements (scenario title +
  *     subtitle) over the background. This is the screen the playground shows
  *     between teams when "reveal results on Enter/click" is off. Each element
  *     carries its own font / explicit size / color and is independently
@@ -22,12 +22,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, RotateCcw, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { useTranslation, Trans } from 'react-i18next';
 import { useScenarioEditor } from '../shell/useScenarioEditor';
 import { getLocalized } from '../i18n/getLocalized';
 import type { Lang } from '../i18n/types';
 import { resolveFontFamily } from '../../fonts/resolveFontFamily';
-import { FONT_CATALOG } from '../../fonts/catalog';
-import type { CustomFont } from '../../types/scenario-data';
 import {
   MysteryPreviewRenderer,
   IDLE_SUBTITLE_SAMPLE,
@@ -54,7 +53,7 @@ interface MysteryIngameLayoutModalProps {
   onClose: () => void;
 }
 
-// Canonical authoring viewport — positions are stored as % of this.
+// Canonical authoring viewport - positions are stored as % of this.
 const CANON_W = 1920;
 const CANON_H = 1080;
 const MIN_BOX = 4; // minimum box width/height in %
@@ -68,6 +67,9 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutModalProps) {
+  const { t } = useTranslation();
+  const roleLabel = (key: IngameRoleKey) => t(`scenarioPreview:ingameLayout.roles.${key}`);
+  const idleRoleLabel = (key: IdleRoleKey) => t(`scenarioPreview:ingameLayout.idleRoles.${key}`);
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as PreviewMysteryGameMeta;
   const lang = editor.currentLanguage as Lang;
@@ -120,7 +122,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idleLayout, open]);
 
-  // Fit a CANON_W×CANON_H stage inside the canvas wrapper, centred — identical
+  // Fit a CANON_W×CANON_H stage inside the canvas wrapper, centred - identical
   // math to MysteryPreviewRenderer so our draggable layer aligns with the board.
   useEffect(() => {
     if (!open) return;
@@ -164,17 +166,20 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
 
   const firstEnigma = (meta.enigmas ?? [])[0];
   const enigmaSample = firstEnigma
-    ? getLocalized(firstEnigma.text as never, lang, defaultLang) || `Enigma ${firstEnigma.number ?? 1}`
-    : 'Enigma name';
+    ? getLocalized(firstEnigma.text as never, lang, defaultLang) ||
+      t('scenarioPreview:ingameLayout.sample.enigmaNumber', { number: firstEnigma.number ?? 1 })
+    : t('scenarioPreview:ingameLayout.sample.enigmaName');
 
-  const scenarioTitle = getLocalized(meta.title as never, lang, defaultLang) || 'Scenario title';
+  const scenarioTitle =
+    getLocalized(meta.title as never, lang, defaultLang) ||
+    t('scenarioPreview:ingameLayout.sample.scenarioTitle');
 
   const textByRole: Record<IngameRoleKey, string> = useMemo(
     () => ({
       enigma_name: enigmaSample,
       timer: '88:88',
       score: pointsUnits === 'percentage' ? '100%' : `${scoreFullGame}/${scoreFullGame}`,
-      team_name: teamSample || 'Team name',
+      team_name: teamSample || t('scenarioPreview:ingameLayout.sample.teamName'),
     }),
     [enigmaSample, pointsUnits, scoreFullGame, teamSample],
   );
@@ -186,14 +191,6 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
     }),
     [scenarioTitle, subtitleSample],
   );
-
-  // Scenario fonts available for the idle per-element font picker.
-  const customFonts: CustomFont[] = Array.isArray(meta.custom_fonts)
-    ? (meta.custom_fonts as CustomFont[])
-    : [];
-  const customFamilies = customFonts.map((f) => f.family).filter(Boolean) as string[];
-  const standardFonts = FONT_CATALOG.filter((f) => f.group === 'standard');
-  const themedFonts = FONT_CATALOG.filter((f) => f.group === 'themed');
 
   function updateBox(role: IngameRoleKey, patch: Partial<IngameBox>) {
     setLayout((prev) => ({ ...prev, [role]: { ...prev[role], ...patch } }));
@@ -286,17 +283,19 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-slate-50">
           <h2 className="text-sm font-semibold text-gray-900">
-            {mode === 'idle' ? 'Idle screen layout' : 'In-game layout'}
+            {mode === 'idle'
+              ? t('scenarioPreview:ingameLayout.title.idle')
+              : t('scenarioPreview:ingameLayout.title.ingame')}
           </h2>
           {/* Mode toggle */}
           <div className="flex items-center gap-0.5 p-0.5 bg-gray-100 rounded border border-gray-200">
-            {modeBtn('ingame', 'In-game')}
-            {modeBtn('idle', 'Idle')}
+            {modeBtn('ingame', t('scenarioPreview:ingameLayout.mode.ingame'))}
+            {modeBtn('idle', t('scenarioPreview:ingameLayout.mode.idle'))}
           </div>
           <span className="text-xs text-gray-500">
             {mode === 'idle'
-              ? 'Background-only screen shown between teams (when "reveal on Enter/click" is off). Add a title and/or subtitle.'
-              : 'Drag to place the 4 text elements. The font auto-fits the box width — size each box to the maximum space its text should occupy.'}
+              ? t('scenarioPreview:ingameLayout.hint.idle')
+              : t('scenarioPreview:ingameLayout.hint.ingame')}
           </span>
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -305,13 +304,15 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
               disabled={editor.isSaving}
               className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {editor.isSaving ? 'Saving…' : 'Save scenario'}
+              {editor.isSaving
+                ? t('scenarioPreview:ingameLayout.saving')
+                : t('scenarioPreview:ingameLayout.save')}
             </button>
             <button
               type="button"
               onClick={onClose}
               className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
-              aria-label="Close"
+              aria-label={t('scenarioPreview:ingameLayout.close')}
             >
               <X className="w-5 h-5" />
             </button>
@@ -324,7 +325,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
             {mode === 'ingame' ? (
               <>
                 <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-1.5">Elements</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1.5">{t('scenarioPreview:ingameLayout.elements')}</p>
                   <div className="space-y-1">
                     {INGAME_ROLES.map((role) => (
                       <button
@@ -337,7 +338,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                             : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                         }`}
                       >
-                        {role.label}
+                        {roleLabel(role.key)}
                       </button>
                     ))}
                   </div>
@@ -346,7 +347,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                 {/* Selected element controls */}
                 <div className="space-y-2">
                   <p className="text-xs font-semibold text-gray-700">
-                    {INGAME_ROLES.find((r) => r.key === selected)?.label} — alignment
+                    {t('scenarioPreview:ingameLayout.alignmentLabel', { element: roleLabel(selected) })}
                   </p>
                   <div className="flex items-center gap-1">
                     {([
@@ -363,7 +364,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                             ? 'border-blue-500 bg-blue-50 text-blue-700'
                             : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                         }`}
-                        aria-label={a}
+                        aria-label={t(`scenarioPreview:ingameLayout.align.${a}`)}
                       >
                         <Icon className="w-4 h-4" />
                       </button>
@@ -373,7 +374,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     {(['left', 'top', 'width', 'height'] as const).map((field) => (
                       <label key={field} className="text-xs text-gray-600">
-                        <span className="capitalize">{field}</span>
+                        <span className="capitalize">{t(`scenarioPreview:ingameLayout.field.${field}`)}</span>
                         <input
                           type="number"
                           value={Math.round(sel[field])}
@@ -388,24 +389,25 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                     ))}
                   </div>
                   <p className="text-[11px] text-gray-500 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 leading-snug">
-                    The text size is set automatically to fill the box: it grows to
-                    fill the <strong>width</strong> and shrinks if it would overflow.
-                    Make the box as <strong>wide</strong> as the space you want the
-                    text to occupy at most.
+                    <Trans
+                      t={t}
+                      i18nKey="scenarioPreview:ingameLayout.autoFitNote"
+                      components={{ b: <strong /> }}
+                    />
                   </p>
                 </div>
 
                 {/* Stress-test team name */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-1">Preview team name</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1">{t('scenarioPreview:ingameLayout.previewTeamName')}</p>
                   <input
                     value={teamSample}
                     onChange={(e) => setTeamSample(e.target.value)}
-                    placeholder="Type the longest expected name"
+                    placeholder={t('scenarioPreview:ingameLayout.teamNamePlaceholder')}
                     className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                   />
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Preview only — paste a long name to check the team-name box still reads.
+                    {t('scenarioPreview:ingameLayout.teamNameHint')}
                   </p>
                 </div>
 
@@ -414,13 +416,13 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                   onClick={() => setLayout(resolveIngameLayout(undefined))}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-700 border border-gray-200 rounded hover:bg-gray-50"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Reset to defaults
+                  <RotateCcw className="w-3.5 h-3.5" /> {t('scenarioPreview:ingameLayout.resetDefaults')}
                 </button>
               </>
             ) : (
               <>
                 <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-1.5">Elements</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1.5">{t('scenarioPreview:ingameLayout.elements')}</p>
                   <div className="space-y-1">
                     {IDLE_ROLES.map((role) => {
                       const el = idleLayout[role.key];
@@ -438,7 +440,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                             checked={el.enabled}
                             onChange={(e) => updateIdle(role.key, { enabled: e.target.checked })}
                             className="w-4 h-4 accent-blue-600"
-                            aria-label={`Show ${role.label}`}
+                            aria-label={t('scenarioPreview:ingameLayout.showElement', { element: idleRoleLabel(role.key) })}
                           />
                           <button
                             type="button"
@@ -447,14 +449,14 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                               selectedIdle === role.key ? 'text-blue-700' : 'text-gray-700'
                             } ${el.enabled ? '' : 'opacity-50'}`}
                           >
-                            {role.label}
+                            {idleRoleLabel(role.key)}
                           </button>
                         </div>
                       );
                     })}
                   </div>
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Tick to show an element on the idle screen, then drag it on the background.
+                    {t('scenarioPreview:ingameLayout.idleTickHint')}
                   </p>
                 </div>
 
@@ -462,7 +464,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                 {selIdle.enabled ? (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-gray-700">
-                      {IDLE_ROLES.find((r) => r.key === selectedIdle)?.label} — alignment
+                      {t('scenarioPreview:ingameLayout.alignmentLabel', { element: idleRoleLabel(selectedIdle) })}
                     </p>
                     <div className="flex items-center gap-1">
                       {([
@@ -489,7 +491,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       {(['left', 'top', 'width', 'height'] as const).map((field) => (
                         <label key={field} className="text-xs text-gray-600">
-                          <span className="capitalize">{field}</span>
+                          <span className="capitalize">{t(`scenarioPreview:ingameLayout.field.${field}`)}</span>
                           <input
                             type="number"
                             value={Math.round(selIdle[field])}
@@ -504,44 +506,12 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                       ))}
                     </div>
 
-                    {/* Typography: font / size / color */}
-                    <label className="block text-xs text-gray-600">
-                      <span>Font</span>
-                      <select
-                        value={selIdle.font ?? ''}
-                        onChange={(e) => updateIdle(selectedIdle, { font: e.target.value })}
-                        className="mt-0.5 w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white"
-                      >
-                        <option value="">Scenario default</option>
-                        <optgroup label="Standard">
-                          {standardFonts.map((f) => (
-                            <option key={f.family} value={f.family} style={{ fontFamily: f.stack }}>
-                              {f.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="Themed">
-                          {themedFonts.map((f) => (
-                            <option key={f.family} value={f.family} style={{ fontFamily: f.stack }}>
-                              {f.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                        {customFamilies.length > 0 && (
-                          <optgroup label="Custom">
-                            {customFamilies.map((c) => (
-                              <option key={c} value={c} style={{ fontFamily: `"${c}", sans-serif` }}>
-                                {c}
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
-                    </label>
-
+                    {/* Typography: size / color. The idle text always uses the
+                        scenario font (same as the in-game HUD UI strings) - no
+                        per-element font override. */}
                     <div className="grid grid-cols-2 gap-2">
                       <label className="text-xs text-gray-600">
-                        <span>Font size (%)</span>
+                        <span>{t('scenarioPreview:ingameLayout.fontSize')}</span>
                         <input
                           type="number"
                           min={1}
@@ -557,7 +527,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                         />
                       </label>
                       <label className="text-xs text-gray-600">
-                        <span>Color</span>
+                        <span>{t('scenarioPreview:ingameLayout.color')}</span>
                         <input
                           type="color"
                           value={selIdle.color || overlayColor}
@@ -572,22 +542,21 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                         onClick={() => updateIdle(selectedIdle, { color: '' })}
                         className="text-[11px] text-blue-600 hover:underline"
                       >
-                        Use scenario color
+                        {t('scenarioPreview:ingameLayout.useScenarioColor')}
                       </button>
                     ) : (
-                      <p className="text-[11px] text-gray-400">Inheriting the scenario font color.</p>
+                      <p className="text-[11px] text-gray-400">{t('scenarioPreview:ingameLayout.inheritingColor')}</p>
                     )}
                   </div>
                 ) : (
                   <p className="text-[11px] text-gray-400">
-                    {IDLE_ROLES.find((r) => r.key === selectedIdle)?.label} is hidden. Tick it above to
-                    place and style it.
+                    {t('scenarioPreview:ingameLayout.elementHidden', { element: idleRoleLabel(selectedIdle) })}
                   </p>
                 )}
 
                 {/* Preview subtitle text (the real text is set per-launch). */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-700 mb-1">Preview subtitle</p>
+                  <p className="text-xs font-semibold text-gray-700 mb-1">{t('scenarioPreview:ingameLayout.previewSubtitle')}</p>
                   <input
                     value={subtitleSample}
                     onChange={(e) => setSubtitleSample(e.target.value)}
@@ -595,8 +564,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                     className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                   />
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Preview only — the real subtitle is typed in the Launch Game window. The title
-                    shows the scenario name.
+                    {t('scenarioPreview:ingameLayout.subtitleHint')}
                   </p>
                 </div>
 
@@ -605,7 +573,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                   onClick={() => setIdleLayout(resolveIdleLayout(undefined))}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-700 border border-gray-200 rounded hover:bg-gray-50"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" /> Reset to defaults
+                  <RotateCcw className="w-3.5 h-3.5" /> {t('scenarioPreview:ingameLayout.resetDefaults')}
                 </button>
               </>
             )}
@@ -632,7 +600,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
               />
             </div>
 
-            {/* Draggable boxes — centred stage matching the preview's. */}
+            {/* Draggable boxes - centred stage matching the preview's. */}
             {stage.width > 0 && (
               <div
                 style={{
@@ -704,7 +672,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                               pointerEvents: 'none',
                             }}
                           >
-                            {role.label}
+                            {roleLabel(role.key)}
                           </div>
                         </div>
                       );
@@ -769,7 +737,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                               pointerEvents: 'none',
                             }}
                           >
-                            {role.label}
+                            {idleRoleLabel(role.key)}
                           </div>
                         </div>
                       );

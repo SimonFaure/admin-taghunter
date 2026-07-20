@@ -9,6 +9,7 @@ session_start();
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/RecoveryCodes.php';
+require_once __DIR__ . '/../utils/ClientHotspot.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
@@ -52,6 +53,41 @@ function formatClientData($client) {
 
     if (isset($client['billing_up_to_date'])) {
         $client['billing_up_to_date'] = (bool)$client['billing_up_to_date'];
+    }
+    if (array_key_exists('devices_disabled', $client)) {
+        $client['devices_disabled'] = (bool)$client['devices_disabled'];
+    }
+    if (isset($client['billing_grace_days'])) {
+        $client['billing_grace_days'] = (int)$client['billing_grace_days'];
+    }
+    if (isset($client['billing_reprieve_days'])) {
+        $client['billing_reprieve_days'] = (int)$client['billing_reprieve_days'];
+    }
+    // Per-app provisioning + billing flags (project_client_app_section).
+    if (array_key_exists('playground_enabled', $client)) {
+        $client['playground_enabled'] = (bool)$client['playground_enabled'];
+    }
+    if (array_key_exists('go_enabled', $client)) {
+        $client['go_enabled'] = (bool)$client['go_enabled'];
+    }
+    if (array_key_exists('go_subscription_active', $client)) {
+        $client['go_subscription_active'] = (bool)$client['go_subscription_active'];
+    }
+    if (array_key_exists('drop_enabled', $client)) {
+        $client['drop_enabled'] = (bool)$client['drop_enabled'];
+    }
+    if (array_key_exists('drop_billing_ok', $client)) {
+        $client['drop_billing_ok'] = (bool)$client['drop_billing_ok'];
+    }
+    if (isset($client['go_billing_grace_days'])) {
+        $client['go_billing_grace_days'] = (int)$client['go_billing_grace_days'];
+    }
+    if (isset($client['drop_billing_grace_days'])) {
+        $client['drop_billing_grace_days'] = (int)$client['drop_billing_grace_days'];
+    }
+    // "Use my logo on reports" (project_report_layouts_editor_labels).
+    if (array_key_exists('report_use_brand_logo', $client)) {
+        $client['report_use_brand_logo'] = (bool)$client['report_use_brand_logo'];
     }
 
     return $client;
@@ -197,6 +233,16 @@ try {
                 error_log('[clients.create] recovery codes provisioning failed: ' . $e->getMessage());
             }
 
+            // Seed the client's studio-authored Wi-Fi hotspot (SSID derived from
+            // the client name, random password). Studio is the sole author; the
+            // playground pulls these on sync and never auto-generates its own.
+            // Best-effort: never block client creation (self-heals via backfill).
+            try {
+                ClientHotspot::ensureForClient($db, (int)$clientId, $data['name']);
+            } catch (Exception $e) {
+                error_log('[clients.create] hotspot provisioning failed: ' . $e->getMessage());
+            }
+
             $client = $db->fetch(
                 'SELECT * FROM clients WHERE id = ?',
                 [$clientId]
@@ -227,7 +273,10 @@ try {
             }
 
             $existingClient = $db->fetch(
-                'SELECT id FROM clients WHERE id = ?',
+                'SELECT id, billing_up_to_date, billing_overdue_since,
+                        go_subscription_active, go_billing_overdue_since,
+                        drop_billing_ok, drop_billing_overdue_since
+                 FROM clients WHERE id = ?',
                 [$id]
             );
 
@@ -240,7 +289,17 @@ try {
             $updates = [];
             $values = [];
 
-            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'language', 'update_channel', 'playground_version', 'creator_version'];
+            // devices_disabled (emergency hard switch) + the two billing-clock
+            // tunables are admin-editable; billing_overdue_since is NOT - the
+            // server stamps/clears it from the billing_up_to_date transition
+            // below so the overdue clock can't be back-dated from the client.
+            // Design: project_client_device_lock.
+            // go_subscription_valid_until is retired (project_client_app_section):
+            // GO billing is now the same overdue_since + grace clock as the other
+            // apps, so the explicit expiry date is no longer read or written.
+            // playground_enabled / drop_* are the per-app provisioning + billing
+            // columns added by add_client_app_columns.sql.
+            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'language', 'update_channel', 'playground_version', 'creator_version', 'playground_enabled', 'max_devices', 'go_enabled', 'go_subscription_active', 'go_billing_grace_days', 'drop_enabled', 'drop_billing_ok', 'drop_billing_grace_days', 'devices_disabled', 'billing_grace_days', 'billing_reprieve_days', 'report_use_brand_logo'];
             foreach ($allowedFields as $field) {
                 if (array_key_exists($field, $data)) {
                     $updates[] = "$field = ?";
@@ -251,8 +310,46 @@ try {
                         $value = sanitizeLanguage($value);
                     } elseif ($field === 'update_channel') {
                         $value = sanitizeChannel($value);
+                    } elseif (in_array($field, ['go_enabled', 'go_subscription_active', 'playground_enabled', 'drop_enabled', 'drop_billing_ok'], true)) {
+                        // Per-app capability / billing-ok / portal-scope flags (booleans).
+                        $value = $value ? 1 : 0;
+                    } elseif ($field === 'devices_disabled' || $field === 'report_use_brand_logo') {
+                        $value = $value ? 1 : 0;
+                    } elseif (in_array($field, ['billing_grace_days', 'billing_reprieve_days', 'go_billing_grace_days', 'drop_billing_grace_days'], true)) {
+                        // Whole non-negative days; clamp so a bad value can't
+                        // produce a never-locks / never-reprieves window.
+                        $value = max(0, (int)$value);
+                    } elseif ($field === 'max_devices') {
+                        // Per-client Playground device cap. Floor at 1 so a client
+                        // can always run at least one device; to fully block use
+                        // playground_enabled / devices_disabled instead.
+                        $value = max(1, (int)$value);
                     }
                     $values[] = $value;
+                }
+            }
+
+            // Per-app billing-overdue clocks: stamp {app}_overdue_since when the
+            // billing-ok flag flips Current -> Overdue, clear it on Overdue ->
+            // Current. Only acts on an actual transition so re-saving an
+            // already-overdue client never resets (and thus extends) the
+            // countdown. Playground uses billing_up_to_date/billing_overdue_since;
+            // GO uses go_subscription_active/go_billing_overdue_since; Drop uses
+            // drop_billing_ok/drop_billing_overdue_since. (project_client_app_section)
+            $billingClocks = [
+                ['flag' => 'billing_up_to_date',     'since' => 'billing_overdue_since'],
+                ['flag' => 'go_subscription_active', 'since' => 'go_billing_overdue_since'],
+                ['flag' => 'drop_billing_ok',        'since' => 'drop_billing_overdue_since'],
+            ];
+            foreach ($billingClocks as $clock) {
+                if (array_key_exists($clock['flag'], $data)) {
+                    $wasOk = (bool)$existingClient[$clock['flag']];
+                    $nowOk = (bool)$data[$clock['flag']];
+                    if ($wasOk && !$nowOk && empty($existingClient[$clock['since']])) {
+                        $updates[] = "{$clock['since']} = NOW()";
+                    } elseif (!$wasOk && $nowOk) {
+                        $updates[] = "{$clock['since']} = NULL";
+                    }
                 }
             }
 
@@ -501,6 +598,99 @@ try {
             ];
             Logger::log('clients', 'GET', 'creator_list', $admin['id'], ['email' => $email], $response, 200, 'creator');
             jsonResponse($response);
+            break;
+
+        case 'hotspot_get':
+            // Admin-only: read a client's hotspot creds (incl. password, so the
+            // admin can render the join QR / hand it to the client). The client's
+            // own read-only view goes through devices.php?action=lan_networks
+            // (no password). Seeds on first read so older clients self-heal.
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            $userId = requireAuth();
+            $clientId = (int)($_GET['id'] ?? 0);
+            if ($clientId <= 0) {
+                jsonResponse(['error' => 'Client ID is required'], 400);
+            }
+            $client = $db->fetch('SELECT id, name FROM clients WHERE id = ?', [$clientId]);
+            if (!$client) {
+                jsonResponse(['error' => 'Client not found'], 404);
+            }
+            ClientHotspot::ensureForClient($db, $clientId, $client['name']);
+            $row = $db->fetch(
+                'SELECT ssid, password, source, version, updated_at
+                 FROM lan_networks WHERE client_id = ? AND is_default = 1
+                 ORDER BY updated_at DESC LIMIT 1',
+                [$clientId]
+            );
+            Logger::log('clients', 'GET', 'hotspot_get', $userId, ['id' => $clientId], ['found' => (bool)$row], 200);
+            jsonResponse(['data' => $row ?: null]);
+            break;
+
+        case 'hotspot_update':
+            // Admin-only: set a client's hotspot SSID + password. Validates against
+            // the same rules as the playground hotspot manager, then upserts by
+            // (client_id, ssid) and bumps the version so the playground manifest's
+            // lan_networks_version advances and devices re-pull on next sync.
+            // Changes take effect at the next fresh mother start, never mid-game.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'PUT') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            $userId = requireAuth();
+            $data = getRequestData();
+            $clientId = (int)($data['id'] ?? 0);
+            $ssid = trim((string)($data['ssid'] ?? ''));
+            $regenerate = !empty($data['regenerate_password']);
+            $password = (string)($data['password'] ?? '');
+            if ($clientId <= 0) {
+                jsonResponse(['error' => 'Client ID is required'], 400);
+            }
+            $client = $db->fetch('SELECT id, name FROM clients WHERE id = ?', [$clientId]);
+            if (!$client) {
+                jsonResponse(['error' => 'Client not found'], 404);
+            }
+            // Seed first so there's always a current row to compare/replace.
+            ClientHotspot::ensureForClient($db, $clientId, $client['name']);
+            $current = $db->fetch(
+                'SELECT ssid, password FROM lan_networks WHERE client_id = ? AND is_default = 1
+                 ORDER BY updated_at DESC LIMIT 1',
+                [$clientId]
+            );
+            if ($ssid === '') {
+                $ssid = $current['ssid'] ?? ClientHotspot::defaultSsid($client['name']);
+            }
+            if ($regenerate || $password === '') {
+                $password = $regenerate
+                    ? ClientHotspot::randomPassword()
+                    : ($current['password'] ?? ClientHotspot::randomPassword());
+            }
+            $err = ClientHotspot::validateSsid($ssid) ?? ClientHotspot::validatePassword($password);
+            if ($err !== null) {
+                jsonResponse(['error' => $err], 400);
+            }
+            $nextVersion = ClientHotspot::nextVersion($db, $clientId);
+            // If the SSID changed, demote the old primary so we don't strand two
+            // is_default rows; the new (client_id, ssid) becomes the primary.
+            $oldSsid = $current['ssid'] ?? null;
+            if ($oldSsid !== null && $oldSsid !== $ssid) {
+                $db->query(
+                    'UPDATE lan_networks SET is_default = 0, version = ? WHERE client_id = ? AND ssid = ?',
+                    [$nextVersion, $clientId, $oldSsid]
+                );
+            }
+            $db->query(
+                'INSERT INTO lan_networks (client_id, ssid, password, source, is_default, version)
+                 VALUES (?, ?, ?, "hotspot", 1, ?)
+                 ON DUPLICATE KEY UPDATE
+                   password   = VALUES(password),
+                   source     = "hotspot",
+                   is_default = 1,
+                   version    = VALUES(version)',
+                [$clientId, $ssid, $password, $nextVersion]
+            );
+            Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'hotspot_update', $userId, ['id' => $clientId, 'ssid' => $ssid], ['version' => $nextVersion], 200);
+            jsonResponse(['data' => ['ssid' => $ssid, 'password' => $password, 'source' => 'hotspot', 'version' => $nextVersion]]);
             break;
 
         default:

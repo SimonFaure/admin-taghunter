@@ -26,7 +26,7 @@
     "difficulty": "Dificultad",
     "univers": "Universo (temas)",
     "universPlaceholder": "Añadir una etiqueta…",
-    "audienceEmptyWarning": "Sin público seleccionado — los nombres de equipo usarán el grupo Adolescentes/Adultos por defecto.",
+    "audienceEmptyWarning": "Sin público seleccionado - los nombres de equipo usarán el grupo Adolescentes/Adultos por defecto.",
     "namePoolHint": "Nombres de equipo extraídos de: {{tier}}",
     "audienceGroups": {
       "enfants": "Niños",

@@ -7,7 +7,7 @@
  *
  *   data = { game_meta: {title:{fr,en}, levels:{1:{name:{fr,en},...}}}, default_language, available_languages }
  *
- * Idempotent — already-migrated rows pass through unchanged.
+ * Idempotent - already-migrated rows pass through unchanged.
  *
  * Usage:
  *   curl http://studio.taghunter.test/backend/apply_localized_translations_migration.php

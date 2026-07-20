@@ -1,0 +1,14 @@
+{
+  "title": "Escenarios",
+  "create": "Crear un Nuevo Escenario Mystery",
+  "edit": "Editar el Escenario",
+  "list": "Lista de Escenarios",
+  "import": "Importar un Escenario",
+  "noScenarios": "No hay escenarios disponibles",
+  "loading": "Cargando escenarios...",
+  "deleteConfirm": "¿Seguro que quieres eliminar este escenario?",
+  "deleteSuccess": "Escenario eliminado correctamente",
+  "saveSuccess": "Escenario guardado correctamente",
+  "importSuccess": "Escenario importado correctamente",
+  "lastModified": "Última modificación"
+}

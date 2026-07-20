@@ -1,5 +1,5 @@
 /**
- * Tagquest preview modal — chrome around `<TagquestPreviewRenderer>`.
+ * Tagquest preview modal - chrome around `<TagquestPreviewRenderer>`.
  *
  * Reads live in-memory `gameMeta` + `quests` from the scenario editor
  * context (no save required). Header controls let the author step through
@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, X, Maximize2, Minimize2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../shell/useScenarioEditor';
 import { getLocalized } from '../i18n/getLocalized';
 import type { Lang } from '../i18n/types';
@@ -26,6 +27,7 @@ interface TagquestPreviewModalProps {
 }
 
 export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProps) {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const [questIndex, setQuestIndex] = useState(0);
   const [questView, setQuestView] = useState<QuestView>('pieces');
@@ -69,7 +71,8 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
   const safeIndex = quests.length === 0 ? 0 : Math.min(Math.max(questIndex, 0), quests.length - 1);
   const activeQuest = quests[safeIndex];
   const activeQuestName = activeQuest
-    ? getLocalized(activeQuest.name as never, lang, defaultLang) || `Quest ${safeIndex + 1}`
+    ? getLocalized(activeQuest.name as never, lang, defaultLang) ||
+      t('scenarioPreview:tagquestPreview.questFallback', { number: safeIndex + 1 })
     : '';
 
   function step(delta: number) {
@@ -91,7 +94,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
       >
         {/* ----- Header ----- */}
         <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-slate-50 flex-wrap">
-          <h2 className="text-sm font-semibold text-gray-900 mr-2">Preview</h2>
+          <h2 className="text-sm font-semibold text-gray-900 mr-2">{t('scenarioPreview:tagquestPreview.title')}</h2>
 
           {/* Quest stepper */}
           <div className="flex items-center gap-1">
@@ -100,21 +103,30 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
               onClick={() => step(-1)}
               disabled={quests.length <= 1}
               className="p-1 rounded text-gray-700 hover:bg-gray-200 disabled:opacity-30"
-              aria-label="Previous quest"
+              aria-label={t('scenarioPreview:tagquestPreview.previousQuest')}
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <span className="text-xs text-gray-700 min-w-[140px] text-center">
               {quests.length === 0
-                ? 'No quests'
-                : `Quest ${safeIndex + 1} / ${quests.length}${activeQuestName ? ` — ${activeQuestName}` : ''}`}
+                ? t('scenarioPreview:tagquestPreview.noQuests')
+                : activeQuestName
+                  ? t('scenarioPreview:tagquestPreview.questCounterNamed', {
+                      current: safeIndex + 1,
+                      total: quests.length,
+                      name: activeQuestName,
+                    })
+                  : t('scenarioPreview:tagquestPreview.questCounter', {
+                      current: safeIndex + 1,
+                      total: quests.length,
+                    })}
             </span>
             <button
               type="button"
               onClick={() => step(1)}
               disabled={quests.length <= 1}
               className="p-1 rounded text-gray-700 hover:bg-gray-200 disabled:opacity-30"
-              aria-label="Next quest"
+              aria-label={t('scenarioPreview:tagquestPreview.nextQuest')}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -129,7 +141,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
                 questView === 'pieces' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
               }`}
             >
-              Pieces
+              {t('scenarioPreview:tagquestPreview.pieces')}
             </button>
             <button
               type="button"
@@ -138,7 +150,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
                 questView === 'revealed' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
               }`}
             >
-              Revealed
+              {t('scenarioPreview:tagquestPreview.revealed')}
             </button>
           </div>
 
@@ -149,7 +161,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
               checked={showMalus}
               onChange={(e) => setShowMalus(e.target.checked)}
             />
-            Malus overlay
+            {t('scenarioPreview:tagquestPreview.malusOverlay')}
           </label>
           <label className="flex items-center gap-1 text-xs text-gray-700">
             <input
@@ -157,7 +169,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
               checked={showLateMalus}
               onChange={(e) => setShowLateMalus(e.target.checked)}
             />
-            Late-malus overlay
+            {t('scenarioPreview:tagquestPreview.lateMalusOverlay')}
           </label>
 
           {/* Spacer */}
@@ -167,8 +179,8 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
               type="button"
               onClick={() => setFullscreen((f) => !f)}
               className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
-              aria-label={fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-              title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              aria-label={fullscreen ? t('scenarioPreview:tagquestPreview.exitFullscreen') : t('scenarioPreview:tagquestPreview.enterFullscreen')}
+              title={fullscreen ? t('scenarioPreview:tagquestPreview.exitFullscreen') : t('scenarioPreview:tagquestPreview.fullscreen')}
             >
               {fullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
             </button>
@@ -176,7 +188,7 @@ export function TagquestPreviewModal({ open, onClose }: TagquestPreviewModalProp
               type="button"
               onClick={onClose}
               className="p-1 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-200"
-              aria-label="Close preview"
+              aria-label={t('scenarioPreview:tagquestPreview.closePreview')}
             >
               <X className="w-5 h-5" />
             </button>

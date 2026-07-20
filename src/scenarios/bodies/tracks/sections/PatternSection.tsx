@@ -1,5 +1,5 @@
 /**
- * Pattern section — picks the default tracks pattern (checkpoint → station/balise
+ * Pattern section - picks the default tracks pattern (checkpoint → station/balise
  * assignments) this scenario uses. Stored as `scenario_default_pattern` (the
  * pattern's uniqid). Renamed from legacy `game_default_pattern`.
  *
@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { db } from '../../../../creator-ported/lib/db';
@@ -19,6 +20,7 @@ interface TracksPatternOption {
 }
 
 export function PatternSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const value = (meta.scenario_default_pattern as string | null | undefined) ?? '';
@@ -54,17 +56,17 @@ export function PatternSection() {
   const knownSelected = patterns.some((p) => p.pattern_uniqid === value);
 
   return (
-    <CollapsibleSection title="Default pattern">
+    <CollapsibleSection title={t('editorTracks:pattern.sectionTitle')}>
       <label className="block">
         <span className="text-xs font-medium text-gray-700 mb-1 block">
-          Default tracks pattern (checkpoint → station mapping)
+          {t('editorTracks:pattern.label')}
         </span>
         <select
           value={value}
           onChange={(ev) => setValue(ev.target.value)}
           className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
         >
-          <option value="">— None —</option>
+          <option value="">{t('editorTracks:pattern.none')}</option>
           {patterns.map((p) => (
             <option key={p.pattern_uniqid} value={p.pattern_uniqid}>
               {p.name}
@@ -72,12 +74,11 @@ export function PatternSection() {
             </option>
           ))}
           {value && !knownSelected && (
-            <option value={value}>{value} (not found)</option>
+            <option value={value}>{t('editorTracks:pattern.notFound', { value })}</option>
           )}
         </select>
         <span className="text-xs text-gray-500 block mt-1">
-          Assigns each checkpoint to a station/balise. Create tracks patterns in the Patterns page.
-          The mapping is shown per checkpoint below. Overridable at launch.
+          {t('editorTracks:pattern.hint')}
         </span>
       </label>
     </CollapsibleSection>

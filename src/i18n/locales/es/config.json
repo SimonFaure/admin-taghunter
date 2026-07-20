@@ -1,0 +1,18 @@
+{
+  "title": "Configuración",
+  "adminTools": "Herramientas de Administración",
+  "viewApiDocs": "Ver la documentación de la API",
+  "viewApiLogs": "Ver los registros de solicitudes de la API",
+  "viewImportLogs": "Ver los registros de importación",
+  "translations": "Traducciones",
+  "importTranslations": "Importar Traducciones",
+  "importTranslationsDesc": "Importa un archivo JSON de traducciones personalizadas (en.json o fr.json) para reemplazar las traducciones predeterminadas.",
+  "exportTranslations": "Exportar Traducciones",
+  "exportTranslationsDesc": "Exporta las traducciones actuales a un archivo JSON para editarlas.",
+  "selectFile": "Seleccionar archivo JSON",
+  "invalidFileType": "Selecciona un archivo JSON válido",
+  "importSuccess": "Traducciones importadas correctamente para {lang}. La página se recargará.",
+  "importError": "Error al importar las traducciones. Comprueba el formato del archivo.",
+  "exportEnglish": "Exportar Inglés",
+  "exportFrench": "Exportar Francés"
+}

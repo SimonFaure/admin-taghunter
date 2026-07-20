@@ -1,5 +1,5 @@
 /**
- * Adapter registry — central lookup keyed on `scenarios.game_type`.
+ * Adapter registry - central lookup keyed on `scenarios.game_type`.
  *
  * Bodies register themselves here (e.g. via side-effect import in App.tsx,
  * or by an explicit `registerAdapter()` call). The route uses

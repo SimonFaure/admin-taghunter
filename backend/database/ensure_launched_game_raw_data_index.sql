@@ -5,7 +5,7 @@
 -- clients with thousands of historical punches.
 --
 -- Original migration declares `INDEX idx_lgrd_game_id (launched_game_id, id)`,
--- and MySQL auto-creates one for FK columns regardless — so this is a no-op
+-- and MySQL auto-creates one for FK columns regardless - so this is a no-op
 -- on a healthy schema. It exists so a misconfigured or partially-migrated
 -- database gets fixed.
 

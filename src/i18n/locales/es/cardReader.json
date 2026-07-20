@@ -1,0 +1,7 @@
+{
+  "title": "Detección de Tarjeta",
+  "detected": "Tarjeta detectada",
+  "reading": "Leyendo tarjeta...",
+  "noReader": "No se encontró ningún lector de tarjetas",
+  "error": "Error de lectura de tarjeta"
+}

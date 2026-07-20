@@ -31,11 +31,11 @@ import type { Lang } from '../i18n/types';
 import { ScenarioHeader } from './components/ScenarioHeader';
 import { SaveBar } from './components/SaveBar';
 import { CollapseAllProvider } from './components/CollapsibleSection';
+import { GoEditorProvider } from './components/GoEditorContext';
 import { SectionsTOC } from './components/SectionsTOC';
 import { LanguageBar } from './components/LanguageBar';
 import { MetaSection } from './sections/MetaSection';
 import { CoverSection } from './sections/CoverSection';
-import { PodiumSection } from './sections/PodiumSection';
 import { LevelsSection } from './sections/LevelsSection';
 import { OverscoresSection } from './sections/OverscoresSection';
 import { TextStringsSection } from './sections/TextStringsSection';
@@ -125,7 +125,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
         // Merge gameMeta + media (images/sounds/video) back into a flat working copy.
         // A freshly-created scenario is inserted with `data: {}` (no game_meta),
         // so loading it would otherwise clobber the defaultConfig that
-        // initialState seeded — leaving fixed-skeleton types like clash with no
+        // initialState seeded - leaving fixed-skeleton types like clash with no
         // territories/clans and no way to add them. Fall back to the adapter's
         // defaults whenever the loaded game_meta is empty.
         const loadedMeta = parsedData?.game_meta;
@@ -158,7 +158,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
 
         // Mystery equivalent: medias.enigmas[] is the source of truth for
         // per-enigma good_answer_image (cleanGameMetaForData strips it off
-        // gameMeta.enigmas on save). Match by enigma_number — the medias array
+        // gameMeta.enigmas on save). Match by enigma_number - the medias array
         // only contains entries that HAVE an image, so indices may not align.
         if (parsedMedia?.enigmas && Array.isArray(merged.enigmas)) {
           const inMerged = merged.enigmas as Array<Record<string, unknown>>;
@@ -174,6 +174,9 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
             const m = byNumber.get(n);
             if (m?.good_answer_image) e.good_answer_image = m.good_answer_image;
             if (m?.wrong_answer_image) e.wrong_answer_image = m.wrong_answer_image;
+            // GO 4-answer extra wrong images.
+            if (m?.wrong_answer_image_2) e.wrong_answer_image_2 = m.wrong_answer_image_2;
+            if (m?.wrong_answer_image_3) e.wrong_answer_image_3 = m.wrong_answer_image_3;
           });
         }
 
@@ -226,7 +229,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
         }
 
         // Mystery's level gauge images live in medias.levels (legacy
-        // "levels" overload — these are 4 image fields, not gameplay levels).
+        // "levels" overload - these are 4 image fields, not gameplay levels).
         // Hydrate them onto gameMeta the same way as medias.images.
         if (parsedMedia?.levels) {
           for (const [k, v] of Object.entries(parsedMedia.levels)) {
@@ -427,10 +430,20 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
   );
 
   const Body = adapter.Body;
+  const TopSection = adapter.TopSection;
+  const goMeta = state.gameMeta as Record<string, unknown>;
+  // GO authoring is admin-only: clients must not see or toggle anything GO in the
+  // editor. Reporting adaptableGo=false for non-admins auto-hides every GO field
+  // (enigma codes/extra images, the GO default-pattern block, etc.).
+  const goValue = {
+    adaptableGo: goMeta.adaptable_go === true && isAdmin,
+    answerCount: (goMeta.go_answer_count === 4 ? 4 : 2) as 2 | 4,
+  };
 
   return (
     <ScenarioEditorContext.Provider value={value}>
-      <CollapseAllProvider>
+      <GoEditorProvider value={goValue}>
+        <CollapseAllProvider>
         <div className="min-h-screen bg-gray-50 flex flex-col">
           <ScenarioHeader />
           {state.alert && (
@@ -441,9 +454,9 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
           <SectionsTOC />
           <main className="flex-1 px-6 py-4 space-y-4">
             <LanguageBar />
+            {TopSection && <TopSection />}
             <MetaSection />
             <CoverSection />
-            <PodiumSection />
             <LevelsSection />
             <OverscoresSection />
             <Body />
@@ -458,7 +471,8 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
           </main>
           <SaveBar />
         </div>
-      </CollapseAllProvider>
+        </CollapseAllProvider>
+      </GoEditorProvider>
     </ScenarioEditorContext.Provider>
   );
 }

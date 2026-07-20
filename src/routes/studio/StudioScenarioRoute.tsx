@@ -13,12 +13,13 @@ interface ScenarioRow {
   game_type: 'mystery' | 'tagquest' | 'tracks' | string;
   title?: string;
   scenario_type?: string;
+  client_id?: number | string | null;
 }
 
 export function StudioScenarioRoute() {
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
-  const { userType } = useAuth();
+  const { userType, user } = useAuth();
   const isAdmin = userType === 'admin';
 
   const isNew = uniqid === 'new';
@@ -35,16 +36,27 @@ export function StudioScenarioRoute() {
       try {
         const { data, error: e } = await db
           .from('scenarios')
-          .select('id, uniqid, game_type, title, scenario_type')
+          .select('id, uniqid, game_type, title, scenario_type, client_id')
           .eq('uniqid', uniqid)
           .maybeSingle();
         if (cancelled) return;
         if (e || !data) {
           setError(e?.message || 'Scenario not found');
         } else {
-          // Products are editable from the client side too — let the "Edit in
-          // Studio" button open the editor for any scenario type.
-          setScenario(data as ScenarioRow);
+          const row = data as ScenarioRow;
+          // Clients may only edit their own custom scenarios. Product scenarios
+          // are admin-owned (granted read-only), so a client reaching this route
+          // by direct URL is blocked here; the backend also pins client writes
+          // to client_id, so a save could never land regardless.
+          const ownsRow =
+            row.scenario_type !== 'product' &&
+            row.client_id != null &&
+            String(row.client_id) === String(user?.client_id);
+          if (!isAdmin && !ownsRow) {
+            setError('You do not have permission to edit this scenario.');
+          } else {
+            setScenario(row);
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Load failed');
@@ -55,7 +67,7 @@ export function StudioScenarioRoute() {
     return () => {
       cancelled = true;
     };
-  }, [isNew, uniqid, navigate]);
+  }, [isNew, uniqid, navigate, isAdmin, user?.client_id]);
 
   // Admins land on Dashboard with the Scenarios tab pre-selected (Dashboard
    // reads `location.state.tab`); clients have a dedicated list route.
@@ -107,7 +119,7 @@ export function StudioScenarioRoute() {
 
   const scenarioId = String(scenario.id);
 
-  // New-shell path — adapters are registered via bootstrap.ts (Slice 2B+).
+  // New-shell path - adapters are registered via bootstrap.ts (Slice 2B+).
   // Mystery + Tagquest both route through <ScenarioEditorShell>; tracks (and
   // any future type) falls through to the not-available branch until an
   // adapter is registered for it.

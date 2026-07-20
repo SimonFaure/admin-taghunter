@@ -1,5 +1,5 @@
 /**
- * Tracks adapter — checkpoint-based course gameplay (legacy `maximus`).
+ * Tracks adapter - checkpoint-based course gameplay (legacy `maximus`).
  *
  * Design plan: C:\Users\faure\.claude\plans\tracks-game-type-design.md
  */
@@ -125,7 +125,7 @@ function buildZipPayload(
     checkpoint_image_width_percentage: gm.checkpoint_image_width_percentage,
     scenario_default_pattern: gm.scenario_default_pattern,
 
-    // Checkpoints — flattened titles/descriptions for legacy consumers
+    // Checkpoints - flattened titles/descriptions for legacy consumers
     checkpoints: (gm.checkpoints ?? []).map((c: Checkpoint, idx: number) => ({
       id: c.id,
       number: idx + 1,
@@ -135,7 +135,7 @@ function buildZipPayload(
       points: c.points,
     })),
 
-    // Authored text overlays — passed through with their Localized<string>
+    // Authored text overlays - passed through with their Localized<string>
     // `text` maps intact (the playground runtime's `readLocalized` resolves
     // them at the player's selected language). Position lives here too:
     // entries without a position are skipped at render time, so unplaced
@@ -211,7 +211,6 @@ export const tracksAdapter: ScenarioAdapter<TracksGameMeta> = {
   capabilities: {
     hasLevels: false,
     hasOverscores: false,
-    hasPodium: true,
     supportsProductTemplate: true,
     hasTranslatableArrays: ['checkpoints'],
   },

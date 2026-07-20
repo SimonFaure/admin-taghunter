@@ -12,5 +12,7 @@
     "asset": "recurso"
   },
   "fileTypeNotAccepted": "Tipo de archivo no aceptado ({{kind}} requerido)",
-  "dragDropHint": "Arrastra y suelta un archivo {{kind}} aquí, o haz clic en Subir."
+  "dragDropHint": "Arrastra y suelta un archivo {{kind}} aquí, o haz clic en Subir.",
+  "notUsedInGo": "No se usa en GO",
+  "removeTag": "Quitar {{tag}}"
 }

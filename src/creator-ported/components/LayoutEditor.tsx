@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, Send, Maximize2, Minimize2, ChevronLeft, ChevronRight, LayoutGrid as Layout, Type, Image, Eye, EyeOff, ChevronDown, ChevronRight as ChevronRightSm, Layers, Download, MapPin } from 'lucide-react';
 import { db } from '../lib/db';
@@ -60,7 +60,7 @@ interface TextElement {
  * Tracks-only: author-defined translatable text overlays. Position lives here
  * (in the LayoutEditor's elements state) AND mirrors back to
  * gameMeta.text_elements[i].position on save. Content + style live exclusively
- * in gameMeta.text_elements[i] — looked up by `id` at render time.
+ * in gameMeta.text_elements[i] - looked up by `id` at render time.
  */
 interface ScenarioTextElement {
   type: 'scenario_text';
@@ -96,7 +96,7 @@ function buildScenarioTextName(
     trimmed.length > SCENARIO_TEXT_NAME_LIMIT
       ? `${trimmed.slice(0, SCENARIO_TEXT_NAME_LIMIT - 1)}…`
       : trimmed;
-  return `Text ${index + 1} — “${snippet}”`;
+  return `Text ${index + 1} - “${snippet}”`;
 }
 
 interface LayoutEditorProps {
@@ -147,7 +147,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const [scenarioFontColor, setScenarioFontColor] = useState<string>('');
   const [scenarioDefaultLanguage, setScenarioDefaultLanguage] = useState<string>('en');
   // Tracks-only: which text-category group header is currently selected for
-  // typography editing. Mutually exclusive with selectedElement — selecting
+  // typography editing. Mutually exclusive with selectedElement - selecting
   // either clears the other.
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -155,6 +155,8 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const [isTracksGame, setIsTracksGame] = useState(false);
   const [isClashGame, setIsClashGame] = useState(false);
   const [territoryCount, setTerritoryCount] = useState<number>(0);
+  // Clash: authored territory display names (index-aligned), for marker labels.
+  const [clashTerritoryNames, setClashTerritoryNames] = useState<string[]>([]);
   const [checkpointCount, setCheckpointCount] = useState<number>(0);
   const [tracksIconSize, setTracksIconSize] = useState<number>(3);
   const [naturalAspects, setNaturalAspects] = useState<Record<string, number>>({});
@@ -181,7 +183,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   // Sidebar items for the text-elements groups, partitioned by category id.
   // Uncategorized items go under the empty-string key. Names use the
   // scenario default language preview so the sidebar stays stable when the
-  // author opens the LayoutEditor — translations are previewed live on the
+  // author opens the LayoutEditor - translations are previewed live on the
   // canvas via getLocalized's fallback chain.
   const tracksTextItemsByCategory: Map<string, GroupItemDef[]> = (isTracksGame || isClashGame)
     ? (() => {
@@ -213,6 +215,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
             territoryCount,
             scenarioTextCategories.map((c) => ({ id: c.id, name: c.name })),
             tracksTextItemsByCategory,
+            clashTerritoryNames,
           )
         : [];
 
@@ -276,7 +279,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       els.map((e) => {
         if (e.id !== elementId) return e;
         const merged: ScenarioTextSource = { ...e };
-        // Replace each of the 8 typography fields — defined values set,
+        // Replace each of the 8 typography fields - defined values set,
         // undefined values delete the property entirely.
         (['font', 'font_color', 'bold', 'italic', 'underline', 'align', 'shadow', 'background'] as const).forEach(
           (k) => {
@@ -312,7 +315,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     const containerWidth = containerRef.current.offsetWidth;
     const cHeight = containerRef.current.offsetHeight;
     // No (or not-yet-loaded) background: fall back to the full container so drag
-    // math stays finite — otherwise a NaN aspect makes elements undraggable
+    // math stays finite - otherwise a NaN aspect makes elements undraggable
     // horizontally and renders them at the left edge.
     if (!img.naturalWidth || !img.naturalHeight) {
       setContainerHeightPx(cHeight);
@@ -404,7 +407,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       setUserEmail(email);
 
       // NOTE: the canonical column is `medias` (the legacy creator used `media`,
-      // singular — selecting that errored and silently blanked the whole editor).
+      // singular - selecting that errored and silently blanked the whole editor).
       const { data, error } = await db
         .from('scenarios')
         .select('medias, data, scenario_type, scenario_layout, uniqid, game_type')
@@ -414,7 +417,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       if (error) throw error;
       if (!data) return;
 
-      // Media is served under the scenario UNIQID, not the numeric id — use this
+      // Media is served under the scenario UNIQID, not the numeric id - use this
       // for every getMediaUrl() in this function (state isn't set synchronously).
       const uniqid = (data as any).uniqid || '';
       setScenarioUniqid(uniqid);
@@ -496,7 +499,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         setTracksIconSize(iconSize);
         setCheckpointCount(cps.length);
 
-        // Scenario-level typography defaults — per-element overrides fall back
+        // Scenario-level typography defaults - per-element overrides fall back
         // to these. registerStudioCustomFonts ensures author-uploaded fonts
         // are loaded so the canvas measurement in TracksTextFit uses correct
         // metrics (otherwise it falls back to sans-serif).
@@ -622,9 +625,9 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
       if (actualGameType === 'clash') {
         const gm = gameData?.game_meta ?? {};
         const terrs: any[] = Array.isArray(gm.territories) ? gm.territories : [];
-        // Clash is a fixed 4-territory skeleton — seed 4 markers even if the
-        // scenario hasn't been saved yet (so the author always sees them).
-        const terrCount = terrs.length > 0 ? terrs.length : 4;
+        // Seeded, editable skeleton - default to 8 markers even before first save
+        // so the author always sees them.
+        const terrCount = terrs.length > 0 ? terrs.length : 8;
         setTerritoryCount(terrCount);
 
         setScenarioFont(typeof gm.font === 'string' ? gm.font : '');
@@ -653,52 +656,104 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         const mapFile = media?.images?.map_image || media?.images?.background_image;
         if (mapFile) setBackgroundImage(getMediaUrl(uniqid, mapFile));
 
-        // One move-only marker per territory so the author sees where a
-        // controlling clan's sigil will sit at runtime. Markers reuse the clan
-        // seal images, cycling when there are fewer clans than territories
-        // (e.g. 2 clans → T1=clan1, T2=clan2, T3=clan1, T4=clan2). With no clan
-        // images uploaded, the marker falls back to a map-pin icon (rendered in
-        // the canvas when filename is empty).
-        // Clan seals live inline in data.game_meta.clans[].seal (kept inline by
-        // the clash adapter); fall back to the medias bucket just in case.
-        const clanSeals: string[] = (Array.isArray(gm.clans) ? gm.clans : [])
-          .map((c: any, ci: number) => {
-            const inline = typeof c?.seal === 'string' ? c.seal : '';
-            if (inline) return inline;
-            const fromMedia = media?.clans?.[ci]?.seal;
-            return typeof fromMedia === 'string' ? fromMedia : '';
-          })
+        // Three move-only markers per territory: the BANNER (the controlling
+        // clan's flag), the NAME/GAUGE cluster and the PURGE-image anchor.
+        // Banner markers preview the clan banner images (cycling when fewer
+        // clans than territories); the purge marker previews gm.purge_image
+        // when uploaded; the label marker has no image (map-pin placeholder).
+        // Banners live inline in data.game_meta.clans[].banner (kept inline by
+        // the clash adapter).
+        const clanBanners: string[] = (Array.isArray(gm.clans) ? gm.clans : [])
+          .map((c: any) => (typeof c?.banner === 'string' ? c.banner : ''))
           .filter((s: string) => s.length > 0);
-        // Spread defaults so unplaced markers don't stack at dead-centre.
-        const CLASH_DEFAULT_POS = [
-          { left: 30, top: 35 }, { left: 70, top: 30 },
-          { left: 65, top: 70 }, { left: 28, top: 72 },
+        // Spread defaults (label grid) so unplaced markers don't stack; the
+        // banner defaults sit just above their label.
+        const CLASH_LABEL_DEFAULTS = [
+          { left: 20, top: 26 }, { left: 50, top: 20 }, { left: 79, top: 28 },
+          { left: 22, top: 55 }, { left: 50, top: 53 }, { left: 80, top: 58 },
+          { left: 35, top: 82 }, { left: 66, top: 82 },
         ];
+        const dl = typeof gameData?.default_language === 'string' ? gameData.default_language : 'en';
+        const resolveName = (nameObj: any): string => {
+          if (!nameObj) return '';
+          if (typeof nameObj === 'string') return nameObj.trim();
+          if (typeof nameObj === 'object') {
+            return String(nameObj[dl] ?? Object.values(nameObj).find((v) => v) ?? '').trim();
+          }
+          return '';
+        };
+        // "Name (N)" when the territory is named, else "Territory N".
+        const terrLabel = (i: number): string => {
+          const nm = resolveName(terrs[i]?.name);
+          return nm ? `${nm} (${i + 1})` : `Territory ${i + 1}`;
+        };
+
         const imagesList: { id: string; name: string; filename: string }[] = [];
         const seeds: Record<string, { left: number; top: number }> = {};
         const territoryEls: LayoutElement[] = [];
-        const SIGIL_SIZE = 8;
-        const SIZE_BY_INDEX = ['Large', 'Medium', 'Medium', 'Small'];
+        const names: string[] = [];
+        const BANNER_SIZE = 8;
+        const LABEL_SIZE = 6;
+        const PURGE_SIZE = 6;
+        // purge_image is a FLAT media field - stripped into the medias column
+        // on save (unlike the nested clan banners), so read it from there.
+        const purgeFile: string =
+          media?.images?.purge_image || (typeof gm.purge_image === 'string' ? gm.purge_image : '');
+        const num = (v: any, fb: number) => (isFinite(Number(v)) ? Number(v) : fb);
         for (let i = 0; i < terrCount; i++) {
           const t = terrs[i];
           const n = i + 1;
-          const id = `territory_${n}`;
-          const size = SIZE_BY_INDEX[i];
-          const name = size ? `Territory ${n} (${size})` : `Territory ${n}`;
-          const filename = clanSeals.length > 0 ? clanSeals[i % clanSeals.length] : '';
-          imagesList.push({ id, name, filename });
-          const dft = CLASH_DEFAULT_POS[i % CLASH_DEFAULT_POS.length];
-          const pos = t?.position ?? dft;
-          const left = Number(pos.left);
-          const top = Number(pos.top);
-          seeds[id] = { left: isFinite(left) ? left : dft.left, top: isFinite(top) ? top : dft.top };
+          const base = terrLabel(i);
+          names.push(base);
+          const labelDft = CLASH_LABEL_DEFAULTS[i % CLASH_LABEL_DEFAULTS.length];
+          const bannerDft = { left: labelDft.left, top: Math.max(4, labelDft.top - 12) };
+
+          const bannerId = `territory_${n}_banner`;
+          const bannerFile = clanBanners.length > 0 ? clanBanners[i % clanBanners.length] : '';
+          const bp = t?.banner_position ?? bannerDft;
+          seeds[bannerId] = { left: num(bp.left, bannerDft.left), top: num(bp.top, bannerDft.top) };
+          imagesList.push({ id: bannerId, name: `${base} · banner`, filename: bannerFile });
           territoryEls.push({
-            type: 'image', id, name, filename,
-            x: seeds[id].left, y: seeds[id].top, width: SIGIL_SIZE, height: SIGIL_SIZE,
+            type: 'image', id: bannerId, name: `${base} · banner`, filename: bannerFile,
+            x: seeds[bannerId].left, y: seeds[bannerId].top, width: BANNER_SIZE, height: BANNER_SIZE,
+          });
+
+          const labelId = `territory_${n}_label`;
+          const lp = t?.label_position ?? labelDft;
+          seeds[labelId] = { left: num(lp.left, labelDft.left), top: num(lp.top, labelDft.top) };
+          imagesList.push({ id: labelId, name: `${base} · name/gauge`, filename: '' });
+          territoryEls.push({
+            type: 'image', id: labelId, name: `${base} · name/gauge`, filename: '',
+            x: seeds[labelId].left, y: seeds[labelId].top, width: LABEL_SIZE, height: LABEL_SIZE,
+          });
+
+          // Purge anchor - where the purge image sits while this territory is
+          // the current purge target. Defaults just below the label cluster.
+          const purgeId = `territory_${n}_purge`;
+          const purgeDft = { left: labelDft.left, top: Math.min(96, labelDft.top + 12) };
+          const pp = t?.purge_position ?? purgeDft;
+          seeds[purgeId] = { left: num(pp.left, purgeDft.left), top: num(pp.top, purgeDft.top) };
+          imagesList.push({ id: purgeId, name: `${base} · purge`, filename: purgeFile });
+          territoryEls.push({
+            type: 'image', id: purgeId, name: `${base} · purge`, filename: purgeFile,
+            x: seeds[purgeId].left, y: seeds[purgeId].top, width: PURGE_SIZE, height: PURGE_SIZE,
           });
         }
+        // Singleton, author-placeable timer marker (default: top-centre).
+        const tp = gm.timer_position;
+        const timerPos = tp && isFinite(Number(tp.left)) && isFinite(Number(tp.top))
+          ? { left: Number(tp.left), top: Number(tp.top) }
+          : { left: 50, top: 6 };
+        seeds['clash_timer'] = timerPos;
+        imagesList.push({ id: 'clash_timer', name: 'Timer', filename: '' });
+        territoryEls.push({
+          type: 'image', id: 'clash_timer', name: 'Timer', filename: '',
+          x: timerPos.left, y: timerPos.top, width: 12, height: 5,
+        });
+
         tracksSeedRef.current = seeds;
         setAvailableImages(imagesList);
+        setClashTerritoryNames(names);
 
         const placedTextEls: LayoutElement[] = textEls
           .filter((te) => te?.id && te.position)
@@ -1020,7 +1075,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     } else if (itemDef.type === 'scenario_text') {
       // First placement uses the shared default; saved position is restored
       // at hydration time, not here. Removing + re-adding always drops a
-      // fresh box at the default — intentional, matches the "Add to layout"
+      // fresh box at the default - intentional, matches the "Add to layout"
       // semantics from the design.
       const newEl: ScenarioTextElement = {
         type: 'scenario_text',
@@ -1229,7 +1284,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     if (fetchErr) throw fetchErr;
 
     // Re-read `data` fresh so we don't clobber concurrent edits to the rest of
-    // it. JSON columns come back as strings from query.php — parse before patching.
+    // it. JSON columns come back as strings from query.php - parse before patching.
     const parseCol = (v: any) => {
       if (v == null) return v;
       if (typeof v === 'string') {
@@ -1255,9 +1310,9 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     });
 
     // Scenario text elements: position lives ONLY in gameMeta.text_elements[i]
-    // (single source of truth — see plan). Placed entries write their box;
+    // (single source of truth - see plan). Placed entries write their box;
     // unplaced entries have any prior position cleared so the runtime skips
-    // them. Per-element typography overrides also write here — we authoritatively
+    // them. Per-element typography overrides also write here - we authoritatively
     // replace each element from our in-memory scenarioTextElements state
     // (which is what TypographyEditor mutates) before splicing the position.
     // Orphans (source deleted in scenario editor) are ignored because we rebuild
@@ -1275,7 +1330,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     gm.text_elements = texts.map((te) => {
       if (!te || typeof te !== 'object' || !te.id) return te;
       // Merge in our typography overrides (font/color/B/I/U/align/shadow/bg).
-      // Other persisted fields (text, category) win from the DB row — those
+      // Other persisted fields (text, category) win from the DB row - those
       // are owned by the scenario editor section, not us.
       const overrides = overrideById.get(te.id);
       let merged: Record<string, unknown> = { ...te };
@@ -1302,7 +1357,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
     // Category typography also flows from our in-memory state. Replace the
     // typography of each category by id; preserve everything else (name +
-    // any future fields). Categories not in our state survive untouched —
+    // any future fields). Categories not in our state survive untouched -
     // the scenario editor section is the source of truth for add/rename/
     // delete + ordering, we just mutate typography here.
     const dbCats: any[] = Array.isArray(gm.text_categories) ? gm.text_categories : [];
@@ -1342,9 +1397,10 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     });
   };
 
-  // Clash: territory sigil CENTERS sync back to gameMeta.territories[].position
+  // Clash: territory banner + name/gauge + purge marker centers sync back to
+  // gameMeta.territories[].banner_position / label_position / purge_position
   // (the runtime reads those); text elements sync to gameMeta.text_elements[i].
-  // No HUD frames. Mirrors saveTracksLayout.
+  // No HUD frames.
   const saveClashLayout = async () => {
     const { data: row, error: fetchErr } = await db
       .from('scenarios')
@@ -1371,15 +1427,20 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     gm.territories = terrs;
 
     elements.forEach((el) => {
-      const m = /^territory_(\d+)$/.exec(el.id);
+      const m = /^territory_(\d+)_(banner|label|purge)$/.exec(el.id);
       if (!m) return;
       const idx = parseInt(m[1], 10) - 1;
-      if (idx >= 0 && idx < terrs.length) {
-        terrs[idx] = { ...terrs[idx], position: { left: el.x, top: el.y } };
-      }
+      if (idx < 0 || idx >= terrs.length) return;
+      const key =
+        m[2] === 'banner' ? 'banner_position' : m[2] === 'label' ? 'label_position' : 'purge_position';
+      terrs[idx] = { ...terrs[idx], [key]: { left: el.x, top: el.y } };
     });
 
-    // Scenario text elements — same single-source-of-truth handling as tracks.
+    // Singleton timer marker.
+    const timerEl = elements.find((el) => el.id === 'clash_timer');
+    if (timerEl) gm.timer_position = { left: timerEl.x, top: timerEl.y };
+
+    // Scenario text elements - same single-source-of-truth handling as tracks.
     const texts: any[] = Array.isArray(gm.text_elements) ? gm.text_elements : [];
     const placedTextById = new Map<string, ScenarioTextElement>();
     elements.forEach((el) => {
@@ -1520,7 +1581,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     try {
       // saveLayout() writes the live layout to its authoritative store:
       // scenario_layout (+ synced checkpoint positions) for tracks/clash, or
-      // default_config for mystery/tagquest — and that's what reaches the
+      // default_config for mystery/tagquest - and that's what reaches the
       // playground. There is no separate publish target anymore (the old
       // `layouts` table pipeline was retired), so Save IS the publish.
       await saveLayout();
@@ -1553,7 +1614,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
           <div className="w-px h-5 bg-gray-700 flex-shrink-0" />
           <h1 className="text-sm font-semibold text-white truncate max-w-[200px] flex-shrink-0">Layout Editor</h1>
 
-          {/* Mystery "Game" layout mode retired — the in-game board is now
+          {/* Mystery "Game" layout mode retired - the in-game board is now
               positioned by the dedicated In-game layout editor (game_meta
               .ingame_layout, consumed directly by MysteryGameRenderer). This
               editor handles only the mystery Instruction layout. */}
@@ -1900,7 +1961,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                         // Per-element override editor. The
                                         // inherited base is the resolved
                                         // category typography (or scenario
-                                        // default when uncategorized) — the
+                                        // default when uncategorized) - the
                                         // [Override] toggles in TypographyEditor
                                         // flip each field between "use the
                                         // inherited value" (greyed) and "set
@@ -1931,7 +1992,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                             <p className="text-[10px] uppercase tracking-wider text-violet-400 mb-1 px-0.5">
                                               {cat
                                                 ? `Override (inherits "${cat.name}")`
-                                                : 'Override (uncategorized — inherits scenario)'}
+                                                : 'Override (uncategorized - inherits scenario)'}
                                             </p>
                                             <TypographyEditor
                                               value={elementOverrideValue}
@@ -2099,7 +2160,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                     ? 'bg-violet-500'
                     : 'bg-emerald-500';
 
-              // Live content + style lookup for scenario_text — content,
+              // Live content + style lookup for scenario_text - content,
               // font, color, etc. live in gameMeta.text_elements[] and are
               // joined here by id. Inherits scenario font/color when unset.
               const scenarioTextSrc =
@@ -2131,13 +2192,14 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       }
                     }}
                   />
-                  ) : isClashGame && /^territory_\d+$/.test(element.id) ? (
-                    // Clash territory with no clan images — map-pin marker.
+                  ) : isClashGame && (/^territory_\d+_(banner|label|purge)$/.test(element.id) || element.id === 'clash_timer') ? (
+                    // Clash banner / name-gauge / purge / timer marker - pin.
+                    // (Purge markers show gm.purge_image instead once uploaded.)
                     <div className="w-full h-full flex items-center justify-center pointer-events-none text-blue-500 drop-shadow">
                       <MapPin className="w-full h-full" strokeWidth={1.5} />
                     </div>
                   ) : (
-                    // Checkpoint with no uploaded icon — grabbable circle placeholder.
+                    // Checkpoint with no uploaded icon - grabbable circle placeholder.
                     <div
                       className="w-full rounded-full border-2 border-blue-400/70 bg-blue-400/25 pointer-events-none"
                       style={{ paddingBottom: '100%' }}
@@ -2180,7 +2242,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                           lang,
                         ) || '',
                       );
-                      // Resolve via the inheritance chain — element override
+                      // Resolve via the inheritance chain - element override
                       // (per-field) wins, then category typography (if the
                       // element has one + the category exists), then
                       // scenario default.
@@ -2237,7 +2299,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                     })()
                   ) : (
                     // Source dropped from the scenario after this layout was
-                    // loaded — render a striped placeholder so the orphaned
+                    // loaded - render a striped placeholder so the orphaned
                     // box is visible until the author removes it.
                     <div className="w-full h-full flex items-center justify-center text-violet-300/60 italic text-sm pointer-events-none select-none">
                       (missing source)

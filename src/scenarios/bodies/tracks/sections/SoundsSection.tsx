@@ -1,8 +1,8 @@
 /**
- * Sounds section — per-scan feedback sounds. Top-1/3/10 sounds live in the
- * shell's common podium section so they aren't repeated here.
+ * Sounds section - per-scan feedback sounds.
  */
 
+import { useTranslation } from 'react-i18next';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
@@ -15,12 +15,13 @@ const KEYS = [
 ] as const;
 
 export function SoundsSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const slots = tracksMediaSlots.filter((s) => (KEYS as readonly string[]).includes(s.key));
   const meta = editor.gameMeta as Record<string, unknown>;
 
   return (
-    <CollapsibleSection title="Sounds">
+    <CollapsibleSection title={t('editorTracks:sounds.sectionTitle')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {slots.map((slot) => (
           <AssetUploadField

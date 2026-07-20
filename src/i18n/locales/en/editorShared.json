@@ -12,5 +12,7 @@
     "asset": "asset"
   },
   "fileTypeNotAccepted": "File type not accepted ({{kind}} required)",
-  "dragDropHint": "Drag & drop a {{kind}} here, or click Upload."
+  "dragDropHint": "Drag & drop a {{kind}} here, or click Upload.",
+  "notUsedInGo": "Not used in GO",
+  "removeTag": "Remove {{tag}}"
 }

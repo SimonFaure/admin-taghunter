@@ -106,6 +106,36 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
     setError('');
   };
 
+  // Per-app (Go / Drop) status badge for the list. Mirrors ClientDetailView's
+  // appBillingBadge: app off ⇒ "Not enabled"; on ⇒ Active / Overdue / Locked
+  // from the billing-ok flag + overdue_since/grace lock clock.
+  const lockDateFrom = (overdueSince: string | null | undefined, graceDays?: number): Date | null => {
+    if (!overdueSince) return null;
+    const d = new Date(overdueSince);
+    if (isNaN(d.getTime())) return null;
+    d.setDate(d.getDate() + (graceDays || 0));
+    return d;
+  };
+
+  const appStatusBadge = (opts: {
+    enabled?: boolean;
+    billingOk?: boolean;
+    overdueSince?: string | null;
+    graceDays?: number;
+  }): { label: string; cls: string } => {
+    if (!opts.enabled) {
+      return { label: 'Not enabled', cls: 'bg-slate-100 text-slate-500' };
+    }
+    if (!opts.billingOk) {
+      const lockDate = lockDateFrom(opts.overdueSince, opts.graceDays);
+      if (lockDate && new Date() > lockDate) {
+        return { label: 'Locked', cls: 'bg-red-100 text-red-800' };
+      }
+      return { label: 'Overdue', cls: 'bg-amber-100 text-amber-800' };
+    }
+    return { label: 'Active', cls: 'bg-green-100 text-green-800' };
+  };
+
   const filteredClients = clients.filter(client =>
     client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -155,6 +185,12 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Billing Status
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Go
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  Drop
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Actions
                 </th>
@@ -163,7 +199,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
             <tbody className="divide-y divide-slate-200">
               {filteredClients.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                     no client
                   </td>
                 </tr>
@@ -210,6 +246,34 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                         {client.billing_up_to_date ? 'Current' : 'Overdue'}
                       </span>
                     </td>
+                    {(() => {
+                      const go = appStatusBadge({
+                        enabled: client.go_enabled,
+                        billingOk: client.go_subscription_active,
+                        overdueSince: client.go_billing_overdue_since,
+                        graceDays: client.go_billing_grace_days,
+                      });
+                      const drop = appStatusBadge({
+                        enabled: client.drop_enabled,
+                        billingOk: client.drop_billing_ok,
+                        overdueSince: client.drop_billing_overdue_since,
+                        graceDays: client.drop_billing_grace_days,
+                      });
+                      return (
+                        <>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${go.cls}`}>
+                              {go.label}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${drop.cls}`}>
+                              {drop.label}
+                            </span>
+                          </td>
+                        </>
+                      );
+                    })()}
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end space-x-2">
                         {onViewClient && (

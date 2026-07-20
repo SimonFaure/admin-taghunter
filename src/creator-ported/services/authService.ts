@@ -1,4 +1,4 @@
-// Compat shim — reads studio's canonical auth storage so ported editor
+// Compat shim - reads studio's canonical auth storage so ported editor
 // components can keep calling `authService.*` unchanged. The real auth flow
 // (login, OTP, refresh, logout) lives in src/auth/AuthContext.tsx + src/lib/secureAuth.ts.
 // The class keeps the original public surface; dead methods are no-ops that

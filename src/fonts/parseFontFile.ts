@@ -3,7 +3,7 @@
  *
  * Reads the OpenType `name` + `OS/2` + `head` tables via opentype.js. When the
  * font can't be parsed (corrupt, missing tables, oddly built), falls back to
- * deriving everything from the filename — the upload is NEVER blocked.
+ * deriving everything from the filename - the upload is NEVER blocked.
  *
  * Studio-only: the playground never parses fonts (it just renders what the
  * scenario's `custom_fonts` registry already records).
@@ -13,8 +13,8 @@
 
 import type { LocalizedName } from 'opentype.js';
 
-// opentype.js (~270 kB) is loaded on demand — only when an author actually
-// uploads a custom font — so it stays out of the initial editor bundle.
+// opentype.js (~270 kB) is loaded on demand - only when an author actually
+// uploads a custom font - so it stays out of the initial editor bundle.
 
 export interface ParsedFont {
   family: string;

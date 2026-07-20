@@ -1,7 +1,7 @@
-// Compat shim — the canonical auth provider is src/auth/AuthContext.tsx.
+// Compat shim - the canonical auth provider is src/auth/AuthContext.tsx.
 // This adapter keeps the old `{ user, loading, signIn, signOut }` API working
 // for a few remaining call sites until they migrate. Login via password-only
-// `signIn` is no longer supported — callers must use the OTP flow via
+// `signIn` is no longer supported - callers must use the OTP flow via
 // SecureLoginForm.
 import { useAuth as useNewAuth, AuthProvider as NewAuthProvider } from '../auth/AuthContext';
 

@@ -25,6 +25,12 @@
     "upload": "Subir logotipo de empresa",
     "constraints": "Máx. 2 MB. JPEG, PNG, GIF o WebP."
   },
+  "reportLogo": {
+    "label": "Usar mi logotipo en los informes impresos",
+    "desc": "Los informes de misión impresos mostrarán tu imagen de marca en lugar del logotipo de Tag Hunter.",
+    "noImage": "Añade un avatar o un logotipo de empresa arriba para activar esta opción.",
+    "saved": "Preferencia del logotipo de informes actualizada"
+  },
   "language": {
     "title": "Idioma",
     "desc": "El idioma de tu interfaz de Studio. También se convierte en el idioma predeterminado de los nuevos escenarios que crees y el idioma sugerido al configurar la aplicación playground."

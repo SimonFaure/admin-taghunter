@@ -16,6 +16,8 @@ interface Pattern {
   name: string;
   description: string;
   game_type: string;
+  mode?: string | null;
+  answer_count?: number | null;
   version?: string | null;
   pattern_data: string;
   is_default: boolean;
@@ -63,6 +65,7 @@ export function PatternsView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGameType, setSelectedGameType] = useState<string>('all');
   const [ownerFilter, setOwnerFilter] = useState<'all' | 'admin' | 'client'>('all');
+  const [modeFilter, setModeFilter] = useState<'all' | 'playground' | 'go'>('all');
   const [gameTypes, setGameTypes] = useState<string[]>([]);
 
   const [selectedPattern, setSelectedPattern] = useState<Pattern | null>(null);
@@ -82,6 +85,10 @@ export function PatternsView() {
     game_type: '',
     pattern_data: '',
     is_default: false,
+    // Tag Hunter GO: only meaningful for mystery patterns. A GO pattern maps
+    // letters→answer images (edited in the GO pattern editor, not here).
+    goMode: false,
+    answerCount: 2 as 2 | 4,
   });
 
   useEffect(() => {
@@ -90,7 +97,7 @@ export function PatternsView() {
 
   useEffect(() => {
     filterPatterns();
-  }, [patterns, searchTerm, selectedGameType, ownerFilter]);
+  }, [patterns, searchTerm, selectedGameType, ownerFilter, modeFilter]);
 
   const fetchPatterns = async () => {
     try {
@@ -128,6 +135,11 @@ export function PatternsView() {
     }
     if (selectedGameType !== 'all') {
       filtered = filtered.filter((p) => p.game_type === selectedGameType);
+    }
+    if (modeFilter !== 'all') {
+      filtered = filtered.filter((p) =>
+        modeFilter === 'go' ? p.mode === 'go' : (p.mode ?? 'playground') !== 'go',
+      );
     }
     if (ownerFilter !== 'all') {
       filtered = filtered.filter((p) => (p.owner_type || '').toLowerCase() === ownerFilter);
@@ -232,6 +244,8 @@ export function PatternsView() {
       game_type: pattern.game_type,
       pattern_data: JSON.stringify(JSON.parse(pattern.pattern_data), null, 2),
       is_default: pattern.is_default,
+      goMode: pattern.mode === 'go',
+      answerCount: pattern.answer_count === 4 ? 4 : 2,
     });
     setShowEditModal(true);
   };
@@ -240,7 +254,7 @@ export function PatternsView() {
     setShowCreateModal(false);
     setShowEditModal(false);
     setEditingPattern(null);
-    setFormData({ name: '', description: '', game_type: '', pattern_data: '', is_default: false });
+    setFormData({ name: '', description: '', game_type: '', pattern_data: '', is_default: false, goMode: false, answerCount: 2 });
     setError('');
   };
 
@@ -254,6 +268,7 @@ export function PatternsView() {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
         .slice(0, 64) || patternUniqid;
+      const isGo = formData.game_type === 'mystery' && formData.goMode;
       const response = await authFetch(
         `${API_BASE_URL}/patterns.php?action=create`,
         {
@@ -268,6 +283,7 @@ export function PatternsView() {
             is_default: formData.is_default,
             pattern_uniqid: patternUniqid,
             pattern_slug: patternSlug,
+            ...(isGo ? { mode: 'go', answer_count: formData.answerCount } : {}),
           }),
         }
       );
@@ -275,6 +291,11 @@ export function PatternsView() {
       if (!response.ok || result.error) throw new Error(result.error || 'Failed to create pattern');
       setPatterns((prev) => [result.data, ...prev]);
       resetForm();
+      // GO patterns are built in the dedicated letter-grid editor - jump straight in.
+      if (isGo) {
+        navigate(`/studio/patterns/${result.data?.pattern_uniqid ?? patternUniqid}`);
+        return;
+      }
       setSuccess('Pattern created successfully');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -521,9 +542,46 @@ export function PatternsView() {
                 <option value="tagquest">TagQuest</option>
                 <option value="mystery">Mystery</option>
                 <option value="tracks">Track</option>
-                <option value="clash">Clash</option>
               </select>
             </div>
+
+            {showCreateModal && formData.game_type === 'mystery' && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/50 p-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.goMode}
+                    onChange={(e) => setFormData({ ...formData, goMode: e.target.checked })}
+                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-sm font-medium text-emerald-800">Tag Hunter GO pattern</span>
+                </label>
+                {formData.goMode && (
+                  <div className="mt-3">
+                    <span className="block text-xs text-slate-600 mb-1.5">Answer options</span>
+                    <div className="flex gap-2">
+                      {([2, 4] as const).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, answerCount: n })}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                            formData.answerCount === n
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          {n === 2 ? '2 - A / B' : '4 - A / B / C / D'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      You’ll build the letter→answer grid next. Must match the scenario’s answer count.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
@@ -636,6 +694,16 @@ export function PatternsView() {
             </select>
           </div>
 
+          <select
+            value={modeFilter}
+            onChange={(e) => setModeFilter(e.target.value as 'all' | 'playground' | 'go')}
+            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white text-sm"
+          >
+            <option value="all">All modes</option>
+            <option value="playground">Playground</option>
+            <option value="go">GO</option>
+          </select>
+
           <button
             onClick={() => setShowImportModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm whitespace-nowrap"
@@ -731,6 +799,11 @@ export function PatternsView() {
                         <GameTypeIcon type={pattern.game_type} className="w-4 h-4 text-slate-400" />
                         {pattern.game_type}
                       </span>
+                      {pattern.mode === 'go' && (
+                        <span className="ml-1.5 inline-flex items-center text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded font-semibold">
+                          GO{pattern.answer_count ? ` · ${pattern.answer_count === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-slate-900 capitalize">{pattern.owner_type}</span>

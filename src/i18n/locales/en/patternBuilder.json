@@ -6,7 +6,7 @@
   "close": "Close",
   "gameType": "Game type",
   "name": "Name",
-  "namePlaceholder": "e.g. Salle A — parcours 1",
+  "namePlaceholder": "e.g. Salle A - parcours 1",
   "description": "Description (optional)",
   "importExcel": "Import CSV / Excel",
   "orDownloadTemplate": "or download a template:",

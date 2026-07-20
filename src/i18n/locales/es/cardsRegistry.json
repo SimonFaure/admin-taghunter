@@ -56,7 +56,7 @@
   "toast": {
     "loadFailed": "Error al cargar las tarjetas",
     "keyNumberTaken": "Este número de llave ya está en uso por otra tarjeta",
-    "keyNumberInUse": "Número de llave ya en uso — elige otro",
+    "keyNumberInUse": "Número de llave ya en uso - elige otro",
     "chipIdRegistered": "Ya hay una tarjeta registrada con este ID de chip",
     "chipIdPositive": "El ID de chip debe ser un entero positivo",
     "keyNumberPositive": "El número de llave debe ser un entero positivo",

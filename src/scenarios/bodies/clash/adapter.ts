@@ -1,5 +1,5 @@
 /**
- * Clash adapter — TagQuest-derived clans/territories mode.
+ * Clash adapter - TagQuest-derived clans/territories mode.
  *
  * Design: project_clash_game_type_design (grill-me decision record).
  *
@@ -16,8 +16,6 @@ import { ClashScenarioDataSchema } from '../../../types/scenario-data';
 import type {
   ClashGameMeta,
   ClashClan,
-  ClashTerritory,
-  ClashCombination,
 } from '../../../types/scenario-data';
 import { validateClashConfig } from '../../../creator-ported/utils/publishValidation';
 import { extractFileName } from '../../../creator-ported/utils/mediaUrl';
@@ -32,7 +30,7 @@ import { defaultClashGameMeta } from './defaults';
 const ALL_IMAGE_FIELDS: readonly string[] = clashImageFields;
 const ALL_SOUND_FIELDS: readonly string[] = clashSoundFields;
 
-const COMBO_PIECE_KEYS = ['piece_1', 'piece_2', 'piece_3', 'main'] as const;
+const CLAN_IMAGE_KEYS = ['banner', 'logo', 'score_card'] as const;
 
 function buildMediasColumn(gameMeta: ClashGameMeta): MediasColumn {
   const meta = gameMeta as unknown as Record<string, string | undefined>;
@@ -47,7 +45,7 @@ function buildMediasColumn(gameMeta: ClashGameMeta): MediasColumn {
     if (v) sounds[field] = extractFileName(v);
   }
   // Nested clan/territory/combination images stay inline in data.game_meta
-  // (see header note) — the medias column only carries flat top-level fields.
+  // (see header note) - the medias column only carries flat top-level fields.
   return { images, sounds };
 }
 
@@ -69,25 +67,19 @@ function enumerateMedia(gameMeta: ClashGameMeta): readonly EnumeratedMedia[] {
     if (v) out.push({ fieldName: field, filename: v, kind: 'image' });
   }
 
-  (gameMeta.clans ?? []).forEach((clan: ClashClan, ci: number) => {
-    if (clan.seal) out.push({ fieldName: `clan_${ci}_seal`, filename: clan.seal, kind: 'image' });
-  });
+  for (const field of ALL_SOUND_FIELDS) {
+    const v = meta[field];
+    if (v) out.push({ fieldName: field, filename: v, kind: 'sound' });
+  }
 
-  (gameMeta.territories ?? []).forEach((t: ClashTerritory, ti: number) => {
-    if (t.complete_image) {
-      out.push({ fieldName: `territory_${ti}_complete`, filename: t.complete_image, kind: 'image' });
-    }
-    (t.combinations ?? []).forEach((c: ClashCombination, idx: number) => {
-      COMBO_PIECE_KEYS.forEach((key) => {
-        const img = c[key];
-        if (img) {
-          out.push({ fieldName: `territory_${ti}_combo_${idx}_${key}`, filename: img, kind: 'image' });
-        }
-      });
+  (gameMeta.clans ?? []).forEach((clan: ClashClan, ci: number) => {
+    CLAN_IMAGE_KEYS.forEach((key) => {
+      const img = clan[key];
+      if (img) out.push({ fieldName: `clan_${ci}_${key}`, filename: img, kind: 'image' });
     });
   });
 
-  // Author-uploaded custom font files — bundled so they travel in the ZIP.
+  // Author-uploaded custom font files - bundled so they travel in the ZIP.
   (gameMeta.custom_fonts ?? []).forEach((cf, cfIdx) => {
     (cf.faces ?? []).forEach((face, faceIdx) => {
       if (face.filename) {
@@ -110,24 +102,21 @@ function buildZipPayload(
   const game_media_images: Record<string, string> = {};
   for (const field of ALL_IMAGE_FIELDS) game_media_images[field] = relativeUrl(meta[field] ?? '');
 
+  const game_media_sounds: Record<string, string> = {};
+  for (const field of ALL_SOUND_FIELDS) game_media_sounds[field] = relativeUrl(meta[field] ?? '');
+
   const clans = (gameMeta.clans ?? []).map((c) => ({
     ...c,
     name: flattenToDefault(c.name, dl),
-    seal: relativeUrl(c.seal ?? ''),
+    banner: relativeUrl(c.banner ?? ''),
+    logo: relativeUrl(c.logo ?? ''),
+    score_card: relativeUrl(c.score_card ?? ''),
   }));
 
   const territories = (gameMeta.territories ?? []).map((t) => ({
     ...t,
     name: flattenToDefault(t.name, dl),
-    complete_image: relativeUrl(t.complete_image ?? ''),
-    combinations: (t.combinations ?? []).map((c) => ({
-      ...c,
-      name: flattenToDefault(c.name, dl),
-      piece_1: relativeUrl(c.piece_1 ?? ''),
-      piece_2: relativeUrl(c.piece_2 ?? ''),
-      piece_3: relativeUrl(c.piece_3 ?? ''),
-      main: relativeUrl(c.main ?? ''),
-    })),
+    balises: t.balises ?? [],
   }));
 
   return {
@@ -147,9 +136,9 @@ function buildZipPayload(
         game_public: gameMeta.game_public,
         default_time: gameMeta.default_time,
         scenario_version: gameMeta.scenario_version,
-        scenario_default_pattern: gameMeta.scenario_default_pattern,
       },
       game_media_images,
+      game_media_sounds,
       clans,
       territories,
     },
@@ -162,7 +151,6 @@ export const clashAdapter: ScenarioAdapter<ClashGameMeta> = {
   capabilities: {
     hasLevels: false,
     hasOverscores: false,
-    hasPodium: false,
     supportsProductTemplate: false,
     hasTranslatableArrays: [],
   },

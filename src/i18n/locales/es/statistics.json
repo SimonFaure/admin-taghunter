@@ -31,8 +31,16 @@
     "title": "Clientes principales",
     "empty": "Aún no hay actividad de clientes"
   },
-  "perDay": {
-    "title": "Partidas por día (últimos 30 días)"
+  "chart": {
+    "title": "Actividad diaria",
+    "last30": "Últimos 30 días",
+    "modes": {
+      "games": "Partidas",
+      "teams": "Equipos",
+      "types": "Tipos de juego"
+    },
+    "other": "Otros",
+    "empty": "Ninguna partida en este período"
   },
   "table": {
     "date": "Fecha",
@@ -44,5 +52,5 @@
     "players": "Jugadores",
     "empty": "Ninguna partida coincide con estos filtros"
   },
-  "empty": "—"
+  "empty": "-"
 }

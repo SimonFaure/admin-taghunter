@@ -241,7 +241,7 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
         // we keep a single `station` assignment per checkpoint (matching the
         // studio tracks editor's PATTERN_SHAPES) from good_answers[0] and
         // ignore wrong_answers entirely. The enigma_id is preserved as the
-        // 1-based item_index — the playground runtime matches a checkpoint to
+        // 1-based item_index - the playground runtime matches a checkpoint to
         // its station by the checkpoint's ordinal position.
         const baliseCsvPath = `${csvPath}patterns_maximus_balises.csv`;
         const baliseCsvFile = zip.files[baliseCsvPath];

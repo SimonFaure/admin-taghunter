@@ -1,0 +1,88 @@
+{
+  "enigmaTiming": {
+    "title": "Sons des énigmes"
+  },
+  "frame": {
+    "title": "Cadre et habillage"
+  },
+  "gauge": {
+    "title": "Jauge de niveaux",
+    "gaugeFilling": "Remplissage de la jauge"
+  },
+  "instructions": {
+    "title": "Bouton d’actualisation"
+  },
+  "scoring": {
+    "title": "Notation",
+    "numberOfEnigmas": "nombre d’énigmes",
+    "scoreFullGame": "score partie complète",
+    "malusBothAnswers": "malus si les deux réponses sont bipées",
+    "malusNoAnswer": "malus si aucune réponse",
+    "pointsUnits": "unités de points",
+    "unitPts": "pts",
+    "unitPercent": "%"
+  },
+  "enigmas": {
+    "title": "Énigmes",
+    "generateMissingCodes": "Générer les codes manquants",
+    "addEnigma": "Ajouter une énigme",
+    "empty": "Aucune énigme pour l’instant.",
+    "enigmaLabel": "Énigme {{number}}",
+    "removeEnigma": "Supprimer l’énigme",
+    "number": "Numéro",
+    "goShortCode": "Code court GO (imprimé sur le panneau)",
+    "shortCodePlaceholder": "ex. AXQ",
+    "generateUniqueCode": "Générer un code unique",
+    "questionText": "Question / texte ({{lang}})",
+    "goodAnswerPoints": "Points bonne réponse",
+    "wrongAnswerPoints": "Points mauvaise réponse",
+    "goodAnswerImage": "Image de la bonne réponse",
+    "wrongAnswerImage": "Image de la mauvaise réponse",
+    "wrongAnswerImage2": "Image de mauvaise réponse 2 (GO)",
+    "wrongAnswerImage3": "Image de mauvaise réponse 3 (GO)",
+    "unknownStation": "Station inconnue"
+  },
+  "goOption": {
+    "sectionTitle": "Tag Hunter GO",
+    "toggleLabel": "Adaptable à Tag Hunter GO",
+    "description": "Version sans matériel, sur navigateur mobile, de ce Mystère. Les joueurs saisissent un code court sur chaque panneau et touchent une lettre - sans RFID. Les sections grisées ci-dessous ne sont pas utilisées en GO.",
+    "answerOptions": "Nombre d’options de réponse",
+    "option2": "2 - A / B",
+    "option4": "4 - A / B / C / D",
+    "hint": "4 options est réservé au mode GO et ajoute deux images de mauvaise réponse supplémentaires par énigme. Chaque énigme nécessite un code court ; la lettre correcte par énigme provient du patron GO (modèle)."
+  },
+  "dropOption": {
+    "sectionTitle": "Tag Hunter Drop",
+    "toggleLabel": "Adaptable à Tag Hunter Drop",
+    "description": "Version sans matériel, à l’écran, de ce Mystère. Les images de réponse apparaissent sur l’appareil au lieu d’être scannées via des balises RFID - aucune puce nécessaire. L’activer garde le scénario utilisable aussi en RFID et en GO."
+  },
+  "gradient": {
+    "rawCss": "Dégradé CSS brut",
+    "parseIntoStops": "Analyser en arrêts",
+    "keepEditing": "(ou continuer à éditer le CSS brut)",
+    "stopColor": "Couleur de l’arrêt",
+    "alpha": "Alpha",
+    "pos": "Pos",
+    "removeStop": "Supprimer l’arrêt",
+    "addStop": "Ajouter un arrêt",
+    "editRawCss": "Éditer le CSS brut"
+  },
+  "pattern": {
+    "title": "Patron par défaut",
+    "defaultMysteryPattern": "Patron mystère par défaut (images de réponse des énigmes → association aux stations)",
+    "none": "- Aucun -",
+    "notFound": "{{value}} (introuvable)",
+    "rfidHint": "Associe les images de bonne/mauvaise réponse de chaque énigme aux stations/balises (Playground RFID). L’association est affichée à côté de chaque image ci-dessous. Modifiable au lancement.",
+    "defaultGoPattern": "Patron GO par défaut (clé des lettres de réponse pour Tag Hunter GO)",
+    "createRandom": "Créer aléatoire",
+    "goHint": "Chaque client disposant de ce scénario en GO utilise ce patron. « Créer aléatoire » en construit un avec une lettre correcte aléatoire par énigme ; modifiez-le ensuite depuis la page Patrons.",
+    "createModalTitle": "Créer un patron GO aléatoire",
+    "numberOfEnigmas": "Nombre d’énigmes",
+    "generateHint": "Génère des réponses {{answers}} avec la lettre correcte aléatoire par énigme, et le sélectionne comme patron GO par défaut de ce scénario.",
+    "cancel": "Annuler",
+    "creating": "Création…",
+    "create": "Créer",
+    "insertFailed": "Échec de l’insertion",
+    "createFailed": "Échec de la création du patron"
+  }
+}

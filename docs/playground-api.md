@@ -15,7 +15,7 @@ CRUD for game patterns. Used by both the Playground Electron app (authenticated,
 
 ## Endpoints
 
-### Create — `POST ?action=create`
+### Create - `POST ?action=create`
 
 Headers: `Content-Type: application/json`, `X-Auth-Token: …`
 
@@ -38,23 +38,23 @@ Required: `name`, `version`, `game_type`, `pattern_data`. Optional: `description
 
 Common 400s: missing `name` / `version` / `game_type` / `pattern_data`, or `Invalid JSON pattern data`.
 
-### List — `GET ?action=list[&game_type=…]`
+### List - `GET ?action=list[&game_type=…]`
 
 Returns `{ data: [ … ] }`. Admin → all patterns. Client → defaults + own.
 
-### Get — `GET ?action=get&id={id}`
+### Get - `GET ?action=get&id={id}`
 
 Returns `{ data: { … } }`. 403 if the client doesn't own it and it isn't a default.
 
-### Update — `POST|PUT ?action=update`
+### Update - `POST|PUT ?action=update`
 
 Body: `{ id, …partial fields }`. Non-owners (and non-admins on `is_default`) get 403.
 
-### Delete — `POST|DELETE ?action=delete&id={id}`
+### Delete - `POST|DELETE ?action=delete&id={id}`
 
 Returns `{ success: true, message: "Pattern deleted successfully" }`. Owner-only.
 
-### Upload (Creator) — `POST ?action=upload`
+### Upload (Creator) - `POST ?action=upload`
 
 Email-based auth, no token. See [creator-integration.md#upload-pattern](creator-integration.md#upload-pattern) for the contract. 404 `User with this email not found` if the email is in neither `admin_users` nor `clients`.
 
@@ -79,11 +79,11 @@ DEL  /patterns.php?action=delete&id=123 (X-Auth-Token)
 
 ### Triage order
 
-1. **Health check** — `GET /patterns.php?action=health` and `GET /default_config.php?action=health`. 500 here = init/require/DB broken. 200 here = issue is specific to the create/upload path.
-2. **Diagnostic script** — open `/backend/api/test_patterns_upload.php` in a browser. Reports DB connection, `patterns` table structure, `admin_users` / `clients` presence, file permissions, PHP config.
-3. **App logs** — admin Logs view, filter endpoint=`patterns` action=`upload` source=`creator`. Look for the `=== Pattern Upload Started ===` marker and trace which step is missing.
-4. **Server logs** — tail Apache/nginx/PHP-FPM error log while triggering the request. Look for fatals, parse errors, memory exhaustion, DB connection errors.
-5. **cURL repro** — minimal payload to separate client bugs from server bugs:
+1. **Health check** - `GET /patterns.php?action=health` and `GET /default_config.php?action=health`. 500 here = init/require/DB broken. 200 here = issue is specific to the create/upload path.
+2. **Diagnostic script** - open `/backend/api/test_patterns_upload.php` in a browser. Reports DB connection, `patterns` table structure, `admin_users` / `clients` presence, file permissions, PHP config.
+3. **App logs** - admin Logs view, filter endpoint=`patterns` action=`upload` source=`creator`. Look for the `=== Pattern Upload Started ===` marker and trace which step is missing.
+4. **Server logs** - tail Apache/nginx/PHP-FPM error log while triggering the request. Look for fatals, parse errors, memory exhaustion, DB connection errors.
+5. **cURL repro** - minimal payload to separate client bugs from server bugs:
    ```bash
    curl -X POST https://admin.taghunter.fr/backend/api/patterns.php?action=upload \
      -H "Content-Type: application/json" \
@@ -93,7 +93,7 @@ DEL  /patterns.php?action=delete&id=123 (X-Auth-Token)
 
 ### Log markers
 
-Successful upload trace — if any step is missing from the logs, that's where it died:
+Successful upload trace - if any step is missing from the logs, that's where it died:
 
 ```
 patterns.php: Starting script execution
@@ -124,7 +124,7 @@ FATAL ERROR in patterns.php: {"type":1,"message":"…","file":"…","line":123}
 | `User with this email not found`    | email missing from both tables                         |
 | `Invalid JSON pattern data`         | `pattern_data` string didn't parse                     |
 | `patterns table does not exist`     | run `php backend/apply_patterns_migration.php`         |
-| Silent 500, memory exhaustion       | `pattern_data` too large — raise `memory_limit` or shrink payload |
+| Silent 500, memory exhaustion       | `pattern_data` too large - raise `memory_limit` or shrink payload |
 
 ### Enhanced error response
 

@@ -29,7 +29,7 @@ export function AccountSecurityView() {
         return;
       }
       // Clear local auth state, then land on /login with a flash banner.
-      // Don't show success on this page — by the time the network call
+      // Don't show success on this page - by the time the network call
       // resolves the user is no longer authenticated and the page is
       // about to be replaced.
       await logout();

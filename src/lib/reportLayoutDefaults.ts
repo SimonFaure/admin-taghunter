@@ -1,4 +1,4 @@
-// Built-in default mission-report layout per game type — studio copy, kept in
+// Built-in default mission-report layout per game type - studio copy, kept in
 // step with backend/utils/ReportLayouts.php::defaultLayout and the playground's
 // services/reportLayout.ts. Used to seed a per-scenario override when the
 // operator first enables a custom layout.

@@ -27,8 +27,9 @@
   "notAvailable": "N/A",
   "hotspots": {
     "title": "Default Wi-Fi hotspots",
-    "subtitle": "Networks your devices broadcast so other devices on this account can join automatically.",
-    "unknownDevice": "Unknown device"
+    "subtitle": "Your account's hotspot. Devices join this network automatically; scan the QR code to connect a phone.",
+    "unknownDevice": "Unknown device",
+    "togglePassword": "Show or hide the password"
   },
   "about": {
     "title": "About Devices",

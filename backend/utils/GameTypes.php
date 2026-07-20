@@ -11,7 +11,7 @@
 //
 // So a client can be granted a globally-disabled type (e.g. an early-access pilot for
 // `clash`) by setting an explicit per-client enable. This helper returns the set of
-// game-type codes a given client must NOT see — used to filter scenarios, patterns,
+// game-type codes a given client must NOT see - used to filter scenarios, patterns,
 // tutorial videos, etc. server-side (the authoritative gate). The studio UI mirrors this
 // cosmetically via game_types.php?action=list.
 //

@@ -5,7 +5,7 @@ const isElectron = typeof window !== 'undefined' && (window as any).electron?.is
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 // ---------------------------------------------------------------------------
-// MySQL adapter (Electron path) — legacy, kept for Electron builds.
+// MySQL adapter (Electron path) - legacy, kept for Electron builds.
 // ---------------------------------------------------------------------------
 class MySQLQueryBuilder {
   private tableName: string;
@@ -216,7 +216,7 @@ class MySQLQueryBuilder {
 }
 
 // ---------------------------------------------------------------------------
-// PHP adapter — routes builder-style queries to the admin backend via
+// PHP adapter - routes builder-style queries to the admin backend via
 // /backend/api/query.php (a generic, whitelisted dispatcher).
 // ---------------------------------------------------------------------------
 

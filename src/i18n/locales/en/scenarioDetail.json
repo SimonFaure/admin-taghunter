@@ -16,12 +16,15 @@
   "noVideoYet": "No video added yet",
   "uploading": "Uploading...",
   "addVideo": "Add a video",
-  "videoFormatsHint": "MP4, WebM, MOV — max 200MB",
+  "videoFormatsHint": "MP4, WebM, MOV - max 200MB",
   "videoUploadedSuccess": "Video uploaded successfully",
   "downloadableFiles": "Downloadable Files",
   "filesAvailable_one": "{{count}} file available",
   "filesAvailable_other": "{{count}} files available",
   "noFilesAvailable": "No files available yet",
   "preparing": "Preparing...",
-  "downloadAllZip": "Download all (ZIP)"
+  "downloadAllZip": "Download all (ZIP)",
+  "goSection": "Tag Hunter GO",
+  "goPreviewOpen": "GO preview - codes & answers",
+  "goPreviewHint": "See each enigma's code and the answer images behind A / B (printable)."
 }

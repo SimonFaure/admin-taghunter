@@ -23,11 +23,20 @@ export interface AuthUser {
   client_id?: string;
   license_type?: 'access' | 'premium';
   billing_up_to_date?: boolean;
+  // Per-app provisioning (project_client_app_section). Drive which portal
+  // surfaces are visible via getAppAccess() (src/auth/appAccess.ts). Replaces
+  // the old go_client_only flag. playground_enabled absent => treated as ON.
+  playground_enabled?: boolean;
+  go_enabled?: boolean;
+  drop_enabled?: boolean;
   language?: string;
   created_at?: string;
   avatar_url?: string;
   company_logo_url?: string | null;
   company_logo_uses_avatar?: boolean;
+  // When true the playground prints the client's resolved brand logo on mission
+  // reports instead of the bundled TagHunter logo. Edited in MyAccountView.
+  report_use_brand_logo?: boolean;
 }
 
 interface AuthContextType {
@@ -47,6 +56,7 @@ interface AuthContextType {
   updateUserAvatar: (avatarUrl: string) => void;
   updateCompanyLogo: (logoUrl: string | null) => void;
   updateLogoPreference: (useAvatar: boolean) => void;
+  updateReportLogoPreference: (useBrandLogo: boolean) => void;
   updateLanguage: (language: string) => void;
 }
 
@@ -64,12 +74,19 @@ function buildUserFromPayload(payload: any, fallbackToken: string): AuthUser {
     client_id: payload.client_id || (userType === 'client' ? userId : undefined),
     license_type: payload.license_type,
     billing_up_to_date: payload.billing_up_to_date,
+    // Default playground ON when the server didn't send the flag, so an older
+    // payload never strips a normal client's portal. getAppAccess() relies on
+    // `!== false`, so we preserve an explicit false but coerce true otherwise.
+    playground_enabled: payload.playground_enabled === undefined ? true : !!payload.playground_enabled,
+    go_enabled: !!payload.go_enabled,
+    drop_enabled: !!payload.drop_enabled,
     language: payload.language,
     created_at: payload.created_at,
     avatar_url: payload.avatar_url,
     company_logo_url: payload.company_logo_url ?? null,
     company_logo_uses_avatar:
       payload.company_logo_uses_avatar === undefined ? true : !!payload.company_logo_uses_avatar,
+    report_use_brand_logo: !!payload.report_use_brand_logo,
   };
 }
 
@@ -164,6 +181,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) setUser({ ...user, company_logo_uses_avatar: useAvatar });
   };
 
+  const updateReportLogoPreference = (useBrandLogo: boolean) => {
+    if (user) {
+      const next = { ...user, report_use_brand_logo: useBrandLogo };
+      persistUser(next);
+      setUser(next);
+    }
+  };
+
   // Client self-service language change: update cached user + apply live. The
   // caller (MyAccountView) is responsible for persisting server-side first.
   const updateLanguage = (language: string) => {
@@ -203,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updateUserAvatar,
         updateCompanyLogo,
         updateLogoPreference,
+        updateReportLogoPreference,
         updateLanguage,
       }}
     >

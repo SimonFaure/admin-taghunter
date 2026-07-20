@@ -1,7 +1,7 @@
 /**
  * Resolves the scenario's selected mystery pattern (by uniqid) into per-enigma
- * station correspondences. The result is keyed by `item_index` — the value the
- * playground matches against each enigma's `number` at runtime — and each entry
+ * station correspondences. The result is keyed by `item_index` - the value the
+ * playground matches against each enigma's `number` at runtime - and each entry
  * maps the slot keys ('good_answer_station' | 'wrong_answer_station') to the
  * assigned station.
  *

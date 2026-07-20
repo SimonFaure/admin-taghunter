@@ -48,7 +48,7 @@ function clampDifficulty(n: number): number {
 }
 
 /**
- * A text star rendering of a difficulty value — e.g. 3 → "★★★☆☆". Works in any
+ * A text star rendering of a difficulty value - e.g. 3 → "★★★☆☆". Works in any
  * context (list cells, badges, client views) without a dedicated component.
  */
 export function formatDifficultyStars(raw: unknown): string {
@@ -68,7 +68,7 @@ export function getDifficultyLabel(raw: unknown, _t?: (key: string) => string): 
 }
 
 /**
- * Tailwind classes for a difficulty badge — green (1–2) / amber (3) / red (4–5),
+ * Tailwind classes for a difficulty badge - green (1–2) / amber (3) / red (4–5),
  * mirroring the playground's colour coding.
  */
 export function getDifficultyBadgeClass(raw: unknown): string {

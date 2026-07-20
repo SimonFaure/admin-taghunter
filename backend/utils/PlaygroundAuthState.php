@@ -5,7 +5,10 @@ class PlaygroundAuthState {
         $client = $db->fetch(
             'SELECT id, email, name, license_type, billing_up_to_date,
                     avatar_url, company_logo_url, company_logo_uses_avatar,
-                    max_devices, offline_grace_days, language, update_channel
+                    report_use_brand_logo,
+                    max_devices, offline_grace_days, language, update_channel,
+                    devices_disabled, billing_overdue_since, billing_grace_days,
+                    billing_reprieve_days, playground_enabled
              FROM clients WHERE id = ?',
             [$clientId]
         );
@@ -38,8 +41,32 @@ class PlaygroundAuthState {
                 'language' => $client['language'] ?? 'fr',
             ],
             'brand_logo_url' => $brandLogoUrl,
+            // When true the playground prints the client's brand logo (resolved
+            // above) on mission reports instead of the bundled TagHunter logo.
+            // The playground caches the image bytes for offline printing.
+            // Design: project_report_layouts_editor_labels.
+            'report_use_brand_logo' => (bool)($client['report_use_brand_logo'] ?? false),
             'max_devices' => (int)$client['max_devices'],
             'offline_grace_days' => (int)$client['offline_grace_days'],
+            // Emergency device-disable + billing auto-lock. The playground caches
+            // these and computes the launch/join lock locally (works offline):
+            //   locked = devices_disabled
+            //         || (billing_overdue_since && now > billing_overdue_since + billing_grace_days)
+            // A recovery code grants a per-device reprieve of billing_reprieve_days.
+            // billing_overdue_since is ISO-8601 (or null = not overdue).
+            // Design: project_client_device_lock.
+            // Master on/off for the Playground app (project_client_app_section).
+            // The playground caches this and self-locks the whole app when false
+            // (a stronger lock than devices_disabled, which only blocks gameplay).
+            // secure_auth also refuses to issue/refresh a token while disabled, so
+            // this is the offline/already-authed half of the belt-and-suspenders.
+            'playground_enabled' => (bool)$client['playground_enabled'],
+            'devices_disabled' => (bool)$client['devices_disabled'],
+            'billing_overdue_since' => $client['billing_overdue_since']
+                ? date('c', strtotime($client['billing_overdue_since']))
+                : null,
+            'billing_grace_days' => (int)$client['billing_grace_days'],
+            'billing_reprieve_days' => (int)$client['billing_reprieve_days'],
             'server_time' => date('c'),
         ];
 

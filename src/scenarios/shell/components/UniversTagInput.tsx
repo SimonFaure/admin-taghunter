@@ -9,6 +9,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { normalizeUnivers } from '../../../types/univers';
 
 interface UniversTagInputProps {
@@ -20,6 +21,7 @@ interface UniversTagInputProps {
 }
 
 export function UniversTagInput({ value, onChange, suggestions = [], placeholder }: UniversTagInputProps) {
+  const { t } = useTranslation('editorShared');
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -67,7 +69,7 @@ export function UniversTagInput({ value, onChange, suggestions = [], placeholder
               type="button"
               onClick={() => removeTag(tag)}
               className="hover:text-violet-950"
-              aria-label={`Remove ${tag}`}
+              aria-label={t('removeTag', { tag })}
             >
               <X className="w-3 h-3" />
             </button>

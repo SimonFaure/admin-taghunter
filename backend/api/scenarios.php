@@ -70,7 +70,7 @@ try {
             }
 
             // Phase 4a: require a real token or session. The legacy email-based
-            // path (client sends their email in the body) is no longer trusted —
+            // path (client sends their email in the body) is no longer trusted -
             // auth must come from a validated token.
             requireAuth();
 
@@ -189,7 +189,7 @@ try {
 
                 // Use the fields from Creator directly
                 if ($is_admin_from_creator) {
-                    // is_admin is true/1 — force client_id to null regardless of any other value
+                    // is_admin is true/1 - force client_id to null regardless of any other value
                     $client_id = null;
                     $client_id_from_creator = null;
                     // Look up admin ID by email if provided
@@ -410,7 +410,7 @@ try {
 
             // Refresh content hashes (data + media) so the playground's
             // incremental sync sees this change. Never let a hashing hiccup
-            // fail the save — the manifest builder has a NULL-hash fallback.
+            // fail the save - the manifest builder has a NULL-hash fallback.
             try {
                 ScenarioHashes::recompute($db->getConnection(), $uniqid);
             } catch (Exception $e) {
@@ -453,7 +453,7 @@ try {
                     'item_name' => $title,
                     'navigate_to' => 'scenarios'
                 ]);
-                // Notifications are a side-effect — never fail a publish for them.
+                // Notifications are a side-effect - never fail a publish for them.
                 // (Was load-bearing before: a missing admin_notifications table
                 // returned 500 even though the scenario row had already been
                 // saved. Caught during Stage 2 QA on 2026-05-05.)
@@ -606,7 +606,7 @@ try {
                 $medias = '{}';
             }
 
-            // Handle new zip file upload — store as a row in scenario_files (mime_type=application/zip)
+            // Handle new zip file upload - store as a row in scenario_files (mime_type=application/zip)
             if (isset($_FILES['zip_file']) && $_FILES['zip_file']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['zip_file'];
 
@@ -808,7 +808,7 @@ try {
             $mediaBaseDir = __DIR__ . '/../../media/';
 
             // Ensure the media base exists and is writable before creating the
-            // per-scenario subdir — on a fresh prod deploy media/ may be absent
+            // per-scenario subdir - on a fresh prod deploy media/ may be absent
             // (it's on the never-overwrite list), which otherwise fails confusingly.
             if (!is_dir($mediaBaseDir)) {
                 if (!@mkdir($mediaBaseDir, 0775, true) && !is_dir($mediaBaseDir)) {
@@ -850,7 +850,7 @@ try {
                 Logger::log('scenarios', $method, 'recompute_hashes', null, ['uniqid' => $uniqid], ['error' => $e->getMessage()], 200);
             }
 
-            // Build response — return relative path; the frontend prefixes with VITE_MEDIA_BASE_URL.
+            // Build response - return relative path; the frontend prefixes with VITE_MEDIA_BASE_URL.
             $relativePath = '/media/' . $uniqid . '/' . $originalFilename;
             $fullUrl = $relativePath;
 

@@ -1,0 +1,54 @@
+{
+  "clans": {
+    "title": "Clans",
+    "add": "Ajouter un clan",
+    "addTooltip": "Ajouter un clan",
+    "maxTooltip": "Maximum {{count}} clans",
+    "hint": "Créez jusqu'à {{count}} clans. L'opérateur choisit combien sont actifs (2-4) et peut les renommer au lancement ; les couleurs et les images sont fixées ici. Les segments de la barre de territoires apparaissent dans cet ordre de clans sur le tableau de bord.",
+    "clanLabel": "Clan {{number}}",
+    "removeAria": "Supprimer le clan",
+    "removeTooltip": "Supprimer le clan",
+    "minTooltip": "Au moins {{count}} clans requis",
+    "defaultName": "Nom par défaut",
+    "colour": "Couleur",
+    "banner": "Bannière (déployée sur les territoires contrôlés)",
+    "logo": "Logo / emblème (classement + fil d'actualité)",
+    "scoreCard": "Carte de score (ligne de classement, facultative)",
+    "slotBanner": "Bannière",
+    "slotLogo": "Logo",
+    "slotScoreCard": "Carte de score"
+  },
+  "map": {
+    "title": "Carte & tableau de bord",
+    "positionHint": "Positionnez la bannière de chaque territoire et son groupe nom/jauge dans l'éditeur de mise en page (bouton dans la barre d'enregistrement) - les positions sont enregistrées par scénario.",
+    "framesLabel": "Cadres du tableau de bord (facultatif - le style par défaut est utilisé si non défini)"
+  },
+  "purge": {
+    "title": "The Purge",
+    "hint": "Une fois par partie, un clan peut poinçonner la station de purge pour réinitialiser à neutre le territoire le plus fort du clan en tête. L'image marque la cible actuelle sur la carte (positionnez-la par territoire dans l'éditeur de mise en page) et le son est joué sur tous les appareils lorsqu'une purge se déclenche.",
+    "warning": "Sans image, la Purge est désactivée au lancement dans le playground (aucune image par défaut n'est fournie)."
+  },
+  "territories": {
+    "title": "Territoires",
+    "add": "Ajouter un territoire",
+    "addTooltip": "Ajouter un territoire",
+    "maxTooltip": "Maximum {{count}} territoires",
+    "hint": "Chaque territoire est un ensemble de balises valant des pts/min (proportionnel à son nombre de balises). Le clan qui contrôle le plus de validations le détient ; une égalité est neutre. Prérempli avec les 8 territoires standard (24 balises) - modifiez librement.",
+    "empty": "Aucun territoire - réinitialisez le scénario pour restaurer la structure.",
+    "collapse": "Réduire le territoire",
+    "expand": "Développer le territoire",
+    "territoryLabel": "Territoire {{number}}",
+    "unnamed": "Territoire sans nom",
+    "baliseCount_one": "{{count}} balise",
+    "baliseCount_other": "{{count}} balises",
+    "pointsPerMin": "{{points}} pts/min",
+    "removeAria": "Supprimer le territoire",
+    "removeTooltip": "Supprimer le territoire",
+    "minTooltip": "Au moins {{count}} territoires requis",
+    "name": "Nom du territoire",
+    "pointsPerMinute": "Points / minute",
+    "balisesLabel": "Balises (codes de station physiques)",
+    "balisesPlaceholder": "ex. 1, 2, 3, 4, 5",
+    "balisesHint": "Une puce doit biper toutes ces balises puis s'enregistrer au lecteur central pour valider le territoire. Séparées par des virgules ; modifiables par site au lancement."
+  }
+}

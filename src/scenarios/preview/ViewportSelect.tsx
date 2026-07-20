@@ -5,6 +5,8 @@
  */
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import type { ViewportSize } from './viewportTypes';
 
 interface PresetEntry {
@@ -13,28 +15,36 @@ interface PresetEntry {
   size: ViewportSize | 'custom';
 }
 
-const PRESETS: PresetEntry[] = [
-  { id: '1280x720', label: '1280 × 720', size: { width: 1280, height: 720 } },
-  { id: '1680x900', label: '1680 × 900 (legacy)', size: { width: 1680, height: 900 } },
-  { id: '1920x1080', label: '1920 × 1080', size: { width: 1920, height: 1080 } },
-  { id: '2560x1440', label: '2560 × 1440', size: { width: 2560, height: 1440 } },
-  { id: 'custom', label: 'Custom…', size: 'custom' },
-];
+function buildPresets(t: TFunction): PresetEntry[] {
+  return [
+    { id: '1280x720', label: '1280 × 720', size: { width: 1280, height: 720 } },
+    {
+      id: '1680x900',
+      label: t('scenarioPreview:viewport.legacy', { size: '1680 × 900' }),
+      size: { width: 1680, height: 900 },
+    },
+    { id: '1920x1080', label: '1920 × 1080', size: { width: 1920, height: 1080 } },
+    { id: '2560x1440', label: '2560 × 1440', size: { width: 2560, height: 1440 } },
+    { id: 'custom', label: t('scenarioPreview:viewport.custom'), size: 'custom' },
+  ];
+}
 
 interface ViewportSelectProps {
   value: ViewportSize;
   onChange: (next: ViewportSize) => void;
 }
 
-function findPresetId(value: ViewportSize): string {
-  const match = PRESETS.find(
+function findPresetId(presets: PresetEntry[], value: ViewportSize): string {
+  const match = presets.find(
     (p) => p.size !== 'custom' && p.size.width === value.width && p.size.height === value.height,
   );
   return match?.id ?? 'custom';
 }
 
 export function ViewportSelect({ value, onChange }: ViewportSelectProps) {
-  const currentId = findPresetId(value);
+  const { t } = useTranslation();
+  const PRESETS = buildPresets(t);
+  const currentId = findPresetId(PRESETS, value);
   const isCustom = currentId === 'custom';
 
   // Local state mirrors the inputs while the user is typing in custom mode;
@@ -66,7 +76,7 @@ export function ViewportSelect({ value, onChange }: ViewportSelectProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-xs font-medium text-gray-600">Viewport</label>
+      <label className="text-xs font-medium text-gray-600">{t('scenarioPreview:viewport.label')}</label>
       <select
         value={currentId}
         onChange={(e) => handlePresetChange(e.target.value)}
@@ -90,7 +100,7 @@ export function ViewportSelect({ value, onChange }: ViewportSelectProps) {
               if (e.key === 'Enter') commitCustom();
             }}
             className="w-20 px-2 py-1 border border-gray-300 rounded-md"
-            aria-label="Custom width"
+            aria-label={t('scenarioPreview:viewport.customWidth')}
           />
           <span className="text-gray-500">×</span>
           <input
@@ -103,7 +113,7 @@ export function ViewportSelect({ value, onChange }: ViewportSelectProps) {
               if (e.key === 'Enter') commitCustom();
             }}
             className="w-20 px-2 py-1 border border-gray-300 rounded-md"
-            aria-label="Custom height"
+            aria-label={t('scenarioPreview:viewport.customHeight')}
           />
         </div>
       )}

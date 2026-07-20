@@ -1,13 +1,14 @@
 /**
- * Checkpoints section — per-checkpoint editor.
+ * Checkpoints section - per-checkpoint editor.
  *
  * Each row: title (Localized), description (Localized), points, and image
  * picker (only shown when `checkpoints_unique_image` is false). Order =
- * checkpoint number. Positions are NOT edited here — they're placed
+ * checkpoint number. Positions are NOT edited here - they're placed
  * visually in the LayoutEditor and saved back to game_meta.checkpoints[].position.
  */
 
 import { Plus, Trash2, ChevronUp, ChevronDown, MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
@@ -33,6 +34,7 @@ function newCheckpoint(): Checkpoint {
 }
 
 export function CheckpointsSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
@@ -84,13 +86,13 @@ export function CheckpointsSection() {
 
   return (
     <CollapsibleSection
-      title={`Checkpoints (${checkpoints.length})`}
+      title={t('editorTracks:checkpoints.sectionTitle', { count: checkpoints.length })}
       headerExtra={
         <button
           onClick={addCheckpoint}
           className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1"
         >
-          <Plus className="w-3 h-3" /> Add checkpoint
+          <Plus className="w-3 h-3" /> {t('editorTracks:checkpoints.addCheckpoint')}
         </button>
       }
     >
@@ -103,7 +105,7 @@ export function CheckpointsSection() {
               checked={!commonMode}
               onChange={() => setIconMode('per_checkpoint')}
             />
-            Per checkpoint (each has its own icon)
+            {t('editorTracks:checkpoints.perCheckpoint')}
           </label>
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
             <input
@@ -112,7 +114,7 @@ export function CheckpointsSection() {
               checked={commonMode}
               onChange={() => setIconMode('common')}
             />
-            Common (all checkpoints share one icon)
+            {t('editorTracks:checkpoints.common')}
           </label>
         </div>
 
@@ -126,7 +128,7 @@ export function CheckpointsSection() {
       </div>
 
       {checkpoints.length === 0 ? (
-        <p className="text-sm text-gray-500">No checkpoints yet.</p>
+        <p className="text-sm text-gray-500">{t('editorTracks:checkpoints.none')}</p>
       ) : (
         <div className="space-y-4">
           {checkpoints.map((c, i) => {
@@ -135,13 +137,13 @@ export function CheckpointsSection() {
               kind: 'image',
               required: false,
               scope: 'type',
-              label: 'Checkpoint image',
+              label: t('editorTracks:checkpoints.checkpointImage'),
             };
             return (
               <div key={c.id ?? i} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <div className="flex items-center justify-between mb-3">
                   <div className="min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900">Checkpoint {i + 1}</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">{t('editorTracks:checkpoints.checkpointN', { number: i + 1 })}</h3>
                     {patternUniqid && (
                       <span className="mt-0.5 inline-flex items-center gap-1 text-xs text-gray-500">
                         <MapPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
@@ -149,11 +151,11 @@ export function CheckpointsSection() {
                           <>
                             <span className="font-mono text-gray-600">#{patternStations[i].stationId}</span>
                             <span className="truncate">
-                              {patternStations[i].stationName ?? 'Unknown station'}
+                              {patternStations[i].stationName ?? t('editorTracks:checkpoints.unknownStation')}
                             </span>
                           </>
                         ) : (
-                          <span className="italic text-gray-400">No station assigned</span>
+                          <span className="italic text-gray-400">{t('editorTracks:checkpoints.noStationAssigned')}</span>
                         )}
                       </span>
                     )}
@@ -163,7 +165,7 @@ export function CheckpointsSection() {
                       onClick={() => moveCheckpoint(i, -1)}
                       disabled={i === 0}
                       className="p-1.5 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-30"
-                      aria-label="Move up"
+                      aria-label={t('editorTracks:checkpoints.moveUp')}
                     >
                       <ChevronUp className="w-4 h-4" />
                     </button>
@@ -171,14 +173,14 @@ export function CheckpointsSection() {
                       onClick={() => moveCheckpoint(i, 1)}
                       disabled={i === checkpoints.length - 1}
                       className="p-1.5 hover:bg-gray-200 rounded text-gray-600 disabled:opacity-30"
-                      aria-label="Move down"
+                      aria-label={t('editorTracks:checkpoints.moveDown')}
                     >
                       <ChevronDown className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => removeCheckpoint(i)}
                       className="p-1.5 hover:bg-red-50 rounded text-red-500"
-                      aria-label="Remove checkpoint"
+                      aria-label={t('editorTracks:checkpoints.removeCheckpoint')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -189,7 +191,7 @@ export function CheckpointsSection() {
                   <div className="space-y-3">
                     <label className="block">
                       <span className="text-xs font-medium text-gray-700 mb-1 block">
-                        Title ({lang})
+                        {t('editorTracks:checkpoints.titleLabel', { lang })}
                       </span>
                       <input
                         value={getLocalized(c.title as never, lang, defaultLang)}
@@ -204,7 +206,7 @@ export function CheckpointsSection() {
 
                     <label className="block">
                       <span className="text-xs font-medium text-gray-700 mb-1 block">
-                        Description ({lang})
+                        {t('editorTracks:checkpoints.descriptionLabel', { lang })}
                       </span>
                       <textarea
                         rows={3}
@@ -224,7 +226,7 @@ export function CheckpointsSection() {
                     </label>
 
                     <label className="block">
-                      <span className="text-xs font-medium text-gray-700 mb-1 block">Points</span>
+                      <span className="text-xs font-medium text-gray-700 mb-1 block">{t('editorTracks:checkpoints.points')}</span>
                       <input
                         type="number"
                         min={0}

@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState } from 'react';
 import { Settings, Book, Database, FileText, Upload, Download, AlertCircle, CheckCircle, Layout, X, ShieldCheck, Users } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';

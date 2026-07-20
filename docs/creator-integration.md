@@ -12,7 +12,7 @@ Admin emails get full access; client emails can only touch their own resources.
 
 ### Check user
 
-`GET /check_email.php?email={email}` — public. Returns `{ exists, is_admin, client_id? | admin_id? }`. Creator uses this to gate login.
+`GET /check_email.php?email={email}` - public. Returns `{ exists, is_admin, client_id? | admin_id? }`. Creator uses this to gate login.
 
 ### Create/update scenario
 
@@ -20,7 +20,7 @@ Admin emails get full access; client emails can only touch their own resources.
 
 Fields: `email`, `scenarioData` (stringified JSON with `title`, `description`, `uniqid`, `game_type`, `scenario_type`, `scenario_layout`, `data`, `media`).
 
-- `uniqid` is the idempotency key — an existing scenario with the same `uniqid` is **updated**, not duplicated.
+- `uniqid` is the idempotency key - an existing scenario with the same `uniqid` is **updated**, not duplicated.
 - Response `data` includes `is_taghunter_product: true` when the creating email is an admin (`client_id` stored as `NULL`); otherwise it's a custom client scenario. See [product-scenarios.md](product-scenarios.md) for classification details.
 
 ### Upload scenario files
@@ -39,7 +39,7 @@ Fields: `email`, `uniqid`, `file`. Stored at `/media/{scenario_uniqid}/{original
 
 `POST /patterns.php?action=upload` (application/json)
 
-Body: `{ email, name, game_type, pattern_data, version, is_default? }`. `is_default: true` is admin-only (403 otherwise). `pattern_data` accepts an object or a JSON string — stored as string.
+Body: `{ email, name, game_type, pattern_data, version, is_default? }`. `is_default: true` is admin-only (403 otherwise). `pattern_data` accepts an object or a JSON string - stored as string.
 
 For the full authenticated Pattern API (create/list/get/update/delete), see [playground-api.md](playground-api.md).
 
@@ -70,15 +70,15 @@ Body: `{ user_email, meta, version, value }` where `value` must be an object or 
 
 200 OK · 201 Created · 400 bad/missing fields · 401 unauthorised · 403 forbidden (ownership or admin-only) · 404 not found · 405 wrong method · 500 server error.
 
-Always check *both* `response.ok` and `result.success` — error responses still parse as JSON.
+Always check *both* `response.ok` and `result.success` - error responses still parse as JSON.
 
 ## Logging
 
 Every Creator-originated request passes `'creator'` as the 8th arg of `Logger::log(...)`. The admin Logs view highlights these with an orange "Creator" badge.
 
 Relevant code:
-- [backend/utils/Logger.php](../backend/utils/Logger.php) — `log()` signature
-- [src/components/LogsView.tsx](../src/components/LogsView.tsx) — badge rendering
+- [backend/utils/Logger.php](../backend/utils/Logger.php) - `log()` signature
+- [src/components/LogsView.tsx](../src/components/LogsView.tsx) - badge rendering
 
 The migration that added the `source` column is applied via `backend/apply_source_migration.php`, or manually:
 
@@ -95,11 +95,11 @@ Both `patterns.php` and `default_config.php` have hardened error handling: `disp
 
 **Order of triage:**
 
-1. **Health check** — `GET /patterns.php?action=health` and `GET /default_config.php?action=health`. A 500 here means init/require/DB is broken; a 200 means the issue is specific to the create/upload path.
-2. **Diagnostic script** — open `/backend/api/test_patterns_upload.php` in a browser. Checks DB connection, required tables, file permissions, PHP config.
-3. **App logs** — admin Logs view, filter endpoint=`patterns`, source=`creator`. Look for the `=== Pattern Upload Started ===` marker and trace which step is missing from the log.
-4. **Server logs** — Apache/nginx/PHP-FPM error log for fatal errors, memory exhaustion, DB connection errors.
-5. **cURL repro** — reproduce with a minimal payload to separate Creator bugs from backend bugs.
+1. **Health check** - `GET /patterns.php?action=health` and `GET /default_config.php?action=health`. A 500 here means init/require/DB is broken; a 200 means the issue is specific to the create/upload path.
+2. **Diagnostic script** - open `/backend/api/test_patterns_upload.php` in a browser. Checks DB connection, required tables, file permissions, PHP config.
+3. **App logs** - admin Logs view, filter endpoint=`patterns`, source=`creator`. Look for the `=== Pattern Upload Started ===` marker and trace which step is missing from the log.
+4. **Server logs** - Apache/nginx/PHP-FPM error log for fatal errors, memory exhaustion, DB connection errors.
+5. **cURL repro** - reproduce with a minimal payload to separate Creator bugs from backend bugs.
 
 ### Frequent causes
 
@@ -108,8 +108,8 @@ Both `patterns.php` and `default_config.php` have hardened error handling: `disp
 | `User with this email not found`           | email missing from both `admin_users` and `clients`      |
 | `Invalid JSON pattern data`                | `pattern_data` string didn't parse                       |
 | `User is not an admin` (on default_config) | client email used on an admin-only endpoint              |
-| `patterns table does not exist`            | migration not run — `php backend/apply_patterns_migration.php` |
-| Silent memory exhaustion                   | oversized `pattern_data` — raise `memory_limit` or shrink |
+| `patterns table does not exist`            | migration not run - `php backend/apply_patterns_migration.php` |
+| Silent memory exhaustion                   | oversized `pattern_data` - raise `memory_limit` or shrink |
 
 ### Breaking changes (historical)
 

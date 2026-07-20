@@ -44,7 +44,7 @@ export function invalidateAdminTranslations(): void {
 /**
  * Fetches the admin-managed global tagquest translations once per session
  * and caches them at module scope. Returns `undefined` until the fetch
- * resolves (or on any error) — callers fall back to `DEFAULT_PREVIEW_LABELS`
+ * resolves (or on any error) - callers fall back to `DEFAULT_PREVIEW_LABELS`
  * via `resolveAdminLabel`.
  */
 export function useAdminTranslations(): PreviewLabelsMap | undefined {

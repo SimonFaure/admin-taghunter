@@ -1,5 +1,5 @@
 /**
- * Default Tagquest gameMeta factory — used when a brand-new scenario is
+ * Default Tagquest gameMeta factory - used when a brand-new scenario is
  * created. Mirrors the initial state in TagquestConfig.tsx:122-190 but
  * returns a plain object for the canonical `data.game_meta` shape.
  *
@@ -23,9 +23,6 @@ export function defaultTagquestGameMeta(): TagquestGameMeta {
     late_malus_image: '',
     custom_template: '',
     use_default_template: true,
-    top_1_image: '',
-    top_3_image: '',
-    top_10_image: '',
     game_public: 'kids',
     animation_image_duration: '1',
     animation_message_duration: '2',
@@ -36,9 +33,6 @@ export function defaultTagquestGameMeta(): TagquestGameMeta {
     default_time_malus: '1',
     font: 'Arial',
     font_color: '#000000',
-    top_1_sound: '',
-    top_3_sound: '',
-    top_10_sound: '',
     final_image_sound: '',
     success_sound: '',
     cheating_sound: '',

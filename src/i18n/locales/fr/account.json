@@ -25,6 +25,12 @@
     "upload": "Téléverser un logo d'entreprise",
     "constraints": "Max 2 Mo. JPEG, PNG, GIF ou WebP."
   },
+  "reportLogo": {
+    "label": "Utiliser mon logo sur les rapports imprimés",
+    "desc": "Les rapports de mission imprimés afficheront votre image de marque au lieu du logo Tag Hunter.",
+    "noImage": "Ajoutez un avatar ou un logo d'entreprise ci-dessus pour activer cette option.",
+    "saved": "Préférence du logo des rapports mise à jour"
+  },
   "language": {
     "title": "Langue",
     "desc": "La langue de votre interface Studio. Elle devient aussi la langue par défaut des nouveaux scénarios que vous créez et la langue suggérée lors de la configuration de l'application playground."

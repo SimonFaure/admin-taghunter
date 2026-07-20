@@ -84,11 +84,37 @@ function drawTeamNameFromPool($db, int $launchedGameId, int $clientId): ?string 
         $language = strtolower($meta['language'] ?? '');
         if (!in_array($audience, ['mini_kids', 'kids', 'ado_adultes'], true) || $language === '') return null;
 
-        $candidates = $db->fetchAll(
-            'SELECT name FROM team_name_pools
-             WHERE (client_id IS NULL OR client_id = ?) AND audience = ? AND language = ?',
-            [$clientId, $audience, $language]
-        );
+        // "Use my own lists only" (clients.preferences): draw from this client's
+        // pool alone, falling back to the global catalog only when the client has
+        // no names for this (audience, language). Off -> merged global ∪ client.
+        $ownOnly = false;
+        $prefRow = $db->fetch('SELECT preferences FROM clients WHERE id = ?', [$clientId]);
+        if ($prefRow && !empty($prefRow['preferences'])) {
+            $prefs = json_decode($prefRow['preferences'], true);
+            $ownOnly = is_array($prefs) && !empty($prefs['team_name_pools_own_only']);
+        }
+
+        if ($ownOnly) {
+            $candidates = $db->fetchAll(
+                'SELECT name FROM team_name_pools
+                 WHERE client_id = ? AND audience = ? AND language = ?',
+                [$clientId, $audience, $language]
+            );
+            if (empty($candidates)) {
+                // No own list for this age+language -> fall back to default catalog.
+                $candidates = $db->fetchAll(
+                    'SELECT name FROM team_name_pools
+                     WHERE client_id IS NULL AND audience = ? AND language = ?',
+                    [$audience, $language]
+                );
+            }
+        } else {
+            $candidates = $db->fetchAll(
+                'SELECT name FROM team_name_pools
+                 WHERE (client_id IS NULL OR client_id = ?) AND audience = ? AND language = ?',
+                [$clientId, $audience, $language]
+            );
+        }
         if (empty($candidates)) return null;
 
         $used = [];
@@ -482,7 +508,7 @@ try {
         // Multi-station safety: at most one active (end_time IS NULL) team per
         // (launched_game, key_id). A concurrent add_team for a card that already
         // has an active run returns that team instead of inserting a duplicate.
-        // (key_id null skips the guard — never deduped.)
+        // (key_id null skips the guard - never deduped.)
         if ($keyId !== null) {
             $existing = $db->fetch(
                 'SELECT id FROM teams WHERE launched_game_id = ? AND key_id = ? AND end_time IS NULL LIMIT 1',

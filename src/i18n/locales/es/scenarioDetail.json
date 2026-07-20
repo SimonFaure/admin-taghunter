@@ -16,12 +16,15 @@
   "noVideoYet": "Aún no se ha añadido ningún vídeo",
   "uploading": "Subiendo…",
   "addVideo": "Añadir un vídeo",
-  "videoFormatsHint": "MP4, WebM, MOV — máx. 200 MB",
+  "videoFormatsHint": "MP4, WebM, MOV - máx. 200 MB",
   "videoUploadedSuccess": "Vídeo subido correctamente",
   "downloadableFiles": "Archivos descargables",
   "filesAvailable_one": "{{count}} archivo disponible",
   "filesAvailable_other": "{{count}} archivos disponibles",
   "noFilesAvailable": "Aún no hay archivos disponibles",
   "preparing": "Preparando…",
-  "downloadAllZip": "Descargar todo (ZIP)"
+  "downloadAllZip": "Descargar todo (ZIP)",
+  "goSection": "Tag Hunter GO",
+  "goPreviewOpen": "Vista previa GO - códigos y respuestas",
+  "goPreviewHint": "Ver el código de cada enigma y las imágenes de respuesta detrás de A / B (imprimible)."
 }

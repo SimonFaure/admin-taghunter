@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 
 interface Stop {
@@ -126,6 +127,7 @@ function parseGradient(input: string): Stop[] | null {
 }
 
 export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
+  const { t } = useTranslation();
   const initialParsed = useMemo(() => parseGradient(value), []); // intentional: only on mount
   const [stops, setStops] = useState<Stop[]>(initialParsed ?? DEFAULT_STOPS);
   const [rawMode, setRawMode] = useState(initialParsed === null && value.trim().length > 0);
@@ -188,7 +190,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
       {rawMode ? (
         <div className="space-y-2">
           <span className="text-xs font-medium text-gray-700 block">
-            Raw CSS gradient
+            {t('editorMystery:gradient.rawCss')}
           </span>
           <textarea
             value={rawValue}
@@ -205,10 +207,10 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
               onClick={leaveRawMode}
               className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
             >
-              Parse into stops
+              {t('editorMystery:gradient.parseIntoStops')}
             </button>
             <span className="text-[11px] text-gray-500">
-              (or keep editing raw CSS)
+              {t('editorMystery:gradient.keepEditing')}
             </span>
           </div>
         </div>
@@ -222,10 +224,10 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
                   value={s.hex}
                   onChange={(e) => setStop(i, { hex: e.target.value })}
                   className="col-span-2 h-8 w-full rounded border border-gray-300 cursor-pointer"
-                  aria-label="Stop color"
+                  aria-label={t('editorMystery:gradient.stopColor')}
                 />
                 <label className="col-span-4 text-xs text-gray-600 flex items-center gap-1">
-                  <span>Alpha</span>
+                  <span>{t('editorMystery:gradient.alpha')}</span>
                   <input
                     type="range"
                     min={0}
@@ -238,7 +240,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
                   <span className="w-8 text-right tabular-nums">{s.alpha.toFixed(2)}</span>
                 </label>
                 <label className="col-span-4 text-xs text-gray-600 flex items-center gap-1">
-                  <span>Pos</span>
+                  <span>{t('editorMystery:gradient.pos')}</span>
                   <input
                     type="number"
                     min={0}
@@ -256,7 +258,7 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
                   onClick={() => removeStop(i)}
                   disabled={stops.length <= 1}
                   className="col-span-2 p-1.5 hover:bg-red-50 rounded text-red-500 disabled:opacity-30 justify-self-end"
-                  aria-label="Remove stop"
+                  aria-label={t('editorMystery:gradient.removeStop')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -269,14 +271,14 @@ export function GradientBuilder({ value, onChange }: GradientBuilderProps) {
               onClick={addStop}
               className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 inline-flex items-center gap-1"
             >
-              <Plus className="w-3 h-3" /> Add stop
+              <Plus className="w-3 h-3" /> {t('editorMystery:gradient.addStop')}
             </button>
             <button
               type="button"
               onClick={enterRawMode}
               className="text-xs px-2 py-1 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
             >
-              Edit raw CSS
+              {t('editorMystery:gradient.editRawCss')}
             </button>
           </div>
         </>

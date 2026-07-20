@@ -1,7 +1,7 @@
 /**
  * i18n primitives for scenario authoring.
  *
- * Stage 3 — D5 (per-field Localized<T> migration). Slice 3A: foundation,
+ * Stage 3 - D5 (per-field Localized<T> migration). Slice 3A: foundation,
  * zero behavioral change. Nothing imports these types yet.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 3 section)

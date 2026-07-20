@@ -3,7 +3,7 @@
 -- default_language. Design: memory project_client_language / plans/client-language-phase1.md.
 --
 -- Deploy order: RUN THIS CLOUD MIGRATION BEFORE THE PHP DEPLOY (the new code
--- reads/writes the column). MySQL 8.4 — plain ADD COLUMN (no MariaDB
+-- reads/writes the column). MySQL 8.4 - plain ADD COLUMN (no MariaDB
 -- "IF NOT EXISTS"; see project_studio_migration_runner_bugs).
 ALTER TABLE clients ADD COLUMN language VARCHAR(8) NOT NULL DEFAULT 'fr';
 

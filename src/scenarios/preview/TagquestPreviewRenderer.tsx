@@ -1,5 +1,5 @@
 /**
- * Tagquest preview renderer — renders the new single-template HUD using the
+ * Tagquest preview renderer - renders the new single-template HUD using the
  * canonical `defaultTagquestLayout` as the source of truth.
  *
  * Background fills the viewport via cover. The HUD lives inside a 16:9
@@ -7,7 +7,7 @@
  * Template overlay + text/image elements position relative to the stage.
  *
  * The same `defaultTagquestLayout` is bundled into the playground runtime as
- * its fallback JSON — so positions are guaranteed to match in-game. (The old
+ * its fallback JSON - so positions are guaranteed to match in-game. (The old
  * MySQL `layouts` table seed was retired; layouts are no longer synced.)
  */
 
@@ -406,7 +406,7 @@ export function TagquestPreviewRenderer({
         </div>
       )}
 
-      {/* Localized labels — currently unused; kept in the surface to preserve
+      {/* Localized labels - currently unused; kept in the surface to preserve
           the modal's label-injection API. */}
       <span style={{ display: 'none' }}>{labels.ptsSuffix}</span>
     </div>

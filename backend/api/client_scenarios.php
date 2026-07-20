@@ -67,6 +67,12 @@ try {
 
         $clientId = $data['client_id'] ?? null;
         $scenarioId = $data['scenario_id'] ?? null;
+        // A grant is scoped to a mode ('playground' | 'go' | 'drop'). A scenario
+        // can be granted for several (one row each). pattern_id binds the client's
+        // GO plaque set (the answer key); only meaningful for mode=go (Drop ignores
+        // it - Drop shows answer images on-screen, project_taghunter_drop).
+        $mode = in_array($data['mode'] ?? '', ['go', 'drop'], true) ? $data['mode'] : 'playground';
+        $patternId = isset($data['pattern_id']) && is_numeric($data['pattern_id']) ? (int)$data['pattern_id'] : null;
 
         if (!$clientId || !$scenarioId) {
             $response = ['error' => 'client_id and scenario_id are required'];
@@ -89,19 +95,25 @@ try {
         }
 
         $exists = $db->fetch(
-            'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-            [$clientId, $scenarioId]
+            'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
+            [$clientId, $scenarioId, $mode]
         );
 
         if ($exists) {
-            $response = ['error' => 'Scenario already added to this client'];
-            Logger::log('client_scenarios', 'POST', 'add', $userId, $data, $response, 400);
-            jsonResponse($response, 400);
+            // Already granted for this mode - treat a re-add as a pattern_id update
+            // (lets the admin re-bind the GO plaque pattern without removing first).
+            $db->execute(
+                'UPDATE client_scenarios SET pattern_id = ? WHERE id = ?',
+                [$patternId, $exists['id']]
+            );
+            $response = ['message' => 'Grant updated'];
+            Logger::log('client_scenarios', 'POST', 'add', $userId, $data, $response, 200);
+            jsonResponse($response);
         }
 
         $db->execute(
-            'INSERT INTO client_scenarios (client_id, scenario_id, granted_by) VALUES (?, ?, ?)',
-            [$clientId, $scenarioId, $userId]
+            'INSERT INTO client_scenarios (client_id, scenario_id, granted_by, mode, pattern_id) VALUES (?, ?, ?, ?, ?)',
+            [$clientId, $scenarioId, $userId, $mode, $patternId]
         );
 
         $response = ['message' => 'Scenario added to client successfully'];
@@ -126,6 +138,10 @@ try {
 
         $clientId = $data['client_id'] ?? null;
         $scenarioId = $data['scenario_id'] ?? null;
+        // Scope the removal to a mode so removing one grant leaves the others
+        // (playground / go / drop) intact. Defaults to 'playground' for callers
+        // that predate the GO/Drop modes.
+        $mode = in_array($data['mode'] ?? '', ['go', 'drop'], true) ? $data['mode'] : 'playground';
 
         if (!$clientId || !$scenarioId) {
             $response = ['error' => 'client_id and scenario_id are required'];
@@ -134,8 +150,8 @@ try {
         }
 
         $db->execute(
-            'DELETE FROM client_scenarios WHERE client_id = ? AND scenario_id = ?',
-            [$clientId, $scenarioId]
+            'DELETE FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
+            [$clientId, $scenarioId, $mode]
         );
 
         $response = ['message' => 'Scenario removed from client successfully'];
@@ -182,14 +198,21 @@ try {
             );
         } else {
             $scenarios = $db->fetchAll(
+                // A scenario can be granted to a client in MORE THAN ONE mode
+                // (e.g. both "playground" and "go"), which is several
+                // client_scenarios rows. Collapse them to one row per scenario so
+                // the client sees it once (one card, one QR), not once per mode.
                 'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
                         IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
                         cs.granted_at, cs.granted_by, a.email as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
-                 FROM client_scenarios cs
+                 FROM (
+                        SELECT scenario_id, MIN(granted_at) AS granted_at, MIN(granted_by) AS granted_by
+                        FROM client_scenarios WHERE client_id = ?
+                        GROUP BY scenario_id
+                      ) cs
                  JOIN scenarios s ON cs.scenario_id = s.id
                  LEFT JOIN admin_users a ON cs.granted_by = a.id
-                 WHERE cs.client_id = ?
                  UNION ALL
                  SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
                         IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
@@ -228,12 +251,78 @@ try {
             $gm = is_array($dataArr) ? ($dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? null)) : null;
             $s['difficulty'] = (is_array($gm) && isset($gm['difficulty'])) ? $gm['difficulty'] : null;
             $s['audience'] = (is_array($gm) && isset($gm['game_public'])) ? $gm['game_public'] : null;
+            // Tag Hunter GO: surface whether this scenario exists in GO mode, for
+            // the list "GO" badge + filter.
+            $s['adaptable_go'] = (is_array($gm) && !empty($gm['adaptable_go']));
+            $s['go_answer_count'] = (is_array($gm) && isset($gm['go_answer_count'])) ? (int)$gm['go_answer_count'] : null;
+            // Tag Hunter Drop: surface whether this scenario is Drop-capable, for
+            // the list "Drop" badge + filter.
+            $s['adaptable_drop'] = (is_array($gm) && !empty($gm['adaptable_drop']));
             unset($s['data']);
             return $s;
         }, $scenarios);
 
         $response = ['data' => $scenarios];
         Logger::log('client_scenarios', 'GET', 'list', $auth['id'], ['client_id' => $clientId], $response, 200);
+        jsonResponse($response);
+        break;
+
+    case 'list_go':
+        // Tag Hunter GO: the GO grants for a client (mode='go'), with the bound
+        // GO pattern. Used by the admin client page to manage GO scenario access.
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $auth = requireClientOrAdminAuth($db);
+        $clientId = $auth['type'] === 'client' ? $auth['id'] : ($_GET['client_id'] ?? null);
+        if (!$clientId) {
+            jsonResponse(['error' => 'client_id is required'], 400);
+        }
+        if ($auth['type'] === 'client' && (string)$clientId !== (string)$auth['id']) {
+            jsonResponse(['error' => 'Unauthorized'], 403);
+        }
+        $grants = $db->fetchAll(
+            'SELECT cs.scenario_id, cs.pattern_id, cs.granted_at,
+                    s.title, s.uniqid, s.status,
+                    p.name AS pattern_name, p.answer_count AS pattern_answer_count
+             FROM client_scenarios cs
+             JOIN scenarios s ON cs.scenario_id = s.id
+             LEFT JOIN patterns p ON cs.pattern_id = p.id
+             WHERE cs.client_id = ? AND cs.mode = "go"
+             ORDER BY cs.granted_at DESC',
+            [$clientId]
+        );
+        $response = ['data' => $grants];
+        Logger::log('client_scenarios', 'GET', 'list_go', $auth['id'], ['client_id' => $clientId], ['count' => count($grants)], 200);
+        jsonResponse($response);
+        break;
+
+    case 'list_drop':
+        // Tag Hunter Drop: the Drop grants for a client (mode='drop'). No bound
+        // pattern - Drop shows answer images on-screen and shuffles them, so
+        // correctness is the good_answer_image (project_taghunter_drop). Used by
+        // the admin client page to manage Drop scenario access.
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $auth = requireClientOrAdminAuth($db);
+        $clientId = $auth['type'] === 'client' ? $auth['id'] : ($_GET['client_id'] ?? null);
+        if (!$clientId) {
+            jsonResponse(['error' => 'client_id is required'], 400);
+        }
+        if ($auth['type'] === 'client' && (string)$clientId !== (string)$auth['id']) {
+            jsonResponse(['error' => 'Unauthorized'], 403);
+        }
+        $grants = $db->fetchAll(
+            'SELECT cs.scenario_id, cs.granted_at, s.title, s.uniqid, s.status, s.medias
+             FROM client_scenarios cs
+             JOIN scenarios s ON cs.scenario_id = s.id
+             WHERE cs.client_id = ? AND cs.mode = "drop"
+             ORDER BY cs.granted_at DESC',
+            [$clientId]
+        );
+        $response = ['data' => $grants];
+        Logger::log('client_scenarios', 'GET', 'list_drop', $auth['id'], ['client_id' => $clientId], ['count' => count($grants)], 200);
         jsonResponse($response);
         break;
 

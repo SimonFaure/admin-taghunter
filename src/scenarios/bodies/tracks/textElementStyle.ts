@@ -1,9 +1,9 @@
 /**
- * Style constants for tracks text elements — shared between the section UI,
+ * Style constants for tracks text elements - shared between the section UI,
  * the LayoutEditor preview, and the playground runtime.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ DUPLICATED VERBATIM — keep in sync:                                      │
+ * │ DUPLICATED VERBATIM - keep in sync:                                      │
  * │   studio-taghunter/src/scenarios/bodies/tracks/textElementStyle.ts       │
  * │   taghunter_playground/src/... (mirrored in slice 3)                     │
  * └─────────────────────────────────────────────────────────────────────────┘
@@ -32,7 +32,7 @@ export const TEXT_ELEMENT_SHADOW_CSS = '0 2px 4px rgba(0, 0, 0, 0.6)';
 
 /**
  * CSS bundle applied when `background: true`. Translucent dark rounded fill
- * with light padding — chip-like, readable against any map.
+ * with light padding - chip-like, readable against any map.
  */
 export const TEXT_ELEMENT_BACKGROUND_CSS: CSSProperties = {
   backgroundColor: 'rgba(0, 0, 0, 0.45)',

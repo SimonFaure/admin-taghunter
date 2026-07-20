@@ -1,0 +1,54 @@
+{
+  "clans": {
+    "title": "Clanes",
+    "add": "Añadir clan",
+    "addTooltip": "Añadir un clan",
+    "maxTooltip": "Máximo {{count}} clanes",
+    "hint": "Crea hasta {{count}} clanes. El operador elige cuántos están activos (2-4) y puede renombrarlos al iniciar; los colores y las imágenes se fijan aquí. Los segmentos de la barra de territorios aparecen en este orden de clanes en el panel.",
+    "clanLabel": "Clan {{number}}",
+    "removeAria": "Eliminar clan",
+    "removeTooltip": "Eliminar clan",
+    "minTooltip": "Se requieren al menos {{count}} clanes",
+    "defaultName": "Nombre predeterminado",
+    "colour": "Color",
+    "banner": "Estandarte (ondea en los territorios controlados)",
+    "logo": "Logo / emblema (clasificación + novedades)",
+    "scoreCard": "Tarjeta de puntuación (fila de clasificación, opcional)",
+    "slotBanner": "Estandarte",
+    "slotLogo": "Logo",
+    "slotScoreCard": "Tarjeta de puntuación"
+  },
+  "map": {
+    "title": "Mapa y panel",
+    "positionHint": "Coloca el estandarte de cada territorio y su grupo de nombre/indicador en el editor de diseño (botón en la barra de guardado) - las posiciones se guardan por escenario.",
+    "framesLabel": "Marcos del panel (opcional - se usa el estilo predeterminado si no se define)"
+  },
+  "purge": {
+    "title": "The Purge",
+    "hint": "Una vez por partida, un clan puede fichar en la estación de purga para restablecer a neutral el territorio más fuerte del clan líder. La imagen marca el objetivo actual en el mapa (colócala por territorio en el editor de diseño) y el sonido se reproduce en todos los dispositivos cuando se activa una purga.",
+    "warning": "Sin imagen, The Purge se desactiva al iniciar en el playground (no se proporciona ninguna imagen predeterminada)."
+  },
+  "territories": {
+    "title": "Territorios",
+    "add": "Añadir territorio",
+    "addTooltip": "Añadir un territorio",
+    "maxTooltip": "Máximo {{count}} territorios",
+    "hint": "Cada territorio es un conjunto de balizas que vale pts/min (proporcional a su número de balizas). El clan que controla más validaciones lo posee; un empate es neutral. Predefinido con los 8 territorios estándar (24 balizas) - edítalo libremente.",
+    "empty": "Sin territorios - reinicia el escenario para restaurar la estructura.",
+    "collapse": "Contraer territorio",
+    "expand": "Expandir territorio",
+    "territoryLabel": "Territorio {{number}}",
+    "unnamed": "Territorio sin nombre",
+    "baliseCount_one": "{{count}} baliza",
+    "baliseCount_other": "{{count}} balizas",
+    "pointsPerMin": "{{points}} pts/min",
+    "removeAria": "Eliminar territorio",
+    "removeTooltip": "Eliminar territorio",
+    "minTooltip": "Se requieren al menos {{count}} territorios",
+    "name": "Nombre del territorio",
+    "pointsPerMinute": "Puntos / minuto",
+    "balisesLabel": "Balizas (códigos de estación físicos)",
+    "balisesPlaceholder": "ej. 1, 2, 3, 4, 5",
+    "balisesHint": "Una ficha debe pasar por todas estas y luego registrarse en el lector central para completar el territorio. Separadas por comas; modificables por sede al iniciar."
+  }
+}

@@ -1,5 +1,5 @@
 /**
- * Slot-driven asset upload field — image OR sound, declared by a MediaSlot.
+ * Slot-driven asset upload field - image OR sound, declared by a MediaSlot.
  * Replaces the hardcoded per-field upload JSX in MysteryConfig/TagquestConfig.
  *
  * Slice 2A: presentational scaffold. The hosting shell wires up uploadAsset()
@@ -138,7 +138,7 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
         <div className="min-w-0">
           <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
             <Icon className="w-4 h-4 text-gray-400" />
-            {slot.label}
+            {t('mediaSlots:' + (slot.labelKey ?? slot.key), { defaultValue: slot.label })}
             {slot.required === 'error' && <span className="text-red-500" title={t('required')}>*</span>}
           </div>
           {value && <div className="text-xs text-gray-500 mt-0.5 truncate">{value}</div>}
@@ -168,7 +168,7 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
       {slot.kind === 'image' && value && (
         <img
           src={editor.getMediaUrl(value)}
-          alt={slot.label}
+          alt={t('mediaSlots:' + (slot.labelKey ?? slot.key), { defaultValue: slot.label })}
           className={`${PREVIEW_HEIGHT_CLASS[previewSize]} rounded border border-gray-100`}
           onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
         />

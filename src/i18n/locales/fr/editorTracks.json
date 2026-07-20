@@ -1,0 +1,126 @@
+{
+  "pattern": {
+    "sectionTitle": "Patron par défaut",
+    "label": "Patron de parcours par défaut (correspondance point de contrôle → station)",
+    "none": "- Aucun -",
+    "notFound": "{{value}} (introuvable)",
+    "hint": "Attribue chaque point de contrôle à une station/balise. Créez les patrons de parcours dans la page Patrons. La correspondance est affichée sous chaque point de contrôle ci-dessous. Modifiable au lancement."
+  },
+  "checkpoints": {
+    "sectionTitle": "Points de contrôle ({{count}})",
+    "addCheckpoint": "Ajouter un point de contrôle",
+    "perCheckpoint": "Par point de contrôle (chacun a sa propre icône)",
+    "common": "Commune (tous les points de contrôle partagent une icône)",
+    "none": "Aucun point de contrôle pour le moment.",
+    "checkpointImage": "Image du point de contrôle",
+    "checkpointN": "Point de contrôle {{number}}",
+    "unknownStation": "Station inconnue",
+    "noStationAssigned": "Aucune station attribuée",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "removeCheckpoint": "Supprimer le point de contrôle",
+    "titleLabel": "Titre ({{lang}})",
+    "descriptionLabel": "Description ({{lang}})",
+    "points": "Points"
+  },
+  "routes": {
+    "sectionTitle": "Parcours",
+    "hint": "Les opérateurs choisissent l'un des parcours activés au moment du lancement.",
+    "items": {
+      "default": { "label": "Par défaut", "help": "Tous les points de contrôle dans l'ordre (1..N)." },
+      "first_half": { "label": "Première moitié", "help": "Points de contrôle 1..N/2." },
+      "last_half": { "label": "Dernière moitié", "help": "Points de contrôle N/2+1..N." },
+      "odd": { "label": "Impairs", "help": "Points de contrôle impairs (1, 3, 5, ...)." },
+      "even": { "label": "Pairs", "help": "Points de contrôle pairs (2, 4, 6, ...)." }
+    }
+  },
+  "displays": {
+    "sectionTitle": "Modes d'affichage",
+    "hint": "Les opérateurs choisissent l'un des modes d'affichage activés au moment du lancement.",
+    "items": {
+      "full": { "label": "Complet", "help": "Carte + titre, description et image de révélation du point de contrôle avec animation." },
+      "map": { "label": "Carte", "help": "Carte seule ; les marqueurs s'allument au passage. Pas de titre/description, pas de grande révélation." },
+      "simple": { "label": "Simple", "help": "HUD minimal (nom d'équipe + score + numéro du point de contrôle actuel), sans carte." }
+    }
+  },
+  "playModes": {
+    "sectionTitle": "Modes de jeu",
+    "hint": "Les opérateurs choisissent l'un des modes de jeu activés au moment du lancement.",
+    "items": {
+      "itinerary": { "label": "Itinéraire", "help": "Les équipes doivent atteindre les points de contrôle dans l'ordre." },
+      "free": { "label": "Libre", "help": "Tout ordre compte." }
+    }
+  },
+  "scoreTypes": {
+    "sectionTitle": "Types de score",
+    "hint": "Les opérateurs choisissent l'un des types de score activés au lancement. Celui marqué « par défaut » est présélectionné.",
+    "default": "par défaut",
+    "items": {
+      "percentage": { "label": "Pourcentage", "help": "Score = % des points de contrôle atteints, plafonné à 100, moins le malus de temps." },
+      "points": { "label": "Points", "help": "Score = somme des points des points de contrôle atteints, moins le malus de temps." }
+    }
+  },
+  "timing": {
+    "sectionTitle": "Minutage",
+    "defaultTime": "Durée de jeu par défaut (minutes)",
+    "malusPerMinute": "Malus par minute de dépassement (points ou %)"
+  },
+  "displayOptions": {
+    "sectionTitle": "Options d'affichage",
+    "displayScore": "Afficher le score pendant le jeu",
+    "displayScoreHint": "Affiche le score en cours dans le HUD tout au long de la partie."
+  },
+  "hudFrames": {
+    "sectionTitle": "Cadres HUD"
+  },
+  "textElements": {
+    "sectionTitle": "Éléments de texte ({{count}})",
+    "addCategory": "Ajouter une catégorie",
+    "addElement": "Ajouter un élément",
+    "uncategorized": "Sans catégorie",
+    "unnamed": "(sans nom)",
+    "categoryNamePlaceholder": "Nom de la catégorie",
+    "categoryDefaultName": "Catégorie {{number}}",
+    "elementCount_one": "{{count}} élément",
+    "elementCount_other": "{{count}} éléments",
+    "expand": "Développer",
+    "collapse": "Réduire",
+    "moveCategoryUp": "Monter la catégorie",
+    "moveCategoryDown": "Descendre la catégorie",
+    "deleteCategory": "Supprimer la catégorie",
+    "noElements": "Aucun élément dans cette catégorie pour le moment.",
+    "textPlaceholder": "Texte ({{lang}})",
+    "category": "Catégorie",
+    "placed": "placé",
+    "unplaced": "non placé",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "removeElement": "Supprimer l'élément",
+    "hint": "Les catégories regroupent les éléments de texte et définissent leurs valeurs de typographie par défaut (police, couleur, gras / italique / souligné, alignement, ombre, arrière-plan). La typographie se modifie dans l'éditeur de mise en page ; les remplacements par élément l'emportent champ par champ.",
+    "deleteConfirm": "Supprimer la catégorie « {{name}} » ?",
+    "deleteConfirmWithElements_one": "Supprimer la catégorie « {{name}} » ? Son {{count}} élément passera dans Sans catégorie.",
+    "deleteConfirmWithElements_other": "Supprimer la catégorie « {{name}} » ? Ses {{count}} éléments passeront dans Sans catégorie."
+  },
+  "feedbackImages": {
+    "sectionTitle": "Images de retour"
+  },
+  "sounds": {
+    "sectionTitle": "Sons"
+  },
+  "typography": {
+    "overrideOn": "Remplacement activé - l'élément l'emporte",
+    "inheritFromCategory": "Hériter de la catégorie",
+    "font": "Police",
+    "scenarioDefault": "- Défaut du scénario -",
+    "groupStandard": "Standard",
+    "groupThemed": "Thématiques",
+    "groupCustomFonts": "Polices personnalisées",
+    "color": "Couleur",
+    "custom": "Personnalisée",
+    "style": "Style",
+    "align": "Alignement",
+    "shadow": "Ombre",
+    "enabled": "activé",
+    "bgFill": "Fond"
+  }
+}

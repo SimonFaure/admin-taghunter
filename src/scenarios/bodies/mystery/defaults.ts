@@ -1,5 +1,5 @@
 /**
- * Default Mystery gameMeta factory — used when a brand-new scenario is
+ * Default Mystery gameMeta factory - used when a brand-new scenario is
  * created. Mirrors the initial state in MysteryConfig.tsx:119-187.
  *
  * Slice 3C: translatable string fields default to empty `Localized<string>`
@@ -34,9 +34,8 @@ export function defaultMysteryGameMeta(): MysteryGameMeta {
     score_background_image: '',
     enigmas_header_image: '',
     steps_container_image: '',
-    top_1_image: '',
-    top_3_image: '',
-    top_10_image: '',
+    both_answers_image: '',
+    no_answer_image: '',
     game_public: 'kids',
     number_of_enigmas: '12',
     overscore_steps: '6',
@@ -49,14 +48,13 @@ export function defaultMysteryGameMeta(): MysteryGameMeta {
     level_font_color: '#000000',
     scenario_version: '1.0',
     default_time_malus: '1',
+    malus_both_answers_biped: '-5',
+    malus_no_answer: '0',
     font: 'Arial',
     font_color: '#000000',
     enigma_success: '',
     enigma_error: '',
     enigma_no_answer: '',
-    top_1_sound: '',
-    top_3_sound: '',
-    top_10_sound: '',
     final_image_sound: '',
     levels: {},
     enigmas: [],

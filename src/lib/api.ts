@@ -426,7 +426,7 @@ export const onDemandCardsApi = {
 // language. `scope` is 'global' (admin catalog, everyone gets it) or a numeric
 // client_id (that client's private pool). The playground draws a name from the
 // merged (global ∪ client) set at team creation. See team_name_pools.php.
-// Canonical audience trio — mirrors src/types/audience.ts (game_meta.game_public).
+// Canonical audience trio - mirrors src/types/audience.ts (game_meta.game_public).
 export type TeamNameAudience = 'mini_kids' | 'kids' | 'ado_adultes';
 
 export type TeamNamePoolScope = 'global' | number;
@@ -506,6 +506,9 @@ export interface RecoveryCodeEntry {
   code: string;
   used_at: string | null;
   used_device_label: string | null;
+  // Which gate burned the code: 'pin' (forgot-PIN) | 'billing' (device-lock
+  // reprieve) | null (legacy/unknown). project_client_device_lock.
+  used_context?: 'pin' | 'billing' | null;
 }
 
 export interface RecoveryCodePool {
@@ -548,27 +551,27 @@ export interface ReportBlock {
   fields?: string[];
   text?: string;
   logoSize?: number;
-  /** `divider` — line thickness in px (default 1). */
+  /** `divider` - line thickness in px (default 1). */
   thickness?: number;
-  /** `divider` — line width as a % of the page (default 70). */
+  /** `divider` - line width as a % of the page (default 70). */
   width?: number;
-  /** `spacer` — vertical gap height in px. */
+  /** `spacer` - vertical gap height in px. */
   height?: number;
-  /** `row` — horizontal gap between children in px (default 16). */
+  /** `row` - horizontal gap between children in px (default 16). */
   gap?: number;
-  /** `row` — horizontal distribution of children. */
+  /** `row` - horizontal distribution of children. */
   justify?: 'start' | 'center' | 'end' | 'between';
-  /** `frame` — draw a border (default true). */
+  /** `frame` - draw a border (default true). */
   bordered?: boolean;
-  /** `frame` — border color (default #333333). */
+  /** `frame` - border color (default #333333). */
   borderColor?: string;
-  /** `frame` — background fill; empty/absent ⇒ transparent. */
+  /** `frame` - background fill; empty/absent ⇒ transparent. */
   bgColor?: string;
-  /** `frame` — inner padding in px (default 12). */
+  /** `frame` - inner padding in px (default 12). */
   padding?: number;
-  /** `frame` — corner radius in px. */
+  /** `frame` - corner radius in px. */
   radius?: number;
-  /** `row` / `frame` — nested blocks. */
+  /** `row` / `frame` - nested blocks. */
   children?: ReportBlock[];
 }
 
@@ -601,16 +604,38 @@ export interface ReportLayoutsResponse {
   game_types: string[];
   stat_fields: Record<string, string[]>;
   layouts: Record<string, ReportLayout>;
+  /** Admin-defined default print format; null when never set. */
+  print_format: ReportPrintFormat | null;
+}
+
+// Default physical output format pushed to playgrounds (a device's local
+// Settings → Printing choice wins). Mirrors playground printPrefsStore.
+export interface ReportPrintFormat {
+  paper: 'ticket_100x150' | 'a4' | 'a5' | 'a6' | 'custom';
+  customMm: { width: number; height: number };
+  orientation: 'portrait' | 'landscape';
+}
+
+// Admin auth is token-based (secure_auth.php sets no PHP session), so these
+// calls must carry the X-Auth-Token header; report_layouts.php bridges it.
+function adminAuthHeaders(): Record<string, string> {
+  try {
+    const token = localStorage.getItem('auth_token');
+    return token ? { 'X-Auth-Token': token } : {};
+  } catch {
+    return {};
+  }
 }
 
 export const reportLayoutsApi = {
   async getAll(): Promise<ApiResponse<ReportLayoutsResponse>> {
-    return apiRequest('/report_layouts.php?action=get_all', { method: 'GET' });
+    return apiRequest('/report_layouts.php?action=get_all', { method: 'GET', headers: adminAuthHeaders() });
   },
 
   async save(gameType: string, layout: ReportLayout): Promise<ApiResponse<{ success: boolean; version: number }>> {
     return apiRequest('/report_layouts.php?action=save', {
       method: 'POST',
+      headers: adminAuthHeaders(),
       body: JSON.stringify({ game_type: gameType, layout }),
     });
   },
@@ -618,7 +643,16 @@ export const reportLayoutsApi = {
   async reset(gameType: string): Promise<ApiResponse<{ success: boolean; version: number; layout: ReportLayout }>> {
     return apiRequest('/report_layouts.php?action=reset', {
       method: 'POST',
+      headers: adminAuthHeaders(),
       body: JSON.stringify({ game_type: gameType }),
+    });
+  },
+
+  async savePrintFormat(printFormat: ReportPrintFormat): Promise<ApiResponse<{ success: boolean; version: number; print_format: ReportPrintFormat }>> {
+    return apiRequest('/report_layouts.php?action=save_print_format', {
+      method: 'POST',
+      headers: adminAuthHeaders(),
+      body: JSON.stringify({ print_format: printFormat }),
     });
   },
 };

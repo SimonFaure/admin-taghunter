@@ -1,4 +1,4 @@
-// Admin "Report layouts" — the mission-report PDF editor. Designs the global
+// Admin "Report layouts" - the mission-report PDF editor. Designs the global
 // per-game-type default layout (block stack) that syncs to every playground.
 // Per-scenario overrides are edited in the scenario editor, not here.
 //
@@ -7,8 +7,23 @@
 
 import { useEffect, useState } from 'react';
 import { RotateCcw, Save, Loader2, Printer } from 'lucide-react';
-import { reportLayoutsApi, type ReportLayout } from '../lib/api';
+import { reportLayoutsApi, type ReportLayout, type ReportPrintFormat } from '../lib/api';
 import { ReportLayoutEditor } from './ReportLayoutEditor';
+
+// Playground print default when the admin never set one (legacy ticket size).
+const FALLBACK_PRINT_FORMAT: ReportPrintFormat = {
+  paper: 'ticket_100x150',
+  customMm: { width: 100, height: 150 },
+  orientation: 'portrait',
+};
+
+const PAPER_LABELS: Record<ReportPrintFormat['paper'], string> = {
+  ticket_100x150: 'Ticket 100×150 mm',
+  a4: 'A4 (210×297 mm)',
+  a5: 'A5 (148×210 mm)',
+  a6: 'A6 (105×148 mm)',
+  custom: 'Custom…',
+};
 
 // Display labels for game-type codes (e.g. `tracks` → "Track"). Falls back to
 // the raw code for unknown/legacy types.
@@ -29,6 +44,8 @@ export function ReportLayoutsView() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [printFormat, setPrintFormat] = useState<ReportPrintFormat>(FALLBACK_PRINT_FORMAT);
+  const [savingFormat, setSavingFormat] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -40,9 +57,23 @@ export function ReportLayoutsView() {
       setGameTypes(res.data.game_types);
       setActive(res.data.game_types[0] ?? '');
       setVersion(res.data.version);
+      if (res.data.print_format) setPrintFormat(res.data.print_format);
       setLoading(false);
     })();
   }, []);
+
+  // Persist the default print format immediately (it's a preference, not a
+  // design draft - no dirty/save cycle).
+  const persistFormat = async (next: ReportPrintFormat) => {
+    setPrintFormat(next);
+    // Don't push a half-typed custom size; blur with valid numbers will save.
+    if (next.paper === 'custom' && (next.customMm.width <= 0 || next.customMm.height <= 0)) return;
+    setSavingFormat(true); setError(null);
+    const res = await reportLayoutsApi.savePrintFormat(next);
+    setSavingFormat(false);
+    if (res.error || !res.data) { setError(res.error ?? 'Print format save failed'); return; }
+    setVersion(res.data.version);
+  };
 
   const layout = layouts[active];
 
@@ -89,6 +120,51 @@ export function ReportLayoutsView() {
       </div>
 
       {error && <div className="px-3 py-2 rounded-lg bg-red-900/40 border border-red-700 text-red-200 text-sm">{error}</div>}
+
+      {/* Default physical output. Devices whose operator never touched
+          Settings → Printing use this; a local choice always wins. */}
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-slate-800/60 border border-slate-700">
+        <span className="text-sm font-medium text-slate-200">Default print format</span>
+        <select
+          value={printFormat.paper}
+          onChange={(e) => persistFormat({ ...printFormat, paper: e.target.value as ReportPrintFormat['paper'] })}
+          className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-sm text-slate-200"
+        >
+          {(Object.keys(PAPER_LABELS) as Array<ReportPrintFormat['paper']>).map((p) => (
+            <option key={p} value={p}>{PAPER_LABELS[p]}</option>
+          ))}
+        </select>
+        {printFormat.paper === 'custom' && (
+          <span className="flex items-center gap-1.5 text-sm text-slate-300">
+            <input
+              type="number" min={20} max={500}
+              value={printFormat.customMm.width}
+              onChange={(e) => setPrintFormat({ ...printFormat, customMm: { ...printFormat.customMm, width: Number(e.target.value) } })}
+              onBlur={() => persistFormat(printFormat)}
+              className="w-20 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-sm text-slate-200"
+            />
+            ×
+            <input
+              type="number" min={20} max={500}
+              value={printFormat.customMm.height}
+              onChange={(e) => setPrintFormat({ ...printFormat, customMm: { ...printFormat.customMm, height: Number(e.target.value) } })}
+              onBlur={() => persistFormat(printFormat)}
+              className="w-20 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-sm text-slate-200"
+            />
+            mm
+          </span>
+        )}
+        <select
+          value={printFormat.orientation}
+          onChange={(e) => persistFormat({ ...printFormat, orientation: e.target.value as ReportPrintFormat['orientation'] })}
+          className="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-sm text-slate-200"
+        >
+          <option value="portrait">Portrait</option>
+          <option value="landscape">Landscape</option>
+        </select>
+        {savingFormat && <Loader2 className="animate-spin text-slate-400" size={15} />}
+        <span className="text-xs text-slate-500">Proposed as the default in the print dialog on devices; a client's own format (client portal) wins over this.</span>
+      </div>
 
       <div className="flex gap-2">
         {gameTypes.map((gt) => (

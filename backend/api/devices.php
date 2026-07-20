@@ -65,10 +65,11 @@ try {
             break;
 
         case 'lan_networks':
-            // Read-only dashboard view of the client's announced default Wi-Fi
-            // hotspots (the upload side of the playground's Feature B relay).
-            // Passwords are intentionally NOT returned here. Defensive: the
-            // lan_networks table may not be migrated yet -> empty list.
+            // Read-only dashboard view of the client's studio-authored Wi-Fi
+            // hotspots. The password IS returned here because this is the
+            // client's OWN network (client-auth) and they need it to render a
+            // join QR for their phones - they just can't edit it (admin-only).
+            // Defensive: the lan_networks table may not be migrated yet -> [].
             if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
             }
@@ -78,12 +79,10 @@ try {
             $networks = [];
             try {
                 $networks = $db->fetchAll(
-                    'SELECT ln.id, ln.ssid, ln.source, ln.is_default, ln.updated_at,
-                            COALESCE(d.display_name, d.device_label) AS device_label
-                     FROM lan_networks ln
-                     LEFT JOIN devices d ON d.id = ln.device_id
-                     WHERE ln.client_id = ? AND ln.is_default = 1
-                     ORDER BY ln.updated_at DESC',
+                    'SELECT id, ssid, password, source, is_default, updated_at
+                     FROM lan_networks
+                     WHERE client_id = ? AND is_default = 1
+                     ORDER BY updated_at DESC',
                     [$clientId]
                 );
             } catch (Exception $e) {

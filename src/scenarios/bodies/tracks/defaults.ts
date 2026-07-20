@@ -1,5 +1,5 @@
 /**
- * Default Tracks gameMeta factory — used when a brand-new tracks scenario is
+ * Default Tracks gameMeta factory - used when a brand-new tracks scenario is
  * created.
  *
  * Translatable string fields default to empty `Localized<string>` maps (`{}`);
@@ -20,12 +20,6 @@ export function defaultTracksGameMeta(): TracksGameMeta {
     // Common image + sound fields from BaseGameMetaSchema
     background_image: '',
     game_visual: '',
-    top_1_image: '',
-    top_3_image: '',
-    top_10_image: '',
-    top_1_sound: '',
-    top_3_sound: '',
-    top_10_sound: '',
     final_image_sound: '',
 
     // Tracks-specific images
@@ -44,7 +38,7 @@ export function defaultTracksGameMeta(): TracksGameMeta {
     checkpoint_error: '',
     checkpoint_no_answer: '',
 
-    // Checkpoints array — operator adds rows in the editor
+    // Checkpoints array - operator adds rows in the editor
     checkpoints: [],
 
     // Checkpoint icon mode: false = per-checkpoint (each row has its own
@@ -54,7 +48,7 @@ export function defaultTracksGameMeta(): TracksGameMeta {
     checkpoints_unique_image_id: '',
     checkpoint_image_width_percentage: '3',
 
-    // Routes — all five presets disabled by default except `default`. The
+    // Routes - all five presets disabled by default except `default`. The
     // operator opts in to additional courses per scenario.
     routes: {
       default: { enabled: true },
@@ -64,20 +58,20 @@ export function defaultTracksGameMeta(): TracksGameMeta {
       even: { enabled: false },
     },
 
-    // Display modes — `map` enabled by default (legacy convention).
+    // Display modes - `map` enabled by default (legacy convention).
     displays: {
       full: { enabled: false },
       map: { enabled: true },
       simple: { enabled: false },
     },
 
-    // Play modes — `free` enabled by default (legacy convention).
+    // Play modes - `free` enabled by default (legacy convention).
     play_modes: {
       itinerary: { enabled: false },
       free: { enabled: true },
     },
 
-    // Score types — `percentage` enabled and pre-selected by default.
+    // Score types - `percentage` enabled and pre-selected by default.
     score_types: {
       percentage: { enabled: true, default: true },
       points: { enabled: false, default: false },
@@ -100,7 +94,7 @@ export function defaultTracksGameMeta(): TracksGameMeta {
     auto_reset: true,
     delay_auto_reset: '5',
 
-    // Audience tag — read by the storefront. Teens/adults bucket for tracks.
+    // Audience tag - read by the storefront. Teens/adults bucket for tracks.
     game_public: 'ado_adultes',
 
     // Typography

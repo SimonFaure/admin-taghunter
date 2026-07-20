@@ -1,19 +1,25 @@
 /**
- * Display modes section — full / map / simple. Operator picks one at launch.
+ * Display modes section - full / map / simple. Operator picks one at launch.
  */
 
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 
 type DisplayKey = 'full' | 'map' | 'simple';
 
-const DISPLAYS: ReadonlyArray<{ key: DisplayKey; label: string; help: string }> = [
-  { key: 'full', label: 'Full', help: 'Map + checkpoint title, description, and reveal image with animation.' },
-  { key: 'map', label: 'Map', help: 'Map only; markers light up on hit. No title/description, no big reveal.' },
-  { key: 'simple', label: 'Simple', help: 'Minimal HUD (team name + score + current checkpoint number), no map.' },
-];
+function getDisplays(t: TFunction): ReadonlyArray<{ key: DisplayKey; label: string; help: string }> {
+  return [
+    { key: 'full', label: t('editorTracks:displays.items.full.label'), help: t('editorTracks:displays.items.full.help') },
+    { key: 'map', label: t('editorTracks:displays.items.map.label'), help: t('editorTracks:displays.items.map.help') },
+    { key: 'simple', label: t('editorTracks:displays.items.simple.label'), help: t('editorTracks:displays.items.simple.help') },
+  ];
+}
 
 export function DisplaysSection() {
+  const { t } = useTranslation();
+  const DISPLAYS = getDisplays(t);
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const displays = (meta.displays ?? {}) as Record<DisplayKey, { enabled?: boolean } | undefined>;
@@ -29,9 +35,9 @@ export function DisplaysSection() {
   }
 
   return (
-    <CollapsibleSection title="Display modes">
+    <CollapsibleSection title={t('editorTracks:displays.sectionTitle')}>
       <p className="text-xs text-gray-500 mb-3">
-        Operators pick one of the enabled display modes at launch time.
+        {t('editorTracks:displays.hint')}
       </p>
       <div className="space-y-2">
         {DISPLAYS.map((d) => (
@@ -44,7 +50,7 @@ export function DisplaysSection() {
             />
             <span>
               <span className="font-medium text-gray-900">{d.label}</span>
-              <span className="text-gray-500"> — {d.help}</span>
+              <span className="text-gray-500"> - {d.help}</span>
             </span>
           </label>
         ))}

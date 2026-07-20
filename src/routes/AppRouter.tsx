@@ -3,9 +3,13 @@ import { Dashboard } from '../components/Dashboard';
 import { ClientLayout } from '../layouts/ClientLayout';
 import { MyHomeView } from '../components/client/MyHomeView';
 import { MyScenariosView } from '../components/client/MyScenariosView';
+import { MyQrCodesView } from '../components/client/MyQrCodesView';
+import { RankingsView } from '../components/client/RankingsView';
 import { ScenarioDetailView } from '../components/client/ScenarioDetailView';
 import { MyPatternsView } from '../components/client/MyPatternsView';
 import { MyCardsView } from '../components/client/MyCardsView';
+import { MyTeamNamesView } from '../components/client/MyTeamNamesView';
+import { MyReportLayoutsView } from '../components/client/MyReportLayoutsView';
 import { MyDevicesView } from '../components/client/MyDevicesView';
 import { MyAccountView } from '../components/client/MyAccountView';
 import { AccountSecurityView } from '../components/client/AccountSecurityView';
@@ -21,7 +25,7 @@ import { ClientStatisticsView } from '../components/client/ClientStatisticsView'
 import { MyHelpView } from '../components/client/MyHelpView';
 import { MyReleasesView } from '../components/client/MyReleasesView';
 
-// Admin list views (/admin/scenarios etc.) aren't split out yet — Dashboard's
+// Admin list views (/admin/scenarios etc.) aren't split out yet - Dashboard's
 // existing tab state still owns those. Leaving them as placeholder routes for
 // bookmarkability until Phase 3b.
 function Placeholder({ path }: { path: string }) {
@@ -51,8 +55,17 @@ export function AppRouter() {
             <Route path="home" element={<MyHomeView />} />
             <Route path="scenarios" element={<MyScenariosView />} />
             <Route path="scenarios/:uniqid" element={<ScenarioDetailView />} />
+            <Route path="qr-codes" element={<MyQrCodesView />} />
+            <Route path="rankings" element={<RankingsView />} />
+            {/* Old per-app routes kept as redirects for bookmarks; leaderboards
+                and GO/Drop stats are now merged (project_client_app_section). */}
+            <Route path="go-sessions" element={<Navigate to="../rankings" replace />} />
+            <Route path="drop-sessions" element={<Navigate to="../rankings" replace />} />
+            <Route path="go-statistics" element={<Navigate to="../statistics" replace />} />
             <Route path="patterns" element={<MyPatternsView />} />
             <Route path="cards" element={<MyCardsView />} />
+            <Route path="team-names" element={<MyTeamNamesView />} />
+            <Route path="report-layouts" element={<MyReportLayoutsView />} />
             <Route path="devices" element={<MyDevicesView />} />
             <Route path="releases" element={<MyReleasesView />} />
             <Route path="game-types" element={<GameTypesView />} />

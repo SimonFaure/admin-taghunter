@@ -1,5 +1,5 @@
 /**
- * Default Tagquest GameLayout — CANONICAL source of truth for the in-game HUD.
+ * Default Tagquest GameLayout - CANONICAL source of truth for the in-game HUD.
  *
  * - Positions are percentages of the template's intrinsic 16:9 box (NOT the
  *   viewport). The runtime computes the largest 16:9 rectangle that fits in
@@ -13,14 +13,14 @@
  *     '@late_malus_image'  → scenario gameMeta.late_malus_image
  *     '@quest_main_image_N' → quest at index N-1's `main_image`
  *
- * One mirror must move in lockstep with this file — when you change positions,
+ * One mirror must move in lockstep with this file - when you change positions,
  * ids, or fontSize values here, update it too:
  *   - ../../../../../../taghunter_playground/src/scenarios/tagquest/defaultLayout.json
- *     (bundled fallback the playground loads — `version` field must be bumped
+ *     (bundled fallback the playground loads - `version` field must be bumped
  *     together with this file's `version`).
  *
  * NOTE: the old MySQL `layouts` table seed (tagquest_default_layout_migration.sql)
- * was retired — the playground no longer syncs layouts; it uses its bundled JSON.
+ * was retired - the playground no longer syncs layouts; it uses its bundled JSON.
  *
  * Position values are first-pass approximations against the default template
  * artwork (5692×3200). Fine-tune against the PNG.

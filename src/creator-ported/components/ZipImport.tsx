@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useRef } from 'react';
 import { Upload, FileArchive, CheckCircle, XCircle, Loader2, ArrowLeft, FolderTree } from 'lucide-react';
 import JSZip from 'jszip';

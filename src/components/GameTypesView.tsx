@@ -8,6 +8,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 const VIDEO_ACCEPT = 'video/mp4,video/webm,video/ogg,video/quicktime';
 
+// Effective upload ceiling on production (nginx client_max_body_size + PHP
+// post_max_size/upload_max_filesize are both 256M). Keep in sync with the
+// server config; the PHP code constant (700M) is larger but never reached.
+const MAX_VIDEO_MB = 256;
+const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
+
 const LANG_NAMES: Record<Lang, string> = {
   en: 'English',
   fr: 'Français',
@@ -235,7 +241,19 @@ export function GameTypesView() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Reject oversize videos before they hit the server (where they'd be bounced
+  // with an opaque 413). Returns true when the file is within the limit.
+  const checkVideoSize = (file: File): boolean => {
+    if (file.size <= MAX_VIDEO_BYTES) return true;
+    setError(t('error.fileTooLarge', {
+      size: Math.ceil(file.size / (1024 * 1024)),
+      max: MAX_VIDEO_MB,
+    }));
+    return false;
+  };
+
   const handleAdminUploadVideo = async (code: string, file: File) => {
+    if (!checkVideoSize(file)) return;
     const fd = new FormData();
     fd.append('code', code);
     fd.append('video', file);
@@ -272,6 +290,7 @@ export function GameTypesView() {
   };
 
   const handleClientUploadVideo = async (code: string, file: File) => {
+    if (!checkVideoSize(file)) return;
     const fd = new FormData();
     fd.append('code', code);
     fd.append('video', file);
@@ -443,6 +462,7 @@ function GameTypeCard(props: CardProps) {
                         <FileDrop
                           accept={VIDEO_ACCEPT}
                           onFile={(f) => props.onAdminUploadVideo(gt.code, f)}
+                          title={t('card.maxVideoSize', { size: MAX_VIDEO_MB })}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-700 text-white rounded-md hover:bg-slate-800"
                         >
                           <Upload className="w-4 h-4" /> {t('actions.replace')}
@@ -467,6 +487,7 @@ function GameTypeCard(props: CardProps) {
                     <Upload className="w-6 h-6 mx-auto mb-2 text-slate-400" />
                     <div className="font-medium">{t('card.dropVideoHint')}</div>
                     <div className="text-xs text-slate-400 mt-1">{t('card.noLegacyVideo')}</div>
+                    <div className="text-xs text-slate-400 mt-1">{t('card.maxVideoSize', { size: MAX_VIDEO_MB })}</div>
                   </FileDrop>
                 ) : (
                   <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg text-sm text-amber-800">
@@ -503,6 +524,7 @@ function GameTypeCard(props: CardProps) {
                         <FileDrop
                           accept={VIDEO_ACCEPT}
                           onFile={(f) => props.onClientUploadVideo(gt.code, f)}
+                          title={t('card.maxVideoSize', { size: MAX_VIDEO_MB })}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-700 text-white rounded-md hover:bg-slate-800"
                         >
                           <Upload className="w-4 h-4" /> {t('actions.replace')}
@@ -524,6 +546,7 @@ function GameTypeCard(props: CardProps) {
                       <Upload className="w-6 h-6 mx-auto mb-2 text-slate-400" />
                       <div className="font-medium">{t('card.dropVideoHint')}</div>
                       <div className="text-xs text-slate-400 mt-1">{t('card.usingLegacyVideo')}</div>
+                      <div className="text-xs text-slate-400 mt-1">{t('card.maxVideoSize', { size: MAX_VIDEO_MB })}</div>
                     </FileDrop>
                   )}
                 </section>

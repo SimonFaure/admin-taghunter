@@ -4,7 +4,7 @@
 -- badge in studio's DevicesView. Defaults to 0 (plays games).
 --
 -- Safe to run multiple times: the ALTER is gated on INFORMATION_SCHEMA so an existing column is skipped.
--- (MySQL 8.4 rejects `ADD COLUMN IF NOT EXISTS` — see project_studio_migration_runner_bugs.)
+-- (MySQL 8.4 rejects `ADD COLUMN IF NOT EXISTS` - see project_studio_migration_runner_bugs.)
 
 SET @dbname = DATABASE();
 

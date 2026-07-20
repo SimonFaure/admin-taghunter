@@ -1,0 +1,12 @@
+{
+  "title": "Panel de Administración",
+  "enterPassword": "Introduce la Contraseña de Administrador",
+  "unlock": "Desbloquear",
+  "invalidPassword": "Contraseña no válida",
+  "apiLogs": "Registros de API",
+  "importLogs": "Registros de Importación",
+  "documentation": "Documentación de la API",
+  "clearLogs": "Borrar Registros",
+  "viewLogs": "Ver Registros",
+  "noLogs": "No hay registros disponibles"
+}

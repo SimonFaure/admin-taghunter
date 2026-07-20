@@ -1,41 +1,29 @@
 /**
- * Default Clash gameMeta factory — the fixed v1 skeleton: 2 clans + 4
- * territory slots (large/medium/medium/small) holding 8 combinations over
- * 24 balises. Ids are deterministic so the Clash PATTERN's station
- * assignments and per-clan launch overrides keep stable references.
+ * Default Clash gameMeta factory (V2) - seeded, editable skeleton: 2 clans + 8
+ * territories, each one variable-size balise set (5/4/4/3/3/2/2/1 = 24 balises)
+ * worth pts/min ∝ balise count. No combinations, no pattern - balises are
+ * authored inline on the territory (overridable at launch).
  *
- * Design: project_clash_game_type_design (grill-me decision record).
+ * Design: project_clash_game_type_design (V2).
  */
 
-import type { ClashGameMeta, ClashCombination, ClashTerritory } from '../../../types/scenario-data';
+import type { ClashGameMeta, ClashTerritory } from '../../../types/scenario-data';
 
-function emptyCombination(id: string): ClashCombination {
-  return { id, name: {}, piece_1: '', piece_2: '', piece_3: '', main: '' };
+function territory(id: string, points: string, balises: number[]): ClashTerritory {
+  return { id, name: {}, points, balises };
 }
 
-function territory(
-  id: string,
-  size: ClashTerritory['size'],
-  points: string,
-  comboIds: string[],
-): ClashTerritory {
-  return {
-    id,
-    name: {},
-    size,
-    points,
-    complete_image: '',
-    combinations: comboIds.map(emptyCombination),
-  };
-}
-
-/** Fixed skeleton: combos 1-3 → large, 4-5 / 6-7 → medium, 8 → small. */
+/** The spec skeleton: T1 balises 1-5 (5 pts) … T8 balise 24 (1 pt). */
 export function defaultClashTerritories(): ClashTerritory[] {
   return [
-    territory('territory_large', 'large', '4', ['combo_1', 'combo_2', 'combo_3']),
-    territory('territory_medium_a', 'medium', '2', ['combo_4', 'combo_5']),
-    territory('territory_medium_b', 'medium', '2', ['combo_6', 'combo_7']),
-    territory('territory_small', 'small', '1', ['combo_8']),
+    territory('territory_1', '5', [1, 2, 3, 4, 5]),
+    territory('territory_2', '4', [6, 7, 8, 9]),
+    territory('territory_3', '4', [10, 11, 12, 13]),
+    territory('territory_4', '3', [14, 15, 16]),
+    territory('territory_5', '3', [17, 18, 19]),
+    territory('territory_6', '2', [20, 21]),
+    territory('territory_7', '2', [22, 23]),
+    territory('territory_8', '1', [24]),
   ];
 }
 
@@ -47,13 +35,19 @@ export function defaultClashGameMeta(): ClashGameMeta {
     background_image: '',
     game_visual: '',
     map_image: '',
-    neutral_seal: '',
     clans: [
-      { id: 'clan_1', name: {}, color: '#c0392b', seal: '' },
-      { id: 'clan_2', name: {}, color: '#2980b9', seal: '' },
+      { id: 'clan_1', name: {}, color: '#c0392b', banner: '', logo: '', score_card: '' },
+      { id: 'clan_2', name: {}, color: '#2980b9', banner: '', logo: '', score_card: '' },
     ],
     territories: defaultClashTerritories(),
-    scenario_default_pattern: null,
+    frame_ranking: '',
+    frame_territory_name: '',
+    frame_gauge: '',
+    frame_event: '',
+    frame_timer: '',
+    frame_separator: '',
+    purge_image: '',
+    purge_sound: '',
     text_elements: [],
     text_categories: [],
     game_public: 'ado_adultes',

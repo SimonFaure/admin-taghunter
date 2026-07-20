@@ -1,11 +1,11 @@
 /**
- * Save / publish / ZIP-download orchestrator. Generic across game types —
+ * Save / publish / ZIP-download orchestrator. Generic across game types -
  * type-specific shape comes from `adapter.{cleanGameMetaForData, buildMediasColumn,
  * enumerateMedia, buildZipGameData}`.
  *
  * Lifted from MysteryConfig / TagquestConfig save paths during Slice 2B with
  * one deliberate change: the new flows write the SAME canonical shape for
- * regular save, ZIP-download, and publish — collapsing the duplicate-top-level
+ * regular save, ZIP-download, and publish - collapsing the duplicate-top-level
  * `quests` drift that Stage 1's strict-wrapper schema flagged in Tagquest.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
@@ -42,13 +42,13 @@ export interface SavePayload<TGameMeta = any> {
   uniqid: string;
   adapter: ScenarioAdapter<TGameMeta>;
   /**
-   * Source-language title — derived by the shell from
+   * Source-language title - derived by the shell from
    * `getLocalized(gameMeta.title, defaultLanguage, defaultLanguage)`. Written
    * to the row's `scenarios.title` column for list-view sort/search. The
    * authoritative title lives inside `gameMeta.title` as a `Localized<string>`.
    */
   title: string;
-  /** Source-language description — same denormalization as `title`. */
+  /** Source-language description - same denormalization as `title`. */
   description: string;
   gameMeta: TGameMeta;
   defaultLanguage: string;
@@ -110,7 +110,7 @@ function buildCanonicalUpdate<TGameMeta>(payload: SavePayload<TGameMeta>) {
  * Bump `scenarios.version` by +0.1 (the studio's semantic-versioning step),
  * mutating the given update object in place (reads the current value first).
  * Playgrounds re-download a scenario when the sync manifest version differs from
- * the local one, so every content save MUST advance it — otherwise edits stay
+ * the local one, so every content save MUST advance it - otherwise edits stay
  * invisible to already-synced playgrounds. The playground compares versions as
  * floats, so a 0.1 step is enough. Shared by the editor save and layout save.
  */
@@ -127,12 +127,12 @@ export async function bumpScenarioVersion(
     const cur = Number((data as { version?: unknown } | null)?.version) || 0;
     update.version = String(Number((cur + 0.1).toFixed(1)));
   } catch {
-    // Leave version untouched if the read fails — better than writing a bad value.
+    // Leave version untouched if the read fails - better than writing a bad value.
   }
 }
 
 /**
- * Regular save — canonical shape, same DB write for save/publish/zip-prelude.
+ * Regular save - canonical shape, same DB write for save/publish/zip-prelude.
  * Lifted from TagquestConfig.tsx:706 / MysteryConfig.tsx:619 (the careful
  * cleanup version, not the raw-config publish path).
  */
@@ -158,7 +158,7 @@ export async function performSave<TGameMeta>(payload: SavePayload<TGameMeta>): P
 }
 
 /**
- * ZIP download — saves first (canonical), then downloads every enumerated
+ * ZIP download - saves first (canonical), then downloads every enumerated
  * media file, builds game-data.json via adapter, packages, triggers download.
  *
  * Lifted from TagquestConfig.tsx:1290 / MysteryConfig.tsx:958 with the

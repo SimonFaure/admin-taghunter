@@ -1,5 +1,5 @@
 /**
- * Shell header — back button, scenario title, game-type badge.
+ * Shell header - back button, scenario title, game-type badge.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */

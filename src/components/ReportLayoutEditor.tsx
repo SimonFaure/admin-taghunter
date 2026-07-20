@@ -1,7 +1,7 @@
 // Shared block editor + live preview for mission-report PDF layouts. Used by
 // the admin "Report layouts" page (global per-type defaults) and the
 // per-scenario override section. Pure controlled component: it owns no
-// persistence — the parent supplies `layout` + `onChange` and decides where it's
+// persistence - the parent supplies `layout` + `onChange` and decides where it's
 // stored (report_layouts.php for defaults, game_meta for overrides).
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -102,7 +102,7 @@ function addChildAt(blocks: ReportBlock[], path: Path, child: ReportBlock): Repo
 
 // Built-in English default for each standalone label (mirrors the playground's
 // `report` i18n namespace). Used as the editor placeholder and the preview text
-// when no override is typed — at print time a blank override resolves to the
+// when no override is typed - at print time a blank override resolves to the
 // team's language instead.
 export const DEFAULT_LABEL: Record<string, string> = {
   date: 'DATE', duration: 'DURATION', score: 'SCORE', rank: 'RANK',
@@ -144,7 +144,11 @@ function frameStyle(b: ReportBlock): string {
 }
 
 // Trimmed mirror of the playground's reportPrint HTML builder (preview only).
-export function buildPreviewHtml(layout: ReportLayout): string {
+// `logoUrl` overrides the bundled TagHunter logo in the preview - passed by the
+// client scenario editor when "use my logo on reports" is on, so the preview
+// matches what the playground will actually print.
+export function buildPreviewHtml(layout: ReportLayout, logoUrl?: string | null): string {
+  const previewLogo = logoUrl || PREVIEW_LOGO_URL;
   const baseStack = fontStack(layout.font);
   const bg = layout.background.mode === 'color' && layout.background.color ? layout.background.color : '#ffffff';
   // An admin-typed override prints verbatim; otherwise show the built-in label
@@ -167,7 +171,7 @@ export function buildPreviewHtml(layout: ReportLayout): string {
     ].filter(Boolean).join(';');
     switch (b.type) {
       case 'logo':
-        return `<div style="text-align:${b.align ?? 'center'};margin:6px 0"><img src="${PREVIEW_LOGO_URL}" style="width:${b.logoSize ?? 110}px;max-width:80%" alt="Taghunter"/></div>`;
+        return `<div style="text-align:${b.align ?? 'center'};margin:6px 0"><img src="${previewLogo}" style="width:${b.logoSize ?? 110}px;max-width:80%" alt="Taghunter"/></div>`;
       case 'game_title': return `<div style="${style};margin:4px 0">${SAMPLE.gameTitle}</div>`;
       case 'pdf_title': return `<div style="${style};margin:2px 0">${layout.pdfTitle || SAMPLE.pdfTitle}</div>`;
       case 'team_name': return `<div style="${style};margin:8px 0"><div style="font-weight:bold;font-size:0.7em">${layout.teamTitle || SAMPLE.teamLabel}</div><div>${SAMPLE.teamName}</div></div>`;
@@ -176,7 +180,7 @@ export function buildPreviewHtml(layout: ReportLayout): string {
       case 'score': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('score', DEFAULT_LABEL.score)}</div><div>${SAMPLE.score}</div></div>`;
       case 'rank': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('rank', DEFAULT_LABEL.rank)}</div><div>${SAMPLE.rank}</div></div>`;
       case 'stat_grid': {
-        const cells = (b.fields ?? []).map((f) => `<td style="padding:0 10px;text-align:center;vertical-align:top"><div style="font-weight:bold">${lbl(`stat_${f}`, STAT_LABEL[f] ?? f)}</div><div>${SAMPLE.stats[f] ?? '—'}</div></td>`).join('');
+        const cells = (b.fields ?? []).map((f) => `<td style="padding:0 10px;text-align:center;vertical-align:top"><div style="font-weight:bold">${lbl(`stat_${f}`, STAT_LABEL[f] ?? f)}</div><div>${SAMPLE.stats[f] ?? '-'}</div></td>`).join('');
         return cells ? `<div style="text-align:${b.align ?? 'center'};margin:8px 0"><table style="${style};display:inline-table;border-collapse:collapse"><tr>${cells}</tr></table></div>` : '';
       }
       case 'text': return b.text ? `<div style="${style};margin:6px 0">${b.text}</div>` : '';
@@ -217,12 +221,18 @@ interface Props {
    * leaves this off.
    */
   showTitleFields?: boolean;
+  /**
+   * Overrides the bundled TagHunter logo in the live preview. The client
+   * scenario editor passes the resolved brand image when the client's "use my
+   * logo on reports" toggle is on, so the preview matches the printed output.
+   */
+  logoUrl?: string | null;
 }
 
-export function ReportLayoutEditor({ layout, availableFields, onChange, previewHeight = 560, showTitleFields = false }: Props) {
+export function ReportLayoutEditor({ layout, availableFields, onChange, previewHeight = 560, showTitleFields = false, logoUrl }: Props) {
   const { t } = useTranslation('reportLayoutEditor');
   const blockLabel = (type: ReportBlockType): string => t(`blockLabel.${type}`);
-  const previewHtml = useMemo(() => buildPreviewHtml(layout), [layout]);
+  const previewHtml = useMemo(() => buildPreviewHtml(layout, logoUrl), [layout, logoUrl]);
 
   // Drive the preview imperatively: assign the `srcdoc` *property* on every
   // change. React diffing the srcDoc *attribute* alone does not reliably make
@@ -419,7 +429,7 @@ export function ReportLayoutEditor({ layout, availableFields, onChange, previewH
           </div>
         )}
 
-        {/* Container children — nested cards + their own add-block menu. */}
+        {/* Container children - nested cards + their own add-block menu. */}
         {b.show && isContainer(b.type) && (
           <div className="space-y-2 pt-1 pl-2">
             {(b.children ?? []).map((c, ci) => renderCard(c, [...path, ci], (b.children ?? []).length))}
@@ -468,7 +478,7 @@ export function ReportLayoutEditor({ layout, availableFields, onChange, previewH
         </div>
       </div>
 
-      {/* Live preview — rendered as a paper sheet on a dark backdrop so it reads
+      {/* Live preview - rendered as a paper sheet on a dark backdrop so it reads
           like the printed page. */}
       <div className="lg:sticky lg:top-4 self-start">
         <h3 className="text-sm font-semibold text-slate-200 mb-2">{t('preview')}</h3>

@@ -1,0 +1,109 @@
+{
+  "ingameLayout": {
+    "title": {
+      "ingame": "Disposición en juego",
+      "idle": "Disposición de la pantalla de espera"
+    },
+    "mode": {
+      "ingame": "En juego",
+      "idle": "Espera"
+    },
+    "hint": {
+      "ingame": "Arrastra para colocar los 4 elementos de texto. La fuente se ajusta automáticamente al ancho de la caja: dimensiona cada caja según el espacio máximo que debe ocupar su texto.",
+      "idle": "Pantalla de solo fondo que se muestra entre equipos (cuando «revelar con Intro/clic» está desactivado). Añade un título o un subtítulo."
+    },
+    "save": "Guardar el escenario",
+    "saving": "Guardando…",
+    "close": "Cerrar",
+    "elements": "Elementos",
+    "roles": {
+      "enigma_name": "Nombre del enigma",
+      "timer": "Temporizador",
+      "score": "Puntuación",
+      "team_name": "Nombre del equipo"
+    },
+    "idleRoles": {
+      "title": "Título",
+      "subtitle": "Subtítulo"
+    },
+    "alignmentLabel": "{{element}} — alineación",
+    "align": {
+      "left": "izquierda",
+      "center": "centro",
+      "right": "derecha"
+    },
+    "field": {
+      "left": "izquierda",
+      "top": "arriba",
+      "width": "ancho",
+      "height": "alto"
+    },
+    "autoFitNote": "El tamaño del texto se establece automáticamente para llenar la caja: crece para ocupar el <b>ancho</b> y se reduce si se desbordara. Haz la caja tan <b>ancha</b> como el espacio máximo que quieras que ocupe el texto.",
+    "previewTeamName": "Vista previa del nombre de equipo",
+    "teamNamePlaceholder": "Escribe el nombre más largo previsto",
+    "teamNameHint": "Solo vista previa: pega un nombre largo para comprobar que la caja del nombre de equipo sigue siendo legible.",
+    "resetDefaults": "Restablecer valores predeterminados",
+    "showElement": "Mostrar {{element}}",
+    "idleTickHint": "Marca para mostrar un elemento en la pantalla de espera y luego arrástralo sobre el fondo.",
+    "fontSize": "Tamaño de fuente (%)",
+    "color": "Color",
+    "useScenarioColor": "Usar el color del escenario",
+    "inheritingColor": "Hereda el color de fuente del escenario.",
+    "elementHidden": "{{element}} está oculto. Márcalo arriba para colocarlo y darle estilo.",
+    "previewSubtitle": "Vista previa del subtítulo",
+    "subtitleHint": "Solo vista previa: el subtítulo real se escribe en la ventana de lanzamiento de partida. El título muestra el nombre del escenario.",
+    "sample": {
+      "enigmaName": "Nombre del enigma",
+      "enigmaNumber": "Enigma {{number}}",
+      "scenarioTitle": "Título del escenario",
+      "teamName": "Nombre del equipo"
+    }
+  },
+  "mysteryPreview": {
+    "title": "Vista previa",
+    "screen": {
+      "ingame": "En juego",
+      "endgame": "Fin de partida"
+    },
+    "locked": "Bloqueado",
+    "revealed": "Revelado",
+    "gauge": "Medidor",
+    "overscore": "Sobrepuntuación",
+    "none": "Ninguno",
+    "step": "Paso {{number}}",
+    "enigma": "Enigma",
+    "enterFullscreen": "Pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa",
+    "fullscreen": "Pantalla completa",
+    "closePreview": "Cerrar la vista previa"
+  },
+  "tagquestPreview": {
+    "title": "Vista previa",
+    "previousQuest": "Misión anterior",
+    "nextQuest": "Misión siguiente",
+    "noQuests": "Sin misiones",
+    "questCounter": "Misión {{current}} / {{total}}",
+    "questCounterNamed": "Misión {{current}} / {{total}} — {{name}}",
+    "questFallback": "Misión {{number}}",
+    "pieces": "Piezas",
+    "revealed": "Revelado",
+    "malusOverlay": "Superposición de penalización",
+    "lateMalusOverlay": "Superposición de penalización por retraso",
+    "enterFullscreen": "Pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa",
+    "fullscreen": "Pantalla completa",
+    "closePreview": "Cerrar la vista previa"
+  },
+  "viewport": {
+    "label": "Formato de pantalla",
+    "legacy": "{{size}} (antiguo)",
+    "custom": "Personalizado…",
+    "customWidth": "Ancho personalizado",
+    "customHeight": "Alto personalizado"
+  },
+  "toc": {
+    "sections": "Secciones",
+    "jumpToSection": "Ir a una sección",
+    "noSections": "Aún no hay secciones cargadas."
+  }
+}

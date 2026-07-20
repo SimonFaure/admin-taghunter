@@ -1,4 +1,4 @@
-// Media adapter — routes storage calls to /backend/api/media.php on the admin
+// Media adapter - routes storage calls to /backend/api/media.php on the admin
 // backend. Returns `{ data, error }` shapes.
 
 import { authService } from '../services/authService';
@@ -95,7 +95,7 @@ class MediaBucket {
 
 export const mediaStorage = {
   from(_bucket: string) {
-    // Bucket name ignored — we have a single /media root on the admin backend.
+    // Bucket name ignored - we have a single /media root on the admin backend.
     return new MediaBucket();
   },
 };

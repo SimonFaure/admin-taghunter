@@ -1,5 +1,5 @@
 /**
- * Admin section — scenario_version, audience (age bands), difficulty (1–5 stars),
+ * Admin section - scenario_version, audience (age bands), difficulty (1–5 stars),
  * and univers (free-text theme tags).
  *
  * Audience is a multi-select of six age bands grouped under Enfants / Ados-Adultes;
@@ -9,7 +9,7 @@
  * per-client autocomplete.
  *
  * The derived `game_public` shadow + difficulty coercion are written centrally on
- * save (saveOrchestrator.applyMetadataDerivations) — this section only edits the
+ * save (saveOrchestrator.applyMetadataDerivations) - this section only edits the
  * new source-of-truth fields.
  */
 
@@ -99,10 +99,10 @@ export function AdminSection() {
             <span className="text-xs font-medium text-gray-700 mb-1 block">{t('admin.scenarioVersion')}</span>
             {/* Read-only mirror of the DB column scenarios.version (auto-bumped
                 +0.1 on every save) so this matches the scenarios details page.
-                NOT editable — the bump is owned by the save orchestrator. */}
+                NOT editable - the bump is owned by the save orchestrator. */}
             <input
               type="text"
-              value={editor.scenarioVersion || '—'}
+              value={editor.scenarioVersion || '-'}
               readOnly
               disabled
               className="w-full px-3 py-2 border border-gray-200 bg-gray-50 text-gray-500 rounded-md text-sm cursor-not-allowed"

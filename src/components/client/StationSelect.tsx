@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface Station {
   id: number;
@@ -20,6 +21,7 @@ interface StationSelectProps {
 // Clearable + searchable station picker. The dropdown is portaled to <body> so
 // it is never clipped by the modal's overflow.
 export function StationSelect({ stations, value, usedStationKeys, onChange }: StationSelectProps) {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -100,11 +102,11 @@ export function StationSelect({ stations, value, usedStationKeys, onChange }: St
         className="flex items-center justify-between gap-1 px-2 py-1.5 bg-white border border-slate-200 rounded cursor-pointer hover:border-slate-300 transition-colors min-w-[180px] text-sm"
       >
         <span className={selectedStation ? 'text-slate-900' : 'text-slate-400'}>
-          {selectedStation ? `#${selectedStation.id} - ${selectedStation.station_name}` : 'Select station…'}
+          {selectedStation ? `#${selectedStation.id} - ${selectedStation.station_name}` : t('clientGameConfig:stationSelect.placeholder')}
         </span>
         <div className="flex items-center gap-0.5 flex-shrink-0">
           {value !== null && (
-            <button onClick={handleClear} title="Clear" className="p-0.5 hover:bg-slate-100 rounded transition-colors">
+            <button onClick={handleClear} title={t('clientGameConfig:stationSelect.clear')} className="p-0.5 hover:bg-slate-100 rounded transition-colors">
               <X size={14} className="text-slate-400 hover:text-slate-700" />
             </button>
           )}
@@ -127,14 +129,14 @@ export function StationSelect({ stations, value, usedStationKeys, onChange }: St
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search stations…"
+                  placeholder={t('clientGameConfig:stationSelect.searchPlaceholder')}
                   className="w-full pl-7 pr-2 py-1.5 bg-white border border-slate-200 rounded text-sm focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
             <div className="max-h-52 overflow-y-auto">
               {filteredStations.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-slate-400">No stations found</div>
+                <div className="px-3 py-2 text-sm text-slate-400">{t('clientGameConfig:stationSelect.noStationsFound')}</div>
               ) : (
                 filteredStations.map((station) => {
                   const isUsedElsewhere = usedStationKeys.has(station.id) && station.id !== value;
@@ -155,7 +157,7 @@ export function StationSelect({ stations, value, usedStationKeys, onChange }: St
                       <span>
                         #{station.id} - {station.station_name}
                       </span>
-                      {isUsedElsewhere && <span className="ml-2 text-xs text-slate-400">(used)</span>}
+                      {isUsedElsewhere && <span className="ml-2 text-xs text-slate-400">{t('clientGameConfig:stationSelect.used')}</span>}
                     </button>
                   );
                 })

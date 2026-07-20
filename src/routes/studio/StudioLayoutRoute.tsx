@@ -4,7 +4,7 @@ import { LayoutEditor } from '../../creator-ported/components/LayoutEditor';
 import { db } from '../../creator-ported/lib/db';
 import { useAuth } from '../../auth/AuthContext';
 
-// /studio/layouts/:uniqid treats :uniqid as the *scenario* uniqid — LayoutEditor
+// /studio/layouts/:uniqid treats :uniqid as the *scenario* uniqid - LayoutEditor
 // edits the layout attached to a given scenario (creator's original flow
 // reached it from inside MysteryConfig/TagquestConfig for the current scenario).
 // A future change could accept a standalone layout uniqid for default-layout editing.

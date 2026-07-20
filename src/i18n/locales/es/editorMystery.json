@@ -1,0 +1,88 @@
+{
+  "enigmaTiming": {
+    "title": "Sonidos de los enigmas"
+  },
+  "frame": {
+    "title": "Marco y decoración"
+  },
+  "gauge": {
+    "title": "Medidor de niveles",
+    "gaugeFilling": "Relleno del medidor"
+  },
+  "instructions": {
+    "title": "Botón de actualización"
+  },
+  "scoring": {
+    "title": "Puntuación",
+    "numberOfEnigmas": "número de enigmas",
+    "scoreFullGame": "puntuación partida completa",
+    "malusBothAnswers": "penalización si ambas respuestas están bipeadas",
+    "malusNoAnswer": "penalización si no hay respuesta",
+    "pointsUnits": "unidades de puntos",
+    "unitPts": "pts",
+    "unitPercent": "%"
+  },
+  "enigmas": {
+    "title": "Enigmas",
+    "generateMissingCodes": "Generar los códigos que faltan",
+    "addEnigma": "Añadir enigma",
+    "empty": "Aún no hay enigmas.",
+    "enigmaLabel": "Enigma {{number}}",
+    "removeEnigma": "Eliminar enigma",
+    "number": "Número",
+    "goShortCode": "Código corto GO (impreso en el panel)",
+    "shortCodePlaceholder": "ej. AXQ",
+    "generateUniqueCode": "Generar un código único",
+    "questionText": "Pregunta / texto ({{lang}})",
+    "goodAnswerPoints": "Puntos respuesta correcta",
+    "wrongAnswerPoints": "Puntos respuesta incorrecta",
+    "goodAnswerImage": "Imagen de la respuesta correcta",
+    "wrongAnswerImage": "Imagen de la respuesta incorrecta",
+    "wrongAnswerImage2": "Imagen de respuesta incorrecta 2 (GO)",
+    "wrongAnswerImage3": "Imagen de respuesta incorrecta 3 (GO)",
+    "unknownStation": "Estación desconocida"
+  },
+  "goOption": {
+    "sectionTitle": "Tag Hunter GO",
+    "toggleLabel": "Adaptable a Tag Hunter GO",
+    "description": "Versión sin hardware, en navegador móvil, de este Misterio. Los jugadores escriben un código corto en cada panel y tocan una letra - sin RFID. Las secciones atenuadas de abajo no se usan en GO.",
+    "answerOptions": "Número de opciones de respuesta",
+    "option2": "2 - A / B",
+    "option4": "4 - A / B / C / D",
+    "hint": "4 opciones es exclusivo de GO y añade dos imágenes de respuesta incorrecta adicionales por enigma. Cada enigma necesita un código corto; la letra correcta por enigma proviene del patrón GO (modelo)."
+  },
+  "dropOption": {
+    "sectionTitle": "Tag Hunter Drop",
+    "toggleLabel": "Adaptable a Tag Hunter Drop",
+    "description": "Versión sin hardware, en pantalla, de este Misterio. Las imágenes de respuesta aparecen en el dispositivo en lugar de escanearse mediante estaciones RFID - sin chips. Activarlo mantiene el escenario utilizable también con RFID y GO."
+  },
+  "gradient": {
+    "rawCss": "Degradado CSS en bruto",
+    "parseIntoStops": "Analizar en paradas",
+    "keepEditing": "(o seguir editando el CSS en bruto)",
+    "stopColor": "Color de la parada",
+    "alpha": "Alfa",
+    "pos": "Pos",
+    "removeStop": "Eliminar parada",
+    "addStop": "Añadir parada",
+    "editRawCss": "Editar CSS en bruto"
+  },
+  "pattern": {
+    "title": "Patrón por defecto",
+    "defaultMysteryPattern": "Patrón de misterio por defecto (imágenes de respuesta de los enigmas → asignación de estaciones)",
+    "none": "- Ninguno -",
+    "notFound": "{{value}} (no encontrado)",
+    "rfidHint": "Asigna las imágenes de respuesta correcta/incorrecta de cada enigma a estaciones/balizas (Playground RFID). La asignación se muestra junto a cada imagen más abajo. Modificable al lanzar.",
+    "defaultGoPattern": "Patrón GO por defecto (clave de letras de respuesta para Tag Hunter GO)",
+    "createRandom": "Crear aleatorio",
+    "goHint": "Cada cliente con acceso a este escenario en GO usa este patrón. «Crear aleatorio» genera uno con una letra correcta aleatoria por enigma; edítalo después desde la página Patrones.",
+    "createModalTitle": "Crear patrón GO aleatorio",
+    "numberOfEnigmas": "Número de enigmas",
+    "generateHint": "Genera respuestas {{answers}} con la letra correcta aleatoria por enigma, y lo selecciona como patrón GO por defecto de este escenario.",
+    "cancel": "Cancelar",
+    "creating": "Creando…",
+    "create": "Crear",
+    "insertFailed": "Error al insertar",
+    "createFailed": "Error al crear el patrón"
+  }
+}

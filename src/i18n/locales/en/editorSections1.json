@@ -26,7 +26,7 @@
     "difficulty": "Difficulty",
     "univers": "Univers (theme tags)",
     "universPlaceholder": "Add a tag…",
-    "audienceEmptyWarning": "No audience selected — team names will default to Teens/Adults.",
+    "audienceEmptyWarning": "No audience selected - team names will default to Teens/Adults.",
     "namePoolHint": "Team names drawn from: {{tier}}",
     "audienceGroups": {
       "enfants": "Children",

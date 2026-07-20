@@ -1,18 +1,26 @@
 import { useTranslation } from 'react-i18next';
 import { StatisticsView } from '../StatisticsView';
+import { useAuth } from '../../auth/AuthContext';
+import { getAppAccess } from '../../auth/appAccess';
+import { GoDropStatsSections } from './ClientGoStatisticsView';
 
-// Per-client game statistics. Reuses the shared StatisticsView, which is
-// auto-scoped to the logged-in client by statistics.php (the endpoint returns
-// is_admin=false for a client token, so no client column / client filter / top
-// clients are shown — just this client's own played-game stats).
+// Merged client Statistics page. Shows the Playground game statistics (the shared
+// StatisticsView, auto-scoped to the logged-in client by statistics.php) when the
+// client has Playground, followed by GO & Drop usage sections for whichever of
+// those apps is enabled. A GO/Drop-only client (no Playground) sees just the
+// GO/Drop block. (project_client_app_section)
 export function ClientStatisticsView() {
   const { t } = useTranslation('clientStats');
+  const { user } = useAuth();
+  const access = getAppAccess(user);
+
   return (
     <div>
       <div className="mb-6">
         <p className="text-slate-600">{t('subtitle')}</p>
       </div>
-      <StatisticsView />
+      {access.playground && <StatisticsView />}
+      <GoDropStatsSections />
     </div>
   );
 }

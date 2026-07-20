@@ -1,5 +1,5 @@
 /**
- * Common media slot manifest — shared by every game type.
+ * Common media slot manifest - shared by every game type.
  *
  * Body adapters concatenate this with their type-specific slot list:
  *   mediaSlots: [...commonMediaSlots, ...mysteryMediaSlots]
@@ -34,18 +34,10 @@ export const commonMediaSlots: readonly MediaSlot[] = [
   { key: 'background_image', kind: 'image', required: 'error', scope: 'common', label: 'Background image' },
   { key: 'game_visual', kind: 'image', required: 'error', scope: 'common', label: 'Game cover visual' },
 
-  // Podium
-  { key: 'top_1_image', kind: 'image', required: 'warning', scope: 'common', label: 'Top 1 image' },
-  { key: 'top_3_image', kind: 'image', required: 'warning', scope: 'common', label: 'Top 3 image' },
-  { key: 'top_10_image', kind: 'image', required: 'warning', scope: 'common', label: 'Top 10 image' },
-  { key: 'top_1_sound', kind: 'sound', required: false, scope: 'common', label: 'Top 1 sound' },
-  { key: 'top_3_sound', kind: 'sound', required: false, scope: 'common', label: 'Top 3 sound' },
-  { key: 'top_10_sound', kind: 'sound', required: false, scope: 'common', label: 'Top 10 sound' },
-
   // End-of-game
   { key: 'final_image_sound', kind: 'sound', required: false, scope: 'common', label: 'Final image sound' },
 
-  // Scenario video — uploaded via PHP `scenario_files.php?action=upload_video`,
+  // Scenario video - uploaded via PHP `scenario_files.php?action=upload_video`,
   // stored on disk at /media/<uniqid>/, picked up by playground sync's
   // scandir-based manifest. `medias.video` (singular) carries the full
   // /media/<uniqid>/... path for ScenarioDetailView compatibility; the adapter
@@ -59,7 +51,7 @@ export const commonMediaSlots: readonly MediaSlot[] = [
     acceptMime: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'],
   },
 
-  // Per-language subtitle tracks for the intro video — see comment above
+  // Per-language subtitle tracks for the intro video - see comment above
   // `scenarioVideoSubtitleSlots`. Appended last so they don't interrupt
   // the existing slot ordering used by the editor UI.
   ...scenarioVideoSubtitleSlots,

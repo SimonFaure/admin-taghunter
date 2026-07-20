@@ -26,7 +26,7 @@
     "difficulty": "Difficulté",
     "univers": "Univers (thèmes)",
     "universPlaceholder": "Ajouter un tag…",
-    "audienceEmptyWarning": "Aucun public sélectionné — les noms d'équipe seront tirés du pool Ados/Adultes par défaut.",
+    "audienceEmptyWarning": "Aucun public sélectionné - les noms d'équipe seront tirés du pool Ados/Adultes par défaut.",
     "namePoolHint": "Noms d'équipe tirés de : {{tier}}",
     "audienceGroups": {
       "enfants": "Enfants",

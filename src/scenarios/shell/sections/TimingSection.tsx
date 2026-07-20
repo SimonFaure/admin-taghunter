@@ -1,5 +1,5 @@
 /**
- * Timing section — default_time, default_time_malus, message_display_time
+ * Timing section - default_time, default_time_malus, message_display_time
  * (+ mystery-only animation_enigma_duration).
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)

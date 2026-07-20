@@ -4,8 +4,8 @@
 -- gated on INFORMATION_SCHEMA so existing columns are skipped.
 --
 -- Tables touched:
---   lan_networks  : NEW — relayed default hotspot Wi-Fi creds, per client.
---   devices       : is_default_mother, mother_uuid (inventory only — no secret).
+--   lan_networks  : NEW - relayed default hotspot Wi-Fi creds, per client.
+--   devices       : is_default_mother, mother_uuid (inventory only - no secret).
 --
 -- (Comments here intentionally avoid semicolons: some migration runners split
 --  on a semicolon before stripping comments, so one in prose corrupts the next
@@ -14,7 +14,7 @@
 SET @dbname = DATABASE();
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- lan_networks — one row per announced default hotspot, scoped to a client.
+-- lan_networks - one row per announced default hotspot, scoped to a client.
 -- Multiple defaults coexist (multi-venue) and the playground auto-join engine
 -- filters by in-range SSID. Only source='hotspot' rows are ever stored
 -- (operator-entered router passwords are NEVER relayed to the cloud).
@@ -24,7 +24,6 @@ SET @dbname = DATABASE();
 CREATE TABLE IF NOT EXISTS lan_networks (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     client_id  INT NOT NULL,
-    device_id  INT NULL,
     ssid       VARCHAR(64) NOT NULL,
     password   VARCHAR(128) NOT NULL,
     source     ENUM('hotspot','router') NOT NULL DEFAULT 'hotspot',
@@ -37,7 +36,22 @@ CREATE TABLE IF NOT EXISTS lan_networks (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- devices.is_default_mother  (inventory bit — this machine is the client's
+-- lan_networks.device_id - DROP if present. Vestige of the original upload-driven
+-- design (each device announced its own hotspot UP, device_id recorded which).
+-- The studio-authoritative rework (plans/studio-authoritative-hotspot-creds.md)
+-- made hotspot creds CLIENT-scoped (always inserted NULL, never read), so the
+-- column is dead. Gated on existence so this is idempotent and safe to re-run.
+-- ─────────────────────────────────────────────────────────────────────────────
+SET @sql = (SELECT IF(
+    (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'lan_networks' AND COLUMN_NAME = 'device_id') > 0,
+    'ALTER TABLE lan_networks DROP COLUMN device_id',
+    'SELECT 1'
+));
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- devices.is_default_mother  (inventory bit - this machine is the client's
 -- canonical mother / game server. No secret is relayed and on-LAN pairing stays
 -- mDNS + operator approval.)
 -- ─────────────────────────────────────────────────────────────────────────────

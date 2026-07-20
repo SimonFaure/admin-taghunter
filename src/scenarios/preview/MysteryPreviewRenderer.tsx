@@ -1,5 +1,5 @@
 /**
- * Mystery preview renderer — single 16:9 main-game screen with the canonical
+ * Mystery preview renderer - single 16:9 main-game screen with the canonical
  * 3-column layout (timer+score | enigmas grid | team-name+recap) and a level
  * gauge along the bottom edge.
  *
@@ -30,7 +30,7 @@ import {
 type Localized = Record<string, string>;
 
 export type EnigmaView = 'locked' | 'revealed';
-export type MysteryScreen = 'instructions' | 'ingame' | 'endgame' | 'idle';
+export type MysteryScreen = 'ingame' | 'endgame' | 'idle';
 
 /** Mock subtitle shown for the idle 'subtitle' element in the studio preview/
  *  layout editor (the real text is a per-launch field in the playground). */
@@ -48,9 +48,6 @@ export interface PreviewMysteryGameMeta {
   levels_gauge_player_icon_image?: string;
   levels_gauge_level_icon_image?: string;
   gauge_filling?: string;
-  game_instructions_image?: string;
-  game_instructions_button_image?: string;
-  game_instructions_button_hover_image?: string;
   game_refresh_button_image?: string;
   game_refresh_button_hover_image?: string;
   font?: string;
@@ -81,13 +78,13 @@ export interface MysteryPreviewRendererProps {
   selectedEnigmaIndex: number;
   /** Which screen of the game flow to render. */
   screen: MysteryScreen;
-  /** Canonical viewport — drives the stage aspect ratio. */
+  /** Canonical viewport - drives the stage aspect ratio. */
   canonicalWidth: number;
   canonicalHeight: number;
   /** Active editor language (for admin label resolution). */
   lang: Lang;
   defaultLang: Lang;
-  /** When true, the 4 in-game text overlays are NOT drawn — the in-game layout
+  /** When true, the 4 in-game text overlays are NOT drawn - the in-game layout
    *  editor uses this so the preview is a clean backdrop under its own
    *  draggable boxes. */
   hideIngameTextOverlays?: boolean;
@@ -155,7 +152,7 @@ export function MysteryPreviewRenderer({
   const pointsUnits = gameMeta.points_units ?? 'points';
   const scoreFullGame = gameMeta.score_full_game ?? '100';
 
-  // Gauge geometry — shared by the gradient bar, level icons, and player
+  // Gauge geometry - shared by the gradient bar, level icons, and player
   // icon so they stay perfectly aligned. The inset keeps icons at 0%/100%
   // inside the gauge frame instead of overflowing the gauge image edges.
   const gaugeBarHeight = stage.height * 0.08;
@@ -231,7 +228,7 @@ export function MysteryPreviewRenderer({
             {/* Left column: overscore image only. Timer + score are now
                 author-placed overlays (see below). */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: `${stage.height * 0.02}px` }}>
-              {/* Overscore display — shown when the modal selects a stage. */}
+              {/* Overscore display - shown when the modal selects a stage. */}
               {overscoreImageUrl && (
                 <div
                   style={{
@@ -252,7 +249,7 @@ export function MysteryPreviewRenderer({
               )}
             </div>
 
-            {/* Center column: ONE big enigma — text on top, image below. */}
+            {/* Center column: ONE big enigma - text on top, image below. */}
             <div
               style={{
                 display: 'flex',
@@ -418,7 +415,7 @@ export function MysteryPreviewRenderer({
                 />
               )}
 
-              {/* Level markers — one icon + name per entry in gameMeta.levels,
+              {/* Level markers - one icon + name per entry in gameMeta.levels,
                   positioned by level.points / score_full_game. Names alternate
                   top/bottom (1st on top, 2nd on bottom, …) to avoid overlap. */}
               {(() => {
@@ -436,7 +433,7 @@ export function MysteryPreviewRenderer({
                 const levelTextColor = gameMeta.level_font_color || '#ffffff';
                 const entries = Object.entries(gameMeta.levels ?? {});
                 // Emit each marker as 3 sibling elements (icon, bar, label).
-                // No nested 0×0 wrapper — some browsers refuse to render
+                // No nested 0×0 wrapper - some browsers refuse to render
                 // absolutely-positioned children of a collapsed parent.
                 const nodes: React.ReactNode[] = [];
                 entries.forEach(([key, level], idx) => {
@@ -538,7 +535,7 @@ export function MysteryPreviewRenderer({
                 return nodes;
               })()}
 
-              {/* Player icon — follows the gauge fill (trailing edge of
+              {/* Player icon - follows the gauge fill (trailing edge of
                   gradient). Height matches the gradient bar (gauge container
                   height minus 14px top+bottom inset). */}
               {gameMeta.levels_gauge_player_icon_image && (() => {
@@ -577,7 +574,7 @@ export function MysteryPreviewRenderer({
             return <MysteryFixedFrames frameUrls={frameUrls} />;
           })()}
 
-          {/* Author-placed text overlays — the 4 in-game roles positioned via
+          {/* Author-placed text overlays - the 4 in-game roles positioned via
               game_meta.ingame_layout, each auto-fitting its box. */}
           {!hideIngameTextOverlays && (() => {
             const layout = resolveIngameLayout(gameMeta.ingame_layout);
@@ -610,76 +607,7 @@ export function MysteryPreviewRenderer({
           </>
           )}
 
-          {screen === 'instructions' && (() => {
-            const buttonImg = gameMeta.game_instructions_button_image
-              ? resolveMediaUrl(gameMeta.game_instructions_button_image)
-              : '';
-            const buttonHoverImg = gameMeta.game_instructions_button_hover_image
-              ? resolveMediaUrl(gameMeta.game_instructions_button_hover_image)
-              : '';
-            const instrImg = gameMeta.game_instructions_image
-              ? resolveMediaUrl(gameMeta.game_instructions_image)
-              : '';
-            return (
-              <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                }}
-              >
-                {instrImg && (
-                  <img
-                    src={instrImg}
-                    alt=""
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                    }}
-                  />
-                )}
-                {(buttonImg || buttonHoverImg) && (
-                  <div
-                    className="mystery-preview-instructions-button"
-                    style={{
-                      position: 'absolute',
-                      bottom: `${stage.height * 0.05}px`,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: `${stage.height * 0.18}px`,
-                      height: `${stage.height * 0.18}px`,
-                    }}
-                  >
-                    {buttonImg && (
-                      <img
-                        src={buttonImg}
-                        alt="start"
-                        className="mystery-preview-button-default"
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
-                      />
-                    )}
-                    {buttonHoverImg && (
-                      <img
-                        src={buttonHoverImg}
-                        alt="start"
-                        className="mystery-preview-button-hover"
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', opacity: 0 }}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Idle screen — background only (drawn at the root) plus the enabled
+          {/* Idle screen - background only (drawn at the root) plus the enabled
               author-placed title/subtitle. The layout editor passes
               `hideIngameTextOverlays` so its draggable copies sit alone on top. */}
           {screen === 'idle' && !hideIngameTextOverlays && (() => {

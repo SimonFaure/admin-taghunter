@@ -1,4 +1,4 @@
--- Per-device and per-channel game-type availability overrides — extends the
+-- Per-device and per-channel game-type availability overrides - extends the
 -- disable-game-types model (game_types.enabled global + client_game_type_overrides
 -- per-client) with two more tiers used by the admin Testers page. Resolution,
 -- most-specific wins, per game type per device:

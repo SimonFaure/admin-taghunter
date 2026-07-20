@@ -1,14 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, FileText, Loader2, AlertCircle, CheckCircle, Pencil, Maximize2, X } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, FileText, Loader2, AlertCircle, CheckCircle, Pencil, Maximize2, X, Smartphone } from 'lucide-react';
 import { secureAuth } from '../../lib/secureAuth';
 import { authFetch } from '../../lib/authFetch';
+import { useAuth } from '../../auth/AuthContext';
+import { getAppAccess } from '../../auth/appAccess';
 import { getGameVisualUrl } from './MyScenariosView';
 import { GameTypeIcon } from '../icons/GameTypeIcons';
 import { getDifficultyLabel, getDifficultyBadgeClass } from '../../types/difficulty';
 import { getAudienceLabel } from '../../types/audience';
 import type { ClientScenario } from './types';
+import { GoPreviewContent, type GoPreviewEnigma } from '../../scenarios/preview/GoPreviewContent';
+
+interface GoPreviewData {
+  title: string;
+  answer_count: 2 | 4;
+  enigmas: GoPreviewEnigma[];
+  warning: string | null;
+}
 
 interface ScenarioFile {
   id: number;
@@ -20,7 +30,7 @@ interface ScenarioFile {
 }
 
 function formatFileSize(bytes: number): string {
-  if (!bytes || bytes < 0) return '—';
+  if (!bytes || bytes < 0) return '-';
   if (bytes < 1024) return `${bytes} B`;
   const units = ['KB', 'MB', 'GB'];
   let val = bytes / 1024;
@@ -53,22 +63,37 @@ function getVideoUrl(medias: string | Record<string, unknown> | null | undefined
   return uniqid ? `${MEDIA_BASE_URL}/media/${uniqid}/${v}` : `${MEDIA_BASE_URL}/${v}`;
 }
 
+function resolveMediaUrl(url: string, uniqid?: string): string {
+  if (url.startsWith('http')) return url;
+  if (url.startsWith('/')) return `${MEDIA_BASE_URL}${url}`;
+  return uniqid ? `${MEDIA_BASE_URL}/media/${uniqid}/${url}` : `${MEDIA_BASE_URL}/${url}`;
+}
+
 function getExtraImages(medias: string | Record<string, unknown> | null | undefined, uniqid?: string): string[] {
   const parsed = parseMedias(medias) as { images?: Record<string, string> };
   if (!parsed.images) return [];
   return Object.entries(parsed.images)
     .filter(([key]) => key !== 'game_visual')
-    .map(([, url]) => {
-      if (url.startsWith('http')) return url;
-      if (url.startsWith('/')) return `${MEDIA_BASE_URL}${url}`;
-      return uniqid ? `${MEDIA_BASE_URL}/media/${uniqid}/${url}` : `${MEDIA_BASE_URL}/${url}`;
-    });
+    .map(([, url]) => resolveMediaUrl(url, uniqid));
+}
+
+// Just the background image (one of the `images` map entries), resolved to a
+// URL. Used by the "GO client only" portal, which shows only the game visual +
+// background image (no other media). See memory project_go_client_only.
+function getBackgroundImageUrl(
+  medias: string | Record<string, unknown> | null | undefined,
+  uniqid?: string
+): string | null {
+  const parsed = parseMedias(medias) as { images?: Record<string, string> };
+  const bg = parsed.images?.background_image;
+  return bg ? resolveMediaUrl(bg, uniqid) : null;
 }
 
 export function ScenarioDetailView() {
   const { t } = useTranslation('scenarioDetail');
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const onBack = () => navigate('/my/scenarios');
 
   // TODO: replace with a single-row endpoint (e.g. client_scenarios.php?action=get&uniqid=)
@@ -134,8 +159,72 @@ export function ScenarioDetailView() {
     };
   }, [uniqid]);
 
+  // Tag Hunter GO preview - the answer-key sheet. We just try to fetch it: the
+  // go.php?action=preview endpoint gates on the client having GO enabled + a GO
+  // grant for this scenario, so a refusal simply means "don't show it".
+  const [goPreview, setGoPreview] = useState<GoPreviewData | null>(null);
+  const [goPreviewOpen, setGoPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (!uniqid) return;
+    let cancelled = false;
+    setGoPreview(null);
+    (async () => {
+      try {
+        const res = await authFetch(
+          `${API_BASE_URL}/go.php?action=preview&uniqid=${encodeURIComponent(uniqid)}`,
+          { credentials: 'include' },
+        );
+        if (cancelled || !res.ok) return;
+        const body = await res.json();
+        if (cancelled || !body?.data) return;
+        const d = body.data as {
+          title: string;
+          answer_count: number;
+          warning: string | null;
+          enigmas: Array<{
+            number: string;
+            short_code: string;
+            answers: Array<{ letter: string; correct: boolean; image_url: string | null }>;
+          }>;
+        };
+        setGoPreview({
+          title: d.title,
+          answer_count: d.answer_count === 4 ? 4 : 2,
+          warning: d.warning,
+          enigmas: d.enigmas.map((e) => ({
+            number: e.number,
+            short_code: e.short_code,
+            answers: e.answers.map((a) => ({ letter: a.letter, correct: a.correct, imageUrl: a.image_url })),
+          })),
+        });
+      } catch {
+        // Non-fatal: GO preview is simply not offered.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [uniqid]);
+
+  // Only the scenario's owner may open it in the Studio editor. Clients can edit
+  // their own custom scenarios but NOT product scenarios (those are admin-owned
+  // and granted read-only); admins may edit anything.
+  const isAdmin = user?.user_type === 'admin';
+  const isOwnCustom =
+    scenario?.scenario_type !== 'product' &&
+    scenario?.client_id != null &&
+    String(scenario.client_id) === String(user?.client_id);
+  const canEdit = isAdmin || isOwnCustom;
+
+  // GO-only portal (GO/Drop without Playground): show only the game visual +
+  // background image (no other scenario media). Derived per-app
+  // (project_client_app_section).
+  const goClientOnly = getAppAccess(user).scenariosGoOnly;
   const gameVisual = getGameVisualUrl(scenario?.medias, scenario?.uniqid);
-  const extraImages = getExtraImages(scenario?.medias, scenario?.uniqid);
+  const extraImages = goClientOnly
+    ? (getBackgroundImageUrl(scenario?.medias, scenario?.uniqid) ? [getBackgroundImageUrl(scenario?.medias, scenario?.uniqid)!] : [])
+    : getExtraImages(scenario?.medias, scenario?.uniqid);
   const allImages = [...(gameVisual ? [gameVisual] : []), ...extraImages];
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -304,7 +393,7 @@ export function ScenarioDetailView() {
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
           <span className="text-sm font-medium">{t('backToScenarios')}</span>
         </button>
-        {scenario.uniqid && (
+        {scenario.uniqid && canEdit && (
           <button
             onClick={() => navigate(`/studio/scenarios/${scenario.uniqid}`)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500"
@@ -420,6 +509,26 @@ export function ScenarioDetailView() {
             <h1 className="text-3xl font-bold text-slate-900 mb-3">{scenario.title}</h1>
             <p className="text-slate-600 leading-relaxed">{scenario.description}</p>
           </div>
+
+          {goPreview && (
+            <>
+              <div className="h-px bg-slate-100" />
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-1 flex items-center gap-2">
+                  <Smartphone className="w-4 h-4" />
+                  {t('goSection')}
+                </h3>
+                <p className="text-xs text-slate-400 mb-3">{t('goPreviewHint')}</p>
+                <button
+                  onClick={() => setGoPreviewOpen(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  {t('goPreviewOpen')}
+                </button>
+              </div>
+            </>
+          )}
 
           <div className="h-px bg-slate-100" />
 
@@ -587,6 +696,27 @@ export function ScenarioDetailView() {
           </div>
         </div>
       </div>
+
+      {goPreview && goPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h2 className="text-lg font-bold text-gray-900">{t('goPreviewOpen')}</h2>
+              <button onClick={() => setGoPreviewOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto px-6 py-4">
+              <GoPreviewContent
+                title={typeof goPreview.title === 'string' ? goPreview.title : scenario.title}
+                answerCount={goPreview.answer_count === 4 ? 4 : 2}
+                enigmas={goPreview.enigmas}
+                warning={goPreview.warning}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {lightboxOpen && allImages.length > 0 && (
         <div

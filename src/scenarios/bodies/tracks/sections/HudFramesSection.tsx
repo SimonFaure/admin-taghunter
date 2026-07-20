@@ -1,9 +1,10 @@
 /**
- * HUD frames section — background frames for the 4 in-play HUD elements
+ * HUD frames section - background frames for the 4 in-play HUD elements
  * (team name, timer, score, time). Positions/sizes live in the layout editor
  * (scenarios.scenario_layout column), NOT here.
  */
 
+import { useTranslation } from 'react-i18next';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
@@ -17,12 +18,13 @@ const KEYS = [
 ] as const;
 
 export function HudFramesSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const slots = tracksMediaSlots.filter((s) => (KEYS as readonly string[]).includes(s.key));
   const meta = editor.gameMeta as Record<string, unknown>;
 
   return (
-    <CollapsibleSection title="HUD frames">
+    <CollapsibleSection title={t('editorTracks:hudFrames.sectionTitle')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {slots.map((slot) => (
           <AssetUploadField

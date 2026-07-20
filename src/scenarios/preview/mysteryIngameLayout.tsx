@@ -1,15 +1,15 @@
 /**
- * Mystery in-game layout — shared types, defaults, and the placed-box renderer
+ * Mystery in-game layout - shared types, defaults, and the placed-box renderer
  * for the 4 author-positioned text roles (enigma name, timer, score, team name).
  *
  * The 4 boxes are stored as a keyed map in `game_meta.ingame_layout`, each a
  * rectangle in % of the 1920×1080 canonical stage plus an optional horizontal
  * `align`. Font size is driven by the box dimensions: the largest single-line
- * font that fits both width and height (so long team names shrink to fit) — the
+ * font that fits both width and height (so long team names shrink to fit) - the
  * same O(1) `measureText` approach as TracksTextFit.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ DUPLICATED VERBATIM — keep in sync:                                      │
+ * │ DUPLICATED VERBATIM - keep in sync:                                      │
  * │   studio-taghunter/src/scenarios/preview/mysteryIngameLayout.tsx         │
  * │   taghunter_playground/src/components/mysteryIngameLayout.tsx            │
  * └─────────────────────────────────────────────────────────────────────────┘
@@ -41,7 +41,7 @@ export interface IngameLayout {
 export type IngameRoleKey = 'enigma_name' | 'timer' | 'score' | 'team_name';
 
 /** Role metadata: display label + which gameMeta frame image sits behind it
- *  (enigma_name has no frame — it floats as plain text). */
+ *  (enigma_name has no frame - it floats as plain text). */
 export const INGAME_ROLES: ReadonlyArray<{
   key: IngameRoleKey;
   label: string;
@@ -119,7 +119,7 @@ export interface MysteryLayoutBoxProps {
 
 /**
  * One absolutely-positioned in-game text box: auto-fit single-line text only
- * (the texts are what authors place — frame images are not part of this box).
+ * (the texts are what authors place - frame images are not part of this box).
  * Positioned by % of the stage. Used identically by the studio preview, the
  * layout editor, and the playground runtime so all three render WYSIWYG.
  */
@@ -172,7 +172,7 @@ export function MysteryLayoutBox({
         <span
           style={{
             // Applied explicitly (not just inherited) so the text renders in the
-            // scenario font even outside a stage that sets it — e.g. the layout
+            // scenario font even outside a stage that sets it - e.g. the layout
             // editor's draggable boxes, which sit on plain UI chrome.
             fontFamily: fontFamily || undefined,
             fontWeight: 700,
@@ -203,7 +203,7 @@ export type IdleRoleKey = 'title' | 'subtitle';
 
 /** One placed, styled idle text element (% of the canonical 1920×1080 stage). */
 export interface IdleElement {
-  enabled: boolean; // togg-able add/remove — false ⇒ not drawn
+  enabled: boolean; // togg-able add/remove - false ⇒ not drawn
   left: number; // 0–100 (% of canonical width)
   top: number; // 0–100 (% of canonical height)
   width: number; // 0–100 (% of canonical width)
@@ -248,7 +248,7 @@ export function resolveIdleLayout(layout: IdleLayout | undefined | null): Requir
 
 export interface MysteryIdleBoxProps {
   element: IdleElement;
-  /** Stage height in px — the explicit font size resolves against it
+  /** Stage height in px - the explicit font size resolves against it
    *  (`fontSizePct%` of it). Position/width use %, so stage width isn't needed. */
   stageHeight: number;
   text: string;
@@ -262,7 +262,7 @@ export interface MysteryIdleBoxProps {
 
 /**
  * One absolutely-positioned idle text element with EXPLICIT (author-set) font
- * size — no auto-fit. Text wraps inside the box width and is vertically centred,
+ * size - no auto-fit. Text wraps inside the box width and is vertically centred,
  * horizontally aligned per `align`. Used identically by the studio preview, the
  * layout editor, and the playground runtime so all three render WYSIWYG.
  */
@@ -277,9 +277,10 @@ export function MysteryIdleBox({
   const align = element.align ?? 'center';
   const justifyContent = align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center';
   const textAlign = align;
-  const family = element.font
-    ? (resolveFont ? resolveFont(element.font) || element.font : element.font)
-    : fallbackFontFamily;
+  // Idle text always uses the scenario font (same as the in-game HUD UI strings) -
+  // there is no per-element font override.
+  void resolveFont;
+  const family = fallbackFontFamily;
   const color = element.color || fallbackColor;
   const fontSizePx = ((element.fontSizePct ?? 5) / 100) * stageHeight;
 

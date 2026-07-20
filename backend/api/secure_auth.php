@@ -26,6 +26,20 @@ function getRequestData() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
+// Playground master on/off (project_client_app_section). When playground_enabled
+// is false the client does not own the Playground app, so the auth path refuses
+// to issue or refresh a token (the offline half is PlaygroundAuthState, which
+// ships the flag for the app to self-lock). Refusing here kicks online devices
+// out at their next auth/bootstrap. Returns true if enabled (caller continues),
+// otherwise emits a 403 and exits.
+function requirePlaygroundEnabled(object $db, int $clientId, ?string $email = null): void {
+    $row = $db->fetch('SELECT playground_enabled FROM clients WHERE id = ?', [$clientId]);
+    if ($row && (int)$row['playground_enabled'] === 0) {
+        Logger::log('secure_auth', $_SERVER['REQUEST_METHOD'] ?? 'POST', 'playground-enabled-gate', $clientId, ['email' => $email], ['error' => 'playground_disabled'], 403);
+        jsonResponse(['error' => 'This account does not have access to the playground. Contact your administrator.'], 403);
+    }
+}
+
 try {
     $db = Database::getInstance();
     $action = $_GET['action'] ?? '';
@@ -62,7 +76,7 @@ try {
                 ], 429);
             }
 
-            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar, report_use_brand_logo, playground_enabled, go_enabled, drop_enabled FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
 
@@ -143,6 +157,12 @@ try {
                     $response['data']['company_logo_uses_avatar'] = isset($client['company_logo_uses_avatar'])
                         ? (bool)$client['company_logo_uses_avatar']
                         : true;
+                    $response['data']['report_use_brand_logo'] = (bool)($client['report_use_brand_logo'] ?? false);
+                    // Per-app provisioning flags for portal surface gating
+                    // (project_client_app_section).
+                    $response['data']['playground_enabled'] = (bool)($client['playground_enabled'] ?? true);
+                    $response['data']['go_enabled'] = (bool)($client['go_enabled'] ?? false);
+                    $response['data']['drop_enabled'] = (bool)($client['drop_enabled'] ?? false);
                 }
 
                 RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
@@ -312,7 +332,7 @@ try {
                 jsonResponse(['error' => $codeValidation['reason']], 401);
             }
 
-            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar, report_use_brand_logo, playground_enabled, go_enabled, drop_enabled FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
             $userId = null;
@@ -323,6 +343,13 @@ try {
             $avatarUrl = null;
             $companyLogoUrl = null;
             $companyLogoUsesAvatar = true;
+            $reportUseBrandLogo = false;
+            // Per-app provisioning flags (project_client_app_section). Drive the
+            // client portal's per-app surface visibility (getAppAccess on the TS
+            // side). Default playground ON.
+            $playgroundEnabled = true;
+            $goEnabled = false;
+            $dropEnabled = false;
 
             if (!$client) {
                 $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
@@ -343,6 +370,10 @@ try {
                     ? (bool)$client['company_logo_uses_avatar']
                     : true;
                 $languageVal = $client['language'] ?? 'fr';
+                $reportUseBrandLogo = (bool)($client['report_use_brand_logo'] ?? false);
+                $playgroundEnabled = (bool)($client['playground_enabled'] ?? true);
+                $goEnabled = (bool)($client['go_enabled'] ?? false);
+                $dropEnabled = (bool)($client['drop_enabled'] ?? false);
             }
 
             if (!$client && !$admin) {
@@ -375,7 +406,11 @@ try {
                 $response['data']['avatar_url'] = $avatarUrl;
                 $response['data']['company_logo_url'] = $companyLogoUrl;
                 $response['data']['company_logo_uses_avatar'] = $companyLogoUsesAvatar;
+                $response['data']['report_use_brand_logo'] = $reportUseBrandLogo;
                 $response['data']['language'] = $languageVal;
+                $response['data']['playground_enabled'] = $playgroundEnabled;
+                $response['data']['go_enabled'] = $goEnabled;
+                $response['data']['drop_enabled'] = $dropEnabled;
             }
 
             Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);
@@ -422,14 +457,21 @@ try {
                 // Hydrate logo prefs so MyAccountView can render the Brand identity
                 // card without an extra fetch. TokenManager doesn't carry these.
                 $logoRow = $db->fetch(
-                    'SELECT company_logo_url, company_logo_uses_avatar, language FROM clients WHERE id = ?',
+                    'SELECT company_logo_url, company_logo_uses_avatar, report_use_brand_logo, language, playground_enabled, go_enabled, drop_enabled FROM clients WHERE id = ?',
                     [$tokenData['user_id']]
                 );
                 $response['company_logo_url'] = $logoRow['company_logo_url'] ?? null;
                 $response['company_logo_uses_avatar'] = isset($logoRow['company_logo_uses_avatar'])
                     ? (bool)$logoRow['company_logo_uses_avatar']
                     : true;
+                $response['report_use_brand_logo'] = (bool)($logoRow['report_use_brand_logo'] ?? false);
                 $response['language'] = $logoRow['language'] ?? 'fr';
+                // Per-app provisioning flags for portal surface gating
+                // (project_client_app_section). Fetched fresh so an admin toggle
+                // takes effect on the client's next token validation.
+                $response['playground_enabled'] = (bool)($logoRow['playground_enabled'] ?? true);
+                $response['go_enabled'] = (bool)($logoRow['go_enabled'] ?? false);
+                $response['drop_enabled'] = (bool)($logoRow['drop_enabled'] ?? false);
             }
 
             Logger::log('secure_auth', 'POST', 'validate', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], $response, 200);
@@ -607,7 +649,7 @@ try {
 
         case 'upload-company-logo':
             // Mirror of upload-avatar for clients.company_logo_url. Does NOT flip
-            // company_logo_uses_avatar — that preference is controlled separately by
+            // company_logo_uses_avatar - that preference is controlled separately by
             // update-logo-preference, so toggling stays non-destructive.
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse(['error' => 'Method not allowed'], 405);
@@ -659,7 +701,7 @@ try {
             );
 
             // Replace-and-unlink (mirrors upload-avatar). The toggle path in
-            // update-logo-preference does NOT touch the file — see note there.
+            // update-logo-preference does NOT touch the file - see note there.
             if ($existingClient && $existingClient['company_logo_url']) {
                 $oldPath = __DIR__ . '/../../' . ltrim(parse_url($existingClient['company_logo_url'], PHP_URL_PATH), '/');
                 if (file_exists($oldPath) && is_file($oldPath)) {
@@ -742,6 +784,48 @@ try {
             ];
 
             Logger::log('secure_auth', 'POST', 'update-logo-preference', $clientId, ['use_avatar' => (bool)$body['use_avatar']], $response, 200);
+            jsonResponse($response);
+            break;
+
+        case 'update-report-logo-preference':
+            // Client self-service: toggle "use my logo on printed reports".
+            // Mirrors update-logo-preference's token-auth pattern. The resolved
+            // brand image + this flag travel to the playground in auth_state; the
+            // playground caches the image bytes and uses them on reports.
+            // Design: project_report_layouts_editor_labels.
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $authHeader = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? '';
+            if (empty($authHeader)) {
+                jsonResponse(['error' => 'Authentication required'], 401);
+            }
+
+            $tokenData = TokenManager::validateToken($db, $authHeader);
+            if (!$tokenData || $tokenData['user_type'] !== 'client') {
+                jsonResponse(['error' => 'Invalid authentication'], 401);
+            }
+
+            $clientId = (int)$tokenData['user_id'];
+            $body = getRequestData();
+            if (!array_key_exists('use_brand_logo', $body)) {
+                jsonResponse(['error' => 'use_brand_logo (boolean) is required'], 400);
+            }
+
+            $useBrandLogoInt = ((bool)$body['use_brand_logo']) ? 1 : 0;
+
+            $db->execute(
+                'UPDATE clients SET report_use_brand_logo = ? WHERE id = ?',
+                [$useBrandLogoInt, $clientId]
+            );
+
+            $response = [
+                'success' => true,
+                'data' => ['report_use_brand_logo' => (bool)$useBrandLogoInt],
+            ];
+
+            Logger::log('secure_auth', 'POST', 'update-report-logo-preference', $clientId, ['use_brand_logo' => (bool)$body['use_brand_logo']], $response, 200);
             jsonResponse($response);
             break;
 
@@ -835,6 +919,9 @@ try {
                 jsonResponse(['error' => 'No account for this email. Contact your administrator.'], 404);
             }
 
+            // Master on/off gate: don't even send a code if Playground is disabled.
+            requirePlaygroundEnabled($db, (int)$client['id'], $email);
+
             $codeData = OTPManager::createCode($db, $email, $ipAddress, 'otp');
             $emailSent = OTPManager::sendCodeEmail($email, $codeData['code'], 'otp');
 
@@ -904,6 +991,9 @@ try {
 
             $clientId = (int)$client['id'];
             $maxDevices = (int)$client['max_devices'];
+
+            // Master on/off gate (project_client_app_section).
+            requirePlaygroundEnabled($db, $clientId, $email);
 
             $existingDevice = $db->fetch(
                 'SELECT id FROM devices WHERE client_id = ? AND device_uniq = ?',
@@ -994,6 +1084,9 @@ try {
 
             $clientId = (int)$client['id'];
 
+            // Master on/off gate (project_client_app_section).
+            requirePlaygroundEnabled($db, $clientId, $email);
+
             $deviceToRevoke = $db->fetch(
                 'SELECT id FROM devices WHERE id = ? AND client_id = ?',
                 [$revokeDeviceId, $clientId]
@@ -1063,6 +1156,16 @@ try {
             }
 
             $clientId = (int)$tokenData['user_id'];
+
+            // NB: bootstrap is deliberately NOT gated by requirePlaygroundEnabled.
+            // It issues no token - it validates the existing one and returns
+            // auth_state. When Playground is disabled the state carries
+            // playground_enabled=false and the app self-locks (the offline/
+            // already-authed half of the belt-and-suspenders; the hard refuse
+            // lives on the token-issuing endpoints). 403-ing here would instead
+            // wipe the JWT and route to login, never delivering the flag.
+            // (project_client_app_section)
+
             $deviceIdForState = !empty($tokenData['device_id']) ? (int)$tokenData['device_id'] : null;
             if ($deviceIdForState !== null) {
                 DeviceManager::bumpLastSeen($db, $deviceIdForState);

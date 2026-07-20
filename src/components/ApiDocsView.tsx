@@ -24,7 +24,7 @@ interface ApiDocsViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-type GuideKey = 'deployment' | 'android-reader';
+type GuideKey = 'deployment' | 'go-deployment' | 'android-reader';
 
 export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
   const [docTab, setDocTab] = useState<'guides' | 'reference'>('guides');
@@ -569,10 +569,10 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           playground: true,
           params: [
             { name: 'email', type: 'string', description: 'Client email address' },
-            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier — maps to the folder media/scenarios/{uniqid}/' },
+            { name: 'uniqid', type: 'string', description: 'Scenario unique identifier - maps to the folder media/scenarios/{uniqid}/' },
             { name: 'filename', type: 'string', description: 'Media filename inside the scenario folder' },
           ],
-          response: '(Binary file content with appropriate Content-Type header — file served from media/scenarios/{uniqid}/{filename})',
+          response: '(Binary file content with appropriate Content-Type header - file served from media/scenarios/{uniqid}/{filename})',
         },
         {
           method: 'GET',
@@ -931,6 +931,12 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
               label="Deployment & Versioning"
             />
             <GuidePickerButton
+              active={guideKey === 'go-deployment'}
+              onClick={() => setGuideKey('go-deployment')}
+              icon={<UploadCloud className="w-4 h-4" />}
+              label="Tag Hunter GO deployment"
+            />
+            <GuidePickerButton
               active={guideKey === 'android-reader'}
               onClick={() => setGuideKey('android-reader')}
               icon={<Smartphone className="w-4 h-4" />}
@@ -938,6 +944,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
             />
           </div>
           {guideKey === 'deployment' && <DeploymentGuide onNavigate={onNavigate} />}
+          {guideKey === 'go-deployment' && <GoDeploymentGuide onNavigate={onNavigate} />}
           {guideKey === 'android-reader' && <AndroidReaderTestingGuide />}
         </>
       )}
@@ -1282,7 +1289,7 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
       </div>
       <p className="text-gray-600 mb-8 max-w-3xl">
         How TagHunter ships to production. The studio web app and the playground app follow two very
-        different release models — read the concepts first, then jump to the runbook for whatever
+        different release models - read the concepts first, then jump to the runbook for whatever
         you're shipping.
       </p>
 
@@ -1294,18 +1301,18 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
         </h3>
         <ul className="space-y-3 text-sm text-slate-700">
           <li>
-            <strong>Studio web app (this admin) — unversioned.</strong> There's no version number;
+            <strong>Studio web app (this admin) - unversioned.</strong> There's no version number;
             whatever files sit on the server are what's live. You ship by building locally and
             uploading the result. It's continuous deployment, done by hand.
           </li>
           <li>
-            <strong>Playground app (desktop + mobile) — semver-versioned.</strong> The version lives
+            <strong>Playground app (desktop + mobile) - semver-versioned.</strong> The version lives
             in <Mono>taghunter_playground/src-tauri/tauri.conf.json</Mono> (<Mono>version</Mono>, e.g.{' '}
             <Mono>1.1.0</Mono>). Every build is a discrete release tracked in the{' '}
             <strong>Releases</strong> tab.
           </li>
           <li>
-            <strong>“latest”.</strong> Exactly one release per platform is flagged latest — that's the
+            <strong>“latest”.</strong> Exactly one release per platform is flagged latest - that's the
             build the auto-updater offers to everyone.
           </li>
           <li>
@@ -1324,12 +1331,12 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
       <div className="bg-rose-50 border border-rose-200 rounded-lg p-5 mb-10">
         <h3 className="font-semibold text-rose-900 mb-3 flex items-center gap-2">
           <Lock className="w-4 h-4" />
-          “Min supported (floor)” — what it does
+          “Min supported (floor)” - what it does
         </h3>
         <p className="text-sm text-rose-900/90 mb-3">
           The <strong>Floor</strong> column in the Releases tab is the <strong>oldest playground
           version still allowed to run</strong>. Any installed app whose version is <em>below</em> the
-          floor is locked out and forced to update before it can do anything else — distinct from a
+          floor is locked out and forced to update before it can do anything else - distinct from a
           normal update, which is merely <em>offered</em>.
         </p>
         <ul className="space-y-2 text-sm text-rose-900/90 list-disc list-inside mb-3">
@@ -1349,7 +1356,7 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
             oldest version you'll still tolerate in the field. They're independent fields.
           </li>
           <li>
-            <strong>Default <Mono>0.0.0</Mono> blocks no one</strong> — every client is allowed to keep
+            <strong>Default <Mono>0.0.0</Mono> blocks no one</strong> - every client is allowed to keep
             running. This is the right default for an ordinary release.
           </li>
           <li>
@@ -1365,7 +1372,7 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
         </p>
       </div>
 
-      {/* Runbook 1 — studio web deploy */}
+      {/* Runbook 1 - studio web deploy */}
       <GuideSection
         icon={<Server className="w-5 h-5" />}
         color="bg-blue-500"
@@ -1395,11 +1402,11 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
           <h4 className="font-semibold text-amber-900 mb-2 flex items-center gap-2 text-sm">
             <AlertTriangle className="w-4 h-4" />
-            Build for prod with RELATIVE URLs — don't ship a dev build
+            Build for prod with RELATIVE URLs - don't ship a dev build
           </h4>
           <p className="text-sm text-amber-800 mb-2">
             <Mono>VITE_*</Mono> env vars are <strong>inlined into the JS at build time</strong>, not read
-            at runtime — so editing <Mono>.env</Mono> on the <em>server</em> does nothing to an
+            at runtime - so editing <Mono>.env</Mono> on the <em>server</em> does nothing to an
             already-built bundle. If you build with the dev <Mono>.env</Mono> (which points{' '}
             <Mono>VITE_MEDIA_BASE_URL</Mono> at the local <Mono>studio.taghunter.test</Mono> host), prod
             images resolve to that host and fail with <Mono>ERR_SSL_PROTOCOL_ERROR</Mono> once the
@@ -1412,7 +1419,7 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
               media URLs are root-relative (<Mono>/media/&lt;uniqid&gt;/file.png</Mono>).
             </li>
             <li>
-              It is a <em>build-time</em> file — <strong>do not upload it</strong> to the server (it has
+              It is a <em>build-time</em> file - <strong>do not upload it</strong> to the server (it has
               no effect there). Only the resulting <Mono>dist/</Mono> matters.
             </li>
             <li>
@@ -1427,9 +1434,9 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
             <p>
               <strong>Apply DB changes.</strong> There is no per-deploy migration tracking on the PHP
               side, but every file under <Mono>backend/database/*.sql</Mono> is written to be
-              <em> idempotent</em> — <Mono>CREATE TABLE IF NOT EXISTS</Mono>,{' '}
+              <em> idempotent</em> - <Mono>CREATE TABLE IF NOT EXISTS</Mono>,{' '}
               <Mono>INFORMATION_SCHEMA</Mono>-gated <Mono>ALTER</Mono>s, and{' '}
-              <Mono>INSERT ... ON DUPLICATE KEY</Mono> — so re-running an already-applied migration is a
+              <Mono>INSERT ... ON DUPLICATE KEY</Mono> - so re-running an already-applied migration is a
               no-op. You can either run the specific new <Mono>.sql</Mono> in phpMyAdmin, or apply them
               all at once with the runner below. (This is unlike the playground, whose SQLite schema is
               managed by tracked sqlx migrations.)
@@ -1444,7 +1451,7 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
           </h4>
           <p className="text-sm text-blue-800 mb-3">
             <Mono>backend/apply_all_migrations.php</Mono> loops over every migration in order
-            (base schema first) and runs each statement error-tolerantly — reported errors are almost
+            (base schema first) and runs each statement error-tolerantly - reported errors are almost
             always harmless &ldquo;already applied&rdquo; messages. Set the <Mono>$REQUIRED_TOKEN</Mono>{' '}
             in the file, upload it, then hit it once and delete it afterwards.
           </p>
@@ -1457,7 +1464,7 @@ https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
             <li>
               <strong>Destructive drops are opt-in.</strong> The two scenarios-refactor column drops
               (<Mono>drop_game_meta</Mono> / <Mono>drop_media_url</Mono>) only run with{' '}
-              <Mono>&amp;drops=1</Mono>, since <Mono>DROP COLUMN</Mono> is irreversible — confirm the
+              <Mono>&amp;drops=1</Mono>, since <Mono>DROP COLUMN</Mono> is irreversible - confirm the
               columns are empty in prod first.
             </li>
             <li>
@@ -1468,27 +1475,27 @@ https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
             </li>
             <li>
               <strong>Back up first</strong> (phpMyAdmin → Export), and{' '}
-              <strong>delete the runner</strong> after — it executes arbitrary migrations.
+              <strong>delete the runner</strong> after - it executes arbitrary migrations.
             </li>
           </ul>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <h4 className="font-semibold text-red-900 mb-2 flex items-center gap-2 text-sm">
             <AlertTriangle className="w-4 h-4" />
-            Never overwrite these — they hold live data or prod-only config
+            Never overwrite these - they hold live data or prod-only config
           </h4>
           <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
             <li>
-              <Mono>media/</Mono> — scenario media uploads (must <strong>exist</strong> at the web root
-              and be <strong>writable by the web-server user</strong> — scenario import/upload creates{' '}
+              <Mono>media/</Mono> - scenario media uploads (must <strong>exist</strong> at the web root
+              and be <strong>writable by the web-server user</strong> - scenario import/upload creates{' '}
               <Mono>media/&lt;uniqid&gt;/</Mono> under it; a missing or read-only{' '}
               <Mono>media/</Mono> yields a &ldquo;Failed to create media dir&rdquo; error)
             </li>
             <li>
-              <Mono>cards/</Mono> — per-client CSV card files
+              <Mono>cards/</Mono> - per-client CSV card files
             </li>
             <li>
-              <Mono>backend/releases/</Mono> — uploaded playground build artifacts
+              <Mono>backend/releases/</Mono> - uploaded playground build artifacts
             </li>
             <li>
               <Mono>backend/config/database.php</Mono> and any prod <Mono>.env</Mono> / <Mono>.htaccess</Mono>
@@ -1500,14 +1507,14 @@ https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
           </p>
           <p className="text-sm text-red-800 mt-2">
             Overwriting <Mono>backend/config/database.php</Mono> with the local copy is the classic
-            deploy break — it ships the Laragon default (<Mono>root</Mono> / no password) and prod
+            deploy break - it ships the Laragon default (<Mono>root</Mono> / no password) and prod
             answers with <Mono>Access denied for user 'root'@'localhost' (using password: NO)</Mono>.
             Restore the prod DB credentials in that file to fix it.
           </p>
         </div>
       </GuideSection>
 
-      {/* Runbook 2 — playground desktop release */}
+      {/* Runbook 2 - playground desktop release */}
       <GuideSection
         icon={<Monitor className="w-5 h-5" />}
         color="bg-emerald-500"
@@ -1556,20 +1563,20 @@ npm run tauri:build`}</CodeBlock>
         </button>
       </GuideSection>
 
-      {/* Runbook 3 — playground mobile release */}
+      {/* Runbook 3 - playground mobile release */}
       <GuideSection
         icon={<Smartphone className="w-5 h-5" />}
         color="bg-cyan-500"
         title="Releasing a playground mobile version"
       >
         <p className="text-sm text-gray-700 mb-4">
-          Mobile builds (Android / iOS) can't self-install — they show the same update screens but
+          Mobile builds (Android / iOS) can't self-install - they show the same update screens but
           deep-link to the app store instead of downloading an artifact.
         </p>
         <div className="space-y-4">
           <Step n={1}>
             <p>
-              <strong>Publish the build to the store</strong> (Google Play / App Store) the usual way —
+              <strong>Publish the build to the store</strong> (Google Play / App Store) the usual way -
               this happens outside studio.
             </p>
           </Step>
@@ -1600,7 +1607,7 @@ npm run tauri:build`}</CodeBlock>
             <p>
               The signing key was generated without one. Before real distribution, regenerate it{' '}
               <em>with</em> a password (<Mono>tauri signer generate -p &lt;password&gt;</Mono>), update{' '}
-              <Mono>pubkey</Mono> in <Mono>tauri.conf.json</Mono>, and ship that build manually —
+              <Mono>pubkey</Mono> in <Mono>tauri.conf.json</Mono>, and ship that build manually -
               auto-update only rolls forward from a build that already carries the new public key.
             </p>
           </div>
@@ -1618,7 +1625,7 @@ npm run tauri:build`}</CodeBlock>
             <p className="font-semibold mb-1">Not OS-code-signed yet.</p>
             <p>
               Windows SmartScreen and macOS Gatekeeper warn on first install and on each update. The
-              Tauri updater signature still proves the artifact's authenticity — the OS just doesn't
+              Tauri updater signature still proves the artifact's authenticity - the OS just doesn't
               recognise the publisher. Acquiring OS code-signing certificates is a deferred follow-up.
             </p>
           </div>
@@ -1630,6 +1637,306 @@ npm run tauri:build`}</CodeBlock>
         <p>
           Scope: app releases and web deploy. Content versioning (scenario / pattern / layout / cards
           version bumps that drive client re-sync) is a separate workflow and isn't covered here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function GoDeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void }) {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-2">
+        <Smartphone className="w-7 h-7 text-emerald-600" />
+        <h2 className="text-2xl font-bold text-gray-900">Tag Hunter GO deployment</h2>
+      </div>
+      <p className="text-gray-600 mb-8 max-w-3xl">
+        Tag Hunter GO is the hardware-free, phone-browser (PWA) version of the Mystery game type -
+        players type a short code on each panneau and tap a letter, no RFID reader. Shipping it
+        touches <strong>four</strong> things: the studio database, the studio backend PHP, the
+        studio frontend, and a <strong>separate PWA site</strong> hosted at its own domain. Do them
+        in this order.
+      </p>
+
+      {/* Concepts */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-5 mb-10">
+        <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+          <FileJson className="w-4 h-4" />
+          The moving parts
+        </h3>
+        <ul className="space-y-3 text-sm text-slate-700">
+          <li>
+            <strong>1 · Database migration.</strong> GO adds columns to{' '}
+            <Mono>scenarios</Mono>, <Mono>clients</Mono>, <Mono>client_scenarios</Mono> and{' '}
+            <Mono>patterns</Mono>, plus two new tables (<Mono>go_loads</Mono>, <Mono>go_scores</Mono>).
+            Run it <strong>before</strong> the PHP so the new code never queries a missing column.
+          </li>
+          <li>
+            <strong>2 · Backend PHP.</strong> A new <Mono>backend/api/go.php</Mono> (the public PWA
+            API) plus small edits to <Mono>clients.php</Mono>, <Mono>client_scenarios.php</Mono> and{' '}
+            <Mono>patterns.php</Mono>. Deployed exactly like any other studio backend file.
+          </li>
+          <li>
+            <strong>3 · Studio frontend.</strong> The GO authoring UI (editor toggle, client GO
+            grants, the admin <strong>GO</strong> nav group) ships inside the normal studio bundle -
+            no separate step beyond the usual <Mono>npm run build</Mono> + upload.
+          </li>
+          <li>
+            <strong>4 · The GO PWA - a separate site.</strong> The player app lives in its own repo
+            (<Mono>taghunter-go/</Mono>) and is hosted at its own domain (<Mono>go.taghunter.fr</Mono>),
+            <em> not</em> under the studio. It talks to <Mono>go.php</Mono> cross-origin.
+          </li>
+        </ul>
+      </div>
+
+      {/* CORS note - the one non-obvious gotcha */}
+      <div className="bg-rose-50 border border-rose-200 rounded-lg p-5 mb-10">
+        <h3 className="font-semibold text-rose-900 mb-3 flex items-center gap-2">
+          <Lock className="w-4 h-4" />
+          CORS: the GO PWA is the first cross-origin browser caller
+        </h3>
+        <ul className="space-y-2 text-sm text-rose-900/90 list-disc list-inside">
+          <li>
+            <Mono>backend/.htaccess</Mono> already sets{' '}
+            <Mono>Header always set Access-Control-Allow-Origin "*"</Mono> globally. <Mono>go.php</Mono>{' '}
+            relies on that and must <strong>not</strong> add its own ACAO header - two{' '}
+            <Mono>Access-Control-Allow-Origin</Mono> headers makes browsers reject the response.
+          </li>
+          <li>
+            So <Mono>go.php</Mono> answers <Mono>OPTIONS</Mono> preflights with <Mono>200</Mono> and
+            otherwise leaves CORS to <Mono>.htaccess</Mono>. This means{' '}
+            <strong>mod_headers + the global .htaccess must be active in prod</strong> (they are -
+            shipped with the backend). If GO media/loads fail in the browser with a CORS error,
+            check that first.
+          </li>
+          <li>
+            Scenario media (background, sounds, fonts) is streamed through{' '}
+            <Mono>go.php?action=media</Mono> rather than served from <Mono>/media</Mono> directly,
+            precisely so it carries that single global CORS header.
+          </li>
+        </ul>
+      </div>
+
+      {/* Runbook 1 - DB migration */}
+      <GuideSection icon={<Database className="w-5 h-5" />} color="bg-blue-500" title="1 · Apply the GO database migration">
+        <div className="space-y-4 mb-4">
+          <Step n={1}>
+            <p>
+              <strong>Run the migration before deploying the PHP.</strong> The file{' '}
+              <Mono>backend/database/add_taghunter_go_foundations.sql</Mono> is fully{' '}
+              <em>idempotent</em> and guarded for live use - every column / index / FK change checks{' '}
+              <Mono>INFORMATION_SCHEMA</Mono> and emulates add-if-missing via{' '}
+              <Mono>PREPARE</Mono>/<Mono>EXECUTE</Mono> (MySQL 8.4 has no{' '}
+              <Mono>ADD COLUMN IF NOT EXISTS</Mono>). Safe on a fresh DB and safe to re-run.
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Easiest path - phpMyAdmin.</strong> Paste the whole <Mono>.sql</Mono> as a
+              single batch (the <Mono>@</Mono>-variables it uses persist across statements on one
+              connection) and run it. Back up the DB first (Export).
+            </p>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Or use the one-shot runner.</strong> <Mono>backend/apply_taghunter_go_migration.php</Mono>{' '}
+              executes the entire file via a single <Mono>exec()</Mono> (it is{' '}
+              <em>not</em> split on <Mono>;</Mono>, so the prepared-statement blocks survive). Set its
+              token, upload, hit it once, delete it:
+            </p>
+            <CodeBlock>{`https://YOUR-STUDIO-DOMAIN/backend/apply_taghunter_go_migration.php?token=YOUR_SECRET`}</CodeBlock>
+          </Step>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+          What it adds: <Mono>scenarios</Mono> game_meta gains <Mono>adaptable_go</Mono> /{' '}
+          <Mono>go_answer_count</Mono> / <Mono>scenario_default_go_pattern</Mono> (JSON, no column);{' '}
+          <Mono>clients</Mono> gains <Mono>go_enabled</Mono> / <Mono>go_subscription_active</Mono> /{' '}
+          <Mono>go_subscription_valid_until</Mono>; <Mono>patterns</Mono> gains <Mono>mode</Mono> /{' '}
+          <Mono>answer_count</Mono>; <Mono>client_scenarios</Mono> gains <Mono>mode</Mono> /{' '}
+          <Mono>pattern_id</Mono> (and a per-mode uniqueness index); new tables{' '}
+          <Mono>go_loads</Mono> and <Mono>go_scores</Mono>.
+        </div>
+      </GuideSection>
+
+      {/* Runbook 2 - backend PHP */}
+      <GuideSection icon={<Server className="w-5 h-5" />} color="bg-purple-500" title="2 · Deploy the backend PHP">
+        <div className="space-y-4 mb-4">
+          <Step n={1}>
+            <p>
+              <strong>Upload the GO endpoint.</strong> Copy <Mono>backend/api/go.php</Mono> to the
+              server. It is public (no session) and gates each <Mono>load</Mono> on{' '}
+              <Mono>go_enabled</Mono> (master on/off) &amp;&amp; the GO billing clock not being
+              past grace (<Mono>go_billing_overdue_since</Mono> + <Mono>go_billing_grace_days</Mono>)
+              &amp;&amp; a <Mono>mode='go'</Mono> grant &amp;&amp; the scenario's{' '}
+              <Mono>adaptable_go</Mono> flag.
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Upload the edited endpoints.</strong> <Mono>clients.php</Mono> (update allowlist
+              now accepts the three GO flags), <Mono>client_scenarios.php</Mono> (add/remove/list take{' '}
+              <Mono>mode</Mono>), and <Mono>patterns.php</Mono> (create/update persist{' '}
+              <Mono>mode</Mono> + <Mono>answer_count</Mono>).
+            </p>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Confirm CORS.</strong> See the rose box above - <Mono>go.php</Mono> must rely on
+              the global <Mono>.htaccess</Mono> ACAO and must not emit its own. After deploy, a quick
+              check: <Mono>go.php?action=load</Mono> and an <Mono>OPTIONS</Mono> request should each
+              return exactly <strong>one</strong> <Mono>Access-Control-Allow-Origin</Mono> header.
+            </p>
+          </Step>
+        </div>
+      </GuideSection>
+
+      {/* Runbook 3 - studio frontend */}
+      <GuideSection icon={<Monitor className="w-5 h-5" />} color="bg-indigo-500" title="3 · Deploy the studio frontend">
+        <p className="text-sm text-gray-700 mb-4">
+          Nothing GO-specific here - the authoring UI ships in the normal studio bundle. Build with
+          relative prod URLs and upload <Mono>dist/</Mono> exactly as in the{' '}
+          <strong>Deployment &amp; Versioning</strong> guide.
+        </p>
+        <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
+          <li>GO authoring is <strong>admin-only</strong> - clients never see anything GO in the scenario editor.</li>
+          <li>The admin sidebar gains a <strong>GO</strong> group (Scenarios / Clients / Statistics).</li>
+          <li>Per-client GO flags live in the client page, inside the <strong>GO Scenarios</strong> section.</li>
+        </ul>
+      </GuideSection>
+
+      {/* Runbook 4 - the PWA */}
+      <GuideSection icon={<UploadCloud className="w-5 h-5" />} color="bg-emerald-500" title="4 · Build & host the GO PWA">
+        <div className="space-y-4 mb-4">
+          <Step n={1}>
+            <p>
+              <strong>Set the build-time env.</strong> In <Mono>taghunter-go/</Mono>, the two{' '}
+              <Mono>VITE_*</Mono> values are inlined at build time (like the studio):
+            </p>
+            <CodeBlock>{`# taghunter-go/.env.production
+VITE_GO_API_BASE=https://studio.taghunter.fr/backend/api   # where go.php lives
+VITE_GO_BASE_URL=https://go.taghunter.fr                   # used by the studio QR builder`}</CodeBlock>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Replace the placeholder icons.</strong> Swap the placeholder{' '}
+              <Mono>public/pwa-*.png</Mono> (192 / 512 / maskable) for the real branded icons - these
+              are what "Add to Home Screen" installs.
+            </p>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Build &amp; upload.</strong> <Mono>npm run build</Mono> writes a static{' '}
+              <Mono>dist/</Mono>. Upload its contents to the <Mono>go.taghunter.fr</Mono> web root.
+              It's a plain static site - no PHP, no DB.
+            </p>
+          </Step>
+          <Step n={4}>
+            <p>
+              <strong>Serve over HTTPS.</strong> A PWA service worker (offline play, install) only
+              registers on a secure origin, so <Mono>go.taghunter.fr</Mono> needs a valid TLS
+              certificate. Plain <Mono>http://</Mono> will load but won't install or work offline.
+            </p>
+          </Step>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm text-emerald-900">
+          <strong>Offline model:</strong> the player opens the QR link once <em>online</em>; the PWA
+          loads the bundle from <Mono>go.php?action=load</Mono> and caches the scenario media (bg /
+          sounds / fonts) as Blobs in IndexedDB. After that one online load, a single phone per team
+          plays fully offline; scores queue and flush on reconnect.
+        </div>
+        <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm text-emerald-900">
+          <strong>No session code to type:</strong> the leaderboard group is assigned server-side at{' '}
+          <Mono>load</Mono> (the scenario's <em>current</em> run), so players only enter a team name.
+          The operator demarcates runs with <strong>Start new session</strong> in the GO Sessions page
+          - scanners from then on join the new group, while teams already playing keep theirs. If no
+          one has started a run, the first load auto-creates one, so it also works with zero setup. (A
+          per-event QR carrying <Mono>&amp;session=</Mono> still overrides this if you ever need it.)
+        </div>
+      </GuideSection>
+
+      {/* Runbook 5 - turn it on for a client */}
+      <GuideSection icon={<ClipboardCheck className="w-5 h-5" />} color="bg-cyan-500" title="Turn GO on for a client & scenario">
+        <p className="text-sm text-gray-700 mb-4">
+          Once everything is deployed, enabling GO for a real operator is all done in studio:
+        </p>
+        <div className="space-y-4">
+          <Step n={1}>
+            <p>
+              <strong>Make the scenario GO-capable.</strong> In the Mystery scenario editor (admin)
+              tick <strong>Adaptable à Tag Hunter GO</strong>, give each enigma a short code, then in
+              the pattern section pick or <strong>Create random</strong> the scenario's default GO
+              pattern (it sets the correct letter per enigma).
+            </p>
+          </Step>
+          <Step n={2}>
+            <p>
+              <strong>Enable GO for the client.</strong> On the client page, open the{' '}
+              <strong>GO Scenarios</strong> section and turn on <strong>GO enabled</strong> +{' '}
+              <strong>subscription active</strong> (and a valid-until date if the sub is time-boxed),
+              then <strong>Save GO settings</strong>.
+            </p>
+          </Step>
+          <Step n={3}>
+            <p>
+              <strong>Grant the GO scenario.</strong> Still in that section, add the GO scenario to
+              the client - the grant uses the scenario's default GO pattern automatically.
+            </p>
+          </Step>
+          <Step n={4}>
+            <p>
+              <strong>Share the QR.</strong> The client gets the GO QR codes (built against{' '}
+              <Mono>go.taghunter.fr</Mono>) from their own studio area; players scan, load once
+              online, then play.
+            </p>
+          </Step>
+        </div>
+        <button
+          onClick={() => onNavigate?.('go-statistics')}
+          className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg text-sm font-medium transition-colors"
+        >
+          <Activity className="w-4 h-4" />
+          GO usage statistics
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      </GuideSection>
+
+      {/* Caveats */}
+      <GuideSection icon={<AlertTriangle className="w-5 h-5" />} color="bg-amber-500" title="Caveats & known gaps">
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-5 space-y-4 text-sm text-amber-900">
+          <div>
+            <p className="font-semibold mb-1">Real-device QA is still pending.</p>
+            <p>
+              The full GO flow is code-complete and builds green, but the PWA hasn't been exercised on
+              real phones yet. Test iOS first - iOS PWA offline + "Add to Home Screen" is historically
+              fragile, and iOS audio needs a user-gesture unlock (the app unlocks sounds on the first
+              letter tap).
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">Briefing must happen online.</p>
+            <p>
+              The one online load per phone has to succeed before going offline. On site, an
+              animateur hotspot is the fallback if player phones have no data.
+            </p>
+          </div>
+          <div>
+            <p className="font-semibold mb-1">Heterogeneous personal phones.</p>
+            <p>
+              Players use their own devices, so code entry must work first-try unassisted. Keep short
+              codes unambiguous (the generator already avoids O/0, I/1/l).
+            </p>
+          </div>
+        </div>
+      </GuideSection>
+
+      <div className="flex items-start gap-2 text-xs text-gray-500 border-t border-gray-200 pt-4">
+        <Database className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <p>
+          Scope: shipping Tag Hunter GO to production. The GO API surface itself isn't in the
+          endpoint reference above (it's a public PWA API, not part of the admin API) - see{' '}
+          <Mono>backend/api/go.php</Mono> for <Mono>load</Mono> / <Mono>score</Mono> /{' '}
+          <Mono>leaderboard</Mono> (scenario + time range) / <Mono>preview</Mono> /{' '}
+          <Mono>media</Mono> / <Mono>go_stats</Mono>.
         </p>
       </div>
     </div>
@@ -1672,7 +1979,7 @@ function AndroidReaderTestingGuide() {
       <p className="text-gray-600 mb-8 max-w-3xl">
         How to verify the SportIdent reader works on an Android tablet or phone. The reader's CP210x
         chip needs a kernel driver on Windows (the studio bundles one); Android handles CP210x in
-        userspace so there is <strong>no driver install</strong> — just a USB-host-capable device
+        userspace so there is <strong>no driver install</strong> - just a USB-host-capable device
         and a one-time permission prompt.
       </p>
 
@@ -1693,7 +2000,7 @@ function AndroidReaderTestingGuide() {
             <strong>USB OTG is required.</strong> The device must support USB <em>host</em> mode
             (not just charging). Most modern Android tablets and most phones from 2018+ qualify;
             entry-level phones sometimes don't. A quick check: plug a USB keyboard via an OTG
-            adapter — if typing works, the reader will work too.
+            adapter - if typing works, the reader will work too.
           </li>
           <li>
             <strong>One-time permission prompt.</strong> The first time a CP210x device is attached
@@ -1702,14 +2009,14 @@ function AndroidReaderTestingGuide() {
           </li>
           <li>
             <strong>Hot-plug brings the app to foreground.</strong> The app's manifest registers an
-            intent filter on <Mono>USB_DEVICE_ATTACHED</Mono> scoped to the reader's VID/PID — so
+            intent filter on <Mono>USB_DEVICE_ATTACHED</Mono> scoped to the reader's VID/PID - so
             plugging the reader in with the playground installed launches (or foregrounds) the app
             automatically.
           </li>
         </ul>
       </div>
 
-      {/* Runbook 1 — hardware */}
+      {/* Runbook 1 - hardware */}
       <GuideSection
         icon={<Usb className="w-5 h-5" />}
         color="bg-fuchsia-500"
@@ -1722,7 +2029,7 @@ function AndroidReaderTestingGuide() {
             current devices, micro-USB OTG for older ones.
           </li>
           <li>
-            A SportIdent master station — BSM7, BSM8, or BSM-USB — with its USB-A cable.
+            A SportIdent master station - BSM7, BSM8, or BSM-USB - with its USB-A cable.
           </li>
           <li>At least one SI card (SI8 / SI9 / SI10 / SI11) to tap.</li>
           <li>
@@ -1732,7 +2039,7 @@ function AndroidReaderTestingGuide() {
         </ul>
       </GuideSection>
 
-      {/* Runbook 2 — environment */}
+      {/* Runbook 2 - environment */}
       <GuideSection
         icon={<Wrench className="w-5 h-5" />}
         color="bg-blue-500"
@@ -1748,7 +2055,7 @@ function AndroidReaderTestingGuide() {
               <strong>SDK Manager → SDK Tools</strong> tick:
             </p>
             <ul className="list-disc list-inside ml-2 text-sm text-gray-700">
-              <li><strong>NDK (Side by side)</strong> — current LTS</li>
+              <li><strong>NDK (Side by side)</strong> - current LTS</li>
               <li><strong>Android SDK Platform-Tools</strong></li>
               <li><strong>Android SDK Build-Tools</strong></li>
               <li><strong>Android SDK Command-line Tools</strong></li>
@@ -1766,7 +2073,7 @@ function AndroidReaderTestingGuide() {
               can find the SDK and NDK. Put these in your shell profile / PowerShell{' '}
               <Mono>$PROFILE</Mono>:
             </p>
-            <CodeBlock>{`# PowerShell — adjust paths to match your install.
+            <CodeBlock>{`# PowerShell - adjust paths to match your install.
 # To find your installed NDK version, run:
 #   Get-ChildItem "$env:LOCALAPPDATA\\Android\\Sdk\\ndk" -Directory
 # The folder name IS the version (e.g. 30.0.14904198). If you have several,
@@ -1796,7 +2103,7 @@ $env:Path += ";$env:ANDROID_HOME\\platform-tools;$env:JAVA_HOME\\bin"`}</CodeBlo
         </div>
       </GuideSection>
 
-      {/* Runbook 3 — build & deploy */}
+      {/* Runbook 3 - build & deploy */}
       <GuideSection
         icon={<Package className="w-5 h-5" />}
         color="bg-emerald-500"
@@ -1827,7 +2134,7 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
           </Step>
           <Step n={3}>
             <p>
-              <strong>Sanity check.</strong> Open the app — it should land on the home screen
+              <strong>Sanity check.</strong> Open the app - it should land on the home screen
               exactly like the desktop version. Watch <Mono>adb logcat</Mono> in another terminal
               and filter for the JNI tag:
             </p>
@@ -1836,7 +2143,7 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
         </div>
       </GuideSection>
 
-      {/* Runbook 4 — on-device test */}
+      {/* Runbook 4 - on-device test */}
       <GuideSection
         icon={<ClipboardCheck className="w-5 h-5" />}
         color="bg-cyan-500"
@@ -1849,7 +2156,7 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
           <Step n={1}>
             <p>
               <strong>Plug the reader in via OTG.</strong> Android shows a system dialog: "Allow{' '}
-              <em>Tag Hunter Playground</em> to access USB device?" — tap <strong>OK</strong>. If
+              <em>Tag Hunter Playground</em> to access USB device?" - tap <strong>OK</strong>. If
               the app wasn't open, it should be foregrounded automatically (the manifest filter
               fires).
             </p>
@@ -1857,7 +2164,7 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
           <Step n={2}>
             <p>
               <strong>Open Devices.</strong> The reader should appear as{' '}
-              "<em>SportIdent master</em>" (or similar — comes from the chip's USB descriptor).
+              "<em>SportIdent master</em>" (or similar - comes from the chip's USB descriptor).
               VID/PID shown as <Mono>10c4 / 800a</Mono>. Tap{' '}
               <strong>Start</strong>.
             </p>
@@ -1879,7 +2186,7 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
           <Step n={5}>
             <p>
               <strong>Unplug mid-session.</strong> Yank the OTG cable while the reader is{' '}
-              <Mono>listening</Mono>. The app should surface "reader disconnected" within a second —
+              <Mono>listening</Mono>. The app should surface "reader disconnected" within a second -
               same UX as desktop.
             </p>
           </Step>
@@ -1913,14 +2220,14 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
               The device probably isn't in USB-host mode. Try the keyboard test (plug any USB
               keyboard via OTG and check typing works). Some devices need a Developer-options toggle
               to enable USB-host. If host mode is fine but the picker is still empty, check{' '}
-              <Mono>adb logcat</Mono> — the reader's VID/PID is logged when the manifest filter
+              <Mono>adb logcat</Mono> - the reader's VID/PID is logged when the manifest filter
               matches.
             </p>
           </div>
           <div>
             <p className="font-semibold mb-1">App foregrounds on plug-in but the picker is empty.</p>
             <p>
-              The OS routed the intent but the JS-side device poll hasn't fired yet. Wait ~2 s — the
+              The OS routed the intent but the JS-side device poll hasn't fired yet. Wait ~2 s - the
               picker refreshes on a short cycle. If it still doesn't show, the device descriptor
               may not match CP210x exactly (a clone chip with a different PID). Capture{' '}
               <Mono>adb shell dumpsys usb</Mono> and compare VID/PID with{' '}
@@ -1932,7 +2239,7 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
             <p>
               Bytes aren't flowing across the JNI bridge. Filter logcat for{' '}
               <Mono>sportident-rx</Mono> (the read-thread name). If that thread isn't active, the
-              IO manager never started — check whether <Mono>SportIdentSerial.open()</Mono> returned
+              IO manager never started - check whether <Mono>SportIdentSerial.open()</Mono> returned
               a non-zero handle (logged on failure).
             </p>
           </div>
@@ -1962,11 +2269,11 @@ adb install -r app-universal-debug.apk`}</CodeBlock>
           <div>
             <p className="font-semibold mb-1">App installs &amp; launches but shows <Mono>Failed to request http://&lt;ip&gt;:1420/ : error sending request</Mono>.</p>
             <p>
-              The APK is fine — the WebView just can't reach the Vite dev server. Tauri serves dev
+              The APK is fine - the WebView just can't reach the Vite dev server. Tauri serves dev
               builds from the computer's LAN IP, so the device must be able to route to it. The usual
               cause is the tablet and the computer being on <strong>different Wi-Fi subnets</strong>{' '}
               (check with <Mono>adb shell ip addr show wlan0</Mono> vs the PC's{' '}
-              <Mono>ipconfig</Mono> — e.g. device on <Mono>192.168.8.x</Mono>, PC on{' '}
+              <Mono>ipconfig</Mono> - e.g. device on <Mono>192.168.8.x</Mono>, PC on{' '}
               <Mono>192.168.251.x</Mono>). Two fixes:
             </p>
             <ul className="list-disc list-inside mt-2 space-y-1">
@@ -1999,7 +2306,7 @@ npm run android:dev`}</CodeBlock>
         <Database className="w-4 h-4 flex-shrink-0 mt-0.5" />
         <p>
           Scope: SportIdent reader transport. Non-CP210x readers (FTDI variants) are out of scope
-          and would require their own VID/PID filter entry. iOS isn't supported — no SI Bluetooth
+          and would require their own VID/PID filter entry. iOS isn't supported - no SI Bluetooth
           hardware target exists.
         </p>
       </div>

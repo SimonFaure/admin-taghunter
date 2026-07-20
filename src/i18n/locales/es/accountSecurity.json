@@ -3,7 +3,7 @@
   "title": "Seguridad",
   "authentication": {
     "heading": "Autenticación",
-    "body": "Tu cuenta está protegida con autenticación por contraseña de un solo uso. No hay ninguna contraseña que cambiar — cada inicio de sesión se verifica con un código enviado por correo electrónico."
+    "body": "Tu cuenta está protegida con autenticación por contraseña de un solo uso. No hay ninguna contraseña que cambiar - cada inicio de sesión se verifica con un código enviado por correo electrónico."
   },
   "signOutEverywhere": {
     "heading": "Cerrar sesión en todas partes",
@@ -18,5 +18,5 @@
     "revokeFailed": "No se pudieron revocar las sesiones",
     "network": "Error de red"
   },
-  "flash": "Se cerraron todas las sesiones — vuelve a iniciar sesión."
+  "flash": "Se cerraron todas las sesiones - vuelve a iniciar sesión."
 }

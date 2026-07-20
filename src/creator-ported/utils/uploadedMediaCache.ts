@@ -1,5 +1,5 @@
 // Per-scenario cache of filenames already uploaded to the admin media endpoint.
-// Lives in localStorage — purely an optimisation to avoid re-uploading unchanged
+// Lives in localStorage - purely an optimisation to avoid re-uploading unchanged
 // files during a publish. Loss on logout or browser clear is acceptable.
 
 const KEY_PREFIX = 'taghunter_uploaded_media:';
@@ -24,7 +24,7 @@ export function markUploaded(scenarioId: string | number, fileName: string): voi
     existing.add(fileName);
     localStorage.setItem(storageKey(scenarioId), JSON.stringify([...existing]));
   } catch {
-    // ignore storage errors — cache is best-effort
+    // ignore storage errors - cache is best-effort
   }
 }
 

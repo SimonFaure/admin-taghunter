@@ -205,7 +205,7 @@ export function CardsListView() {
                       {client.version != null ? (
                         <span className="text-sm text-slate-900">v{client.version.toFixed(2)}</span>
                       ) : (
-                        <span className="text-sm text-slate-400">—</span>
+                        <span className="text-sm text-slate-400">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -62,7 +62,12 @@ function ingestHeartbeat(object $db, int $clientId, ?int $authDeviceId, array $p
         'operator_only' => array_key_exists('operator_only', $payload)
             ? (bool)$payload['operator_only']
             : null,
-    ]);
+        // Active recovery-code reprieve deadline (device-lock). Passed through
+        // only when carried; an explicit null clears a lapsed reprieve. Design:
+        // project_client_device_lock.
+    ] + (array_key_exists('billing_reprieve_until', $payload)
+        ? ['billing_reprieve_until' => $payload['billing_reprieve_until']]
+        : []));
 
     return true;
 }
@@ -215,18 +220,24 @@ function ingestRecoveryCodeUsed(
     $deviceLabel = isset($payload['device_label']) && $payload['device_label'] !== null
         ? substr((string)$payload['device_label'], 0, 255)
         : null;
+    // Which gate burned the code: 'pin' (PIN reset) or 'billing' (device-lock
+    // reprieve). Lets the recovery panel tell a forgotten-PIN from a non-payment
+    // bypass. Unknown values collapse to null. Design: project_client_device_lock.
+    $usedContext = in_array($payload['context'] ?? null, ['pin', 'billing'], true)
+        ? $payload['context']
+        : null;
 
     // Defensive: the tables may not be migrated yet on older installs. Treat a
     // missing table as "nothing to record" (ack so the outbox drops the row).
     try {
-        // Only stamp if the device's pool matches the current studio pool — a
+        // Only stamp if the device's pool matches the current studio pool - a
         // report against a since-regenerated pool would otherwise mark a fresh,
         // unused code as used. A null reported version skips the gate (legacy).
         if ($poolVersion !== null) {
             $meta = $db->fetch('SELECT current_version FROM recovery_codes_meta WHERE client_id = ?', [$clientId]);
             $currentVersion = (int)($meta['current_version'] ?? 0);
             if ($poolVersion !== $currentVersion) {
-                return true; // stale report — ack and drop, no change.
+                return true; // stale report - ack and drop, no change.
             }
         }
 
@@ -235,9 +246,9 @@ function ingestRecoveryCodeUsed(
         $usedAt = normalizeDatetime($occurredAt) ?? date('Y-m-d H:i:s');
         $db->execute(
             'UPDATE recovery_codes
-                SET used_at = ?, used_device_label = ?
+                SET used_at = ?, used_device_label = ?, used_context = ?
               WHERE client_id = ? AND code_index = ? AND used_at IS NULL',
-            [$usedAt, $deviceLabel, $clientId, $codeIndex]
+            [$usedAt, $deviceLabel, $usedContext, $clientId, $codeIndex]
         );
     } catch (Exception $e) {
         error_log('[telemetry.recovery_code_used] ' . $e->getMessage());
@@ -250,7 +261,7 @@ function ingestRecoveryCodeUsed(
 //
 // Per-item content-sync failures from the playground. One CURRENT-STATE row per
 // (client_id, device_id, item_key) that flips status failed<->resolved. We
-// upsert manually (not ON DUPLICATE KEY — device_id is nullable, so its NULLs
+// upsert manually (not ON DUPLICATE KEY - device_id is nullable, so its NULLs
 // would defeat the unique index) and apply a last-write-wins guard on
 // last_event_at so a reordered stale event can't clobber newer state. The
 // FIFO outbox already delivers a single device's events in causal order; the
@@ -310,7 +321,7 @@ function ingestSyncItemFailed(
 
         $existing = syncFailureExistingRow($db, $clientId, $authDeviceId, $itemKey);
         if (syncFailureIsStale($existing, $eventAt)) {
-            return true; // older than what we've recorded — ack and drop.
+            return true; // older than what we've recorded - ack and drop.
         }
 
         if ($existing === null) {
@@ -370,7 +381,7 @@ function ingestSyncItemResolved(
         $eventAt = normalizeDatetime($occurredAt) ?? date('Y-m-d H:i:s');
         $existing = syncFailureExistingRow($db, $clientId, $authDeviceId, $itemKey);
         // No prior failure row recorded (e.g. the failed event never reached us)
-        // — nothing to resolve. Ack and drop.
+        // - nothing to resolve. Ack and drop.
         if ($existing === null) {
             return true;
         }

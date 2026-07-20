@@ -19,18 +19,18 @@ Backend DB config: [backend/config/database.php](backend/config/database.php).
 
 ## Layout
 
-- [src/](src/) — React app
-- [backend/api/](backend/api/) — HTTP endpoints (query-string `action` dispatch)
-- [backend/database/](backend/database/) — SQL migrations
-- [backend/utils/](backend/utils/) — shared PHP helpers (Logger, TokenManager, RateLimiter, OTPManager)
-- [cards/](cards/) — per-client CSV card files (gitignored, `.htaccess`-protected)
-- [media/](media/) — scenario media uploads
-- [docs/](docs/) — feature documentation (below)
+- [src/](src/) - React app
+- [backend/api/](backend/api/) - HTTP endpoints (query-string `action` dispatch)
+- [backend/database/](backend/database/) - SQL migrations
+- [backend/utils/](backend/utils/) - shared PHP helpers (Logger, TokenManager, RateLimiter, OTPManager)
+- [cards/](cards/) - per-client CSV card files (gitignored, `.htaccess`-protected)
+- [media/](media/) - scenario media uploads
+- [docs/](docs/) - feature documentation (below)
 
 ## Documentation
 
-- [docs/auth.md](docs/auth.md) — token auth, OTP, rate limiting, Remember Me, `long_lived` migration
-- [docs/cards.md](docs/cards.md) — client CSV cards + device tracking, sync/repair scripts
-- [docs/creator-integration.md](docs/creator-integration.md) — Creator ↔ Admin API contract, Creator logging, 500 triage
-- [docs/playground-api.md](docs/playground-api.md) — Pattern CRUD for Playground, token auth vs email upload
-- [docs/product-scenarios.md](docs/product-scenarios.md) — Taghunter Product vs custom client scenario classification
+- [docs/auth.md](docs/auth.md) - token auth, OTP, rate limiting, Remember Me, `long_lived` migration
+- [docs/cards.md](docs/cards.md) - client CSV cards + device tracking, sync/repair scripts
+- [docs/creator-integration.md](docs/creator-integration.md) - Creator ↔ Admin API contract, Creator logging, 500 triage
+- [docs/playground-api.md](docs/playground-api.md) - Pattern CRUD for Playground, token auth vs email upload
+- [docs/product-scenarios.md](docs/product-scenarios.md) - Taghunter Product vs custom client scenario classification

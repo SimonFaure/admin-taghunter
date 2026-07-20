@@ -3,11 +3,11 @@
  *
  * Two layers:
  *
- * 1. **Age bands** (`game_meta.audience_bands: string[]`) — the new source of
+ * 1. **Age bands** (`game_meta.audience_bands: string[]`) - the new source of
  *    truth. Six fine-grained bands a scenario can target several of, matching the
  *    "Scenarios TH" catalog columns (4-5 / 6-7 / 8-10 / 11-12 / +13 / Adultes).
  *
- * 2. **Name-pool tier** (`game_meta.game_public`) — the legacy trio
+ * 2. **Name-pool tier** (`game_meta.game_public`) - the legacy trio
  *    (mini_kids / kids / ado_adultes). Kept as a DERIVED shadow written from the
  *    bands on save (`bandsToNamePoolTier`, oldest band wins). The team-name-pool
  *    machinery (studio editor, cloud `add_team`, LAN Rust draw), legacy ZIP
@@ -18,7 +18,7 @@
  */
 
 /* -------------------------------------------------------------------------- */
-/* Name-pool tier — the legacy trio (kept)                                    */
+/* Name-pool tier - the legacy trio (kept)                                    */
 /* -------------------------------------------------------------------------- */
 
 /**
@@ -35,7 +35,7 @@ export type AudienceValue = (typeof AUDIENCE_OPTIONS)[number]['value'];
 
 /**
  * Collapses older / mislabelled tier values onto the canonical trio so existing
- * scenarios still resolve to a bucket — e.g. legacy 'adults' / 'teens' → 'ado_adultes'.
+ * scenarios still resolve to a bucket - e.g. legacy 'adults' / 'teens' → 'ado_adultes'.
  */
 export function normalizeAudience(raw: string): string {
   const v = (raw || '').toLowerCase();
@@ -58,7 +58,7 @@ export function getAudienceLabel(raw: string, t?: (key: string) => string): stri
 }
 
 /* -------------------------------------------------------------------------- */
-/* Age bands — the new source of truth                                        */
+/* Age bands - the new source of truth                                        */
 /* -------------------------------------------------------------------------- */
 
 export type AudienceBand =
@@ -122,7 +122,7 @@ export function bandsToTiers(bands: AudienceBand[]): AudienceValue[] {
 }
 
 /**
- * The single name-pool tier to draw team names from — **oldest band wins**
+ * The single name-pool tier to draw team names from - **oldest band wins**
  * (mixed groups skew to older, safer names). Empty bands → 'ado_adultes'.
  * This is the value written to the `game_public` shadow on save.
  */
@@ -149,7 +149,7 @@ export function bandsToCatalogGroup(bands: AudienceBand[]): CatalogGroup {
 }
 
 /**
- * Derive bands from a legacy name-pool tier — the read-side compat fallback for
+ * Derive bands from a legacy name-pool tier - the read-side compat fallback for
  * scenarios that still only have `game_public` and no `audience_bands`
  * (un-backfilled rows, legacy ZIP imports). Mirrors the one-time backfill.
  */

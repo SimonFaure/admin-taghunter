@@ -1,20 +1,26 @@
 /**
- * Score types section — Percentage / Points. Enable + choose which one is
+ * Score types section - Percentage / Points. Enable + choose which one is
  * the launch-modal default. Exactly one enabled type should be marked
  * default (validator warns otherwise).
  */
 
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 
 type ScoreKey = 'percentage' | 'points';
 
-const SCORE_TYPES: ReadonlyArray<{ key: ScoreKey; label: string; help: string }> = [
-  { key: 'percentage', label: 'Percentage', help: 'Score = % of checkpoints hit, capped at 100, minus time malus.' },
-  { key: 'points', label: 'Points', help: 'Score = sum of points across hit checkpoints, minus time malus.' },
-];
+function getScoreTypes(t: TFunction): ReadonlyArray<{ key: ScoreKey; label: string; help: string }> {
+  return [
+    { key: 'percentage', label: t('editorTracks:scoreTypes.items.percentage.label'), help: t('editorTracks:scoreTypes.items.percentage.help') },
+    { key: 'points', label: t('editorTracks:scoreTypes.items.points.label'), help: t('editorTracks:scoreTypes.items.points.help') },
+  ];
+}
 
 export function ScoreTypesSection() {
+  const { t } = useTranslation();
+  const SCORE_TYPES = getScoreTypes(t);
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const scoreTypes = (meta.score_types ?? {}) as Record<
@@ -57,10 +63,9 @@ export function ScoreTypesSection() {
   }
 
   return (
-    <CollapsibleSection title="Score types">
+    <CollapsibleSection title={t('editorTracks:scoreTypes.sectionTitle')}>
       <p className="text-xs text-gray-500 mb-3">
-        Operators pick one of the enabled score types at launch. The one
-        marked "default" is pre-selected.
+        {t('editorTracks:scoreTypes.hint')}
       </p>
       <div className="space-y-2">
         {SCORE_TYPES.map((s) => {
@@ -75,7 +80,7 @@ export function ScoreTypesSection() {
                 />
                 <span>
                   <span className="font-medium text-gray-900">{s.label}</span>
-                  <span className="text-gray-500"> — {s.help}</span>
+                  <span className="text-gray-500"> - {s.help}</span>
                 </span>
               </label>
               <label className="inline-flex items-center gap-1 ml-auto">
@@ -86,7 +91,7 @@ export function ScoreTypesSection() {
                   disabled={!v?.enabled}
                   onChange={() => setDefault(s.key)}
                 />
-                <span className="text-xs text-gray-500">default</span>
+                <span className="text-xs text-gray-500">{t('editorTracks:scoreTypes.default')}</span>
               </label>
             </div>
           );

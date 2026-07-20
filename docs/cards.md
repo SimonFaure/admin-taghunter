@@ -4,7 +4,7 @@ Clients upload a CSV of RFID cards through the My Tools page. The CSV lives on d
 
 ## Data model
 
-**`client_cards_metadata`** — one row per client
+**`client_cards_metadata`** - one row per client
 
 | column      | type      | notes                         |
 |-------------|-----------|-------------------------------|
@@ -14,7 +14,7 @@ Clients upload a CSV of RFID cards through the My Tools page. The CSV lives on d
 | created_at  | TIMESTAMP |                               |
 | updated_at  | TIMESTAMP |                               |
 
-**`devices`** — one row per registered device
+**`devices`** - one row per registered device
 
 | column              | type      | notes                    |
 |---------------------|-----------|--------------------------|
@@ -38,7 +38,7 @@ cards/
 
 - One active file per client
 - Directory is `.htaccess`-protected and `.gitignore`d
-- All reads/writes go through the API — never serve these files directly
+- All reads/writes go through the API - never serve these files directly
 
 ## API
 
@@ -93,9 +93,9 @@ Only runs for clients that exist in the `clients` table. Will also rename files 
 
 ## Common pitfalls
 
-- **Wrong `client_id`** — the URL path must be `/clients/{id}`; a stale localStorage token can submit the wrong one.
-- **Filename/version mismatch** — metadata `version = 2` but file is `cards_v1.csv`. Rename the file or fix the row.
-- **Permissions** — `chmod 644` the CSV, `755` the directory.
+- **Wrong `client_id`** - the URL path must be `/clients/{id}`; a stale localStorage token can submit the wrong one.
+- **Filename/version mismatch** - metadata `version = 2` but file is `cards_v1.csv`. Rename the file or fix the row.
+- **Permissions** - `chmod 644` the CSV, `755` the directory.
 
 ## Frontend
 

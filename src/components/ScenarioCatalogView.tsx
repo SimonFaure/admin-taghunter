@@ -1,5 +1,5 @@
 /**
- * Product-scenario catalog grid — the in-app reproduction of the "Scenarios TH"
+ * Product-scenario catalog grid - the in-app reproduction of the "Scenarios TH"
  * sheet. Sections by game type (QUEST = tagquest, MYSTERY, TRACK, CLASH), each
  * split into Children / Teens-Adults row groups, with the six age-band columns,
  * a difficulty-stars column and a univers-tags column.
@@ -11,7 +11,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Printer, Film } from 'lucide-react';
+import { Printer, Film, FileSpreadsheet } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import {
   AUDIENCE_BANDS,
@@ -147,6 +147,45 @@ export function ScenarioCatalogView() {
     [filtered],
   );
 
+  const exportXlsx = async () => {
+    // Build a single sheet mirroring the on-screen catalog: game-type section
+    // banners, Children/Teens-Adults group headers, then one row per scenario
+    // with the six age-band columns, difficulty (numeric) and univers tags.
+    const XLSX = await import('xlsx');
+    const header = ['Scenario', ...AUDIENCE_BANDS.map((b) => getBandLabel(b.value)), 'Difficulty', 'Univers'];
+    const cols = header.length;
+    const aoa: (string | number)[][] = [header];
+    for (const section of sections) {
+      aoa.push([section.label, ...Array(cols - 1).fill('')]);
+      for (const g of section.groups) {
+        aoa.push([GROUP_LABELS[g.group], ...Array(cols - 1).fill('')]);
+        for (const s of g.rows) {
+          const bandSet = new Set(s.bands);
+          aoa.push([
+            s.title,
+            ...AUDIENCE_BANDS.map((b) => (bandSet.has(b.value) ? '●' : '')),
+            s.difficulty,
+            s.univers.join(', '),
+          ]);
+        }
+      }
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 40 }, ...AUDIENCE_BANDS.map(() => ({ wch: 6 })), { wch: 10 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Catalog');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `scenario-catalog-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -166,13 +205,22 @@ export function ScenarioCatalogView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2 flex-wrap print:hidden">
         <p className="text-slate-600">{filtered.length} product scenarios</p>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-        >
-          <Printer className="w-4 h-4" />
-          Print
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportXlsx}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Export as XLS
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+          >
+            <Printer className="w-4 h-4" />
+            Print
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -274,7 +322,10 @@ export function ScenarioCatalogView() {
                               {AUDIENCE_BANDS.map((b) => (
                                 <td key={b.value} className="px-2 py-2 text-center">
                                   {bandSet.has(b.value) ? (
-                                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                                    // A colored glyph (foreground color) prints reliably;
+                                    // a bg-filled span disappears when the browser drops
+                                    // background graphics on print.
+                                    <span className="text-indigo-600 text-base leading-none print:text-lg">●</span>
                                   ) : (
                                     <span className="text-slate-200">·</span>
                                   )}

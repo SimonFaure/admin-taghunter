@@ -31,8 +31,16 @@
     "title": "Meilleurs clients",
     "empty": "Aucune activité client pour le moment"
   },
-  "perDay": {
-    "title": "Parties par jour (30 derniers jours)"
+  "chart": {
+    "title": "Activité par jour",
+    "last30": "30 derniers jours",
+    "modes": {
+      "games": "Parties",
+      "teams": "Équipes",
+      "types": "Types de jeu"
+    },
+    "other": "Autres",
+    "empty": "Aucune partie sur cette période"
   },
   "table": {
     "date": "Date",
@@ -44,5 +52,5 @@
     "players": "Joueurs",
     "empty": "Aucune partie ne correspond à ces filtres"
   },
-  "empty": "—"
+  "empty": "-"
 }

@@ -7,7 +7,7 @@
  * client_cards_metadata.version (the existing version already matches the
  * CSV that was on disk; the row table is being filled to match it).
  *
- * Does NOT delete CSV files — Unit 7 of the plan handles cleanup once all
+ * Does NOT delete CSV files - Unit 7 of the plan handles cleanup once all
  * Playground clients have moved off the CSV endpoints.
  *
  * Run via: php backend/migrate_csv_to_cards.php

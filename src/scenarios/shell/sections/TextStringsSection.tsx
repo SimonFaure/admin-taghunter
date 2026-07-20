@@ -1,5 +1,5 @@
 /**
- * Text strings section — the 16 `text_*` UI strings, each a `Localized<string>`.
+ * Text strings section - the 16 `text_*` UI strings, each a `Localized<string>`.
  *
  * Slice 3B: converted to LocalizedField; per-string per-language editing.
  *

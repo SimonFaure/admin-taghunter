@@ -5,12 +5,12 @@
  * PNGs in French today (`MALUS`, `MALUS RETARD`, `SCORE`, `POINTS COMBO`).
  * The renderer overlays localized text on top so the chrome reads correctly
  * in non-French scenarios. When label-free PNGs replace the current ones,
- * the overlay is the only label visible — same code path either way.
+ * the overlay is the only label visible - same code path either way.
  *
  * Defaults shipped: 6 European languages (fr/en/es/de/it/pt). Other
  * supported langs (nl/pl/ru/ja/zh/ar) fall through to `defaultLanguage`,
  * then to fr. Future admin UI can supply custom labels per-language without
- * any renderer change — `<TagquestPreviewRenderer>` accepts labels as a
+ * any renderer change - `<TagquestPreviewRenderer>` accepts labels as a
  * prop.
  *
  * Plan: C:\Users\faure\.claude\plans\we-need-a-preview-refactored-pretzel.md
@@ -94,7 +94,7 @@ export const DEFAULT_PREVIEW_LABELS: Partial<Record<Lang, PreviewLabels>> = {
  *   currentLanguage → defaultLanguage → fr (always present in defaults).
  *
  * Callers may supply a custom `source` to override (or substitute) the
- * static defaults — that's where future admin-configured labels plug in.
+ * static defaults - that's where future admin-configured labels plug in.
  */
 export function getPreviewLabels(
   currentLanguage: Lang,
@@ -112,7 +112,7 @@ export function getPreviewLabels(
 /**
  * Keys of the admin-managed global tagquest translations stored in
  * `default_config` row `tagquest_translations`. These keys are wired to
- * specific layout elements in the renderer (e.g. `score_label`) — adding a
+ * specific layout elements in the renderer (e.g. `score_label`) - adding a
  * new key here requires a corresponding layout element + renderer mapping.
  */
 export type AdminLabelKey = 'score' | 'malus' | 'late_malus' | 'combo_points' | 'next_malus';
@@ -144,7 +144,7 @@ const DEFAULT_KEY_MAP: Record<AdminLabelKey, keyof PreviewLabels> = {
  *   ''.
  *
  * `adminLabels` may be undefined (cache miss, fetch in flight, or admin has
- * never saved) — in that case we fall straight through to the built-in
+ * never saved) - in that case we fall straight through to the built-in
  * defaults.
  */
 export function resolveAdminLabel(

@@ -1,0 +1,28 @@
+{
+  "stats": {
+    "title": "Statistiques {{app}}",
+    "subtitle": "Utilisation de Tag Hunter {{app}} par l'ensemble des opérateurs.",
+    "loadError": "Échec du chargement des statistiques {{app}}",
+    "totalLoads": "Chargements totaux",
+    "clientsUsing": "Clients utilisant {{app}}",
+    "scenariosPlayed": "Scénarios joués",
+    "teamsPlayed": "Équipes ayant joué",
+    "loadsByScenario": "Chargements par scénario",
+    "noLoads": "Aucun chargement {{app}} enregistré pour le moment.",
+    "colClient": "Client",
+    "colScenario": "Scénario",
+    "colLoads": "Chargements",
+    "clientFallback": "Client n° {{id}}",
+    "scenarioFallback": "Scénario n° {{id}}"
+  },
+  "clients": {
+    "title": "Clients {{app}}",
+    "subtitle": "Opérateurs ayant activé Tag Hunter {{app}}.",
+    "noneEnabled": "Aucun client n'a encore activé {{app}}.",
+    "colClient": "Client",
+    "colSubscription": "Abonnement",
+    "colGrace": "Délai de grâce (jours)",
+    "active": "Actif",
+    "inactive": "Inactif"
+  }
+}

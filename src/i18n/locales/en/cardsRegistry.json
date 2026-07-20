@@ -56,7 +56,7 @@
   "toast": {
     "loadFailed": "Failed to load cards",
     "keyNumberTaken": "This key number is already taken by another card",
-    "keyNumberInUse": "Key number already in use — choose another",
+    "keyNumberInUse": "Key number already in use - choose another",
     "chipIdRegistered": "A card with this chip ID is already registered",
     "chipIdPositive": "Chip ID must be a positive integer",
     "keyNumberPositive": "Key number must be a positive integer",

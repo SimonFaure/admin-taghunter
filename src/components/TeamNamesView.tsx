@@ -46,7 +46,7 @@ export function TeamNamesView() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-slate-600">
-            Curated team-name pools — the global catalog and per-client overrides
+            Curated team-name pools - the global catalog and per-client overrides
           </p>
           <div className="flex items-center gap-2">
             <HelpButton chapter="cards" label="Help" className="mr-1 text-slate-500 hover:text-slate-800" />

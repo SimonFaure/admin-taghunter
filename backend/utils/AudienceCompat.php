@@ -1,6 +1,6 @@
 <?php
 /**
- * Audience/difficulty compat helpers — the PHP mirror of
+ * Audience/difficulty compat helpers - the PHP mirror of
  * studio-taghunter/src/types/audience.ts + difficulty.ts.
  *
  * Used by playground.php (derive-on-read passthrough) and the one-time
@@ -32,7 +32,7 @@ class AudienceCompat
         return $v;
     }
 
-    /** Derive bands from a legacy name-pool tier — the read-side fallback + backfill. */
+    /** Derive bands from a legacy name-pool tier - the read-side fallback + backfill. */
     public static function bandsFromTier(?string $rawTier): array
     {
         switch (self::normalizeTier($rawTier)) {
@@ -68,7 +68,7 @@ class AudienceCompat
         return $out;
     }
 
-    /** Name-pool tier — oldest band wins; empty → ado_adultes. */
+    /** Name-pool tier - oldest band wins; empty → ado_adultes. */
     public static function bandsToTier(array $bands): string
     {
         $ordered = self::normalizeBands($bands);

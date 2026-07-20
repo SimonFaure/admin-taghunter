@@ -8,16 +8,39 @@
 
 import { useTranslation, Trans } from 'react-i18next';
 import { useScenarioEditor } from '../useScenarioEditor';
+import { useAuth } from '../../../auth/AuthContext';
 import { getAdapter } from '../../registry';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { ReportLayoutEditor } from '../../../components/ReportLayoutEditor';
 import { defaultReportLayout, STAT_FIELDS_BY_TYPE, normalizeReportGameType, isReportLayout } from '../../../lib/reportLayoutDefaults';
 import type { ReportLayout } from '../../../lib/api';
 
+const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
+
+function resolveMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:')) return url;
+  return `${MEDIA_BASE_URL}${url}`;
+}
+
 export function ReportLayoutSection() {
   const { t } = useTranslation('editorSections3');
   const editor = useScenarioEditor();
+  const { user } = useAuth();
   const meta = editor.gameMeta as Record<string, unknown>;
+
+  // Preview fidelity: when a CLIENT has "use my logo on reports" on, show their
+  // resolved brand image (uploaded company logo, else avatar) in the editor
+  // preview - that's what the playground will print. Admins keep the TagHunter
+  // logo. Mirrors PlaygroundAuthState::build's brand_logo_url resolution.
+  const brandLogoUrl =
+    user?.user_type === 'client' && user.report_use_brand_logo
+      ? resolveMediaUrl(
+          user.company_logo_uses_avatar !== false || !user.company_logo_url
+            ? user.avatar_url
+            : user.company_logo_url
+        )
+      : null;
   const gameType = normalizeReportGameType(editor.gameType ?? '');
   // Display label from the adapter registry (e.g. `tracks` → "Track"); the
   // normalized `gameType` above stays the code, used for layout/field lookups.
@@ -98,6 +121,7 @@ export function ReportLayoutSection() {
               layout={override}
               availableFields={availableFields}
               previewHeight={460}
+              logoUrl={brandLogoUrl}
               onChange={(next) => setKey('report_layout', next)}
             />
           </div>

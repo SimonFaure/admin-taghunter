@@ -1,9 +1,10 @@
 import { Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
 import { HelpProvider, studioOpenPdf } from '../help';
 
 // The studio editor routes (scenario / pattern / layout) each render their own
-// in-editor "Back" control, so this layout intentionally has no top nav bar —
+// in-editor "Back" control, so this layout intentionally has no top nav bar -
 // it only provides the shared dark backdrop. Log out lives on the main app pages.
 //
 // Reached by both admins (from the Dashboard) and clients (from /my). We wrap
@@ -12,6 +13,7 @@ import { HelpProvider, studioOpenPdf } from '../help';
 // resolve a context. `navigateToDocs` sends each role back to its own help surface.
 export function StudioLayout() {
   const navigate = useNavigate();
+  const { i18n } = useTranslation();
   const { user } = useAuth();
   const audience = user?.user_type === 'admin' ? 'admin' : 'client';
   const navigateToDocs = () => {
@@ -19,7 +21,7 @@ export function StudioLayout() {
     else navigate('/my/help');
   };
   return (
-    <HelpProvider audience={audience} navigateToDocs={navigateToDocs} openPdfFile={studioOpenPdf}>
+    <HelpProvider audience={audience} lang={i18n.language} navigateToDocs={navigateToDocs} openPdfFile={studioOpenPdf}>
       <div className="min-h-screen bg-slate-900 text-white">
         <main>
           <Outlet />

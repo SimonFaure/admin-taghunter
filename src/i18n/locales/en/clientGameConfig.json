@@ -1,0 +1,36 @@
+{
+  "gameConfig": {
+    "subtitle": "Configure your game settings and preferences",
+    "audioSettings": "Audio Settings",
+    "soundEnabled": "Sound Enabled",
+    "musicVolume": "Music Volume: {{volume}}%",
+    "sfxVolume": "SFX Volume: {{volume}}%",
+    "displaySettings": "Display Settings",
+    "displayMode": "Display Mode",
+    "fullscreen": "Fullscreen",
+    "windowed": "Windowed",
+    "borderless": "Borderless Window",
+    "gameplaySettings": "Gameplay Settings",
+    "difficulty": "Difficulty",
+    "easy": "Easy",
+    "normal": "Normal",
+    "hard": "Hard",
+    "autoSave": "Auto Save",
+    "notifications": "Notifications",
+    "saveConfiguration": "Save Configuration"
+  },
+  "stationSelect": {
+    "placeholder": "Select station…",
+    "clear": "Clear",
+    "searchPlaceholder": "Search stations…",
+    "noStationsFound": "No stations found",
+    "used": "(used)"
+  },
+  "qrCodes": {
+    "title": "QR codes",
+    "subtitle": "Print and post these at your venue. Players scan a code to open the app for that scenario.",
+    "noScenarios": "No {{heading}} scenarios yet",
+    "willAppear": "They'll appear here once they're assigned to your account.",
+    "downloadSvg": "Download SVG"
+  }
+}

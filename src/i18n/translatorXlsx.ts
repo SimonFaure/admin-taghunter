@@ -49,7 +49,7 @@ export function cellStatus(
   return 'ok';
 }
 
-/** Target languages translators fill — the full player set minus the pivot. */
+/** Target languages translators fill - the full player set minus the pivot. */
 export const TARGET_LANGS: string[] = SUPPORTED_LANGS.filter((l) => l !== 'en');
 
 const HEADER = ['key', 'context', 'char_limit', 'en', ...TARGET_LANGS, 'status'] as const;

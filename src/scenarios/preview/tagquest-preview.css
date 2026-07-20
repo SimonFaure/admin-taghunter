@@ -3,7 +3,7 @@
  *
  * The whole layout is scaled by a single CSS custom property `--scale`,
  * which is set inline on `.tqp-root` to `canonical_width / 1680`. Every
- * dimension uses `calc(var(--scale) * Npx)` — same formula the legacy
+ * dimension uses `calc(var(--scale) * Npx)` - same formula the legacy
  * `setImagesDimensions()` applied via inline styles. The mapping is:
  *   legacy `var = ratio * default`  →  CSS `calc(var(--scale) * Npx)`.
  *
@@ -222,7 +222,7 @@
  * land, the overlay becomes the only label.
  *
  * Plan: C:\Users\faure\.claude\plans\we-need-a-preview-refactored-pretzel.md
- *       (Q3 — strip PNGs, overlay localized text).
+ *       (Q3 - strip PNGs, overlay localized text).
  */
 
 .tqp-frame-label {

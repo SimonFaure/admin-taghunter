@@ -1,5 +1,5 @@
 /**
- * Asset upload — dispatched on slot kind.
+ * Asset upload - dispatched on slot kind.
  *
  * - image / sound / font: uploaded via `db.storage.from('game-media').upload()`,
  *   stored under `${scenarioUniqid}/${fieldName}_${timestamp}.${ext}`. Returns

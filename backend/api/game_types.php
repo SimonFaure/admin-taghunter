@@ -7,6 +7,13 @@ require_once __DIR__ . '/../utils/TokenManager.php';
 setCorsHeaders();
 session_start();
 
+// Tutorial videos are large (100s of MB). Neither the upload handlers nor the
+// Range-streaming reader in get_media must be capped by the default PHP
+// execution-time limit, or big files fail mid-transfer (surfaces in the browser
+// as ERR_HTTP2_PING_FAILED / "Failed to fetch"). The host must ALSO raise
+// upload_max_filesize / post_max_size - see backend/.user.ini.
+set_time_limit(0);
+
 const GT_SUPPORTED_LANGS = ['en', 'fr', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'ja', 'zh', 'ar'];
 const GT_VIDEO_MIMES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
 const GT_VIDEO_MAX_BYTES = 700 * 1024 * 1024;
@@ -199,7 +206,7 @@ function handleList($pdo) {
     if ($auth['user_type'] === 'client') {
         // Clients only ever see types available to them (full cascade): hide globally
         // disabled types and types this client has been disabled for. The server is the
-        // authoritative gate — scenarios/patterns/etc. are filtered the same way.
+        // authoritative gate - scenarios/patterns/etc. are filtered the same way.
         require_once __DIR__ . '/../utils/GameTypes.php';
         $disabled = GameTypes::disabledForClient($pdo, $auth['user_id']);
         if ($disabled) {

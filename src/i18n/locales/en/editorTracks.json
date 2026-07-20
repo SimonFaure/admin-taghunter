@@ -1,0 +1,126 @@
+{
+  "pattern": {
+    "sectionTitle": "Default pattern",
+    "label": "Default tracks pattern (checkpoint → station mapping)",
+    "none": "- None -",
+    "notFound": "{{value}} (not found)",
+    "hint": "Assigns each checkpoint to a station/balise. Create tracks patterns in the Patterns page. The mapping is shown per checkpoint below. Overridable at launch."
+  },
+  "checkpoints": {
+    "sectionTitle": "Checkpoints ({{count}})",
+    "addCheckpoint": "Add checkpoint",
+    "perCheckpoint": "Per checkpoint (each has its own icon)",
+    "common": "Common (all checkpoints share one icon)",
+    "none": "No checkpoints yet.",
+    "checkpointImage": "Checkpoint image",
+    "checkpointN": "Checkpoint {{number}}",
+    "unknownStation": "Unknown station",
+    "noStationAssigned": "No station assigned",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "removeCheckpoint": "Remove checkpoint",
+    "titleLabel": "Title ({{lang}})",
+    "descriptionLabel": "Description ({{lang}})",
+    "points": "Points"
+  },
+  "routes": {
+    "sectionTitle": "Routes (parcours)",
+    "hint": "Operators pick one of the enabled routes at launch time.",
+    "items": {
+      "default": { "label": "Default", "help": "All checkpoints in order (1..N)." },
+      "first_half": { "label": "First half", "help": "Checkpoints 1..N/2." },
+      "last_half": { "label": "Last half", "help": "Checkpoints N/2+1..N." },
+      "odd": { "label": "Odd", "help": "Odd-numbered checkpoints (1, 3, 5, ...)." },
+      "even": { "label": "Even", "help": "Even-numbered checkpoints (2, 4, 6, ...)." }
+    }
+  },
+  "displays": {
+    "sectionTitle": "Display modes",
+    "hint": "Operators pick one of the enabled display modes at launch time.",
+    "items": {
+      "full": { "label": "Full", "help": "Map + checkpoint title, description, and reveal image with animation." },
+      "map": { "label": "Map", "help": "Map only; markers light up on hit. No title/description, no big reveal." },
+      "simple": { "label": "Simple", "help": "Minimal HUD (team name + score + current checkpoint number), no map." }
+    }
+  },
+  "playModes": {
+    "sectionTitle": "Play modes",
+    "hint": "Operators pick one of the enabled play modes at launch time.",
+    "items": {
+      "itinerary": { "label": "Itinerary", "help": "Teams must hit checkpoints in order." },
+      "free": { "label": "Free", "help": "Any order counts." }
+    }
+  },
+  "scoreTypes": {
+    "sectionTitle": "Score types",
+    "hint": "Operators pick one of the enabled score types at launch. The one marked \"default\" is pre-selected.",
+    "default": "default",
+    "items": {
+      "percentage": { "label": "Percentage", "help": "Score = % of checkpoints hit, capped at 100, minus time malus." },
+      "points": { "label": "Points", "help": "Score = sum of points across hit checkpoints, minus time malus." }
+    }
+  },
+  "timing": {
+    "sectionTitle": "Timing",
+    "defaultTime": "Default game time (minutes)",
+    "malusPerMinute": "Malus per minute over (points or %)"
+  },
+  "displayOptions": {
+    "sectionTitle": "Display options",
+    "displayScore": "Display score during play",
+    "displayScoreHint": "Show the running score in the HUD throughout the game."
+  },
+  "hudFrames": {
+    "sectionTitle": "HUD frames"
+  },
+  "textElements": {
+    "sectionTitle": "Text elements ({{count}})",
+    "addCategory": "Add category",
+    "addElement": "Add element",
+    "uncategorized": "Uncategorized",
+    "unnamed": "(unnamed)",
+    "categoryNamePlaceholder": "Category name",
+    "categoryDefaultName": "Category {{number}}",
+    "elementCount_one": "{{count}} element",
+    "elementCount_other": "{{count}} elements",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "moveCategoryUp": "Move category up",
+    "moveCategoryDown": "Move category down",
+    "deleteCategory": "Delete category",
+    "noElements": "No elements in this category yet.",
+    "textPlaceholder": "Text ({{lang}})",
+    "category": "Category",
+    "placed": "placed",
+    "unplaced": "unplaced",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "removeElement": "Remove element",
+    "hint": "Categories group text elements + define their typography defaults (font, color, bold / italic / underline, align, shadow, background). Typography is edited in the layout editor; per-element overrides win per field.",
+    "deleteConfirm": "Delete category \"{{name}}\"?",
+    "deleteConfirmWithElements_one": "Delete category \"{{name}}\"? Its {{count}} element will move to Uncategorized.",
+    "deleteConfirmWithElements_other": "Delete category \"{{name}}\"? Its {{count}} elements will move to Uncategorized."
+  },
+  "feedbackImages": {
+    "sectionTitle": "Feedback images"
+  },
+  "sounds": {
+    "sectionTitle": "Sounds"
+  },
+  "typography": {
+    "overrideOn": "Override on - element wins",
+    "inheritFromCategory": "Inherit from category",
+    "font": "Font",
+    "scenarioDefault": "- Scenario default -",
+    "groupStandard": "Standard",
+    "groupThemed": "Themed",
+    "groupCustomFonts": "Custom fonts",
+    "color": "Color",
+    "custom": "Custom",
+    "style": "Style",
+    "align": "Align",
+    "shadow": "Shadow",
+    "enabled": "enabled",
+    "bgFill": "BG fill"
+  }
+}

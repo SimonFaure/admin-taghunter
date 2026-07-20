@@ -27,8 +27,9 @@
   "notAvailable": "N/D",
   "hotspots": {
     "title": "Puntos de acceso Wi-Fi predeterminados",
-    "subtitle": "Redes que difunden tus dispositivos para que otros dispositivos de esta cuenta puedan conectarse automáticamente.",
-    "unknownDevice": "Dispositivo desconocido"
+    "subtitle": "El punto de acceso de tu cuenta. Los dispositivos se conectan automáticamente; escanea el código QR para conectar un teléfono.",
+    "unknownDevice": "Dispositivo desconocido",
+    "togglePassword": "Mostrar u ocultar la contraseña"
   },
   "about": {
     "title": "Acerca de los dispositivos",

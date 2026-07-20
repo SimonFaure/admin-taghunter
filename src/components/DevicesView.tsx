@@ -112,7 +112,7 @@ async function renameDeviceAdmin(deviceId: number, displayName: string | null): 
 }
 
 function formatRelative(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return iso;
   const diff = Date.now() - then;
@@ -262,10 +262,10 @@ export function DevicesView() {
                     </div>
                     <div className="text-xs text-slate-400 font-mono">{d.device_uniq.slice(0, 13)}…</div>
                   </td>
-                  <td className="px-4 py-3 text-sm">{clientName(d) || '—'}</td>
-                  <td className="px-4 py-3 text-sm font-mono">{d.app_version || '—'}</td>
+                  <td className="px-4 py-3 text-sm">{clientName(d) || '-'}</td>
+                  <td className="px-4 py-3 text-sm font-mono">{d.app_version || '-'}</td>
                   <td className="px-4 py-3 text-sm">
-                    {d.os ? `${d.os}${d.os_version ? ' ' + d.os_version : ''}` : '—'}
+                    {d.os ? `${d.os}${d.os_version ? ' ' + d.os_version : ''}` : '-'}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{formatRelative(d.last_seen_at)}</td>
                   <td className="px-4 py-3">
@@ -453,7 +453,7 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
                 )}
                 <p className="text-xs text-slate-400 font-mono mt-1">{data.device.device_uniq}</p>
                 <p className="text-sm text-slate-500 mt-2">
-                  {data.device.client_name || data.device.client_email || '—'}
+                  {data.device.client_name || data.device.client_email || '-'}
                 </p>
               </div>
               <div className="text-right text-sm">
@@ -461,7 +461,7 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
                   <Calendar className="w-3 h-3" />
                   Last seen {formatRelative(data.device.last_seen_at)}
                 </div>
-                <div className="text-xs text-slate-400 mt-1">v{data.device.app_version || '—'}</div>
+                <div className="text-xs text-slate-400 mt-1">v{data.device.app_version || '-'}</div>
               </div>
             </div>
           </div>
@@ -491,7 +491,7 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
                 <Detail label="OS version" value={data.device.os_version} />
                 <Detail label="App version" value={data.device.app_version} mono />
                 <Detail label="Device role" value={data.device.operator_only ? 'Operator-only (manage, never plays)' : 'Plays games'} />
-                <Detail label="Cards file version" value={String(data.device.cards_file_version ?? '—')} />
+                <Detail label="Cards file version" value={String(data.device.cards_file_version ?? '-')} />
                 <Detail label="Client" value={data.device.client_name || data.device.client_email} />
                 <Detail label="Last seen" value={data.device.last_seen_at} />
                 <Detail label="First registered" value={data.device.created_at} />
@@ -556,7 +556,7 @@ function Detail({ label, value, mono }: { label: string; value: string | null | 
   return (
     <div>
       <dt className="text-xs uppercase text-slate-400">{label}</dt>
-      <dd className={`text-slate-900 ${mono ? 'font-mono text-xs' : ''}`}>{value || '—'}</dd>
+      <dd className={`text-slate-900 ${mono ? 'font-mono text-xs' : ''}`}>{value || '-'}</dd>
     </div>
   );
 }
@@ -644,7 +644,7 @@ function ErrorList({ errors }: { errors: DeviceErrorGroup[] }) {
 function syncReason(f: SyncFailure): string {
   if (f.http_status !== null) {
     if (f.http_status >= 500) return `Server error (${f.http_status})`;
-    if (f.http_status === 403) return 'Access denied — content not assigned to this client';
+    if (f.http_status === 403) return 'Access denied - content not assigned to this client';
     if (f.http_status === 404) return 'File not found on server';
     if (f.http_status === 408) return 'Network timeout';
     return `Request failed (${f.http_status})`;
@@ -773,9 +773,9 @@ function LaunchList({ launches }: { launches: DeviceLaunch[] }) {
         <tbody className="divide-y divide-slate-100">
           {launches.map((l) => (
             <tr key={l.id}>
-              <td className="px-4 py-3 text-sm font-mono">{l.scenario_uniqid || '—'}</td>
-              <td className="px-4 py-3 text-sm">{l.teams_count ?? '—'}</td>
-              <td className="px-4 py-3 text-sm">{l.duration_seconds != null ? `${l.duration_seconds}s` : '—'}</td>
+              <td className="px-4 py-3 text-sm font-mono">{l.scenario_uniqid || '-'}</td>
+              <td className="px-4 py-3 text-sm">{l.teams_count ?? '-'}</td>
+              <td className="px-4 py-3 text-sm">{l.duration_seconds != null ? `${l.duration_seconds}s` : '-'}</td>
               <td className="px-4 py-3 text-sm text-slate-600">{formatRelative(l.started_at)}</td>
             </tr>
           ))}

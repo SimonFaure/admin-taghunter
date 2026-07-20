@@ -1,5 +1,5 @@
 /**
- * Quests section — per-quest editor cards with the "puzzle" layout: main
+ * Quests section - per-quest editor cards with the "puzzle" layout: main
  * image on the left, 2x2 grid of piece images on the right (mirrors the
  * in-game reveal in PunchAnimationOverlay). Each quest card collapses to a
  * one-line summary so a 10-quest list stays scannable.
@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { AlertTriangle, Plus, Trash2, ChevronDown, ChevronRight, MapPin } from 'lucide-react';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
@@ -21,11 +22,11 @@ import { useTagquestPatternStations, type QuestStations } from '../useTagquestPa
 
 type PieceKey = 'image_1' | 'image_2' | 'image_3' | 'image_4';
 
-const PIECE_SLOTS: ReadonlyArray<{ key: PieceKey; label: string }> = [
-  { key: 'image_1', label: 'Top-left' },
-  { key: 'image_2', label: 'Top-right' },
-  { key: 'image_3', label: 'Bottom-left' },
-  { key: 'image_4', label: 'Bottom-right' },
+const PIECE_SLOTS: ReadonlyArray<{ key: PieceKey; labelKey: string }> = [
+  { key: 'image_1', labelKey: 'editorTagquest:quests.pieces.topLeft' },
+  { key: 'image_2', labelKey: 'editorTagquest:quests.pieces.topRight' },
+  { key: 'image_3', labelKey: 'editorTagquest:quests.pieces.bottomLeft' },
+  { key: 'image_4', labelKey: 'editorTagquest:quests.pieces.bottomRight' },
 ];
 
 function emptyQuest(): Quest {
@@ -57,17 +58,19 @@ interface QuestCardProps {
 }
 
 function StationHint({ station }: { station?: { stationId: number | null; stationName: string | null } }) {
+  const { t } = useTranslation();
   if (!station || station.stationId == null) return null;
   return (
     <span className="mt-1 flex items-center gap-1 text-[11px] text-gray-500">
       <MapPin className="w-3 h-3 flex-shrink-0 text-gray-400" />
       <span className="font-mono text-gray-600">#{station.stationId}</span>
-      <span className="truncate">{station.stationName ?? 'Unknown station'}</span>
+      <span className="truncate">{station.stationName ?? t('editorTagquest:quests.unknownStation')}</span>
     </span>
   );
 }
 
 function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, stations }: QuestCardProps) {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const [expanded, setExpanded] = useState(true);
 
@@ -76,13 +79,13 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, statio
 
   return (
     <div className="border border-gray-100 rounded-md bg-white">
-      {/* Collapsed row — always visible. Acts as the toggle. */}
+      {/* Collapsed row - always visible. Acts as the toggle. */}
       <div className="flex items-center gap-2 p-2">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="p-1 hover:bg-gray-50 rounded text-gray-400"
-          aria-label={expanded ? 'Collapse quest' : 'Expand quest'}
+          aria-label={expanded ? t('editorTagquest:quests.collapseQuest') : t('editorTagquest:quests.expandQuest')}
         >
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
@@ -95,20 +98,20 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, statio
               onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
             />
           ) : (
-            <span className="text-xs text-gray-300">—</span>
+            <span className="text-xs text-gray-300">-</span>
           )}
         </div>
         <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
-        <span className="text-sm text-gray-900 truncate flex-1">{displayName || <span className="text-gray-400 italic">Unnamed quest</span>}</span>
+        <span className="text-sm text-gray-900 truncate flex-1">{displayName || <span className="text-gray-400 italic">{t('editorTagquest:quests.unnamedQuest')}</span>}</span>
         <span className={`text-xs ${piecesUploaded === 4 ? 'text-green-600' : 'text-gray-500'}`}>
-          {piecesUploaded}/4 pieces
+          {t('editorTagquest:quests.piecesProgress', { n: piecesUploaded })}
         </span>
-        {quest.points && <span className="text-xs text-gray-500">{quest.points} pts</span>}
+        {quest.points && <span className="text-xs text-gray-500">{t('editorTagquest:quests.pts', { points: quest.points })}</span>}
         <button
           type="button"
           onClick={onRemove}
           className="p-1.5 hover:bg-red-50 rounded text-red-500"
-          aria-label="Remove quest"
+          aria-label={t('editorTagquest:quests.removeQuest')}
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -116,10 +119,10 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, statio
 
       {expanded && (
         <div className="px-3 pb-3 border-t border-gray-100 pt-3 space-y-3">
-          {/* Header strip — name + points */}
+          {/* Header strip - name + points */}
           <div className="grid grid-cols-1 md:grid-cols-[1fr_120px] gap-2">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Quest name</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('editorTagquest:quests.questName')}</label>
               <input
                 value={displayName}
                 onChange={(e) =>
@@ -129,7 +132,7 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, statio
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Points</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('editorTagquest:quests.points')}</label>
               <input
                 value={quest.points ?? ''}
                 onChange={(e) => onChange({ points: e.target.value })}
@@ -138,23 +141,23 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, statio
             </div>
           </div>
 
-          {/* Puzzle layout — main image + sound (left) + 2x2 pieces (right) */}
+          {/* Puzzle layout - main image + sound (left) + 2x2 pieces (right) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-3">
               <div>
                 <p className="text-xs text-gray-500 mb-1">
-                  The complete picture revealed when all 4 pieces are found
+                  {t('editorTagquest:quests.mainImageHint')}
                 </p>
                 <AssetUploadField
-                  slot={makeSlot('main_image', 'Main image', 'image', 'error')}
+                  slot={makeSlot('main_image', t('editorTagquest:quests.mainImageLabel'), 'image', 'error')}
                   value={quest.main_image ?? ''}
                   onChange={(filename) => onChange({ main_image: filename })}
                 />
               </div>
               <div>
-                <p className="text-xs text-gray-500 mb-1">Played when the quest is completed</p>
+                <p className="text-xs text-gray-500 mb-1">{t('editorTagquest:quests.soundHint')}</p>
                 <AssetUploadField
-                  slot={makeSlot('sound', 'Quest sound', 'sound', false)}
+                  slot={makeSlot('sound', t('editorTagquest:quests.soundLabel'), 'sound', false)}
                   value={quest.sound ?? ''}
                   onChange={(filename) => onChange({ sound: filename })}
                 />
@@ -162,13 +165,15 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, statio
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">
-                Four images to find <span className="text-gray-400">— each forms one quadrant of the main image</span>
+                <Trans i18nKey="editorTagquest:quests.fourImages">
+                  Four images to find <span className="text-gray-400">- each forms one quadrant of the main image</span>
+                </Trans>
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {PIECE_SLOTS.map((p) => (
                   <div key={p.key}>
                     <AssetUploadField
-                      slot={makeSlot(p.key, p.label, 'image', 'error')}
+                      slot={makeSlot(p.key, t(p.labelKey), 'image', 'error')}
                       value={(quest[p.key] as string | undefined) ?? ''}
                       onChange={(filename) => onChange({ [p.key]: filename } as Partial<Quest>)}
                     />
@@ -185,6 +190,7 @@ function QuestCard({ quest, index, lang, defaultLang, onChange, onRemove, statio
 }
 
 export function QuestsSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
@@ -214,15 +220,15 @@ export function QuestsSection() {
 
   return (
     <CollapsibleSection
-      title="Quests"
+      title={t('editorTagquest:quests.sectionTitle')}
       headerExtra={
         <button
           onClick={addQuest}
           disabled={atCap}
           className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-          title={atCap ? `Maximum ${TAGQUEST_MAX_QUESTS} quests` : 'Add a new quest'}
+          title={atCap ? t('editorTagquest:quests.maxQuestsTitle', { max: TAGQUEST_MAX_QUESTS }) : t('editorTagquest:quests.addQuestTitle')}
         >
-          <Plus className="w-3 h-3" /> Add quest
+          <Plus className="w-3 h-3" /> {t('editorTagquest:quests.addQuest')}
         </button>
       }
     >
@@ -230,14 +236,16 @@ export function QuestsSection() {
         <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>
-            This scenario has {quests.length} quests but Tagquest now supports a
-            maximum of {TAGQUEST_MAX_QUESTS}. The extra {quests.length - TAGQUEST_MAX_QUESTS} quest(s)
-            will be removed when you save. Delete unwanted quests to choose which ones are kept.
+            {t('editorTagquest:quests.overCapWarning', {
+              count: quests.length - TAGQUEST_MAX_QUESTS,
+              total: quests.length,
+              max: TAGQUEST_MAX_QUESTS,
+            })}
           </span>
         </div>
       )}
       {quests.length === 0 ? (
-        <p className="text-sm text-gray-500">No quests yet.</p>
+        <p className="text-sm text-gray-500">{t('editorTagquest:quests.noQuests')}</p>
       ) : (
         <div className="space-y-2">
           {quests.map((q, i) => (

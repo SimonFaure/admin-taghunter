@@ -10,6 +10,8 @@
 //   list      → paginated per-game rows (the table)
 //   filters   → distinct game_types / scenarios (+ clients for admin) for the
 //               filter dropdowns, within the caller's scope
+//   timeseries→ per-day × per-game-type rows (games count + teams sum) for the
+//               activity chart; defaults to the last 30 days when no from/to
 //
 // Filters (query params): from, to (dates), game_type, scenario_uniqid,
 // and client_id (admin only).
@@ -190,6 +192,35 @@ try {
                 'total' => (int)$total['count'],
                 'limit' => $limit,
                 'offset' => $offset,
+                'is_admin' => $isAdmin,
+            ]);
+            break;
+        }
+
+        case 'timeseries': {
+            [$conds, $args] = summaryConditions($auth);
+            $conds[] = 'gs.played_at IS NOT NULL';
+            if (empty($_GET['from']) && empty($_GET['to'])) {
+                $conds[] = 'gs.played_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+            }
+
+            $rows = $db->fetchAll(
+                'SELECT DATE(gs.played_at) AS date, gs.game_type,
+                        COUNT(*) AS games,
+                        COALESCE(SUM(gs.teams_played), 0) AS teams
+                 FROM game_summaries gs' . whereOf($conds) .
+                ' GROUP BY DATE(gs.played_at), gs.game_type
+                 ORDER BY date',
+                $args
+            );
+
+            jsonResponse([
+                'rows' => array_map(fn($r) => [
+                    'date' => $r['date'],
+                    'game_type' => $r['game_type'],
+                    'games' => (int)$r['games'],
+                    'teams' => (int)$r['teams'],
+                ], $rows),
                 'is_admin' => $isAdmin,
             ]);
             break;

@@ -1,0 +1,12 @@
+{
+  "title": "Importar un Escenario desde un ZIP",
+  "selectFile": "Seleccionar un Archivo ZIP",
+  "dragDrop": "o arrastra y suelta",
+  "fileSelected": "Archivo seleccionado",
+  "importing": "Importando...",
+  "importButton": "Importar el Escenario",
+  "success": "Escenario importado correctamente",
+  "error": "Error al importar el escenario",
+  "invalidFile": "Archivo ZIP no válido",
+  "processing": "Procesando el archivo ZIP..."
+}

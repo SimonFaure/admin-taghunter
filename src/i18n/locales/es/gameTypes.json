@@ -9,6 +9,7 @@
   "error": {
     "failedToLoad": "Error al cargar",
     "uploadFailed": "Error al subir",
+    "fileTooLarge": "Este vídeo pesa {{size}} MB, lo que supera el límite de {{max}} MB. Comprímelo o sube un archivo más pequeño.",
     "removeFailed": "Error al eliminar",
     "updateFailed": "Error al actualizar"
   },
@@ -31,6 +32,7 @@
     "yourOverrideHeading": "Tu reemplazo de vídeo tutorial",
     "activeOverride": "Reemplazo activo",
     "usingLegacyVideo": "Usando el vídeo heredado. Sube el tuyo para reemplazarlo:",
+    "maxVideoSize": "Tamaño máximo del archivo: {{size}} MB",
     "subtitleTracksLegacy": "Pistas de subtítulos (heredado)",
     "subtitleTracksOverride": "Pistas de subtítulos (reemplazo)",
     "pillVideo": "Vídeo definido",
@@ -39,7 +41,7 @@
     "subtitleSelectLabel": "Subtítulos:",
     "subtitleOff": "Desactivados",
     "langCode": "({{lang}})",
-    "missing": "— faltante"
+    "missing": "- faltante"
   },
   "actions": {
     "replace": "Reemplazar",

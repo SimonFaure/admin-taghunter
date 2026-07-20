@@ -6,7 +6,6 @@ import { Alert } from './Alert';
 import { authService } from '../services/authService';
 import { ClientSelector } from './ClientSelector';
 import { ConfirmDialog, PublishStep } from './ConfirmDialog';
-import { clashComboTerritory } from '../../scenarios/bodies/clash/skeleton';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 import { generatePatternSlug } from '../utils/patterns';
@@ -211,9 +210,6 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
     survival: { types: ['good_answer_station', 'wrong_answer_station'], labels: ['Good Answer Station', 'Wrong Answer Station'] },
     tagquest: { types: ['image_1', 'image_2', 'image_3', 'image_4'],    labels: ['Image 1 Station', 'Image 2 Station', 'Image 3 Station', 'Image 4 Station'] },
     tracks:   { types: ['station'],                                      labels: ['Station'] },
-    // Clash: each row = one combination = 3 balise stations. Rows are mapped
-    // positionally to the scenario's 8 combinations (territory order).
-    clash:    { types: ['station_1', 'station_2', 'station_3'],          labels: ['Balise 1', 'Balise 2', 'Balise 3'] },
   };
   const shape = PATTERN_SHAPES[gameType] ?? PATTERN_SHAPES.tagquest;
   const assignmentTypes = shape.types;
@@ -302,7 +298,7 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
         return;
       }
 
-      // No pattern_items rows — try lazy backfill from legacy pattern_data JSON.
+      // No pattern_items rows - try lazy backfill from legacy pattern_data JSON.
       const legacy = await db
         .from('patterns')
         .select('pattern_data')
@@ -782,15 +778,6 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
                   >
                     <td className="px-4 py-3 text-sm font-mono text-slate-300">
                       {rowIdx + 1}
-                      {gameType === 'clash' && (() => {
-                        const t = clashComboTerritory(rowIdx);
-                        if (t.territoryNumber === 0) return null;
-                        return (
-                          <span className="block text-[10px] font-sans text-slate-400 whitespace-nowrap">
-                            T{t.territoryNumber} · {t.sizeLabel}
-                          </span>
-                        );
-                      })()}
                     </td>
                     {assignmentTypes.map(type => (
                       <td key={type} className="px-4 py-3">

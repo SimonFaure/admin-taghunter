@@ -10,7 +10,7 @@
  *   - client_id  (required if ownership='client')
  *
  * Expected ZIP layout:
- *   main_export_file.csv                 (rows: type,slug — only type=game imported)
+ *   main_export_file.csv                 (rows: type,slug - only type=game imported)
  *   games/{slug}/csv/game.csv            (title,uniqid,type=mystery|tagquest)
  *   games/{slug}/csv/game_meta.csv       (key/value or legacy 4-col)
  *   games/{slug}/csv/game_enigmas.csv    (mystery)
@@ -19,7 +19,7 @@
  *   games/{slug}/csv/game_sounds.csv     (tagquest)
  *   games/{slug}/media/...               (mystery: flat; tagquest: id-folders)
  *
- * Required runtime config (NOT enforced by code — verify on the host):
+ * Required runtime config (NOT enforced by code - verify on the host):
  *   upload_max_filesize >= 200M, post_max_size >= 220M, memory_limit >= 512M,
  *   max_input_time >= 300, Apache `Timeout 600`. set_time_limit(0) is set below.
  */
@@ -52,7 +52,7 @@ function ti_require_admin() {
         }
     }
     if (!isset($_SESSION['user_id']) || ($_SESSION['user_type'] ?? '') !== 'admin') {
-        ti_json(['error' => 'Forbidden — admin only'], 403);
+        ti_json(['error' => 'Forbidden - admin only'], 403);
     }
 }
 
@@ -494,7 +494,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
         foreach ([
             'background_image', 'malus_container', 'malus_image', 'late_malus_image',
             'top_1_image', 'top_3_image', 'top_10_image',
-            // Sound meta keys — without these, the corresponding files in
+            // Sound meta keys - without these, the corresponding files in
             // media/{id}/ folders never get copied and the references
             // are silently dropped from $medias['sounds'].
             'enigma_success', 'enigma_error', 'enigma_no_answer',
@@ -508,7 +508,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             }
         }
     } elseif ($type === 'tracks') {
-        // Tracks (legacy maximus) — parse game_checkpoints.csv + game_sounds.csv.
+        // Tracks (legacy maximus) - parse game_checkpoints.csv + game_sounds.csv.
         // Media lookup uses Mystery's per-id-folder + flat-fallback path
         // (see ti_find_mystery_media_file usage below).
         $cpPath = ti_find_game_file($tempDir, $slug, 'game_checkpoints.csv');
@@ -648,7 +648,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             }
         }
 
-        // Build the medias JSON (post-mapping) — mirrors ZipImport.tsx 891-981.
+        // Build the medias JSON (post-mapping) - mirrors ZipImport.tsx 891-981.
         $medias = [
             'images' => (object)[],
             'sounds' => (object)[],
@@ -739,7 +739,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
         }
 
         // Tagquest game_sounds.csv special rows (late_malus / malus / error /
-        // success / top_1 / top_3 / top_10) carry legacy ids — remap to
+        // success / top_1 / top_3 / top_10) carry legacy ids - remap to
         // sanitized filenames now that $mediaMapping is built. Also surface
         // them in $medias['sounds'] so the runtime can locate the file.
         $soundFieldMappingsMapped = [];
@@ -756,7 +756,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
 
         if ($soundsOut) $medias['sounds'] = $soundsOut;
 
-        // Build the data JSON (game_meta + arrays) — mirrors ZipImport.tsx 635-666.
+        // Build the data JSON (game_meta + arrays) - mirrors ZipImport.tsx 635-666.
         $levels = (object)[];
         if (!empty($meta['levels'])) {
             $decoded = json_decode($meta['levels'], true);
@@ -855,7 +855,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
             ];
         } elseif ($type === 'tracks') {
             // -------------------------------------------------------------
-            // Tracks (legacy maximus) — checkpoint-based course gameplay.
+            // Tracks (legacy maximus) - checkpoint-based course gameplay.
             // Plan: C:\Users\faure\.claude\plans\tracks-game-type-design.md
             // -------------------------------------------------------------
 
@@ -909,7 +909,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 $routesOut[$newK] = ['enabled' => $enabled];
             }
 
-            // Display modes — flatten {full,map,simple}.{name,enabled} →
+            // Display modes - flatten {full,map,simple}.{name,enabled} →
             // {full,map,simple}.{enabled}. The legacy "simple" sub-toggle
             // (mode_simple_full vs mode_simple) is dropped per Q4a.
             $displaysOut = [];
@@ -917,13 +917,13 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 $displaysOut[$k] = ['enabled' => !empty($legacyDisplayMode[$k]['enabled'])];
             }
 
-            // Play modes — itinerary / free.
+            // Play modes - itinerary / free.
             $playModesOut = [];
             foreach (['itinerary', 'free'] as $k) {
                 $playModesOut[$k] = ['enabled' => !empty($legacyModes[$k]['enabled'])];
             }
 
-            // Score types — preserve `default` flag; rename legacy keys.
+            // Score types - preserve `default` flag; rename legacy keys.
             $scoreTypesOut = [
                 'percentage' => [
                     'enabled' => !empty($legacyScore['score_type_percentage']['enabled']),
@@ -935,7 +935,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 ],
             ];
 
-            // Clues page — flatten one-key wrapper + invert hide_* → show_*.
+            // Clues page - flatten one-key wrapper + invert hide_* → show_*.
             $cluesEnabled = !empty($legacyDisplayClues['display_clues']['enabled']);
             $cluesOut = [
                 'enabled' => $cluesEnabled,
@@ -944,13 +944,13 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                 'show_image' => empty($legacyHideClues['hide_clues_image']['enabled']),
             ];
 
-            // display_score — flatten one-key wrapper.
+            // display_score - flatten one-key wrapper.
             $displayScore = !empty($legacyDisplayScore['display_score']['enabled']);
 
-            // auto_reset — flatten one-key wrapper (was display_reset_timer).
+            // auto_reset - flatten one-key wrapper (was display_reset_timer).
             $autoReset = !empty($legacyResetTimer['display_reset_timer']['enabled']);
 
-            // Checkpoints — generate new uuids + Localized<fr> wraps.
+            // Checkpoints - generate new uuids + Localized<fr> wraps.
             $checkpointsOut = [];
             $checkpointIdsByLegacy = [];
             $checkpointIdByNumber = [];
@@ -1121,7 +1121,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
 
         $pdo->commit();
 
-        // Media files were copied into media/{uniqid}/ above — hash the new
+        // Media files were copied into media/{uniqid}/ above - hash the new
         // scenario so incremental sync picks it up. Post-commit (best effort).
         try {
             ScenarioHashes::recompute($pdo, $uniqid);

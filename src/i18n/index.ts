@@ -4,7 +4,7 @@
  * One i18next instance for the whole app. Chrome catalogs are bundled at build
  * time (the JSON under `./locales/<lang>/<namespace>.json`, loaded eagerly via
  * Vite glob). In-game shared text (bucket 2) is injected later at runtime from
- * the synced store via `i18next.addResourceBundle` — see `addIngameBundles`.
+ * the synced store via `i18next.addResourceBundle` - see `addIngameBundles`.
  *
  * Design: plan `multilingual-app-translator-workflow.md`.
  * - `{{var}}` interpolation + CLDR plurals (i18next defaults).

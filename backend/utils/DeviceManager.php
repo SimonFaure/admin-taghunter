@@ -58,6 +58,15 @@ class DeviceManager {
             $params[] = $metadata['operator_only'] ? 1 : 0;
         }
 
+        // Active recovery-code reprieve deadline (device-lock). Self-reported on
+        // each heartbeat; an explicit null clears it (reprieve expired/consumed).
+        // Only honoured when carried so older clients don't wipe it.
+        // Design: project_client_device_lock.
+        if (array_key_exists('billing_reprieve_until', $metadata)) {
+            $fields[] = 'billing_reprieve_until = ?';
+            $params[] = $metadata['billing_reprieve_until'] ?: null;
+        }
+
         $fields[] = 'last_seen_at = NOW()';
         $fields[] = 'updated_at = NOW()';
 
@@ -77,6 +86,7 @@ class DeviceManager {
         return $db->fetchAll(
             'SELECT d.id, d.device_uniq, d.device_label, d.display_name, d.os, d.os_version,
                     d.playground_version AS app_version, d.operator_only,
+                    d.billing_reprieve_until,
                     d.created_at, d.updated_at, d.last_seen_at,
                     (SELECT COUNT(*) FROM auth_tokens t
                        WHERE t.device_id = d.id

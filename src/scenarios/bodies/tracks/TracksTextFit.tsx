@@ -3,7 +3,7 @@
  *
  * Shared by the LayoutEditor preview (slice 2) and the playground runtime
  * (slice 3) so both surfaces render visually identical. Pure measurement +
- * CSS — no DOM mutation outside the component's own subtree.
+ * CSS - no DOM mutation outside the component's own subtree.
  *
  * Algorithm: O(1) via offscreen canvas `measureText`. Measure the text width
  * at a reference 100px font-size, then compute the largest font-size where
@@ -11,7 +11,7 @@
  * binary search needed.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
- * │ DUPLICATED VERBATIM — keep in sync (slice 3):                            │
+ * │ DUPLICATED VERBATIM - keep in sync (slice 3):                            │
  * │   studio-taghunter/src/scenarios/bodies/tracks/TracksTextFit.tsx         │
  * │   taghunter_playground/src/... (mirrored when slice 3 lands)             │
  * └─────────────────────────────────────────────────────────────────────────┘
@@ -28,7 +28,7 @@ interface TracksTextFitProps {
   boxWidthPx: number;
   /** Available box height in px. */
   boxHeightPx: number;
-  /** CSS font-family stack — typically `resolveFontFamily(element font ?? scenario font)`. */
+  /** CSS font-family stack - typically `resolveFontFamily(element font ?? scenario font)`. */
   fontFamily: string;
   /** 400 (normal) or 700 (bold). */
   fontWeight: number;

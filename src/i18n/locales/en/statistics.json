@@ -31,8 +31,16 @@
     "title": "Top Clients",
     "empty": "No client activity yet"
   },
-  "perDay": {
-    "title": "Games Per Day (Last 30 Days)"
+  "chart": {
+    "title": "Daily Activity",
+    "last30": "Last 30 days",
+    "modes": {
+      "games": "Games",
+      "teams": "Teams",
+      "types": "Game types"
+    },
+    "other": "Other",
+    "empty": "No games in this period"
   },
   "table": {
     "date": "Date",
@@ -44,5 +52,5 @@
     "players": "Players",
     "empty": "No games match these filters"
   },
-  "empty": "—"
+  "empty": "-"
 }

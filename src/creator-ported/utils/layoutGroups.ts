@@ -13,7 +13,7 @@ export interface GroupDef {
   items: GroupItemDef[];
   questIndex?: number;
   /**
-   * Sidebar render kind — drives the visual "Text elements" separator that
+   * Sidebar render kind - drives the visual "Text elements" separator that
    * sits above the first `'text_category'` group. The legacy
    * Checkpoints / HUD frames groups are implicitly `'standard'` (undefined).
    * `'text_category'` groups also stay clickable when empty (no items yet)
@@ -112,7 +112,7 @@ export function buildGroups(numQuests: number): GroupDef[] {
 }
 
 /**
- * Tracks HUD frame elements — the four background frames for the in-game HUD.
+ * Tracks HUD frame elements - the four background frames for the in-game HUD.
  * Ids match `gameMeta.*_background_image` (also mirrored to medias.images).
  */
 export const TRACKS_HUD_ITEMS: GroupItemDef[] = [
@@ -124,7 +124,7 @@ export const TRACKS_HUD_ITEMS: GroupItemDef[] = [
 
 /**
  * Mock preview text overlaid on the HUD frames in the layout editor so the
- * designer can see how the live values sit on each frame. Render-only — never
+ * designer can see how the live values sit on each frame. Render-only - never
  * persisted to the layout.
  */
 export const TRACKS_HUD_MOCK_TEXT: Record<string, string> = {
@@ -190,29 +190,28 @@ export function buildTracksGroups(
 }
 
 /**
- * Clash groups: one "Territories" group (the 4 sigil position markers) plus a
- * text-category group per category (translatable map labels), mirroring tracks
- * but without the HUD-frames group. Territory markers are move-only — no
- * "main image" group semantics.
+ * Clash groups: one "Territories" group holding THREE move-only markers per
+ * territory - the banner, the name/gauge cluster and the purge-image anchor -
+ * plus a text-category group per category (translatable map labels), mirroring
+ * tracks but without the HUD-frames group. No "main image" group semantics.
  */
 export function buildClashGroups(
   territoryCount: number,
   textCategories: readonly TracksGroupsCategoryInput[] = [],
   textItemsByCategory: ReadonlyMap<string, GroupItemDef[]> = new Map(),
+  /** Authored territory display labels (index-aligned); falls back to "Territory N". */
+  territoryNames: readonly string[] = [],
 ): GroupDef[] {
-  // Fixed skeleton sizes by territory order (large, medium, medium, small).
-  const SIZE_BY_INDEX = ['Large', 'Medium', 'Medium', 'Small'];
   const territoryItems: GroupItemDef[] = [];
   for (let i = 1; i <= territoryCount; i++) {
-    const size = SIZE_BY_INDEX[i - 1];
-    territoryItems.push({
-      id: `territory_${i}`,
-      name: size ? `Territory ${i} (${size})` : `Territory ${i}`,
-      type: 'image',
-    });
+    const base = territoryNames[i - 1] || `Territory ${i}`;
+    territoryItems.push({ id: `territory_${i}_banner`, name: `${base} · banner`, type: 'image' });
+    territoryItems.push({ id: `territory_${i}_label`, name: `${base} · name/gauge`, type: 'image' });
+    territoryItems.push({ id: `territory_${i}_purge`, name: `${base} · purge`, type: 'image' });
   }
   const groups: GroupDef[] = [
     { id: 'clash_territories', name: 'Territories', mainImageId: '', items: territoryItems },
+    { id: 'clash_hud', name: 'Timer', mainImageId: '', items: [{ id: 'clash_timer', name: 'Timer', type: 'image' }] },
   ];
   for (const cat of textCategories) {
     groups.push({

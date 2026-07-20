@@ -9,6 +9,7 @@
   "error": {
     "failedToLoad": "Failed to load",
     "uploadFailed": "Upload failed",
+    "fileTooLarge": "This video is {{size}} MB, which is over the {{max}} MB limit. Please compress it or upload a smaller file.",
     "removeFailed": "Remove failed",
     "updateFailed": "Update failed"
   },
@@ -31,6 +32,7 @@
     "yourOverrideHeading": "Your tutorial video override",
     "activeOverride": "Active override",
     "usingLegacyVideo": "Using legacy video. Upload your own to override:",
+    "maxVideoSize": "Maximum file size: {{size}} MB",
     "subtitleTracksLegacy": "Subtitle tracks (legacy)",
     "subtitleTracksOverride": "Subtitle tracks (override)",
     "pillVideo": "Video set",
@@ -39,7 +41,7 @@
     "subtitleSelectLabel": "Subtitles:",
     "subtitleOff": "Off",
     "langCode": "({{lang}})",
-    "missing": "— missing"
+    "missing": "- missing"
   },
   "actions": {
     "replace": "Replace",

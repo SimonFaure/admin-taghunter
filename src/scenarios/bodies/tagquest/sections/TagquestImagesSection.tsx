@@ -4,7 +4,7 @@
  * The HUD is rendered as a single transparent template PNG overlaying the
  * background. By default we ship a built-in template; the author can opt
  * into a custom upload. Text positions are baked into the layout JSON and
- * stay the same regardless of which template is used — custom templates
+ * stay the same regardless of which template is used - custom templates
  * must be 16:9 with the same frame coordinates as the default (offer the
  * default as a downloadable spec).
  *
@@ -12,6 +12,8 @@
  */
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Download } from 'lucide-react';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
@@ -25,12 +27,12 @@ const ASPECT_TOLERANCE = 0.01;          // 1%
 const TARGET_ASPECT = 16 / 9;
 const MAX_TEMPLATE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-async function validateCustomTemplate(file: File): Promise<string | null> {
+async function validateCustomTemplate(file: File, t: TFunction): Promise<string | null> {
   if (file.size > MAX_TEMPLATE_BYTES) {
-    return `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max 5 MB.`;
+    return t('editorTagquest:images.errTooLarge', { mb: (file.size / 1024 / 1024).toFixed(1) });
   }
   if (file.type !== 'image/png' && !/\.png$/i.test(file.name)) {
-    return 'Template must be a PNG (with transparent background).';
+    return t('editorTagquest:images.errNotPng');
   }
 
   const url = URL.createObjectURL(file);
@@ -38,13 +40,17 @@ async function validateCustomTemplate(file: File): Promise<string | null> {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const el = new Image();
       el.onload = () => resolve(el);
-      el.onerror = () => reject(new Error('Could not decode image.'));
+      el.onerror = () => reject(new Error(t('editorTagquest:images.errDecode')));
       el.src = url;
     });
 
     const aspect = img.naturalWidth / img.naturalHeight;
     if (Math.abs(aspect - TARGET_ASPECT) / TARGET_ASPECT > ASPECT_TOLERANCE) {
-      return `Template must be 16:9 (got ${img.naturalWidth}×${img.naturalHeight}, ratio ${aspect.toFixed(3)}).`;
+      return t('editorTagquest:images.errAspect', {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+        ratio: aspect.toFixed(3),
+      });
     }
 
     // Probe alpha by sampling all four corners of the image.
@@ -65,7 +71,7 @@ async function validateCustomTemplate(file: File): Promise<string | null> {
       return data[3] >= 250; // alpha ~fully opaque
     });
     if (opaqueCorners.length === 4) {
-      return 'Template must have a transparent background (all four corners look opaque).';
+      return t('editorTagquest:images.errOpaque');
     }
     return null;
   } finally {
@@ -74,6 +80,7 @@ async function validateCustomTemplate(file: File): Promise<string | null> {
 }
 
 export function TagquestImagesSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -108,12 +115,12 @@ export function TagquestImagesSection() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setDownloadError(err instanceof Error ? err.message : 'Download failed');
+      setDownloadError(err instanceof Error ? err.message : t('editorTagquest:images.downloadFailed'));
     }
   };
 
   return (
-    <CollapsibleSection title="Tagquest images">
+    <CollapsibleSection title={t('editorTagquest:images.sectionTitle')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {primarySlots.map((slot) => (
           <AssetUploadField
@@ -132,7 +139,7 @@ export function TagquestImagesSection() {
           onChange={(e) => setKey('use_default_template', e.target.checked)}
           className="rounded border-gray-300"
         />
-        <span className="text-sm font-medium text-gray-700">Use default template</span>
+        <span className="text-sm font-medium text-gray-700">{t('editorTagquest:images.useDefaultTemplate')}</span>
       </label>
 
       <div className="mt-2">
@@ -142,7 +149,7 @@ export function TagquestImagesSection() {
           className="text-xs px-2 py-1 bg-gray-50 text-gray-700 rounded hover:bg-gray-100 inline-flex items-center gap-1 border border-gray-200"
         >
           <Download className="w-3 h-3" />
-          Download default template (use as a spec for custom artwork)
+          {t('editorTagquest:images.downloadDefault')}
         </button>
         {downloadError && (
           <div className="text-[11px] text-red-600 mt-1">{downloadError}</div>
@@ -155,12 +162,10 @@ export function TagquestImagesSection() {
             slot={customTemplateSlot}
             value={String(meta[customTemplateSlot.key] ?? '')}
             onChange={(filename) => setKey(customTemplateSlot.key, filename)}
-            validate={validateCustomTemplate}
+            validate={(file) => validateCustomTemplate(file, t)}
           />
           <p className="text-[11px] text-gray-500 leading-snug">
-            Custom template must be a 16:9 PNG with a transparent background.
-            Text positions (timer, score, malus, combo, quest list) stay fixed —
-            align your artwork to the downloadable default template.
+            {t('editorTagquest:images.customTemplateHint')}
           </p>
         </div>
       )}

@@ -6,7 +6,7 @@
  * Slice 3A: scaffold. Not yet imported by any section. Slice 3B will swap
  * every plain `<input>` over translatable game_meta fields to this component.
  *
- * Tolerates being passed a plain string (legacy data) — treats it as
+ * Tolerates being passed a plain string (legacy data) - treats it as
  * `{ [defaultLanguage]: value }` until next save.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 3 section)

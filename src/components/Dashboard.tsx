@@ -1,6 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical, Smartphone } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ClientsView } from './ClientsView';
 import { ClientDetailView } from './ClientDetailView';
@@ -24,6 +25,8 @@ import { GameTypesView } from './GameTypesView';
 import { ReleasesView } from './ReleasesView';
 import { TestersView } from './TestersView';
 import AdminTranslationsView from './admin/AdminTranslationsView';
+import { GoClientsView } from './go/GoClientsView';
+import { GoStatisticsView } from './go/GoStatisticsView';
 import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 import { HelpProvider, DocsShell, studioOpenPdf } from '../help';
 
@@ -53,6 +56,21 @@ const mediaMenuItems: MenuItem[] = [
   { id: 'game-types', label: 'Videos', icon: Video },
 ];
 
+// Tag Hunter GO (hardware-free phone PWA), grouped under the collapsible "GO" section.
+const goMenuItems: MenuItem[] = [
+  { id: 'go-scenarios', label: 'Scenarios', icon: Film },
+  { id: 'go-clients', label: 'Clients', icon: Users },
+  { id: 'go-statistics', label: 'Statistics', icon: TrendingUp },
+];
+
+// Tag Hunter Drop (on-screen-image variant of GO), its own collapsible "Drop"
+// section. Reuses the GO admin views, parameterized by app (project_taghunter_drop).
+const dropMenuItems: MenuItem[] = [
+  { id: 'drop-scenarios', label: 'Scenarios', icon: Film },
+  { id: 'drop-clients', label: 'Clients', icon: Users },
+  { id: 'drop-statistics', label: 'Statistics', icon: TrendingUp },
+];
+
 // Developer / operations tools, grouped under the collapsible "Dev" section.
 const devMenuItems: MenuItem[] = [
   { id: 'logs', label: 'API Logs', icon: FileText },
@@ -66,14 +84,17 @@ const devMenuItems: MenuItem[] = [
 
 // Collapsible nav sections, rendered after the top-level entries.
 const navGroups: NavGroup[] = [
+  { id: 'go', label: 'GO', icon: Smartphone, items: goMenuItems, storageKey: 'studioGoNavOpen' },
+  { id: 'drop', label: 'Drop', icon: Smartphone, items: dropMenuItems, storageKey: 'studioDropNavOpen' },
   { id: 'media', label: 'Media', icon: FolderOpen, items: mediaMenuItems, storageKey: 'studioMediaNavOpen' },
   { id: 'dev', label: 'Dev', icon: Terminal, items: devMenuItems, storageKey: 'studioDevNavOpen' },
 ];
 
-const allMenuItems: MenuItem[] = [...mainMenuItems, ...mediaMenuItems, ...devMenuItems];
+const allMenuItems: MenuItem[] = [...mainMenuItems, ...goMenuItems, ...dropMenuItems, ...mediaMenuItems, ...devMenuItems];
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
+  const { i18n } = useTranslation();
   // Allow callers to land on a specific tab via `navigate('/admin', { state: { tab } })`.
   const location = useLocation();
   const navigate = useNavigate();
@@ -210,14 +231,14 @@ export function Dashboard() {
   };
 
   return (
-    <HelpProvider audience="admin" navigateToDocs={() => setActiveTab('help')} openPdfFile={studioOpenPdf}>
+    <HelpProvider audience="admin" lang={i18n.language} navigateToDocs={() => setActiveTab('help')} openPdfFile={studioOpenPdf}>
     <div className="min-h-screen bg-slate-50">
-      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col z-40">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col z-40 print:hidden">
         <div className="p-6 border-b border-slate-800 flex-shrink-0">
           <div className="flex flex-col space-y-4">
             <div className="flex items-center justify-between">
               <img
-                src="/logo_tag_hunter.png"
+                src="/logo_th_blanc.png"
                 alt="Tag Hunter"
                 className="h-12 w-auto object-contain max-w-full"
               />
@@ -256,7 +277,7 @@ export function Dashboard() {
         </div>
       </aside>
 
-      <main className="ml-64 p-8">
+      <main className="ml-64 p-8 print:ml-0 print:p-0">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-slate-900 mb-2">
@@ -321,6 +342,38 @@ export function Dashboard() {
           {activeTab === 'game-types' && <GameTypesView />}
 
           {activeTab === 'translations' && <AdminTranslationsView />}
+
+          {activeTab === 'go-scenarios' && <ScenariosView initialFilter="go" />}
+
+          {activeTab === 'go-clients' && (
+            selectedClientId ? (
+              <ClientDetailView
+                clientId={selectedClientId}
+                onBack={() => setSelectedClientId(null)}
+              />
+            ) : (
+              <GoClientsView onViewClient={(id) => setSelectedClientId(id)} />
+            )
+          )}
+
+          {activeTab === 'go-statistics' && <GoStatisticsView />}
+
+          {/* Tag Hunter Drop admin group - reuses the GO views, app='drop'.
+              Drop scenarios draw from the same adaptable_go pool. */}
+          {activeTab === 'drop-scenarios' && <ScenariosView initialFilter="go" />}
+
+          {activeTab === 'drop-clients' && (
+            selectedClientId ? (
+              <ClientDetailView
+                clientId={selectedClientId}
+                onBack={() => setSelectedClientId(null)}
+              />
+            ) : (
+              <GoClientsView app="drop" onViewClient={(id) => setSelectedClientId(id)} />
+            )
+          )}
+
+          {activeTab === 'drop-statistics' && <GoStatisticsView app="drop" />}
 
           {activeTab === 'home' && (
           <>

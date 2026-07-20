@@ -1,0 +1,54 @@
+{
+  "clans": {
+    "title": "Clans",
+    "add": "Add clan",
+    "addTooltip": "Add a clan",
+    "maxTooltip": "Maximum {{count}} clans",
+    "hint": "Author up to {{count}} clans. The operator chooses how many are active (2-4) and may rename them at launch; colours and images are fixed here. Territory bar segments appear in this clan order on the dashboard.",
+    "clanLabel": "Clan {{number}}",
+    "removeAria": "Remove clan",
+    "removeTooltip": "Remove clan",
+    "minTooltip": "At least {{count}} clans required",
+    "defaultName": "Default name",
+    "colour": "Colour",
+    "banner": "Banner (flown on owned territories)",
+    "logo": "Logo / emblem (ranking + feed)",
+    "scoreCard": "Score card (ranking row, optional)",
+    "slotBanner": "Banner",
+    "slotLogo": "Logo",
+    "slotScoreCard": "Score card"
+  },
+  "map": {
+    "title": "Map & dashboard",
+    "positionHint": "Position each territory's banner and its name/gauge cluster in the Layout editor (button in the save bar) - positions are saved per scenario.",
+    "framesLabel": "Dashboard frames (optional - default styling is used when unset)"
+  },
+  "purge": {
+    "title": "The Purge",
+    "hint": "Once per game, a clan can punch the purge station to reset the leading clan's strongest territory to neutral. The image marks the current target on the map (position it per territory in the Layout editor) and the sound plays on every device when a purge fires.",
+    "warning": "Without an image, The Purge is disabled at launch in the playground (no default image is provided)."
+  },
+  "territories": {
+    "title": "Territories",
+    "add": "Add territory",
+    "addTooltip": "Add a territory",
+    "maxTooltip": "Maximum {{count}} territories",
+    "hint": "Each territory is one balise set worth pts/min (proportional to its balise count). The clan controlling the most completions holds it; a tie is neutral. Seeded with the standard 8 territories (24 balises) - edit freely.",
+    "empty": "No territories - reset the scenario to restore the skeleton.",
+    "collapse": "Collapse territory",
+    "expand": "Expand territory",
+    "territoryLabel": "Territory {{number}}",
+    "unnamed": "Unnamed territory",
+    "baliseCount_one": "{{count}} balise",
+    "baliseCount_other": "{{count}} balises",
+    "pointsPerMin": "{{points}} pts/min",
+    "removeAria": "Remove territory",
+    "removeTooltip": "Remove territory",
+    "minTooltip": "At least {{count}} territories required",
+    "name": "Territory name",
+    "pointsPerMinute": "Points / minute",
+    "balisesLabel": "Balises (physical station codes)",
+    "balisesPlaceholder": "e.g. 1, 2, 3, 4, 5",
+    "balisesHint": "A chip must bip all of these then register at the central reader to complete the territory. Comma-separated; overridable per venue at launch."
+  }
+}

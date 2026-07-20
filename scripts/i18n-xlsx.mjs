@@ -10,7 +10,7 @@
  * `src/i18n/.translation-hashes.json` by hashing the en source the translation was made against:
  * export flags empty cells NEW and changed-source cells STALE; import restamps from the row's en.
  *
- * `context`/`char_limit` are passthrough columns (chrome keys carry no metadata today) — kept so
+ * `context`/`char_limit` are passthrough columns (chrome keys carry no metadata today) - kept so
  * the schema matches the in-game (bucket-2) workbook. Design: plan multilingual-app-translator-workflow.md.
  */
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs';

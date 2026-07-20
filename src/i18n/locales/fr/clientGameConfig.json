@@ -1,0 +1,36 @@
+{
+  "gameConfig": {
+    "subtitle": "Configurez les paramètres et préférences de votre jeu",
+    "audioSettings": "Paramètres audio",
+    "soundEnabled": "Son activé",
+    "musicVolume": "Volume de la musique : {{volume}} %",
+    "sfxVolume": "Volume des effets : {{volume}} %",
+    "displaySettings": "Paramètres d'affichage",
+    "displayMode": "Mode d'affichage",
+    "fullscreen": "Plein écran",
+    "windowed": "Fenêtré",
+    "borderless": "Fenêtre sans bordure",
+    "gameplaySettings": "Paramètres de jeu",
+    "difficulty": "Difficulté",
+    "easy": "Facile",
+    "normal": "Normal",
+    "hard": "Difficile",
+    "autoSave": "Enregistrement automatique",
+    "notifications": "Notifications",
+    "saveConfiguration": "Enregistrer la configuration"
+  },
+  "stationSelect": {
+    "placeholder": "Sélectionner une station…",
+    "clear": "Effacer",
+    "searchPlaceholder": "Rechercher des stations…",
+    "noStationsFound": "Aucune station trouvée",
+    "used": "(utilisée)"
+  },
+  "qrCodes": {
+    "title": "Codes QR",
+    "subtitle": "Imprimez-les et affichez-les sur votre site. Les joueurs scannent un code pour ouvrir l'application de ce scénario.",
+    "noScenarios": "Aucun scénario {{heading}} pour le moment",
+    "willAppear": "Ils apparaîtront ici dès qu'ils seront attribués à votre compte.",
+    "downloadSvg": "Télécharger le SVG"
+  }
+}

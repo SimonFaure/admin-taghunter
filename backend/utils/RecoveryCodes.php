@@ -20,6 +20,7 @@ class RecoveryCodes {
                 code VARCHAR(16) NOT NULL,
                 used_at DATETIME NULL DEFAULT NULL,
                 used_device_label VARCHAR(255) NULL DEFAULT NULL,
+                used_context VARCHAR(16) NULL DEFAULT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE KEY uniq_client_index (client_id, code_index),
                 INDEX idx_client (client_id)

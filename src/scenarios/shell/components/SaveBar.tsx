@@ -1,16 +1,17 @@
 /**
- * Shell save bar — Save / Publish / Download ZIP actions + dirty/alert surface.
+ * Shell save bar - Save / Publish / Download ZIP actions + dirty/alert surface.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Save, Send, Download, Eye, ChevronsDownUp, ChevronsUpDown, LayoutGrid as Layout } from 'lucide-react';
+import { Save, Send, Download, Eye, Smartphone, ChevronsDownUp, ChevronsUpDown, LayoutGrid as Layout } from 'lucide-react';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { TagquestPreviewModal } from '../../preview/TagquestPreviewModal';
 import { MysteryPreviewModal } from '../../preview/MysteryPreviewModal';
 import { MysteryIngameLayoutModal } from '../../preview/MysteryIngameLayoutModal';
+import { GoPreviewModal } from '../../preview/GoPreviewModal';
 import { useCollapseAll } from './CollapsibleSection';
 
 export function SaveBar() {
@@ -18,8 +19,11 @@ export function SaveBar() {
   const editor = useScenarioEditor();
   const busy = editor.isSaving || editor.isPublishing;
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [goPreviewOpen, setGoPreviewOpen] = useState(false);
   const [ingameLayoutOpen, setIngameLayoutOpen] = useState(false);
   const previewSupported = editor.gameType === 'tagquest' || editor.gameType === 'mystery';
+  // GO preview is admin-only (clients must not see anything GO in the editor).
+  const isGo = editor.isAdmin && editor.gameType === 'mystery' && (editor.gameMeta as Record<string, unknown>).adaptable_go === true;
   const { allCollapsed, toggleAll } = useCollapseAll();
   // Layout editor button is hidden for game types that don't use a layout JSON
   // (tagquest renders via defaultTagquestLayout; mystery has fixed CSS).
@@ -65,6 +69,17 @@ export function SaveBar() {
         </button>
       )}
 
+      {isGo && (
+        <button
+          onClick={() => setGoPreviewOpen(true)}
+          disabled={busy}
+          className={`${previewSupported ? '' : 'ml-auto'} inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 disabled:opacity-50 transition-colors`}
+        >
+          <Smartphone className="w-4 h-4" />
+          GO preview
+        </button>
+      )}
+
       <button
         onClick={toggleAll}
         disabled={busy}
@@ -105,6 +120,7 @@ export function SaveBar() {
       {previewSupported && editor.gameType === 'mystery' && (
         <MysteryPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
       )}
+      {isGo && <GoPreviewModal open={goPreviewOpen} onClose={() => setGoPreviewOpen(false)} />}
       {editor.gameType === 'mystery' && (
         <MysteryIngameLayoutModal
           open={ingameLayoutOpen}

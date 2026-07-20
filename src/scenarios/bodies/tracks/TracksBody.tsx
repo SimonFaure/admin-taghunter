@@ -1,5 +1,5 @@
 /**
- * Tracks body — composes the type-specific sections that render the editor UI
+ * Tracks body - composes the type-specific sections that render the editor UI
  * not covered by the shell's common sections (typography, meta, podium,
  * scenario video, downloadables on the detail view).
  *

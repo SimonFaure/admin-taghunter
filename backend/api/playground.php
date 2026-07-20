@@ -41,6 +41,109 @@ function playgroundFilterDisabledTypes($db, $client, array $rows, $col = 'game_t
     }));
 }
 
+// Read a client's "use my own team-name lists only" preference from the
+// clients.preferences JSON blob. Defaults to false (use the merged global ∪
+// client pool). Defensive: missing column / unparsable JSON -> false.
+function teamNamesOwnOnlyPref($db, int $clientId): bool {
+    try {
+        $row = $db->fetch('SELECT preferences FROM clients WHERE id = ?', [$clientId]);
+        if (!$row || empty($row['preferences'])) return false;
+        $prefs = json_decode($row['preferences'], true);
+        return is_array($prefs) && !empty($prefs['team_name_pools_own_only']);
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+// Build the team-name pools payload the playground downloads. Returns:
+//   version       max(global, this client) pool version (sync signal)
+//   own_only      the client's "use my own lists only" preference
+//   pools_global  default catalog,  audience -> language -> [names]  (display)
+//   pools_client  this client's pool, audience -> language -> [names] (display)
+//   pools         the EFFECTIVE draw set (audience -> language -> [names]) that
+//                 the LAN mother (Rust) and the manual "Random name" button read.
+//                 When own_only is on it is the client's pool, falling back to the
+//                 global catalog per (audience, language) where the client has no
+//                 names of its own; otherwise it is the merged global ∪ client set.
+// All three are deduped case-insensitively. Tables-not-migrated -> empty/version 0.
+function buildTeamNamesPayload($db, int $clientId): array {
+    $ownOnly = teamNamesOwnOnlyPref($db, $clientId);
+    $version = 0;
+    $global = [];   // [audience][language] => [names]
+    $client = [];   // [audience][language] => [names]
+    try {
+        $gv = $db->fetch("SELECT current_version FROM team_name_pools_meta WHERE scope_key = 'global'");
+        $cv = $db->fetch('SELECT current_version FROM team_name_pools_meta WHERE scope_key = ?', ['client:' . $clientId]);
+        $version = round(max((float)($gv['current_version'] ?? 0), (float)($cv['current_version'] ?? 0)), 2);
+        $rows = $db->fetchAll(
+            'SELECT client_id, audience, language, name FROM team_name_pools
+             WHERE client_id IS NULL OR client_id = ?
+             ORDER BY audience ASC, language ASC, name ASC',
+            [$clientId]
+        );
+        $seenG = [];
+        $seenC = [];
+        foreach ($rows as $r) {
+            $a = $r['audience'];
+            $l = $r['language'];
+            $norm = mb_strtolower(trim($r['name']));
+            if ($r['client_id'] === null) {
+                $key = $a . '|' . $l . '|' . $norm;
+                if (isset($seenG[$key])) continue;
+                $seenG[$key] = true;
+                $global[$a][$l][] = $r['name'];
+            } else {
+                $key = $a . '|' . $l . '|' . $norm;
+                if (isset($seenC[$key])) continue;
+                $seenC[$key] = true;
+                $client[$a][$l][] = $r['name'];
+            }
+        }
+    } catch (Exception $e) {
+        $version = 0;
+        $global = [];
+        $client = [];
+    }
+
+    // Effective draw set.
+    $effective = [];
+    $audiences = array_unique(array_merge(array_keys($global), array_keys($client)));
+    foreach ($audiences as $a) {
+        $langs = array_unique(array_merge(
+            array_keys($global[$a] ?? []),
+            array_keys($client[$a] ?? [])
+        ));
+        foreach ($langs as $l) {
+            $cNames = $client[$a][$l] ?? [];
+            $gNames = $global[$a][$l] ?? [];
+            if ($ownOnly) {
+                // Own list when this client has one for the age+language; else
+                // fall back to the default catalog for that (audience, language).
+                $effective[$a][$l] = !empty($cNames) ? $cNames : $gNames;
+            } else {
+                // Merged global ∪ client, deduped case-insensitively.
+                $merged = [];
+                $seen = [];
+                foreach (array_merge($gNames, $cNames) as $n) {
+                    $norm = mb_strtolower(trim($n));
+                    if (isset($seen[$norm])) continue;
+                    $seen[$norm] = true;
+                    $merged[] = $n;
+                }
+                $effective[$a][$l] = $merged;
+            }
+        }
+    }
+
+    return [
+        'version'      => $version,
+        'own_only'     => $ownOnly,
+        'pools'        => (object)$effective,
+        'pools_global' => (object)$global,
+        'pools_client' => (object)$client,
+    ];
+}
+
 try {
     $db = Database::getInstance();
     $method = $_SERVER['REQUEST_METHOD'];
@@ -208,12 +311,12 @@ try {
             $mediaImages = is_array($structuredMedias['images'] ?? null) ? $structuredMedias['images'] : [];
             $mediaSounds = is_array($structuredMedias['sounds'] ?? null) ? $structuredMedias['sounds'] : [];
             // Mystery's level-gauge images live in `medias.levels` (a legacy
-            // overload of the name — these are images, not gameplay levels;
+            // overload of the name - these are images, not gameplay levels;
             // see studio mystery/mediaSlots.ts). `cleanGameMetaForData` strips
             // them out of game_meta on save, so they only survive here.
             $mediaLevels = is_array($structuredMedias['levels'] ?? null) ? $structuredMedias['levels'] : [];
 
-            // Sibling field→filename maps — the scenario list view + test
+            // Sibling field→filename maps - the scenario list view + test
             // modals read `game_media_images` / `game_sounds` directly. The
             // gauge images are image fields too, so fold them into the same map.
             $allImages = array_merge($mediaImages, $mediaLevels);
@@ -225,7 +328,7 @@ try {
             // The playground's tagquest renderer still resolves sentinel
             // filenames (`@background`, `@malus_image`, `@template`) against
             // `game_meta`, and the mystery renderer reads `levels_gauge_image`
-            // / `levels_gauge_player_icon_image` / … from game_meta — so splice
+            // / `levels_gauge_player_icon_image` / … from game_meta - so splice
             // both the medias-column images AND the gauge images back in.
             if (is_array($gameData['game_meta'] ?? null)) {
                 foreach ($allImages as $field => $filename) {
@@ -254,7 +357,7 @@ try {
             // shape the playground reads has `quests` as a TOP-LEVEL sibling
             // (see the ZIP `buildZipPayload` contract). Per-quest media
             // (`main_image`, `image_1..4`, `sound`) also lived INLINE on each
-            // quest object pre-refactor — `cleanGameMetaForData` strips quests
+            // quest object pre-refactor - `cleanGameMetaForData` strips quests
             // down to {name, points} on save and parks the media in the
             // `medias` column. Rebuild the full quest objects (base fields +
             // media, matched by `quest_index`) and expose them top-level so
@@ -324,7 +427,7 @@ try {
             // `medias.checkpoints[]` list (keyed by `checkpoint_id`, with
             // `checkpoint_number` / position as fallbacks). The playground
             // runtime reads `game_meta.checkpoints[].image`, so splice each
-            // filename back onto its checkpoint — otherwise checkpoints render
+            // filename back onto its checkpoint - otherwise checkpoints render
             // as blank/placeholder markers.
             if (
                 ($scenario['game_type'] ?? '') === 'tracks'
@@ -365,14 +468,14 @@ try {
             // Tracks per-scenario layout: studio LayoutEditor saves HUD frame
             // positions (team_name, timer, score, time) into
             // `scenarios.scenario_layout`. The playground renderer needs them
-            // to draw HUD boxes where the author placed them on the map —
+            // to draw HUD boxes where the author placed them on the map -
             // otherwise it falls back to a hardcoded top strip. Splice the
             // raw column in under `scenario_layout` so the playground's
             // normalize can find it via either `raw.scenario_layout.elements`
             // (cloud path) or `raw.layout.elements` (ZIP path).
             // Authored text elements (slice 3 of tracks-text-elements.md)
-            // are filtered OUT of scenario_layout on save in the studio —
-            // their position lives in game_meta.text_elements[] instead —
+            // are filtered OUT of scenario_layout on save in the studio -
+            // their position lives in game_meta.text_elements[] instead -
             // so what arrives here is HUD/image elements only.
             if (!empty($scenario['scenario_layout'])) {
                 $layoutCol = json_decode($scenario['scenario_layout'], true);
@@ -383,7 +486,7 @@ try {
         }
 
         // The `medias` column historically holds a structured object
-        // ({images, quests, sounds, overscores}) — useful for studio admin
+        // ({images, quests, sounds, overscores}) - useful for studio admin
         // but not what the playground client wants. The client needs a flat
         // list of filenames it can pass to ?action=get_media&filename=...
         // We scan the on-disk media dir to produce that list authoritatively
@@ -401,10 +504,10 @@ try {
         }
 
         // Incremental-sync (CAS) manifest. `files` is the authoritative
-        // per-file list with content hashes — the playground downloads only
+        // per-file list with content hashes - the playground downloads only
         // blobs it doesn't already have and verifies each against its hash.
         // The first entry is game-data.json keyed by data_hash (a change token
-        // over data+medias+layout+game_type — NOT a hash of these served bytes,
+        // over data+medias+layout+game_type - NOT a hash of these served bytes,
         // so the playground must NOT hash-verify the game-data blob). `medias`
         // (flat filename list) and `version` are retained for older clients.
         $files = ScenarioHashes::fileManifest($db->getConnection(), $uniqid);
@@ -463,7 +566,7 @@ try {
             jsonResponse(['error' => 'Media file not found'], 404);
         }
 
-        // Binary streaming response — no auth_state wrapper here, this is a file download.
+        // Binary streaming response - no auth_state wrapper here, this is a file download.
         $mimeType = mime_content_type($mediaPath);
         header('Content-Type: ' . $mimeType);
         header('Content-Length: ' . filesize($mediaPath));
@@ -657,7 +760,7 @@ try {
             'SELECT version FROM client_cards_metadata WHERE client_id = ?',
             [$userId]
         );
-        // version is DECIMAL(10,2) — cast to float so JSON encodes as a number.
+        // version is DECIMAL(10,2) - cast to float so JSON encodes as a number.
         $version = $metadata ? round((float)$metadata['version'], 2) : 0.0;
 
         Logger::log('playground', $method, 'get_cards', $userId, [], ['count' => count($cards), 'version' => $version], 200, 'playground');
@@ -685,7 +788,7 @@ try {
         // clients get every product scenario, everyone else only the ones
         // granted via client_scenarios. Listing all product scenarios here
         // (the old behaviour) handed non-premium clients phantom sync items
-        // that get_scenario_game_data then rejected with 403 — surfacing in
+        // that get_scenario_game_data then rejected with 403 - surfacing in
         // the playground as a permanent "1 failed".
         if (($client['license_type'] ?? '') === 'premium') {
             $productScenarios = $db->fetchAll(
@@ -724,8 +827,12 @@ try {
         $customScenarios  = playgroundFilterDisabledTypes($db, $client, $customScenarios);
         $productScenarios = playgroundFilterDisabledTypes($db, $client, $productScenarios);
 
+        // Published only - mirrors the studio's own client-facing pattern list
+        // (patterns.php). Without the status filter, draft catalog patterns
+        // synced to every playground and could be silently picked as a launch
+        // default, breaking scoring (no station ever matches a punch).
         $defaultPatterns = $db->fetchAll(
-            'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE ORDER BY game_type, name'
+            "SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = TRUE AND status = 'published' ORDER BY game_type, name"
         );
         $customPatterns = $db->fetchAll(
             'SELECT name, game_type, version, pattern_uniqid FROM patterns WHERE is_default = FALSE AND owner_type = ? AND owner_id = ? ORDER BY game_type, name',
@@ -773,14 +880,24 @@ try {
             $recoveryCodesVersion = 0;
         }
 
-        // Mission-report PDF layout defaults version (global, admin-owned).
-        // Missing table on older installs -> version 0 (no download advertised).
+        // Mission-report PDF layout version: admin (global) + this client's own
+        // overrides. Both only ever increase, so a save on either side changes
+        // the sum and devices re-pull the merged set (get_report_layouts).
+        // Missing tables on older installs -> version 0 (no download advertised).
         $reportLayoutsVersion = 0;
         try {
             $rlv = $db->fetch('SELECT current_version FROM report_layouts_meta WHERE id = 1');
-            $reportLayoutsVersion = (int)($rlv['current_version'] ?? 0);
+            // current_version is DECIMAL(10,2), bumped by 0.1; PDO returns it as
+            // a string - cast + round so the JSON wire format is a clean number.
+            $reportLayoutsVersion = round((float)($rlv['current_version'] ?? 0), 2);
         } catch (Exception $e) {
             $reportLayoutsVersion = 0;
+        }
+        try {
+            $crlv = $db->fetch('SELECT current_version FROM client_report_layouts_meta WHERE client_id = ?', [$userId]);
+            $reportLayoutsVersion = round($reportLayoutsVersion + (float)($crlv['current_version'] ?? 0), 2);
+        } catch (Exception $e) {
+            // client overrides table not migrated yet -> admin version only
         }
 
         // Relayed default-hotspot Wi-Fi networks version (per-client). The client
@@ -912,7 +1029,7 @@ try {
 
         Logger::log('playground', $method, 'get_on_demand_cards', $userId, [], ['count' => count($cards)], 200, 'playground');
 
-        // File-style download — no auth_state wrapper (Content-Disposition: attachment).
+        // File-style download - no auth_state wrapper (Content-Disposition: attachment).
         http_response_code(200);
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="on_demand_cards.json"');
@@ -920,50 +1037,72 @@ try {
         exit;
 
     case 'get_team_names':
-        // Merged team-name pools (global catalog ∪ this client's pool), grouped
-        // audience -> language -> [names], deduped case-insensitively. The
-        // playground draws from this at team creation (auto-register / reuse).
+        // Team-name pools for this client. The downloaded file carries the
+        // EFFECTIVE draw set (`pools`, honoring the "use my own lists only"
+        // preference) that the LAN mother + manual draw read, plus the always-full
+        // `pools_global` / `pools_client` breakdowns the Settings "Team names" tab
+        // displays. The playground draws from `pools` at team creation.
         if ($method !== 'GET') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
         $client = requirePlaygroundClient($db);
         $userId = $client['id'];
 
-        $version = 0;
-        $pools = [];
-        try {
-            $gv = $db->fetch("SELECT current_version FROM team_name_pools_meta WHERE scope_key = 'global'");
-            $cv = $db->fetch('SELECT current_version FROM team_name_pools_meta WHERE scope_key = ?', ['client:' . $userId]);
-            // current_version is DECIMAL(10,2); cast to float so JSON emits a number.
-            $version = round(max((float)($gv['current_version'] ?? 0), (float)($cv['current_version'] ?? 0)), 2);
-            $rows = $db->fetchAll(
-                'SELECT audience, language, name FROM team_name_pools
-                 WHERE client_id IS NULL OR client_id = ?
-                 ORDER BY audience ASC, language ASC, name ASC',
-                [$userId]
-            );
-            $seen = [];
-            foreach ($rows as $r) {
-                $a = $r['audience'];
-                $l = $r['language'];
-                $key = $a . '|' . $l . '|' . mb_strtolower(trim($r['name']));
-                if (isset($seen[$key])) continue;
-                $seen[$key] = true;
-                $pools[$a][$l][] = $r['name'];
-            }
-        } catch (Exception $e) {
-            // tables not migrated yet -> empty pools, version 0
-            $version = 0;
-            $pools = [];
-        }
+        $payload = buildTeamNamesPayload($db, $userId);
 
-        Logger::log('playground', $method, 'get_team_names', $userId, [], ['version' => $version], 200, 'playground');
+        Logger::log('playground', $method, 'get_team_names', $userId, [], ['version' => $payload['version'], 'own_only' => $payload['own_only']], 200, 'playground');
 
         http_response_code(200);
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="team_names.json"');
-        echo json_encode(['version' => $version, 'pools' => (object)$pools]);
+        echo json_encode($payload);
         exit;
+
+    case 'set_team_names_own_only':
+        // Toggle the client-wide "use my own team-name lists only" preference
+        // (authored from the playground Settings → Team names tab). Persisted in
+        // clients.preferences so every draw path honors it: the cloud add_team
+        // draw reads it directly, and the LAN mother + manual draw get the
+        // re-filtered `pools` via a re-sync. We bump this client's pool version so
+        // the manifest's team_names_version advances and devices re-pull the
+        // freshly-filtered file. The response carries the fresh payload so the
+        // calling device can write team_names.json immediately (no sync wait).
+        if ($method !== 'POST') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $ownOnly = !empty($body['own_only']);
+
+        // Merge the flag into the existing preferences JSON (preserve other keys).
+        $clientRow = $db->fetch('SELECT preferences FROM clients WHERE id = ?', [$userId]);
+        $prefs = ($clientRow && $clientRow['preferences'])
+            ? json_decode($clientRow['preferences'], true)
+            : [];
+        if (!is_array($prefs)) $prefs = [];
+        $prefs['team_name_pools_own_only'] = $ownOnly;
+        $db->query('UPDATE clients SET preferences = ? WHERE id = ?', [json_encode($prefs), $userId]);
+
+        // Bump this client's pool version (above the current max) so the manifest
+        // advances and all the client's devices re-pull the re-filtered pools.
+        try {
+            $gv = $db->fetch("SELECT current_version FROM team_name_pools_meta WHERE scope_key = 'global'");
+            $cv = $db->fetch('SELECT current_version FROM team_name_pools_meta WHERE scope_key = ?', ['client:' . $userId]);
+            $next = round(max((float)($gv['current_version'] ?? 0), (float)($cv['current_version'] ?? 0)) + 0.10, 2);
+            $db->query(
+                'INSERT INTO team_name_pools_meta (scope_key, current_version) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE current_version = VALUES(current_version)',
+                ['client:' . $userId, $next]
+            );
+        } catch (Exception $e) {
+            // tables not migrated yet -> the preference still persists; the draw
+            // paths that read live tables just stay at their fallbacks.
+        }
+
+        Logger::log('playground', $method, 'set_team_names_own_only', $userId, ['own_only' => $ownOnly], ['ok' => true], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, buildTeamNamesPayload($db, $userId));
+        break;
 
     case 'get_recovery_codes':
         // This client's offline PIN-recovery codes, plaintext, in code_index
@@ -1003,33 +1142,41 @@ try {
         exit;
 
     case 'get_report_layouts':
-        // Global per-game-type mission-report PDF layout defaults. Not
-        // client-scoped (admin-owned, same for everyone). Per-scenario overrides
-        // ride in the scenario game_data, not here.
+        // Per-game-type mission-report PDF layouts: the admin (global) defaults
+        // with this client's own overrides layered on top, plus the admin-defined
+        // default print format (paper + orientation - a device's local
+        // Settings → Printing choice wins over it). Version is
+        // admin_version + client_version, matching the manifest. Per-scenario
+        // overrides ride in the scenario game_data, not here.
         if ($method !== 'GET') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
-        requirePlaygroundClient($db); // auth only; payload is global
+        $client = requirePlaygroundClient($db);
+        $userId = $client['id'];
 
         $version = 0;
         $layouts = new stdClass();
+        $printFormat = null;
         try {
             require_once __DIR__ . '/../utils/ReportLayouts.php';
-            $version = ReportLayouts::currentVersion($db);
-            $all = ReportLayouts::getAll($db);
-            $layouts = $all ?: new stdClass();
+            $version = ReportLayouts::combinedVersion($db, (int)$userId);
+            $merged = ReportLayouts::getAllForClient($db, (int)$userId);
+            $layouts = $merged['layouts'] ?: new stdClass();
+            // Client's own print format when set, else the admin default.
+            $printFormat = ReportLayouts::effectivePrintFormat($db, (int)$userId);
         } catch (Exception $e) {
             // tables not migrated yet -> empty, version 0 (playground keeps code defaults)
             $version = 0;
             $layouts = new stdClass();
+            $printFormat = null;
         }
 
-        Logger::log('playground', $method, 'get_report_layouts', null, [], ['version' => $version], 200, 'playground');
+        Logger::log('playground', $method, 'get_report_layouts', $userId, [], ['version' => $version], 200, 'playground');
 
         http_response_code(200);
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="report_layouts.json"');
-        echo json_encode(['version' => $version, 'layouts' => $layouts]);
+        echo json_encode(['version' => $version, 'layouts' => $layouts, 'print_format' => $printFormat]);
         exit;
 
     case 'download_pattern':
@@ -1168,90 +1315,19 @@ try {
         break;
 
     case 'announce_lan_network':
-        // Upload side of Feature B (the "default hotspot" onboarding step). The
-        // wizard sends the device's hotspot creds; studio relays them to siblings.
-        // Conflict gate: if the client already has a DIFFERENT default hotspot and
-        // the caller did not pass confirm_second, we return {conflict:true} WITHOUT
-        // writing so the wizard can show the "add a second default?" dialog.
-        // Multiple defaults coexist (multi-venue) once confirmed.
-        if ($method !== 'POST') {
-            jsonResponse(['error' => 'Method not allowed'], 405);
-        }
-        $client = requirePlaygroundClient($db);
-        $userId = $client['id'];
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-        $ssid = trim($body['ssid'] ?? '');
-        $password = (string)($body['password'] ?? '');
-        $source = ($body['source'] ?? 'hotspot') === 'router' ? 'router' : 'hotspot';
-        $confirmSecond = !empty($body['confirm_second']);
-        $deviceId = $client['device_id'] ?? null;
-        if ($ssid === '' || $password === '') {
-            jsonResponse(['error' => 'ssid and password are required'], 400);
-        }
-
-        // Existing default hotspots for this client, excluding this same SSID
-        // (re-announcing the same network is idempotent, never a "conflict").
-        $existing = $db->fetchAll(
-            'SELECT ln.ssid, d.device_label, COALESCE(d.device_label, d.os, "another device") AS label
-             FROM lan_networks ln
-             LEFT JOIN devices d ON d.id = ln.device_id
-             WHERE ln.client_id = ? AND ln.is_default = 1 AND ln.ssid <> ?',
-            [$userId, $ssid]
-        );
-        $alreadyHasThis = $db->fetch(
-            'SELECT id FROM lan_networks WHERE client_id = ? AND ssid = ?',
-            [$userId, $ssid]
-        );
-        if (!empty($existing) && !$alreadyHasThis && !$confirmSecond) {
-            $conflicts = [];
-            foreach ($existing as $e) {
-                $conflicts[] = ['ssid' => $e['ssid'], 'device_label' => $e['label']];
-            }
-            Logger::log('playground', $method, 'announce_lan_network', $userId, ['ssid' => $ssid], ['conflict' => true], 200, 'playground');
-            jsonResponseWithAuthState($db, $userId, ['conflict' => true, 'existing' => $conflicts]);
-        }
-
-        // Upsert by (client_id, ssid); bump version above the client's current max
-        // so the manifest's lan_networks_version advances and siblings re-pull.
-        $maxRow = $db->fetch('SELECT COALESCE(MAX(version),0) AS v FROM lan_networks WHERE client_id = ?', [$userId]);
-        $nextVersion = (int)($maxRow['v'] ?? 0) + 1;
-        $db->query(
-            'INSERT INTO lan_networks (client_id, device_id, ssid, password, source, is_default, version)
-             VALUES (?, ?, ?, ?, ?, 1, ?)
-             ON DUPLICATE KEY UPDATE
-               device_id = VALUES(device_id),
-               password  = VALUES(password),
-               source    = VALUES(source),
-               is_default = 1,
-               version   = VALUES(version)',
-            [$userId, $deviceId, $ssid, $password, $source, $nextVersion]
-        );
-        Logger::log('playground', $method, 'announce_lan_network', $userId, ['ssid' => $ssid], ['version' => $nextVersion], 200, 'playground');
-        jsonResponseWithAuthState($db, $userId, ['success' => true, 'version' => $nextVersion]);
-        break;
-
     case 'withdraw_lan_network':
-        // The operator turned the "default hotspot" designation off (in the
-        // Network settings tab). Stop serving this network to siblings. We bump
-        // the client version so the manifest advances and siblings drop the row.
+        // RETIRED: hotspot creds are now authored in studio and pushed DOWN on
+        // sync (see plans/studio-authoritative-hotspot-creds.md). The old upload
+        // path is gone. We keep these endpoints as harmless no-ops so older
+        // playground clients in a half-migrated fleet don't error AND can't
+        // overwrite the studio-authored row. Studio remains the sole author.
         if ($method !== 'POST') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
         $client = requirePlaygroundClient($db);
         $userId = $client['id'];
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-        $ssid = trim($body['ssid'] ?? '');
-        if ($ssid === '') {
-            jsonResponse(['error' => 'ssid is required'], 400);
-        }
-        $maxRow = $db->fetch('SELECT COALESCE(MAX(version),0) AS v FROM lan_networks WHERE client_id = ?', [$userId]);
-        $nextVersion = (int)($maxRow['v'] ?? 0) + 1;
-        $db->query(
-            'UPDATE lan_networks SET is_default = 0, version = ? WHERE client_id = ? AND ssid = ?',
-            [$nextVersion, $userId, $ssid]
-        );
-        Logger::log('playground', $method, 'withdraw_lan_network', $userId, ['ssid' => $ssid], ['version' => $nextVersion], 200, 'playground');
-        jsonResponseWithAuthState($db, $userId, ['success' => true, 'version' => $nextVersion]);
+        Logger::log('playground', $method, $action, $userId, [], ['retired' => true], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, ['success' => true, 'retired' => true]);
         break;
 
     case 'set_default_mother':
@@ -1308,7 +1384,7 @@ function playgroundClientCanAccessScenario($db, array $client, array $scenario):
     $userId = (int)$client['id'];
 
     // Cascade: a scenario whose game type is disabled for this client is never
-    // accessible — even direct-by-uniqid fetches (the manifest already hides it).
+    // accessible - even direct-by-uniqid fetches (the manifest already hides it).
     $disabledTypes = playgroundDisabledTypes($db, $client);
     if ($disabledTypes && in_array($scenario['game_type'] ?? '', $disabledTypes, true)) {
         return false;

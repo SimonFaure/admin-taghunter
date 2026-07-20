@@ -1,0 +1,66 @@
+{
+  "malusCombo": {
+    "sectionTitle": "Malus & combo",
+    "keys": {
+      "malus_points": "points de malus",
+      "late_malus_points": "points de malus tardif",
+      "combo_2_quests": "combo 2 quêtes",
+      "combo_4_quests": "combo 4 quêtes",
+      "combo_6_quests": "combo 6 quêtes"
+    }
+  },
+  "pattern": {
+    "sectionTitle": "Patron par défaut",
+    "label": "Patron tagquest par défaut (images de quête → correspondance des stations)",
+    "none": "- Aucun -",
+    "notFoundOption": "{{value}} (introuvable)",
+    "hint": "Associe les quatre images de pièces de chaque quête aux stations/balises. Créez des patrons tagquest dans la page Patrons. La correspondance est affichée à côté de chaque image ci-dessous. Modifiable au lancement."
+  },
+  "productTemplate": {
+    "notice": "<0>Modèle de produit :</0> les options « utiliser les images/textes par défaut » de l'ancien éditeur ne sont pas encore portées. Elles reviendront dans une prochaine mise à jour ; pour l'instant, créez les nouveaux scénarios tagquest à partir de zéro."
+  },
+  "quests": {
+    "sectionTitle": "Quêtes",
+    "addQuest": "Ajouter une quête",
+    "addQuestTitle": "Ajouter une nouvelle quête",
+    "maxQuestsTitle": "Maximum {{max}} quêtes",
+    "collapseQuest": "Réduire la quête",
+    "expandQuest": "Développer la quête",
+    "removeQuest": "Supprimer la quête",
+    "unnamedQuest": "Quête sans nom",
+    "unknownStation": "Station inconnue",
+    "piecesProgress": "{{n}}/4 pièces",
+    "pts": "{{points}} pts",
+    "questName": "Nom de la quête",
+    "points": "Points",
+    "mainImageHint": "L'image complète révélée lorsque les 4 pièces sont trouvées",
+    "mainImageLabel": "Image principale",
+    "soundHint": "Joué lorsque la quête est terminée",
+    "soundLabel": "Son de la quête",
+    "fourImages": "Quatre images à trouver <1>- chacune forme un quadrant de l'image principale</1>",
+    "noQuests": "Aucune quête pour l'instant.",
+    "overCapWarning_one": "Ce scénario comporte {{total}} quêtes, mais Tagquest prend désormais en charge un maximum de {{max}}. {{count}} quête en trop sera supprimée lors de l'enregistrement. Supprimez les quêtes non désirées pour choisir celles à conserver.",
+    "overCapWarning_other": "Ce scénario comporte {{total}} quêtes, mais Tagquest prend désormais en charge un maximum de {{max}}. {{count}} quêtes en trop seront supprimées lors de l'enregistrement. Supprimez les quêtes non désirées pour choisir celles à conserver.",
+    "pieces": {
+      "topLeft": "En haut à gauche",
+      "topRight": "En haut à droite",
+      "bottomLeft": "En bas à gauche",
+      "bottomRight": "En bas à droite"
+    }
+  },
+  "images": {
+    "sectionTitle": "Images tagquest",
+    "useDefaultTemplate": "Utiliser le modèle par défaut",
+    "downloadDefault": "Télécharger le modèle par défaut (à utiliser comme gabarit pour un visuel personnalisé)",
+    "customTemplateHint": "Le modèle personnalisé doit être un PNG 16:9 avec un fond transparent. Les positions du texte (minuteur, score, malus, combo, liste des quêtes) restent fixes - alignez votre visuel sur le modèle par défaut téléchargeable.",
+    "downloadFailed": "Échec du téléchargement",
+    "errTooLarge": "Le fichier est trop volumineux ({{mb}} Mo). Maximum 5 Mo.",
+    "errNotPng": "Le modèle doit être un PNG (avec fond transparent).",
+    "errDecode": "Impossible de décoder l'image.",
+    "errAspect": "Le modèle doit être en 16:9 ({{width}}×{{height}} obtenu, ratio {{ratio}}).",
+    "errOpaque": "Le modèle doit avoir un fond transparent (les quatre coins semblent opaques)."
+  },
+  "sounds": {
+    "sectionTitle": "Sons tagquest"
+  }
+}

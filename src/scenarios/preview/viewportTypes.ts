@@ -1,5 +1,5 @@
 /**
- * Viewport types and default — split from `ViewportSelect.tsx` so the
+ * Viewport types and default - split from `ViewportSelect.tsx` so the
  * component file exports only the component (Vite fast-refresh constraint).
  */
 

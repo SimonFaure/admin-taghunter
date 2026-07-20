@@ -2,7 +2,7 @@
  * Register a scenario's custom fonts as `FontFace`s inside the Studio webview
  * so the Typography picker preview and the scenario preview render them.
  *
- * Studio-side counterpart of the playground's `registerScenarioFonts()` — the
+ * Studio-side counterpart of the playground's `registerScenarioFonts()` - the
  * only difference is the URL source: a Studio media URL here, the
  * `scenario://` protocol there.
  *

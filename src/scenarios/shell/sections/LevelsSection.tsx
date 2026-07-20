@@ -1,5 +1,5 @@
 /**
- * Levels section — gated by capabilities.hasLevels (mystery + tagquest).
+ * Levels section - gated by capabilities.hasLevels (mystery + tagquest).
  *
  * Each level is a labeled row: name (translatable), points (scalar), and
  * description (translatable).

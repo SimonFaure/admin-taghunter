@@ -1,12 +1,14 @@
 /**
- * Timing section — default game time and per-minute malus. Operators can
+ * Timing section - default game time and per-minute malus. Operators can
  * override both at launch via the Advanced disclosure in the launch modal.
  */
 
+import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 
 export function TimingSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
 
@@ -15,11 +17,11 @@ export function TimingSection() {
   }
 
   return (
-    <CollapsibleSection title="Timing">
+    <CollapsibleSection title={t('editorTracks:timing.sectionTitle')}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <label className="block">
           <span className="text-xs font-medium text-gray-700 mb-1 block">
-            Default game time (minutes)
+            {t('editorTracks:timing.defaultTime')}
           </span>
           <input
             type="number"
@@ -32,7 +34,7 @@ export function TimingSection() {
         </label>
         <label className="block">
           <span className="text-xs font-medium text-gray-700 mb-1 block">
-            Malus per minute over (points or %)
+            {t('editorTracks:timing.malusPerMinute')}
           </span>
           <input
             type="number"

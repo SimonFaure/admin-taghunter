@@ -54,16 +54,21 @@ function formatMemberSince(dateString: string | undefined, t: TFn, locale: strin
 
 export function MyAccountView() {
   const { t, i18n } = useTranslation('account');
-  const { user, updateUserAvatar, updateCompanyLogo, updateLogoPreference, updateLanguage } = useSecureAuth();
+  const { user, updateUserAvatar, updateCompanyLogo, updateLogoPreference, updateReportLogoPreference, updateLanguage } = useSecureAuth();
   const [uploading, setUploading] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoTogglePending, setLogoTogglePending] = useState(false);
+  const [reportLogoPending, setReportLogoPending] = useState(false);
   const [langPending, setLangPending] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   const usesAvatar = user?.company_logo_uses_avatar !== false;
   const hasUploadedLogo = !!user?.company_logo_url;
+  const useBrandLogoOnReports = !!user?.report_use_brand_logo;
+  // The resolved brand image (uploaded company logo, else avatar). Mirrors the
+  // server-side resolution in PlaygroundAuthState::build (brand_logo_url).
+  const hasBrandImage = hasUploadedLogo || !!user?.avatar_url;
 
   const activeBrandUrl = useMemo(() => {
     if (!user) return null;
@@ -171,6 +176,33 @@ export function MyAccountView() {
       setError(err instanceof Error ? err.message : t('messages.prefFail'));
     } finally {
       setLogoTogglePending(false);
+    }
+  };
+
+  const handleToggleReportLogo = async (useBrandLogo: boolean) => {
+    setReportLogoPending(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/secure_auth.php?action=update-report-logo-preference`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': user?.token || '',
+        },
+        body: JSON.stringify({ use_brand_logo: useBrandLogo }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update preference');
+      }
+
+      updateReportLogoPreference(useBrandLogo);
+      showSuccess(t('reportLogo.saved'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('messages.prefFail'));
+    } finally {
+      setReportLogoPending(false);
     }
   };
 
@@ -406,6 +438,24 @@ export function MyAccountView() {
                 <p className="text-xs text-slate-500">{t('brand.constraints')}</p>
               </div>
             )}
+
+            <div className="mt-5 pt-5 border-t border-slate-100">
+              <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useBrandLogoOnReports}
+                  disabled={reportLogoPending || !hasBrandImage}
+                  onChange={(e) => handleToggleReportLogo(e.target.checked)}
+                  className="w-4 h-4 rounded border-slate-300 mt-0.5"
+                />
+                <span>
+                  <span className="font-medium block">{t('reportLogo.label')}</span>
+                  <span className="text-xs text-slate-500 block mt-0.5">
+                    {hasBrandImage ? t('reportLogo.desc') : t('reportLogo.noImage')}
+                  </span>
+                </span>
+              </label>
+            </div>
           </div>
         </div>
       </div>

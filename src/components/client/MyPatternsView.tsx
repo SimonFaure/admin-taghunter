@@ -17,6 +17,8 @@ interface Pattern {
   game_type: string;
   version: string;
   status: string;
+  mode?: string | null;
+  answer_count?: number | null;
   pattern_uniqid?: string;
   pattern_slug?: string;
   pattern_data: string;
@@ -210,7 +212,7 @@ function PatternGrid({ pattern }: { pattern: Pattern }) {
                 const v = row.assignments?.[c.key];
                 return (
                   <td key={c.key} className="px-3 py-2 text-slate-900 font-medium">
-                    {v == null ? <span className="text-slate-300">—</span> : v}
+                    {v == null ? <span className="text-slate-300">-</span> : v}
                   </td>
                 );
               })}
@@ -254,6 +256,11 @@ function PatternTable({ patterns, onPreview, getOnEdit, getOnSetStatus, getOnDel
                     <GameTypeIcon type={pattern.game_type} className="w-3.5 h-3.5" />
                     {pattern.game_type}
                   </span>
+                  {pattern.mode === 'go' && (
+                    <span className="ml-1.5 inline-flex items-center text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded font-medium">
+                      GO{pattern.answer_count ? ` · ${pattern.answer_count === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-2.5 text-slate-600">v{pattern.version || '1.0'}</td>
                 {showStatus && (

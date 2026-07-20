@@ -25,6 +25,12 @@
     "upload": "Upload company logo",
     "constraints": "Max 2MB. JPEG, PNG, GIF or WebP."
   },
+  "reportLogo": {
+    "label": "Use my logo on printed reports",
+    "desc": "Printed mission reports will show your brand image instead of the Tag Hunter logo.",
+    "noImage": "Add an avatar or company logo above to enable this.",
+    "saved": "Report logo preference updated"
+  },
   "language": {
     "title": "Language",
     "desc": "The language of your Studio interface. It also becomes the default for new scenarios you create and the suggested language when setting up the playground app."

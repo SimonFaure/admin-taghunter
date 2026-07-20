@@ -1,0 +1,66 @@
+{
+  "malusCombo": {
+    "sectionTitle": "Malus & combo",
+    "keys": {
+      "malus_points": "malus points",
+      "late_malus_points": "late malus points",
+      "combo_2_quests": "combo 2 quests",
+      "combo_4_quests": "combo 4 quests",
+      "combo_6_quests": "combo 6 quests"
+    }
+  },
+  "pattern": {
+    "sectionTitle": "Default pattern",
+    "label": "Default tagquest pattern (quest images → station mapping)",
+    "none": "- None -",
+    "notFoundOption": "{{value}} (not found)",
+    "hint": "Assigns each quest's four piece images to stations/balises. Create tagquest patterns in the Patterns page. The mapping is shown next to each image below. Overridable at launch."
+  },
+  "productTemplate": {
+    "notice": "<0>Product template:</0> the \"use default images/texts\" toggles from the legacy editor are not yet ported. They will return in a follow-up; for now create new tagquest scenarios from scratch."
+  },
+  "quests": {
+    "sectionTitle": "Quests",
+    "addQuest": "Add quest",
+    "addQuestTitle": "Add a new quest",
+    "maxQuestsTitle": "Maximum {{max}} quests",
+    "collapseQuest": "Collapse quest",
+    "expandQuest": "Expand quest",
+    "removeQuest": "Remove quest",
+    "unnamedQuest": "Unnamed quest",
+    "unknownStation": "Unknown station",
+    "piecesProgress": "{{n}}/4 pieces",
+    "pts": "{{points}} pts",
+    "questName": "Quest name",
+    "points": "Points",
+    "mainImageHint": "The complete picture revealed when all 4 pieces are found",
+    "mainImageLabel": "Main image",
+    "soundHint": "Played when the quest is completed",
+    "soundLabel": "Quest sound",
+    "fourImages": "Four images to find <1>- each forms one quadrant of the main image</1>",
+    "noQuests": "No quests yet.",
+    "overCapWarning_one": "This scenario has {{total}} quests but Tagquest now supports a maximum of {{max}}. The extra {{count}} quest will be removed when you save. Delete unwanted quests to choose which ones are kept.",
+    "overCapWarning_other": "This scenario has {{total}} quests but Tagquest now supports a maximum of {{max}}. The extra {{count}} quests will be removed when you save. Delete unwanted quests to choose which ones are kept.",
+    "pieces": {
+      "topLeft": "Top-left",
+      "topRight": "Top-right",
+      "bottomLeft": "Bottom-left",
+      "bottomRight": "Bottom-right"
+    }
+  },
+  "images": {
+    "sectionTitle": "Tagquest images",
+    "useDefaultTemplate": "Use default template",
+    "downloadDefault": "Download default template (use as a spec for custom artwork)",
+    "customTemplateHint": "Custom template must be a 16:9 PNG with a transparent background. Text positions (timer, score, malus, combo, quest list) stay fixed - align your artwork to the downloadable default template.",
+    "downloadFailed": "Download failed",
+    "errTooLarge": "File is too large ({{mb}} MB). Max 5 MB.",
+    "errNotPng": "Template must be a PNG (with transparent background).",
+    "errDecode": "Could not decode image.",
+    "errAspect": "Template must be 16:9 (got {{width}}×{{height}}, ratio {{ratio}}).",
+    "errOpaque": "Template must have a transparent background (all four corners look opaque)."
+  },
+  "sounds": {
+    "sectionTitle": "Tagquest sounds"
+  }
+}

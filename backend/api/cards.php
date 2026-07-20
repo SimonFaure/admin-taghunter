@@ -72,7 +72,7 @@ function fetchClientCardsVersion($db, $clientId) {
 }
 
 function bumpClientCardsVersion($db, $clientId) {
-    // Bump by 0.01 (not 1) — versions read like 1.00, 1.01, 1.02. We do the
+    // Bump by 0.01 (not 1) - versions read like 1.00, 1.01, 1.02. We do the
     // arithmetic in SQL with DECIMAL to avoid float-precision drift across
     // hundreds of mutations.
     $clientId = (int)$clientId;
@@ -322,7 +322,7 @@ try {
                 ORDER BY c.name ASC, c.email ASC
             ');
 
-            // Cast numeric columns. version is DECIMAL(10,2) — PDO returns it
+            // Cast numeric columns. version is DECIMAL(10,2) - PDO returns it
             // as a string, so cast to float so the JSON wire format is a number.
             foreach ($rows as &$r) {
                 $r['version'] = $r['version'] !== null ? round((float)$r['version'], 2) : null;

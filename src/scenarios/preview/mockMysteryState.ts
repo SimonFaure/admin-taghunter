@@ -3,7 +3,7 @@
  *
  * Mystery's main game screen shows: team name, timer, score, and an enigmas
  * grid (locked vs revealed images). The numbers below are non-zero so the
- * author sees realistic copy in their layout — avoids hiding overflow in
+ * author sees realistic copy in their layout - avoids hiding overflow in
  * tight boxes.
  */
 

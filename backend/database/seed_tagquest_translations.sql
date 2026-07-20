@@ -4,7 +4,7 @@
 -- top-level keys (`score`, `malus`, `late_malus`, `combo_points`) are fixed in
 -- code. Inner per-language values match `DEFAULT_PREVIEW_LABELS` in
 -- studio-taghunter/src/scenarios/preview/previewLabels.ts and are the
--- code-level safety net — admin overrides write on top of these.
+-- code-level safety net - admin overrides write on top of these.
 --
 -- Idempotent via INSERT IGNORE on the UNIQUE(meta) key.
 

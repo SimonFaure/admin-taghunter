@@ -2,7 +2,7 @@
 //
 // A pattern is an ordered list of rows; each row maps a set of "assignment
 // types" (the columns) to a station/balise number. The columns differ per game
-// type — this is the single source of truth the client builder, the CSV/XLS
+// type - this is the single source of truth the client builder, the CSV/XLS
 // templates, and the spreadsheet importer all read from. Mirrors the
 // creator-ported PatternEditor's PATTERN_SHAPES (kept in sync deliberately).
 
@@ -24,19 +24,14 @@ export const PATTERN_SHAPES: Record<string, PatternShape> = {
     types: ['station'],
     labels: ['Station'],
   },
-  // Clash: each row = one combination = 3 balise stations, mapped positionally
-  // to the scenario's combinations (territory order).
-  clash: {
-    types: ['station_1', 'station_2', 'station_3'],
-    labels: ['Balise 1', 'Balise 2', 'Balise 3'],
-  },
+  // Clash (V2) has no pattern: balise station codes are authored inline on each
+  // territory in the scenario and overridden at launch.
 };
 
 export const PATTERN_GAME_TYPES: Array<{ value: string; label: string }> = [
   { value: 'mystery', label: 'Mystery' },
   { value: 'tagquest', label: 'Tagquest' },
   { value: 'tracks', label: 'Track' },
-  { value: 'clash', label: 'Clash' },
 ];
 
 export interface PatternRow {
@@ -60,7 +55,7 @@ const KEY_TO_ENGLISH_LABEL: Record<string, string> = (() => {
   return m;
 })();
 
-// Localized DISPLAY label for a column key. Pass a `t` (any i18next TFunction —
+// Localized DISPLAY label for a column key. Pass a `t` (any i18next TFunction -
 // it resolves the fully-qualified `patternShapes:` keys regardless of the
 // caller's default namespace) to translate; without it, or for unknown/extra
 // keys, it falls back to the canonical English label.
@@ -139,7 +134,7 @@ export function rowsFromMatrix(matrix: Array<Array<string | number>>, gameType: 
   return rows;
 }
 
-// Header row used by the downloadable templates — the canonical keys.
+// Header row used by the downloadable templates - the canonical keys.
 export function templateHeaders(gameType: string): string[] {
   return getShape(gameType).types;
 }

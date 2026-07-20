@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Download, Calendar, Layers, X, Upload, ChevronDown } from 'lucide-react';
 import { db } from '../lib/db';
@@ -46,6 +46,8 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  // Tag Hunter GO: filter the list by mode (GO vs RFID/Playground patterns).
+  const [modeFilter, setModeFilter] = useState<'all' | 'playground' | 'go'>('all');
   const [alert, setAlert] = useState<{ show: boolean; type: 'success' | 'error'; message: string }>({
     show: false,
     type: 'success',
@@ -60,6 +62,9 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
     image_2: true,
     image_3: true,
     image_4: true,
+    // Tag Hunter GO: only meaningful for mystery patterns.
+    goMode: false,
+    answerCount: 2 as 2 | 4,
   });
   const [isCreating, setIsCreating] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; pattern: Pattern | null; isDeleting: boolean }>({
@@ -120,9 +125,15 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
     return a.name.localeCompare(b.name);
   });
 
-  const filteredPatterns = activeTab === 'all'
-    ? sortedPatterns
-    : sortedPatterns.filter((p) => p.game_type === activeTab);
+  const filteredPatterns = sortedPatterns
+    .filter((p) => activeTab === 'all' || p.game_type === activeTab)
+    .filter((p) =>
+      modeFilter === 'all'
+        ? true
+        : modeFilter === 'go'
+          ? p.mode === 'go'
+          : (p.mode ?? 'playground') !== 'go',
+    );
 
   const handleOpenCreateModal = () => {
     setCreateForm({
@@ -135,6 +146,8 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
       image_4: true,
       image_5: true,
       image_6: true,
+      goMode: modeFilter === 'go',
+      answerCount: 2,
     });
     setShowCreateModal(true);
   };
@@ -146,12 +159,15 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
     try {
       const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
       const trimmedName = createForm.name.trim();
+      const isGo = createForm.gameType === 'mystery' && createForm.goMode;
       const { data, error } = await db
         .from('patterns')
         .insert({
           name: trimmedName,
           game_type: createForm.gameType,
           pattern_slug: generatePatternSlug(trimmedName),
+          mode: isGo ? 'go' : 'playground',
+          answer_count: isGo ? createForm.answerCount : null,
           created_at: now,
           updated_at: now,
         })
@@ -319,6 +335,23 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
             {tab.label}
           </button>
         ))}
+        <div className="ml-auto flex items-center gap-1 rounded-lg bg-slate-800 p-1">
+          {(['all', 'playground', 'go'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setModeFilter(m)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
+                modeFilter === m
+                  ? m === 'go'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {m === 'all' ? 'All modes' : m === 'go' ? 'GO' : 'Playground'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filteredPatterns.length === 0 ? (
@@ -340,6 +373,15 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold text-white truncate pr-2">{pattern.name}</h3>
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    {pattern.mode === 'go' ? (
+                      <span className="px-2 py-1 bg-emerald-600/20 text-emerald-300 text-xs font-medium rounded border border-emerald-600/30">
+                        GO{pattern.answer_count ? ` · ${pattern.answer_count === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-slate-700/60 text-slate-400 text-xs font-medium rounded border border-slate-600/40">
+                        Playground
+                      </span>
+                    )}
                     {activeTab === 'all' && (
                       <span className="px-2 py-1 bg-blue-600/20 text-blue-400 text-xs font-medium rounded border border-blue-600/30">
                         {GAME_TYPE_TABS.find((t) => t.key === pattern.game_type)?.label}
@@ -498,6 +540,43 @@ export function PatternsPage({ onEditPattern }: PatternsPageProps) {
                     min={1}
                     className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                   />
+                </div>
+              )}
+
+              {createForm.gameType === 'mystery' && (
+                <div className="rounded-lg border border-emerald-700/50 bg-emerald-900/20 p-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={createForm.goMode}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, goMode: e.target.checked }))}
+                      className="h-4 w-4 rounded border-slate-500 text-emerald-600"
+                    />
+                    <span className="text-sm font-medium text-emerald-200">Tag Hunter GO pattern</span>
+                  </label>
+                  {createForm.goMode && (
+                    <div className="mt-3">
+                      <span className="block text-xs text-slate-300 mb-1.5">Answer options</span>
+                      <div className="flex gap-2">
+                        {([2, 4] as const).map((n) => (
+                          <button
+                            key={n}
+                            onClick={() => setCreateForm((prev) => ({ ...prev, answerCount: n }))}
+                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                              createForm.answerCount === n
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                            }`}
+                          >
+                            {n === 2 ? '2 - A / B' : '4 - A / B / C / D'}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-400">
+                        Must match the scenario’s answer count. GO patterns map letters to answer images.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 

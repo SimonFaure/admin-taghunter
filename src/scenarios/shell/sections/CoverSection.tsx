@@ -1,5 +1,5 @@
 /**
- * Cover section — background_image, game_visual.
+ * Cover section - background_image, game_visual.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
@@ -16,7 +16,7 @@ const COVER_KEYS = ['background_image', 'game_visual', 'scenario_video'] as cons
 // Tracks places its checkpoints on top of a background map; the map field lives
 // here alongside the cover/background so all the full-scene backdrops are in one
 // place. `map_image` is part of the tracks adapter manifest (tracksMediaSlots),
-// so uploads resolve correctly — this slot literal only drives the field UI.
+// so uploads resolve correctly - this slot literal only drives the field UI.
 const TRACKS_MAP_SLOT: MediaSlot = {
   key: 'map_image',
   kind: 'image',

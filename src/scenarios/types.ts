@@ -1,10 +1,10 @@
 /**
- * Stage 2 — public types for the scenario authoring shell + per-type adapters.
+ * Stage 2 - public types for the scenario authoring shell + per-type adapters.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  *
  * Wire shape on `scenarios.data` and `scenarios.medias` is unchanged from Stage 1.
- * These types describe HOW the shell consumes a body's adapter — they do not
+ * These types describe HOW the shell consumes a body's adapter - they do not
  * impose a new on-disk shape.
  */
 
@@ -15,7 +15,7 @@ import type { ValidationResult } from '../creator-ported/utils/publishValidation
 export type ScenarioGameType = 'mystery' | 'tagquest' | 'tracks' | 'clash';
 
 /**
- * A single asset slot the editor knows about — image, sound, or font.
+ * A single asset slot the editor knows about - image, sound, or font.
  * `key` matches a field name in `game_meta` (e.g. 'background_image').
  * The shell renders an upload widget per slot, driven by this manifest.
  */
@@ -25,6 +25,7 @@ export interface MediaSlot {
   required: 'error' | 'warning' | false;
   scope: 'common' | 'type';
   label: string;
+  labelKey?: string;
   acceptMime?: readonly string[];
 }
 
@@ -34,8 +35,6 @@ export interface MediaSlot {
  *
  * - `hasLevels`: render LevelsSection. True for mystery + tagquest, false for tracks.
  * - `hasOverscores`: render OverscoresSection. Mystery only.
- * - `hasPodium`: render PodiumSection (top_1/3/10). True for mystery/tagquest/tracks;
- *   false for clash (clan-based, no per-team podium).
  * - `supportsProductTemplate`: render the "use default images/texts" toggle that
  *   pulls from the Tagquest defaultConfig table. Tagquest only today.
  * - `hasTranslatableArrays`: which named arrays under `game_meta` carry
@@ -45,13 +44,12 @@ export interface MediaSlot {
 export interface Capabilities {
   hasLevels: boolean;
   hasOverscores: boolean;
-  hasPodium: boolean;
   supportsProductTemplate: boolean;
   hasTranslatableArrays: readonly ('quests' | 'enigmas' | 'levels' | 'overscores' | 'checkpoints')[];
 }
 
 /**
- * One enumerated media file inside a scenario — used by performZipDownload
+ * One enumerated media file inside a scenario - used by performZipDownload
  * (download-and-bundle). `font` covers author-uploaded custom font files.
  */
 export interface EnumeratedMedia {
@@ -62,7 +60,7 @@ export interface EnumeratedMedia {
 
 /**
  * Shape of the `scenarios.medias` JSON column. Type-specific arrays
- * (quests/enigmas/levels/overscores) are optional — only present for
+ * (quests/enigmas/levels/overscores) are optional - only present for
  * types that carry per-element media.
  */
 export interface MediasColumn {
@@ -123,6 +121,14 @@ export interface ScenarioAdapter<TGameMeta = unknown> {
   Body: ComponentType;
 
   /**
+   * Optional section rendered at the very top of the editor (right after the
+   * language bar, before the common Meta section). Used by mystery for the
+   * "Adaptable à TGH Go" toggle, which needs to sit "en haut" because it drives
+   * what the rest of the editor reveals/collapses. Omit for types without one.
+   */
+  TopSection?: ComponentType;
+
+  /**
    * Build the `scenarios.medias` column shape from a gameMeta. Type-specific
    * because mystery wraps enigma media inline, tagquest wraps quest media,
    * and the partition (images/sounds + per-array slots) varies.
@@ -141,7 +147,7 @@ export interface ScenarioAdapter<TGameMeta = unknown> {
   cleanGameMetaForData: (gameMeta: TGameMeta) => Record<string, unknown>;
 
   /**
-   * Enumerate every media filename referenced anywhere in gameMeta —
+   * Enumerate every media filename referenced anywhere in gameMeta -
    * top-level fields PLUS nested array slots (quest images, enigma images, etc).
    * Used by the publish flow (collect-and-upload) and the ZIP-download
    * path (download-and-bundle).
@@ -178,7 +184,7 @@ export interface ShellAlert {
 }
 
 /**
- * What `useScenarioEditor()` returns — the full state + actions surface
+ * What `useScenarioEditor()` returns - the full state + actions surface
  * the shell exposes to bodies via React context.
  *
  * Bodies destructure what they need; everything is generic over TGameMeta.

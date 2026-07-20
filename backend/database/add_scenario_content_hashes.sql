@@ -10,7 +10,7 @@
 --                           Cheap "did anything in this scenario change" check
 --                           shipped in the aggregate manifest.
 --   media_hashes  LONGTEXT  JSON map { "<filename>": {"h":<sha256>,"s":<size>,"m":<mtime>} }
---                           for the flat top-level files in media/{uniqid}/ — the
+--                           for the flat top-level files in media/{uniqid}/ - the
 --                           exact set the playground mirrors. `s`/`m` let the
 --                           recompute helper skip re-hashing untouched big files.
 --

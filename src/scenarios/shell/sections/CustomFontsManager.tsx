@@ -1,9 +1,9 @@
 /**
- * Custom-fonts manager — upload author-supplied font files, grouped into
+ * Custom-fonts manager - upload author-supplied font files, grouped into
  * families with per-face weight/style.
  *
  * On upload each file's family/weight/style is auto-detected from its metadata
- * (opentype.js); on a parse failure it falls back to filename-derived values —
+ * (opentype.js); on a parse failure it falls back to filename-derived values -
  * the upload is never blocked. Every field stays editable afterwards.
  *
  * Files upload through the shell's `uploadAsset` into `media/<uniqid>/`, so
@@ -96,7 +96,7 @@ export function CustomFontsManager() {
   const removeFace = (idx: number, faceIdx: number) =>
     patchFamilyAt(idx, (cf, font) => {
       const faces = cf.faces.filter((_, i) => i !== faceIdx);
-      // A family with no faces left is dropped — and `font` reset if it pointed here.
+      // A family with no faces left is dropped - and `font` reset if it pointed here.
       return faces.length > 0
         ? { cf: { ...cf, faces }, font }
         : { cf: null, font: font === cf.family ? '' : font };
@@ -109,7 +109,7 @@ export function CustomFontsManager() {
     setBusy(true);
     try {
       // Parse + upload sequentially, accumulating results, THEN apply one
-      // gameMeta update — `setGameMeta` reads the render-time state, so a
+      // gameMeta update - `setGameMeta` reads the render-time state, so a
       // per-file update loop would clobber earlier entries.
       const uploaded: Array<{ family: string; face: CustomFontFace; detected: boolean }> = [];
       let failures = 0;

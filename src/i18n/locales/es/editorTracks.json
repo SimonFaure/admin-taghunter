@@ -1,0 +1,126 @@
+{
+  "pattern": {
+    "sectionTitle": "Patrón por defecto",
+    "label": "Patrón de ruta por defecto (correspondencia punto de control → estación)",
+    "none": "- Ninguno -",
+    "notFound": "{{value}} (no encontrado)",
+    "hint": "Asigna cada punto de control a una estación/baliza. Crea los patrones de ruta en la página Patrones. La correspondencia se muestra bajo cada punto de control más abajo. Se puede modificar al lanzar."
+  },
+  "checkpoints": {
+    "sectionTitle": "Puntos de control ({{count}})",
+    "addCheckpoint": "Añadir punto de control",
+    "perCheckpoint": "Por punto de control (cada uno tiene su propio icono)",
+    "common": "Común (todos los puntos de control comparten un icono)",
+    "none": "Aún no hay puntos de control.",
+    "checkpointImage": "Imagen del punto de control",
+    "checkpointN": "Punto de control {{number}}",
+    "unknownStation": "Estación desconocida",
+    "noStationAssigned": "Ninguna estación asignada",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "removeCheckpoint": "Eliminar punto de control",
+    "titleLabel": "Título ({{lang}})",
+    "descriptionLabel": "Descripción ({{lang}})",
+    "points": "Puntos"
+  },
+  "routes": {
+    "sectionTitle": "Rutas",
+    "hint": "Los operadores eligen una de las rutas activadas en el momento del lanzamiento.",
+    "items": {
+      "default": { "label": "Por defecto", "help": "Todos los puntos de control en orden (1..N)." },
+      "first_half": { "label": "Primera mitad", "help": "Puntos de control 1..N/2." },
+      "last_half": { "label": "Última mitad", "help": "Puntos de control N/2+1..N." },
+      "odd": { "label": "Impares", "help": "Puntos de control impares (1, 3, 5, ...)." },
+      "even": { "label": "Pares", "help": "Puntos de control pares (2, 4, 6, ...)." }
+    }
+  },
+  "displays": {
+    "sectionTitle": "Modos de visualización",
+    "hint": "Los operadores eligen uno de los modos de visualización activados en el momento del lanzamiento.",
+    "items": {
+      "full": { "label": "Completo", "help": "Mapa + título, descripción e imagen de revelación del punto de control con animación." },
+      "map": { "label": "Mapa", "help": "Solo el mapa; los marcadores se iluminan al alcanzarlos. Sin título/descripción, sin gran revelación." },
+      "simple": { "label": "Simple", "help": "HUD mínimo (nombre del equipo + puntuación + número del punto de control actual), sin mapa." }
+    }
+  },
+  "playModes": {
+    "sectionTitle": "Modos de juego",
+    "hint": "Los operadores eligen uno de los modos de juego activados en el momento del lanzamiento.",
+    "items": {
+      "itinerary": { "label": "Itinerario", "help": "Los equipos deben alcanzar los puntos de control en orden." },
+      "free": { "label": "Libre", "help": "Cuenta cualquier orden." }
+    }
+  },
+  "scoreTypes": {
+    "sectionTitle": "Tipos de puntuación",
+    "hint": "Los operadores eligen uno de los tipos de puntuación activados al lanzar. El marcado como «por defecto» viene preseleccionado.",
+    "default": "por defecto",
+    "items": {
+      "percentage": { "label": "Porcentaje", "help": "Puntuación = % de puntos de control alcanzados, con un tope de 100, menos el malus de tiempo." },
+      "points": { "label": "Puntos", "help": "Puntuación = suma de los puntos de los puntos de control alcanzados, menos el malus de tiempo." }
+    }
+  },
+  "timing": {
+    "sectionTitle": "Temporización",
+    "defaultTime": "Duración de juego por defecto (minutos)",
+    "malusPerMinute": "Malus por minuto de exceso (puntos o %)"
+  },
+  "displayOptions": {
+    "sectionTitle": "Opciones de visualización",
+    "displayScore": "Mostrar la puntuación durante el juego",
+    "displayScoreHint": "Muestra la puntuación en curso en el HUD durante toda la partida."
+  },
+  "hudFrames": {
+    "sectionTitle": "Marcos HUD"
+  },
+  "textElements": {
+    "sectionTitle": "Elementos de texto ({{count}})",
+    "addCategory": "Añadir categoría",
+    "addElement": "Añadir elemento",
+    "uncategorized": "Sin categoría",
+    "unnamed": "(sin nombre)",
+    "categoryNamePlaceholder": "Nombre de la categoría",
+    "categoryDefaultName": "Categoría {{number}}",
+    "elementCount_one": "{{count}} elemento",
+    "elementCount_other": "{{count}} elementos",
+    "expand": "Expandir",
+    "collapse": "Contraer",
+    "moveCategoryUp": "Subir categoría",
+    "moveCategoryDown": "Bajar categoría",
+    "deleteCategory": "Eliminar categoría",
+    "noElements": "Aún no hay elementos en esta categoría.",
+    "textPlaceholder": "Texto ({{lang}})",
+    "category": "Categoría",
+    "placed": "colocado",
+    "unplaced": "sin colocar",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "removeElement": "Eliminar elemento",
+    "hint": "Las categorías agrupan los elementos de texto y definen sus valores de tipografía por defecto (fuente, color, negrita / cursiva / subrayado, alineación, sombra, fondo). La tipografía se edita en el editor de diseño; las anulaciones por elemento prevalecen campo por campo.",
+    "deleteConfirm": "¿Eliminar la categoría «{{name}}»?",
+    "deleteConfirmWithElements_one": "¿Eliminar la categoría «{{name}}»? Su {{count}} elemento pasará a Sin categoría.",
+    "deleteConfirmWithElements_other": "¿Eliminar la categoría «{{name}}»? Sus {{count}} elementos pasarán a Sin categoría."
+  },
+  "feedbackImages": {
+    "sectionTitle": "Imágenes de respuesta"
+  },
+  "sounds": {
+    "sectionTitle": "Sonidos"
+  },
+  "typography": {
+    "overrideOn": "Anulación activada - el elemento prevalece",
+    "inheritFromCategory": "Heredar de la categoría",
+    "font": "Fuente",
+    "scenarioDefault": "- Predeterminada del escenario -",
+    "groupStandard": "Estándar",
+    "groupThemed": "Temáticas",
+    "groupCustomFonts": "Fuentes personalizadas",
+    "color": "Color",
+    "custom": "Personalizado",
+    "style": "Estilo",
+    "align": "Alineación",
+    "shadow": "Sombra",
+    "enabled": "activado",
+    "bgFill": "Fondo"
+  }
+}

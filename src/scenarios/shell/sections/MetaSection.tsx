@@ -1,5 +1,5 @@
 /**
- * Meta section — title / description / story.
+ * Meta section - title / description / story.
  *
  * Slice 3B: title/description/story now live as `Localized<string>` inside
  * `gameMeta`. Each field is rendered via `<LocalizedField>` and writes to

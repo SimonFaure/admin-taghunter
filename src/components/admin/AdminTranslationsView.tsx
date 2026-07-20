@@ -256,7 +256,7 @@ export default function AdminTranslationsView() {
           <p className="text-sm text-slate-600 mt-1 max-w-2xl">
             Player-facing strings shown during games, shared across scenarios. English is the
             source; missing cells fall back to the bundled defaults, then English. Use Export /
-            Import for the translator round-trip — <span className="font-medium">NEW</span> = never
+            Import for the translator round-trip - <span className="font-medium">NEW</span> = never
             translated, <span className="font-medium">STALE</span> = English changed since.
           </p>
         </div>

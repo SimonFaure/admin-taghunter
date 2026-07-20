@@ -98,7 +98,7 @@ export function ClientGameTypesPanel({ clientId }: Props) {
     <div>
       <p className="mb-4 text-sm text-slate-500">
         Control which game types this client can see, create, and sync. A per-client
-        setting overrides the global default — you can grant a type that's disabled
+        setting overrides the global default - you can grant a type that's disabled
         platform-wide, or hide one that's globally enabled. Untouched types follow global.
       </p>
 

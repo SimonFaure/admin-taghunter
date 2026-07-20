@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { ArrowLeft, BookOpen, FileArchive, Settings, Play, Database, Upload, Edit, Eye, Trash2, Download, Mail, FolderTree, File, Image, Music, Video, FileText } from 'lucide-react';
 
 interface HelpPageProps {

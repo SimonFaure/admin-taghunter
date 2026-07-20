@@ -3,7 +3,7 @@
 --
 -- One CURRENT-STATE row per (client_id, device_id, item_key): the row flips
 -- between status='failed' and status='resolved' as the playground reports the
--- item's lifecycle. We upsert on that tuple (NOT on event_uuid — that is only
+-- item's lifecycle. We upsert on that tuple (NOT on event_uuid - that is only
 -- the outbox idempotency key); a last-write-wins guard on last_event_at lets a
 -- reordered stale event be ignored. times_failed increments each time the row
 -- flips back to failed.

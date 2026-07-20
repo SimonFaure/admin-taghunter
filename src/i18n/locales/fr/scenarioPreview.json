@@ -1,0 +1,109 @@
+{
+  "ingameLayout": {
+    "title": {
+      "ingame": "Disposition en jeu",
+      "idle": "Disposition de l'écran d'attente"
+    },
+    "mode": {
+      "ingame": "En jeu",
+      "idle": "Attente"
+    },
+    "hint": {
+      "ingame": "Faites glisser pour placer les 4 éléments de texte. La police s'ajuste automatiquement à la largeur de la boîte — dimensionnez chaque boîte selon l'espace maximal que son texte doit occuper.",
+      "idle": "Écran d'arrière-plan seul affiché entre les équipes (quand « révéler à la touche Entrée/au clic » est désactivé). Ajoutez un titre et/ou un sous-titre."
+    },
+    "save": "Enregistrer le scénario",
+    "saving": "Enregistrement…",
+    "close": "Fermer",
+    "elements": "Éléments",
+    "roles": {
+      "enigma_name": "Nom de l'énigme",
+      "timer": "Minuteur",
+      "score": "Score",
+      "team_name": "Nom de l'équipe"
+    },
+    "idleRoles": {
+      "title": "Titre",
+      "subtitle": "Sous-titre"
+    },
+    "alignmentLabel": "{{element}} — alignement",
+    "align": {
+      "left": "gauche",
+      "center": "centre",
+      "right": "droite"
+    },
+    "field": {
+      "left": "gauche",
+      "top": "haut",
+      "width": "largeur",
+      "height": "hauteur"
+    },
+    "autoFitNote": "La taille du texte est définie automatiquement pour remplir la boîte : elle augmente pour occuper la <b>largeur</b> et diminue en cas de débordement. Rendez la boîte aussi <b>large</b> que l'espace maximal que le texte doit occuper.",
+    "previewTeamName": "Aperçu du nom d'équipe",
+    "teamNamePlaceholder": "Saisissez le nom le plus long attendu",
+    "teamNameHint": "Aperçu uniquement — collez un nom long pour vérifier que la boîte du nom d'équipe reste lisible.",
+    "resetDefaults": "Réinitialiser par défaut",
+    "showElement": "Afficher {{element}}",
+    "idleTickHint": "Cochez pour afficher un élément sur l'écran d'attente, puis faites-le glisser sur l'arrière-plan.",
+    "fontSize": "Taille de police (%)",
+    "color": "Couleur",
+    "useScenarioColor": "Utiliser la couleur du scénario",
+    "inheritingColor": "Hérite de la couleur de police du scénario.",
+    "elementHidden": "{{element}} est masqué. Cochez-le ci-dessus pour le placer et le styliser.",
+    "previewSubtitle": "Aperçu du sous-titre",
+    "subtitleHint": "Aperçu uniquement — le vrai sous-titre est saisi dans la fenêtre de lancement de partie. Le titre affiche le nom du scénario.",
+    "sample": {
+      "enigmaName": "Nom de l'énigme",
+      "enigmaNumber": "Énigme {{number}}",
+      "scenarioTitle": "Titre du scénario",
+      "teamName": "Nom de l'équipe"
+    }
+  },
+  "mysteryPreview": {
+    "title": "Aperçu",
+    "screen": {
+      "ingame": "En jeu",
+      "endgame": "Fin de partie"
+    },
+    "locked": "Verrouillé",
+    "revealed": "Révélé",
+    "gauge": "Jauge",
+    "overscore": "Surscore",
+    "none": "Aucun",
+    "step": "Étape {{number}}",
+    "enigma": "Énigme",
+    "enterFullscreen": "Passer en plein écran",
+    "exitFullscreen": "Quitter le plein écran",
+    "fullscreen": "Plein écran",
+    "closePreview": "Fermer l'aperçu"
+  },
+  "tagquestPreview": {
+    "title": "Aperçu",
+    "previousQuest": "Quête précédente",
+    "nextQuest": "Quête suivante",
+    "noQuests": "Aucune quête",
+    "questCounter": "Quête {{current}} / {{total}}",
+    "questCounterNamed": "Quête {{current}} / {{total}} — {{name}}",
+    "questFallback": "Quête {{number}}",
+    "pieces": "Pièces",
+    "revealed": "Révélé",
+    "malusOverlay": "Superposition malus",
+    "lateMalusOverlay": "Superposition malus de retard",
+    "enterFullscreen": "Passer en plein écran",
+    "exitFullscreen": "Quitter le plein écran",
+    "fullscreen": "Plein écran",
+    "closePreview": "Fermer l'aperçu"
+  },
+  "viewport": {
+    "label": "Format d'affichage",
+    "legacy": "{{size}} (ancien)",
+    "custom": "Personnalisé…",
+    "customWidth": "Largeur personnalisée",
+    "customHeight": "Hauteur personnalisée"
+  },
+  "toc": {
+    "sections": "Sections",
+    "jumpToSection": "Aller à une section",
+    "noSections": "Aucune section chargée pour l'instant."
+  }
+}

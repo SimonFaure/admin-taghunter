@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -30,7 +30,7 @@ export function ScenarioCreator({ onBack, onSave, isAdmin }: ScenarioCreatorProp
   const [saving, setSaving] = useState(false);
 
   // Admins may author any type (incl. globally-disabled ones, to prep content).
-  // Clients only see types available to them — game_types.php?action=list already
+  // Clients only see types available to them - game_types.php?action=list already
   // returns the client's effective set (global ∩ per-client). See disable-game-types.md.
   const [availableTypes, setAvailableTypes] = useState<string[]>([...ALL_GAME_TYPES]);
   useEffect(() => {
@@ -87,7 +87,7 @@ export function ScenarioCreator({ onBack, onSave, isAdmin }: ScenarioCreatorProp
         status,
         scenario_type: scenarioType,
         client_id: clientIdForInsert,
-        // MySQL DATETIME format (YYYY-MM-DD HH:MM:SS) — not ISO 8601 with T/Z.
+        // MySQL DATETIME format (YYYY-MM-DD HH:MM:SS) - not ISO 8601 with T/Z.
         updated_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
         data: { default_language: defaultLanguage, available_languages: [defaultLanguage] },
         medias: {

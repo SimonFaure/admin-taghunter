@@ -1,4 +1,4 @@
-// @ts-nocheck — ported from creator; retype in Phase 5. See memory: studio merge tech debt.
+// @ts-nocheck - ported from creator; retype in Phase 5. See memory: studio merge tech debt.
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, Maximize2, Minimize2, ChevronLeft, ChevronRight, Send, Type, Image, GripVertical, Eye, EyeOff, ChevronDown, ChevronRight as ChevronRightSm, Layers, Download } from 'lucide-react';
 import { db } from '../lib/db';

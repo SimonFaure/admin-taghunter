@@ -1,7 +1,8 @@
-import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X, Server, Wifi } from 'lucide-react';
+import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X, Server, Wifi, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect, KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getDevices, deleteDevice, updateDevice, getLanNetworks, Device, LanNetwork } from '../../lib/devicesApi';
+import { QRCodeSVG } from 'qrcode.react';
+import { getDevices, deleteDevice, updateDevice, getLanNetworks, wifiQrPayload, Device, LanNetwork } from '../../lib/devicesApi';
 import { HelpButton } from '../../help';
 
 const MAX_DISPLAY_NAME = 120;
@@ -16,6 +17,15 @@ export function MyDevicesView() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [revealPw, setRevealPw] = useState<Set<number>>(new Set());
+
+  const togglePw = (id: number) =>
+    setRevealPw((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const startEdit = (device: Device) => {
     setEditingId(device.id);
@@ -280,14 +290,28 @@ export function MyDevicesView() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-slate-900 font-mono truncate">{n.ssid}</p>
-                    <p className="text-xs text-slate-500 truncate">
-                      {n.device_label || t('hotspots.unknownDevice')}
-                    </p>
+                    {n.password && (
+                      <p className="text-xs text-slate-500 font-mono flex items-center gap-1.5">
+                        <span className="truncate">
+                          {revealPw.has(n.id) ? n.password : '••••••••••••'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePw(n.id)}
+                          className="text-slate-400 hover:text-slate-700 flex-shrink-0"
+                          aria-label={t('hotspots.togglePassword')}
+                        >
+                          {revealPw.has(n.id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </p>
+                    )}
                   </div>
                 </div>
-                <span className="text-xs text-slate-400 flex-shrink-0">
-                  {new Date(n.updated_at).toLocaleDateString(i18n.language)}
-                </span>
+                {n.password && (
+                  <div className="bg-white p-1.5 rounded border border-slate-200 flex-shrink-0">
+                    <QRCodeSVG value={wifiQrPayload(n.ssid, n.password)} size={64} level="M" marginSize={0} />
+                  </div>
+                )}
               </div>
             ))}
           </div>

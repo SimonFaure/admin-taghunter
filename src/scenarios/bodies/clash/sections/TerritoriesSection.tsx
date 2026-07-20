@@ -1,126 +1,60 @@
 /**
- * Territories & combinations section — the fixed 4-territory skeleton
- * (large/medium/medium/small holding 8 combinations). Authors per-territory
- * name/points/complete-image and per-combination 3 piece images + main image.
+ * Territories section (V2) - a seeded, editable list of territories. Each
+ * territory is one variable-size balise set (physical station codes, authored
+ * inline and overridable at launch) worth pts/min ∝ balise count. No
+ * combinations, no pattern. Control is strict-max validation count everywhere.
  *
- * Control mode is derived from size (large/medium = volume, small =
- * last-bipper) and shown read-only. Territory structure is fixed in v1; the
- * balise station -> combination mapping lives in the Clash pattern, not here.
- *
- * Design: project_clash_game_type_design (grill-me decision record).
+ * Design: project_clash_game_type_design (V2).
  */
 
-import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { AssetUploadField } from '../../../shell/components/AssetUploadField';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { getLocalized, setLocalized } from '../../../i18n/getLocalized';
 import type { Lang } from '../../../i18n/types';
-import type { ClashTerritory, ClashCombination } from '../../../../types/scenario-data';
-import type { MediaSlot } from '../../../types';
-import { clashTerritoryComboNumbers } from '../skeleton';
+import type { ClashTerritory } from '../../../../types/scenario-data';
 
-const SIZE_LABEL: Record<ClashTerritory['size'], string> = {
-  large: 'Large',
-  medium: 'Medium',
-  small: 'Small',
-};
+const MIN_TERRITORIES = 2;
+const MAX_TERRITORIES = 12;
 
-const SIZE_CONTROL: Record<ClashTerritory['size'], string> = {
-  large: 'Volume — clan with the most validations wins',
-  medium: 'Volume — clan with the most validations wins',
-  small: 'Last bipper — last clan to validate controls it',
-};
-
-const PIECE_KEYS: ReadonlyArray<{ key: 'piece_1' | 'piece_2' | 'piece_3'; label: string }> = [
-  { key: 'piece_1', label: 'Balise 1' },
-  { key: 'piece_2', label: 'Balise 2' },
-  { key: 'piece_3', label: 'Balise 3' },
-];
-
-function makeSlot(key: string, label: string): MediaSlot {
-  return { key, kind: 'image', required: false, scope: 'type', label };
-}
-
-interface CombinationCardProps {
-  combination: ClashCombination;
-  territoryIndex: number;
-  index: number;
-  lang: Lang;
-  defaultLang: Lang;
-  onChange: (patch: Partial<ClashCombination>) => void;
-}
-
-function CombinationCard({ combination, territoryIndex, index, lang, defaultLang, onChange }: CombinationCardProps) {
-  const displayName = getLocalized(combination.name as never, lang, defaultLang);
-  const piecesUploaded = PIECE_KEYS.reduce((n, p) => (combination[p.key] ? n + 1 : n), 0);
-  const slotPrefix = `territory_${territoryIndex}_combo_${index}`;
-
-  return (
-    <div className="border border-gray-100 rounded-md bg-gray-50/50 p-3 space-y-3">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-gray-500">
-          Combination {clashTerritoryComboNumbers(territoryIndex)[index] ?? index + 1}
-        </span>
-        <span className={`text-xs ${piecesUploaded === 3 ? 'text-green-600' : 'text-gray-400'}`}>
-          {piecesUploaded}/3 balises
-        </span>
-        <input
-          value={displayName}
-          placeholder="Combination name"
-          onChange={(e) =>
-            onChange({ name: setLocalized(combination.name as never, lang, e.target.value, defaultLang) })
-          }
-          className="ml-auto w-1/2 px-2 py-1 border border-gray-300 rounded-md text-sm"
-        />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <p className="text-xs text-gray-500 mb-1">Main image — shown when the 3 balises are validated</p>
-          <AssetUploadField
-            slot={makeSlot(`${slotPrefix}_main`, 'Main image')}
-            value={combination.main ?? ''}
-            onChange={(filename) => onChange({ main: filename })}
-          />
-        </div>
-        <div>
-          <p className="text-xs text-gray-500 mb-1">3 balise piece images (revealed one per bip)</p>
-          <div className="grid grid-cols-3 gap-2">
-            {PIECE_KEYS.map((p) => (
-              <AssetUploadField
-                key={p.key}
-                slot={makeSlot(`${slotPrefix}_${p.key}`, p.label)}
-                value={(combination[p.key] as string | undefined) ?? ''}
-                onChange={(filename) => onChange({ [p.key]: filename } as Partial<ClashCombination>)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function parseBalises(text: string): number[] {
+  return text
+    .split(',')
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !Number.isNaN(n));
 }
 
 interface TerritoryCardProps {
   territory: ClashTerritory;
   index: number;
+  canRemove: boolean;
   lang: Lang;
   defaultLang: Lang;
   onChange: (patch: Partial<ClashTerritory>) => void;
+  onRemove: () => void;
 }
 
-function TerritoryCard({ territory, index, lang, defaultLang, onChange }: TerritoryCardProps) {
+function TerritoryCard({ territory, index, canRemove, lang, defaultLang, onChange, onRemove }: TerritoryCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const displayName = getLocalized(territory.name as never, lang, defaultLang);
-  const combinations = territory.combinations ?? [];
-  const isSmall = territory.size === 'small';
+  const balises = territory.balises ?? [];
 
-  function updateCombination(ci: number, patch: Partial<ClashCombination>) {
-    onChange({
-      combinations: combinations.map((c, i) => (i === ci ? { ...c, ...patch } : c)),
-    });
-  }
+  // Keep the raw text the user is typing in local state so that commas,
+  // trailing separators, and spacing are never stripped mid-keystroke by the
+  // parse→store→join round-trip. We only resync the draft from the model when
+  // the model's balises change to something other than what this draft encodes
+  // (e.g. scenario load, undo), never on our own edits.
+  const balisesText = balises.join(', ');
+  const [balisesDraft, setBalisesDraft] = useState(balisesText);
+  useEffect(() => {
+    if (parseBalises(balisesDraft).join(',') !== balises.join(',')) {
+      setBalisesDraft(balisesText);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balisesText]);
 
   return (
     <div className="border border-gray-200 rounded-md bg-white">
@@ -129,30 +63,35 @@ function TerritoryCard({ territory, index, lang, defaultLang, onChange }: Territ
           type="button"
           onClick={() => setExpanded((v) => !v)}
           className="p-1 hover:bg-gray-50 rounded text-gray-400"
-          aria-label={expanded ? 'Collapse territory' : 'Expand territory'}
+          aria-label={expanded ? t('editorClash:territories.collapse') : t('editorClash:territories.expand')}
         >
           {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </button>
         <span className="text-xs px-1.5 py-0.5 rounded bg-blue-600 text-white font-semibold">
-          Territory {index + 1}
-        </span>
-        <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">
-          {SIZE_LABEL[territory.size]}
+          {t('editorClash:territories.territoryLabel', { number: index + 1 })}
         </span>
         <span className="text-sm text-gray-900 truncate flex-1">
-          {displayName || <span className="text-gray-400 italic">Unnamed territory</span>}
+          {displayName || <span className="text-gray-400 italic">{t('editorClash:territories.unnamed')}</span>}
         </span>
-        <span className="text-xs text-gray-500">
-          Combos {clashTerritoryComboNumbers(index).join(', ')}
-        </span>
-        {territory.points && <span className="text-xs text-gray-500">{territory.points} pts</span>}
+        <span className="text-xs text-gray-500">{t('editorClash:territories.baliseCount', { count: balises.length })}</span>
+        {territory.points && <span className="text-xs text-gray-500">{t('editorClash:territories.pointsPerMin', { points: territory.points })}</span>}
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!canRemove}
+          className="p-1.5 hover:bg-red-50 rounded text-red-500 disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label={t('editorClash:territories.removeAria')}
+          title={canRemove ? t('editorClash:territories.removeTooltip') : t('editorClash:territories.minTooltip', { count: MIN_TERRITORIES })}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
 
       {expanded && (
         <div className="px-3 pb-3 border-t border-gray-100 pt-3 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_100px] gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_120px] gap-2">
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Territory name</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('editorClash:territories.name')}</label>
               <input
                 value={displayName}
                 onChange={(e) =>
@@ -162,7 +101,7 @@ function TerritoryCard({ territory, index, lang, defaultLang, onChange }: Territ
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Points</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('editorClash:territories.pointsPerMinute')}</label>
               <input
                 value={territory.points ?? ''}
                 onChange={(e) => onChange({ points: e.target.value })}
@@ -171,38 +110,23 @@ function TerritoryCard({ territory, index, lang, defaultLang, onChange }: Territ
             </div>
           </div>
 
-          <p className="text-xs text-gray-500">{SIZE_CONTROL[territory.size]}.</p>
-
-          {!isSmall && (
-            <div>
-              <p className="text-xs text-gray-500 mb-1">
-                Complete image — shown when one clan conquers the whole territory
-              </p>
-              <AssetUploadField
-                slot={makeSlot(`territory_${index}_complete`, 'Territory complete image')}
-                value={territory.complete_image ?? ''}
-                onChange={(filename) => onChange({ complete_image: filename })}
-              />
-            </div>
-          )}
-          {isSmall && (
-            <p className="text-xs text-gray-400 italic">
-              Small territory: the combination's main image doubles as the territory-complete image.
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              {t('editorClash:territories.balisesLabel')}
+            </label>
+            <input
+              value={balisesDraft}
+              onChange={(e) => {
+                setBalisesDraft(e.target.value);
+                onChange({ balises: parseBalises(e.target.value) });
+              }}
+              onBlur={() => setBalisesDraft(balises.join(', '))}
+              placeholder={t('editorClash:territories.balisesPlaceholder')}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm font-mono"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              {t('editorClash:territories.balisesHint')}
             </p>
-          )}
-
-          <div className="space-y-2">
-            {combinations.map((c, ci) => (
-              <CombinationCard
-                key={c.id ?? ci}
-                combination={c}
-                territoryIndex={index}
-                index={ci}
-                lang={lang}
-                defaultLang={defaultLang}
-                onChange={(patch) => updateCombination(ci, patch)}
-              />
-            ))}
           </div>
         </div>
       )}
@@ -211,27 +135,52 @@ function TerritoryCard({ territory, index, lang, defaultLang, onChange }: Territ
 }
 
 export function TerritoriesSection() {
+  const { t } = useTranslation();
   const editor = useScenarioEditor();
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
   const territories = ((editor.gameMeta as Record<string, unknown>).territories ?? []) as ClashTerritory[];
 
-  function updateTerritory(idx: number, patch: Partial<ClashTerritory>) {
-    editor.setGameMeta((m) => {
-      const list = ((m as Record<string, unknown>).territories ?? []) as ClashTerritory[];
-      const next = list.map((t, i) => (i === idx ? { ...t, ...patch } : t));
-      return { ...(m as Record<string, unknown>), territories: next } as typeof m;
-    });
+  function setTerritories(next: ClashTerritory[]) {
+    editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), territories: next }) as typeof m);
   }
 
+  function updateTerritory(idx: number, patch: Partial<ClashTerritory>) {
+    setTerritories(territories.map((t, i) => (i === idx ? { ...t, ...patch } : t)));
+  }
+
+  function addTerritory() {
+    if (territories.length >= MAX_TERRITORIES) return;
+    const id = `territory_${Date.now()}`;
+    setTerritories([...territories, { id, name: {}, points: '1', balises: [] }]);
+  }
+
+  function removeTerritory(idx: number) {
+    if (territories.length <= MIN_TERRITORIES) return;
+    setTerritories(territories.filter((_, i) => i !== idx));
+  }
+
+  const atMax = territories.length >= MAX_TERRITORIES;
+
   return (
-    <CollapsibleSection title="Territories & combinations">
+    <CollapsibleSection
+      title={t('editorClash:territories.title')}
+      headerExtra={
+        <button
+          onClick={addTerritory}
+          disabled={atMax}
+          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={atMax ? t('editorClash:territories.maxTooltip', { count: MAX_TERRITORIES }) : t('editorClash:territories.addTooltip')}
+        >
+          <Plus className="w-3 h-3" /> {t('editorClash:territories.add')}
+        </button>
+      }
+    >
       <p className="text-xs text-gray-500 mb-3">
-        Fixed structure: 1 large (3 combinations), 2 medium (2 each), 1 small (1) — 8 combinations
-        over 24 balises. The balise→combination mapping is set in the Clash pattern.
+        {t('editorClash:territories.hint')}
       </p>
       {territories.length === 0 ? (
-        <p className="text-sm text-gray-500">No territories — reset the scenario to restore the skeleton.</p>
+        <p className="text-sm text-gray-500">{t('editorClash:territories.empty')}</p>
       ) : (
         <div className="space-y-2">
           {territories.map((t, i) => (
@@ -239,9 +188,11 @@ export function TerritoriesSection() {
               key={t.id ?? i}
               territory={t}
               index={i}
+              canRemove={territories.length > MIN_TERRITORIES}
               lang={lang}
               defaultLang={defaultLang}
               onChange={(patch) => updateTerritory(i, patch)}
+              onRemove={() => removeTerritory(i)}
             />
           ))}
         </div>

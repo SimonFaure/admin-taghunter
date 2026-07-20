@@ -40,7 +40,7 @@ const IconBase = React.forwardRef<SVGSVGElement, GameTypeIconProps & { children:
 );
 IconBase.displayName = 'IconBase';
 
-/** TagQuest — a tag with a check: punch tag cards to complete quest objectives. */
+/** TagQuest - a tag with a check: punch tag cards to complete quest objectives. */
 export const TagQuestIcon = React.forwardRef<SVGSVGElement, GameTypeIconProps>((props, ref) => (
   <IconBase ref={ref} {...props}>
     <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
@@ -50,7 +50,7 @@ export const TagQuestIcon = React.forwardRef<SVGSVGElement, GameTypeIconProps>((
 ));
 TagQuestIcon.displayName = 'TagQuestIcon';
 
-/** Mystery — magnifying glass with a question mark: solve enigmas. */
+/** Mystery - magnifying glass with a question mark: solve enigmas. */
 export const MysteryIcon = React.forwardRef<SVGSVGElement, GameTypeIconProps>((props, ref) => (
   <IconBase ref={ref} {...props}>
     <circle cx="10" cy="10" r="7" />
@@ -61,7 +61,7 @@ export const MysteryIcon = React.forwardRef<SVGSVGElement, GameTypeIconProps>((p
 ));
 MysteryIcon.displayName = 'MysteryIcon';
 
-/** Tracks — a route from start node to destination: itinerary + checkpoints. */
+/** Tracks - a route from start node to destination: itinerary + checkpoints. */
 export const TracksIcon = React.forwardRef<SVGSVGElement, GameTypeIconProps>((props, ref) => (
   <IconBase ref={ref} {...props}>
     <circle cx="6" cy="19" r="3" />
@@ -71,7 +71,7 @@ export const TracksIcon = React.forwardRef<SVGSVGElement, GameTypeIconProps>((pr
 ));
 TracksIcon.displayName = 'TracksIcon';
 
-/** Clash — crossed swords: clans / territories competing. */
+/** Clash - crossed swords: clans / territories competing. */
 export const ClashIcon = React.forwardRef<SVGSVGElement, GameTypeIconProps>((props, ref) => (
   <IconBase ref={ref} {...props}>
     <polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5" />
@@ -98,7 +98,7 @@ export type GameType = keyof typeof gameTypeIcons;
 
 /**
  * Resolve a (possibly free-form) game-type string to its icon. Accepts the
- * canonical slug ('tagquest') or a display name ('TagQuest', 'Mystery') — both
+ * canonical slug ('tagquest') or a display name ('TagQuest', 'Mystery') - both
  * normalize via lowercase. Renders nothing for an unknown type.
  */
 export function GameTypeIcon({
