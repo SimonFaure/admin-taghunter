@@ -5,6 +5,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
+import { GoDropSection } from './sections/GoDropSection';
 import { InstructionsSection } from './sections/InstructionsSection';
 import { GaugeSection } from './sections/GaugeSection';
 import { FrameSection } from './sections/FrameSection';
@@ -16,6 +17,7 @@ import { EnigmasSection } from './sections/EnigmasSection';
 export function MysteryBody() {
   return (
     <>
+      <GoDropSection />
       <InstructionsSection />
       <GaugeSection />
       <FrameSection />

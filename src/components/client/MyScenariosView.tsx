@@ -156,6 +156,9 @@ export function MyScenariosView() {
         case 'go':
           // Tag Hunter GO: scenarios that exist in GO mode.
           return s.adaptable_go === true;
+        case 'drop':
+          // Tag Hunter Drop: the hardware-free on-screen-image variant.
+          return s.adaptable_drop === true;
         default:
           // Audience pills carry an `audience:` prefix so their values can't
           // collide with game-type kinds (e.g. 'audience:kids').
@@ -277,6 +280,25 @@ export function MyScenariosView() {
               }`}
             >
               GO
+            </button>
+          );
+        })()}
+
+        {/* Tag Hunter Drop filter - same "only when it differentiates" rule. */}
+        {(() => {
+          const dropCount = scenarios.filter((s) => s.adaptable_drop).length;
+          if (dropCount === 0 || dropCount === scenarios.length) return null;
+          return (
+            <button
+              type="button"
+              onClick={() => setFilter('drop')}
+              className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                filter === 'drop'
+                  ? 'bg-sky-600 text-white border-sky-600'
+                  : 'bg-white text-sky-700 border-sky-200 hover:border-sky-300'
+              }`}
+            >
+              DROP
             </button>
           );
         })()}
@@ -445,7 +467,7 @@ function ScenarioGrid({
               </div>
               <p className="text-sm text-slate-500 line-clamp-2 mb-3">{scenario.description}</p>
 
-              {(scenario.game_type || scenario.difficulty || scenario.audience || scenario.scenario_type || scenario.version || scenario.adaptable_go) && (
+              {(scenario.game_type || scenario.difficulty || scenario.audience || scenario.scenario_type || scenario.version || scenario.adaptable_go || scenario.adaptable_drop) && (
                 <div className="flex gap-2 flex-wrap items-center">
                   {scenario.game_type && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
@@ -455,7 +477,12 @@ function ScenarioGrid({
                   )}
                   {scenario.adaptable_go && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
-                      GO{scenario.go_answer_count ? ` · ${scenario.go_answer_count === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
+                      GO
+                    </span>
+                  )}
+                  {scenario.adaptable_drop && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full text-xs font-semibold">
+                      DROP
                     </span>
                   )}
                   {scenario.difficulty && (

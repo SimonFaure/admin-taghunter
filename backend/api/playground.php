@@ -423,6 +423,46 @@ try {
                 $gameData['game_meta']['enigmas'] = $merged;
             }
 
+            // Mystery bonus ("overscore") tiers - the rewards a team unlocks by
+            // scoring ABOVE `score_full_game`. `cleanGameMetaForData` strips
+            // `image_overscore_step` out of game_meta on save and parks it in
+            // the structured `medias.overscores[]` list (keyed by
+            // `overscore_step`, the 1-based tier index). Splice it back or the
+            // playground renders the tier names with no badge image.
+            if (
+                ($scenario['game_type'] ?? '') === 'mystery'
+                && is_array($gameData['game_meta']['overscores'] ?? null)
+            ) {
+                $overscoreMediaByStep = [];
+                $overscoreMediaList = is_array($structuredMedias['overscores'] ?? null)
+                    ? $structuredMedias['overscores']
+                    : [];
+                foreach ($overscoreMediaList as $om) {
+                    if (!is_array($om)) continue;
+                    $step = $om['overscore_step'] ?? null;
+                    if ($step === null || $step === '') continue;
+                    $overscoreMediaByStep[(string)$step] = $om;
+                }
+                $mergedOverscores = [];
+                $pos = 0;
+                foreach ($gameData['game_meta']['overscores'] as $o) {
+                    $entry = is_array($o) ? $o : [];
+                    $pos++;
+                    // Match on the authored step index, falling back to position
+                    // for rows that never got one filled in.
+                    $step = ($entry['overscore_step'] ?? '') !== ''
+                        ? (string)$entry['overscore_step']
+                        : (string)$pos;
+                    $om = $overscoreMediaByStep[$step]
+                        ?? ($overscoreMediaList[$pos - 1] ?? null);
+                    if (is_array($om) && ($om['image_overscore_step'] ?? '') !== '') {
+                        $entry['image_overscore_step'] = $om['image_overscore_step'];
+                    }
+                    $mergedOverscores[] = $entry;
+                }
+                $gameData['game_meta']['overscores'] = $mergedOverscores;
+            }
+
             // Tracks equivalent: per-checkpoint images live in the structured
             // `medias.checkpoints[]` list (keyed by `checkpoint_id`, with
             // `checkpoint_number` / position as fallbacks). The playground
@@ -463,6 +503,27 @@ try {
                     $mergedCps[] = $entry;
                 }
                 $gameData['game_meta']['checkpoints'] = $mergedCps;
+            }
+
+            // Clash: territory balises (and the purge station) are authored as
+            // station NUMBERS (the si_balises.station_name label, e.g. "1"),
+            // but SI punches carry the station id (si_balises.id, e.g. 31) -
+            // the same convention as pattern assignments. Ship the full
+            // number→id inventory map so the playground resolves numbers to
+            // ids when it assembles clash_config at launch. The WHOLE table
+            // rides along (it is small) because the launch modal lets the
+            // operator override balises with numbers the scenario never
+            // authored.
+            if (($scenario['game_type'] ?? '') === 'clash') {
+                $balRows = $db->fetchAll('SELECT id, station_name FROM si_balises ORDER BY id');
+                $stationMap = [];
+                foreach ($balRows as $br) {
+                    $name = trim((string)$br['station_name']);
+                    if ($name !== '' && !isset($stationMap[$name])) {
+                        $stationMap[$name] = (int)$br['id'];
+                    }
+                }
+                $gameData['station_ids_by_number'] = $stationMap ?: new stdClass();
             }
 
             // Tracks per-scenario layout: studio LayoutEditor saves HUD frame
@@ -883,21 +944,19 @@ try {
         // Mission-report PDF layout version: admin (global) + this client's own
         // overrides. Both only ever increase, so a save on either side changes
         // the sum and devices re-pull the merged set (get_report_layouts).
-        // Missing tables on older installs -> version 0 (no download advertised).
+        // MUST use the same helper as get_report_layouts (ensureTables +
+        // combinedVersion): when the two computed the version independently and
+        // the client-override tables were missing, the manifest degraded to the
+        // admin-only version while the download degraded to 0 - devices then
+        // re-pulled (and wiped their cached layouts) on every sync, forever.
+        // DB errors (e.g. no CREATE privilege) -> version 0 (nothing advertised).
         $reportLayoutsVersion = 0;
         try {
-            $rlv = $db->fetch('SELECT current_version FROM report_layouts_meta WHERE id = 1');
-            // current_version is DECIMAL(10,2), bumped by 0.1; PDO returns it as
-            // a string - cast + round so the JSON wire format is a clean number.
-            $reportLayoutsVersion = round((float)($rlv['current_version'] ?? 0), 2);
+            require_once __DIR__ . '/../utils/ReportLayouts.php';
+            ReportLayouts::ensureTables($db);
+            $reportLayoutsVersion = ReportLayouts::combinedVersion($db, (int)$userId);
         } catch (Exception $e) {
             $reportLayoutsVersion = 0;
-        }
-        try {
-            $crlv = $db->fetch('SELECT current_version FROM client_report_layouts_meta WHERE client_id = ?', [$userId]);
-            $reportLayoutsVersion = round($reportLayoutsVersion + (float)($crlv['current_version'] ?? 0), 2);
-        } catch (Exception $e) {
-            // client overrides table not migrated yet -> admin version only
         }
 
         // Relayed default-hotspot Wi-Fi networks version (per-client). The client
@@ -1159,6 +1218,11 @@ try {
         $printFormat = null;
         try {
             require_once __DIR__ . '/../utils/ReportLayouts.php';
+            // Create any missing tables BEFORE reading versions: combinedVersion
+            // queries client_report_layouts_meta directly, and if it throws here
+            // the catch below serves {version: 0, layouts: {}} while the manifest
+            // still advertises a real version - an endless re-download loop.
+            ReportLayouts::ensureTables($db);
             $version = ReportLayouts::combinedVersion($db, (int)$userId);
             $merged = ReportLayouts::getAllForClient($db, (int)$userId);
             $layouts = $merged['layouts'] ?: new stdClass();

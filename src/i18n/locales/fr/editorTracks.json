@@ -1,10 +1,10 @@
 {
   "pattern": {
-    "sectionTitle": "Patron par défaut",
-    "label": "Patron de parcours par défaut (correspondance point de contrôle → station)",
+    "sectionTitle": "Modèle par défaut",
+    "label": "Modèle de parcours par défaut (correspondance point de contrôle → station)",
     "none": "- Aucun -",
     "notFound": "{{value}} (introuvable)",
-    "hint": "Attribue chaque point de contrôle à une station/balise. Créez les patrons de parcours dans la page Patrons. La correspondance est affichée sous chaque point de contrôle ci-dessous. Modifiable au lancement."
+    "hint": "Attribue chaque point de contrôle à une station/balise. Créez les modèles de parcours dans la page Modèles. La correspondance est affichée sous chaque point de contrôle ci-dessous. Modifiable au lancement."
   },
   "checkpoints": {
     "sectionTitle": "Points de contrôle ({{count}})",

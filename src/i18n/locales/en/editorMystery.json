@@ -84,5 +84,9 @@
     "create": "Create",
     "insertFailed": "Insert failed",
     "createFailed": "Failed to create pattern"
+  },
+  "goDrop": {
+    "title": "Tag Hunter GO & Drop",
+    "answerHint": "Shared by GO and Drop: in GO these are the letters offered (A/B or A/B/C/D), in Drop the number of on-screen tiles. Picking 4 adds two extra wrong-answer images per enigma."
   }
 }

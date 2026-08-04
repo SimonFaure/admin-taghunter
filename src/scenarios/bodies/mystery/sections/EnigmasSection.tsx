@@ -73,7 +73,10 @@ function emptyEnigma(): Enigma {
 export function EnigmasSection() {
   const { t } = useTranslation();
   const editor = useScenarioEditor();
-  const { adaptableGo, answerCount } = useGoEditor();
+  const { adaptableGo, adaptableDrop, answerCount } = useGoEditor();
+  // The answer count is common to GO and Drop, so the extra wrong-answer images
+  // a 4-option scenario needs must show for either adaptation.
+  const fourAnswers = (adaptableGo || adaptableDrop) && answerCount === 4;
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
   const enigmas = ((editor.gameMeta as Record<string, unknown>).enigmas ?? []) as Enigma[];
@@ -283,7 +286,7 @@ export function EnigmasSection() {
                       />
                       <StationHint station={stations?.wrong_answer_station} />
                     </div>
-                    {adaptableGo && answerCount === 4 && (
+                    {fourAnswers && (
                       <>
                         <AssetUploadField
                           slot={{

@@ -359,8 +359,9 @@ export function Dashboard() {
           {activeTab === 'go-statistics' && <GoStatisticsView />}
 
           {/* Tag Hunter Drop admin group - reuses the GO views, app='drop'.
-              Drop scenarios draw from the same adaptable_go pool. */}
-          {activeTab === 'drop-scenarios' && <ScenariosView initialFilter="go" />}
+              Scoped to scenarios flagged "Adaptable à Drop" (game_meta.adaptable_drop),
+              which is a separate axis from adaptable_go - a scenario can be both. */}
+          {activeTab === 'drop-scenarios' && <ScenariosView initialFilter="drop" />}
 
           {activeTab === 'drop-clients' && (
             selectedClientId ? (

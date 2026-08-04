@@ -76,13 +76,15 @@ function getScenarioUnivers(scenario: Scenario): string[] {
   return normalizeUnivers(getScenarioMeta(scenario).univers);
 }
 
-// Tag Hunter GO: whether the scenario exists in GO mode, and its answer count.
+// Tag Hunter GO: whether the scenario exists in GO mode.
 function isScenarioGo(scenario: Scenario): boolean {
   return getScenarioMeta(scenario).adaptable_go === true;
 }
-function getScenarioGoAnswerCount(scenario: Scenario): number | null {
-  const n = getScenarioMeta(scenario).go_answer_count;
-  return n === 4 ? 4 : n === 2 ? 2 : null;
+
+// Tag Hunter Drop: the hardware-free on-screen-image variant. Independent of
+// GO - a scenario can be both (project_taghunter_drop).
+function isScenarioDrop(scenario: Scenario): boolean {
+  return getScenarioMeta(scenario).adaptable_drop === true;
 }
 
 // The base provenance/status filters plus, dynamically, one entry per
@@ -1024,6 +1026,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
     if (filter === 'client-authored') return s.scenario_type === 'custom' || s.client_id !== null;
     if (filter === 'drafts') return (s.status || 'draft') === 'draft';
     if (filter === 'go') return isScenarioGo(s);
+    if (filter === 'drop') return isScenarioDrop(s);
     // Otherwise `filter` is a game-type kind (e.g. 'mystery' | 'tagquest' | 'tracks').
     return s.game_type === filter;
   };
@@ -1207,7 +1210,12 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
               )}
               {isScenarioGo(scenario) && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-100">
-                  GO{getScenarioGoAnswerCount(scenario) ? ` · ${getScenarioGoAnswerCount(scenario) === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
+                  GO
+                </span>
+              )}
+              {isScenarioDrop(scenario) && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-sky-700 bg-sky-100">
+                  DROP
                 </span>
               )}
               {bands.length > 0 && (
@@ -1484,6 +1492,21 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
           </button>
         )}
 
+        {/* Tag Hunter Drop filter - scenarios marked "Adaptable à Drop". */}
+        {scenarios.some((s) => isScenarioDrop(s)) && (
+          <button
+            type="button"
+            onClick={() => setFilter('drop')}
+            className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
+              filter === 'drop'
+                ? 'bg-sky-600 text-white border-sky-600'
+                : 'bg-white text-sky-700 border-sky-200 hover:border-sky-300'
+            }`}
+          >
+            DROP
+          </button>
+        )}
+
         {gameTypeFilters.length > 0 && (
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
         )}
@@ -1531,7 +1554,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
           <button
             key={level}
             type="button"
-            onClick={() => toggleSetItem(setDifficultyFilters, level)}
+            onClick={() => toggleSetItem<number>(setDifficultyFilters, level)}
             title={`${level} / 5`}
             className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
               difficultyFilters.has(level)

@@ -120,6 +120,15 @@
     "range_all": "Todo",
     "range_custom": "Personalizado",
     "from": "Desde",
-    "to": "Hasta"
+    "to": "Hasta",
+    "openBoard": "Clasificación jugadores"
+  },
+  "publicBoard": {
+    "title": "Clasificación",
+    "loading": "Cargando…",
+    "unavailable": "Esta clasificación no está disponible.",
+    "pinHint": "Toca tu equipo para resaltarlo",
+    "truncated": "Mostrando los {{shown}} primeros equipos de {{total}}.",
+    "stale": "Sin conexión — últimas puntuaciones conocidas."
   }
 }

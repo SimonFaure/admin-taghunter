@@ -13,7 +13,6 @@ import { synthesizeLegacyTranslations, flattenToDefault } from '../../i18n/synth
 import type { Lang } from '../../i18n/types';
 import type { ScenarioAdapter, MediasColumn, EnumeratedMedia, ZipPayloadContext } from '../../types';
 import { MysteryBody } from './MysteryBody';
-import { MysteryTopSection } from './sections/MysteryTopSection';
 import {
   mysteryMediaSlots,
   mysteryImageFields,
@@ -287,7 +286,6 @@ export const mysteryAdapter: ScenarioAdapter<MysteryGameMeta> = {
     validateMysteryConfig(gm as unknown, title, description),
   dataSchema: MysteryScenarioDataSchema,
   Body: MysteryBody,
-  TopSection: MysteryTopSection,
   buildMediasColumn,
   cleanGameMetaForData,
   enumerateMedia,

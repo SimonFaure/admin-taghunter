@@ -120,6 +120,15 @@
     "range_all": "Tout",
     "range_custom": "Personnalisé",
     "from": "Du",
-    "to": "Au"
+    "to": "Au",
+    "openBoard": "Classement joueurs"
+  },
+  "publicBoard": {
+    "title": "Classement",
+    "loading": "Chargement…",
+    "unavailable": "Ce classement n’est pas disponible.",
+    "pinHint": "Touchez votre équipe pour la surligner",
+    "truncated": "Affichage des {{shown}} premières équipes sur {{total}}.",
+    "stale": "Hors ligne — derniers scores connus."
   }
 }

@@ -10,7 +10,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 + 3 sections)
  */
 
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { db } from '../../creator-ported/lib/db';
 import { getMediaUrl as getMediaUrlUtil, extractFileName } from '../../creator-ported/utils/mediaUrl';
@@ -279,6 +279,42 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     };
   }, [scenarioId, adapter, t]);
 
+  // Bare filenames the user has cleared/replaced this session. Physically
+  // unlinked from media/<uniqid>/ only after a successful save (see
+  // flushOrphanedAssets) - never on the click itself, so abandoning an unsaved
+  // edit can't leave the persisted scenario pointing at a deleted file.
+  const pendingOrphansRef = useRef<Set<string>>(new Set());
+
+  const flushOrphanedAssets = useCallback(async () => {
+    const orphans = pendingOrphansRef.current;
+    if (orphans.size === 0) return;
+    const uniqid = state.uniqid;
+    if (!uniqid) {
+      orphans.clear();
+      return;
+    }
+    // Guard: never delete a filename the just-saved scenario still references
+    // (e.g. the same asset reused by another slot).
+    const stillReferenced = new Set(
+      adapter
+        .enumerateMedia(state.gameMeta)
+        .map((m) => extractFileName(m.filename))
+        .filter(Boolean),
+    );
+    const toDelete = [...orphans].filter((f) => !stillReferenced.has(f));
+    orphans.clear();
+    if (toDelete.length === 0) return;
+    try {
+      await db.storage
+        .from('game-media')
+        .remove(toDelete.map((f) => `${uniqid}/${f}`));
+    } catch (err) {
+      // Best-effort cleanup: a failed unlink just leaves an orphan on disk, so
+      // it must never surface as a save error to the user.
+      console.warn('[ScenarioEditorShell] orphaned media cleanup failed', err);
+    }
+  }, [adapter, state.uniqid, state.gameMeta]);
+
   const buildPayload = useCallback((): SavePayload => {
     // Derive row-level title/description from the Localized maps' default-lang
     // values. saveOrchestrator writes these to the scenarios row columns.
@@ -308,13 +344,14 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     if (result.ok && result.savedScenario?.version != null) {
       dispatch({ type: 'HYDRATE', payload: { scenarioVersion: String(result.savedScenario.version) } });
     }
+    if (result.ok) await flushOrphanedAssets();
     dispatch({
       type: 'END_SAVING',
       payload: result.ok
         ? { type: 'success', message: t('alert.saved') }
         : { type: 'error', message: result.error ?? t('alert.saveFailed') },
     });
-  }, [buildPayload, t]);
+  }, [buildPayload, flushOrphanedAssets, t]);
 
   const publish = useCallback(async () => {
     dispatch({ type: 'BEGIN_PUBLISHING' });
@@ -329,6 +366,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     const payload: SavePayload = { ...buildPayload(), gameMeta: bumpedMeta, status: 'published' };
     const result = await performSave(payload);
     if (result.ok) {
+      await flushOrphanedAssets();
       dispatch({
         type: 'HYDRATE',
         payload: {
@@ -345,7 +383,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
         ? { type: 'success', message: t('alert.published', { version: nextVersion }) }
         : { type: 'error', message: result.error ?? t('alert.publishFailed') },
     });
-  }, [buildPayload, state.gameMeta, t]);
+  }, [buildPayload, flushOrphanedAssets, state.gameMeta, t]);
 
   const downloadZip = useCallback(async () => {
     const result = await performZipDownload(buildPayload());
@@ -369,6 +407,11 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     },
     [state.uniqid, adapter.mediaSlots, t],
   );
+
+  const deleteAsset = useCallback((filename: string) => {
+    const bare = extractFileName(filename);
+    if (bare) pendingOrphansRef.current.add(bare);
+  }, []);
 
   const getMediaUrl = useCallback(
     (filename: string) => getMediaUrlUtil(state.uniqid || scenarioId, filename),
@@ -405,6 +448,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
       alert: state.alert,
       setAlert,
       uploadAsset,
+      deleteAsset,
       getMediaUrl,
       save,
       publish,
@@ -424,6 +468,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
       publish,
       downloadZip,
       uploadAsset,
+      deleteAsset,
       getMediaUrl,
       setAlert,
     ],
@@ -437,6 +482,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
   // (enigma codes/extra images, the GO default-pattern block, etc.).
   const goValue = {
     adaptableGo: goMeta.adaptable_go === true && isAdmin,
+    adaptableDrop: goMeta.adaptable_drop === true && isAdmin,
     answerCount: (goMeta.go_answer_count === 4 ? 4 : 2) as 2 | 4,
   };
 

@@ -80,8 +80,11 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
     }
     setUploading(true);
     try {
+      const previous = value;
       const filename = await editor.uploadAsset(slot.key, file);
       onChange(filename);
+      // Queue the replaced file for cleanup (unlinked after the next save).
+      if (previous && previous !== filename) editor.deleteAsset(previous);
     } catch (err) {
       console.error('[AssetUploadField] upload failed', { slot: slot.key, err });
     } finally {
@@ -156,7 +159,11 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
           {value && (
             <button
               type="button"
-              onClick={() => onChange('')}
+              onClick={() => {
+                // Queue the cleared file for cleanup (unlinked after the next save).
+                if (value) editor.deleteAsset(value);
+                onChange('');
+              }}
               className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 inline-flex items-center gap-1"
               aria-label={t('clear')}
             >

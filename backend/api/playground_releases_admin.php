@@ -14,6 +14,9 @@
  *   - delete        POST  : JSON {id} -- delete any release; if it was the latest,
  *                                        the next-newest build for its platform is
  *                                        promoted to latest automatically.
+ *   - delete_bulk   POST  : JSON {ids: [..]} -- same as delete for many releases at
+ *                                        once; promotion runs once per affected
+ *                                        platform after every row is gone.
  */
 
 require_once __DIR__ . '/../utils/cors.php';
@@ -66,6 +69,47 @@ function isSemver(string $v): bool {
 
 function sanitizeChannel(string $v): string {
     return in_array($v, CHANNELS, true) ? $v : 'stable';
+}
+
+/**
+ * Delete a release's stored artifact (and its version dir once empty). Path-checked
+ * against the releases root so a bad DB value can never reach outside it. Call only
+ * after the DB delete has committed.
+ */
+function removeArtifactFile(string $releasesRoot, ?string $relPath): void {
+    if (empty($relPath)) return;
+    $abs = realpath($releasesRoot . '/' . str_replace('/', DIRECTORY_SEPARATOR, $relPath));
+    $rootReal = realpath($releasesRoot);
+    if (!$abs || !$rootReal || strpos($abs, $rootReal) !== 0 || !is_file($abs)) return;
+    @unlink($abs);
+    $dir = dirname($abs);
+    if ($dir !== $rootReal && is_dir($dir)
+        && count(array_diff(scandir($dir), ['.', '..'])) === 0) {
+        @rmdir($dir);
+    }
+}
+
+/**
+ * For each (channel, target, arch) group in $groups, mark the newest remaining
+ * release latest. Used after deletes that removed the group's latest row.
+ * Returns the promoted versions, labelled by platform. Runs inside the caller's
+ * transaction.
+ */
+function promoteLatestForGroups(Database $db, array $groups): array {
+    $promoted = [];
+    foreach ($groups as [$channel, $target, $arch]) {
+        $next = $db->fetch(
+            'SELECT id, version FROM playground_releases
+             WHERE channel = ? AND target = ? AND arch = ?
+             ORDER BY created_at DESC, id DESC
+             LIMIT 1',
+            [$channel, $target, $arch]
+        );
+        if (!$next) continue;
+        $db->query('UPDATE playground_releases SET is_latest = 1 WHERE id = ?', [$next['id']]);
+        $promoted[] = "{$next['version']} ($target/$arch)";
+    }
+    return $promoted;
 }
 
 /** Mark one release latest for its (channel, target, arch), clearing siblings. Atomic. */
@@ -305,21 +349,10 @@ try {
             $conn->beginTransaction();
             try {
                 $db->query('DELETE FROM playground_releases WHERE id = ?', [$id]);
-                $promoted = null;
-                if ((int)$row['is_latest'] === 1) {
-                    $next = $db->fetch(
-                        'SELECT id, version FROM playground_releases
-                         WHERE channel = ? AND target = ? AND arch = ?
-                         ORDER BY created_at DESC, id DESC
-                         LIMIT 1',
-                        [$row['channel'], $row['target'], $row['arch']]
-                    );
-                    if ($next) {
-                        $db->query('UPDATE playground_releases SET is_latest = 1 WHERE id = ?',
-                            [$next['id']]);
-                        $promoted = $next['version'];
-                    }
-                }
+                $groups = (int)$row['is_latest'] === 1
+                    ? [[$row['channel'] ?? 'stable', $row['target'], $row['arch']]]
+                    : [];
+                $promoted = promoteLatestForGroups($db, $groups)[0] ?? null;
                 $conn->commit();
             } catch (Throwable $e) {
                 $conn->rollBack();
@@ -328,21 +361,60 @@ try {
 
             // Remove the stored artifact (and its now-empty version dir) only after
             // the DB delete committed.
-            if (!empty($row['artifact_path'])) {
-                $abs = realpath($releasesRoot . '/' . str_replace('/', DIRECTORY_SEPARATOR, $row['artifact_path']));
-                $rootReal = realpath($releasesRoot);
-                if ($abs && $rootReal && strpos($abs, $rootReal) === 0 && is_file($abs)) {
-                    @unlink($abs);
-                    $dir = dirname($abs);
-                    if ($dir !== $rootReal && is_dir($dir)
-                        && count(array_diff(scandir($dir), ['.', '..'])) === 0) {
-                        @rmdir($dir);
-                    }
-                }
-            }
+            removeArtifactFile($releasesRoot, $row['artifact_path'] ?? null);
+
             Logger::log('playground_releases_admin', $method, 'delete', $adminId,
                 ['id' => $id], ['success' => true, 'promoted_latest' => $promoted], 200);
             jsonResponse(['success' => true, 'promoted_latest' => $promoted]);
+            break;
+        }
+
+        case 'delete_bulk': {
+            if ($method !== 'POST') jsonResponse(['error' => 'Method not allowed'], 405);
+            $ids = array_values(array_unique(array_filter(
+                array_map('intval', (array)(jsonBody()['ids'] ?? [])),
+                fn($id) => $id > 0
+            )));
+            if (!$ids) jsonResponse(['error' => 'ids must be a non-empty array'], 400);
+            if (count($ids) > 500) jsonResponse(['error' => 'too many ids (max 500)'], 400);
+
+            $ph = implode(',', array_fill(0, count($ids), '?'));
+            $rows = $db->fetchAll("SELECT * FROM playground_releases WHERE id IN ($ph)", $ids);
+            if (!$rows) jsonResponse(['error' => 'no matching releases'], 404);
+
+            // Delete every row first, then promote a replacement latest once per
+            // affected platform -- doing it per-row would promote builds that are
+            // themselves about to be deleted.
+            $conn = $db->getConnection();
+            $conn->beginTransaction();
+            try {
+                $found = array_map('intval', array_column($rows, 'id'));
+                $foundPh = implode(',', array_fill(0, count($found), '?'));
+                $db->query("DELETE FROM playground_releases WHERE id IN ($foundPh)", $found);
+
+                $groups = [];
+                foreach ($rows as $r) {
+                    if ((int)$r['is_latest'] !== 1) continue;
+                    $channel = $r['channel'] ?? 'stable';
+                    $groups["$channel|{$r['target']}|{$r['arch']}"] =
+                        [$channel, $r['target'], $r['arch']];
+                }
+                $promoted = promoteLatestForGroups($db, $groups);
+                $conn->commit();
+            } catch (Throwable $e) {
+                $conn->rollBack();
+                throw $e;
+            }
+
+            foreach ($rows as $r) {
+                removeArtifactFile($releasesRoot, $r['artifact_path'] ?? null);
+            }
+
+            $deleted = count($rows);
+            Logger::log('playground_releases_admin', $method, 'delete_bulk', $adminId,
+                ['ids' => $ids], ['success' => true, 'deleted' => $deleted,
+                 'promoted_latest' => $promoted], 200);
+            jsonResponse(['success' => true, 'deleted' => $deleted, 'promoted_latest' => $promoted]);
             break;
         }
 

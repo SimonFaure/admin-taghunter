@@ -23,6 +23,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 header('Content-Type: application/json');
 
+// These JSON responses are dynamic and must NEVER be cached - above all the
+// polled boards (public_board / leaderboard), which sit behind a Google Cloud
+// load balancer/CDN. Without this a cached GET is served back every poll and a
+// projected leaderboard freezes on stale data (a just-finished team never
+// appears). The `media` action sets its own Cache-Control and exits, so this
+// only governs the API responses.
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
@@ -77,6 +86,94 @@ function goMediaContentType($path) {
     ];
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     return $types[$ext] ?? 'application/octet-stream';
+}
+
+// Lower bound (UTC 'Y-m-d H:i:s') for a named time range, computed on the SERVER
+// so it shares the exact clock that stamps go_scores.updated_at. This is why a
+// just-finished game reliably lands in "today": both the row's timestamp and
+// this boundary come from the same now(), so no browser/server clock or timezone
+// mismatch can push a fresh game out of its own day.
+//
+// `tz` is the viewer's IANA zone (e.g. "Europe/Paris") so "today" / "this week"
+// still mean the operator's calendar period; it defaults to the server's own
+// zone and falls back to it if the browser sends garbage. `all`, `custom`, and
+// anything unrecognized return null (no lower bound).
+function namedRangeStartUtc($range, $tz) {
+    if (!$range || $range === 'all' || $range === 'custom') return null;
+    try {
+        $zone = $tz ? new DateTimeZone($tz) : new DateTimeZone(date_default_timezone_get());
+    } catch (Exception $e) {
+        $zone = new DateTimeZone(date_default_timezone_get());
+    }
+    $start = new DateTime('now', $zone);
+    switch ($range) {
+        case 'today':
+            $start->setTime(0, 0, 0);
+            break;
+        case 'week': // Week starts Monday.
+            $start->setTime(0, 0, 0);
+            $start->modify('-' . ((int)$start->format('N') - 1) . ' days');
+            break;
+        case 'month':
+            $start->setDate((int)$start->format('Y'), (int)$start->format('n'), 1)->setTime(0, 0, 0);
+            break;
+        case 'year':
+            $start->setDate((int)$start->format('Y'), 1, 1)->setTime(0, 0, 0);
+            break;
+        default:
+            return null;
+    }
+    $start->setTimezone(new DateTimeZone('UTC'));
+    return $start->format('Y-m-d H:i:s');
+}
+
+// Resolve the from/to filter for a board request from either a named `range`
+// (+ optional `tz`), computed server-side, or explicit `from`/`to` bounds
+// (custom range, client-supplied UTC). Explicit bounds win when present, so old
+// callers that only sent from/to keep working unchanged.
+function resolveBoardBounds() {
+    $from = trim((string)($_GET['from'] ?? ''));
+    $to = trim((string)($_GET['to'] ?? ''));
+    if ($from === '' && $to === '') {
+        $named = namedRangeStartUtc($_GET['range'] ?? '', $_GET['tz'] ?? '');
+        if ($named !== null) $from = $named;
+    }
+    return [$from, $to];
+}
+
+// Per-app capability + billing gate for an unauthenticated caller, mirroring the
+// one `load` applies inline. Returns null when the client may be served, or a
+// [reason, status] pair to refuse with. Used by `public_board`, which - like
+// `load` and `score` - is reached by a phone with no account.
+function goClientGateReason($db, $clientId, $app) {
+    if ($app === 'drop') {
+        $client = $db->fetch(
+            'SELECT id, drop_enabled, drop_billing_overdue_since, drop_billing_grace_days
+             FROM clients WHERE id = ?',
+            [$clientId]
+        );
+        if (!$client) return ['unknown_client', 403];
+        if (empty($client['drop_enabled'])) return ['drop_disabled', 403];
+        $overdueSince = $client['drop_billing_overdue_since'] ?? null;
+        $graceDays = (int)($client['drop_billing_grace_days'] ?? 30);
+    } else {
+        $client = $db->fetch(
+            'SELECT id, go_enabled, go_billing_overdue_since, go_billing_grace_days
+             FROM clients WHERE id = ?',
+            [$clientId]
+        );
+        if (!$client) return ['unknown_client', 403];
+        if (empty($client['go_enabled'])) return ['go_disabled', 403];
+        $overdueSince = $client['go_billing_overdue_since'] ?? null;
+        $graceDays = (int)($client['go_billing_grace_days'] ?? 30);
+    }
+    if (!empty($overdueSince)) {
+        $overdueTs = strtotime($overdueSince);
+        if ($overdueTs !== false && time() > $overdueTs + $graceDays * 86400) {
+            return ['subscription_inactive', 403];
+        }
+    }
+    return null;
 }
 
 // Build enigma-number -> correct letter from a GO pattern's pattern_data
@@ -229,6 +326,34 @@ try {
         $medias = !empty($scenario['medias']) ? json_decode($scenario['medias'], true) : [];
         $mImages = is_array($medias['images'] ?? null) ? $medias['images'] : [];
         $mSounds = is_array($medias['sounds'] ?? null) ? $medias['sounds'] : [];
+
+        // The editor strips the answer-image fields out of `game_meta.enigmas`
+        // on save (cleanGameMetaForData) and parks them in the structured
+        // `medias.enigmas[]` list keyed by `enigma_number`. Splice them back on
+        // so `good_answer_image` / `wrong_answer_image*` are readable below -
+        // same merge playground.php does for the Mystery runtime. Note the
+        // media list only holds enigmas that HAVE an image, so indices don't
+        // align: match on the number, never on position.
+        if (is_array($gm['enigmas'] ?? null)) {
+            $enigmaMediaByNumber = [];
+            foreach ((is_array($medias['enigmas'] ?? null) ? $medias['enigmas'] : []) as $em) {
+                if (!is_array($em)) continue;
+                $num = $em['enigma_number'] ?? null;
+                if ($num === null || $num === '') continue;
+                $enigmaMediaByNumber[(string)$num] = $em;
+            }
+            if ($enigmaMediaByNumber) {
+                foreach ($gm['enigmas'] as $i => $e) {
+                    if (!is_array($e)) continue;
+                    $num = $e['number'] ?? null;
+                    if ($num === null || $num === '' || !isset($enigmaMediaByNumber[(string)$num])) continue;
+                    foreach ($enigmaMediaByNumber[(string)$num] as $k => $v) {
+                        if ($k === 'enigma_number' || $v === '' || $v === null) continue;
+                        $gm['enigmas'][$i][$k] = $v;
+                    }
+                }
+            }
+        }
 
         $warning = null;
         $answerCount = ($gm['go_answer_count'] ?? null) == 4 ? 4 : 2;
@@ -546,8 +671,7 @@ try {
         if (!$scenarioId) {
             jsonResponse(['error' => 'missing_params', 'reason' => 'scenario_id required'], 400);
         }
-        $from = trim((string)($_GET['from'] ?? ''));
-        $to = trim((string)($_GET['to'] ?? ''));
+        [$from, $to] = resolveBoardBounds();
         $app = requestApp($_GET['app'] ?? null);
 
         $where = 'scenario_id = ? AND app = ?';
@@ -572,6 +696,81 @@ try {
             $params
         );
         jsonResponse(['data' => $rows]);
+        break;
+    }
+
+    // ---- public_board: the SAME board, for players (no auth) ----------------
+    // Players have no account, so this mirrors `leaderboard` with the token check
+    // replaced by explicit scoping: the client comes from `c`, and the scenario
+    // must actually be granted to that client in this app's mode. Without the
+    // grant check anyone could enumerate boards for arbitrary scenario ids.
+    //
+    // The operator chooses the time window in their Studio space and it travels
+    // in the page URL, so `from`/`to` arrive here exactly as they do for the
+    // operator's own board - already UTC, computed in the viewer's timezone.
+    //
+    // team_uuid is deliberately NOT returned: `score` upserts by
+    // (client, scenario, team_uuid, app) with no auth, so publishing team_uuids
+    // would let a visitor overwrite another team's score.
+    case 'public_board': {
+        if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+            jsonResponse(['error' => 'method_not_allowed'], 405);
+        }
+        $clientId = $_GET['c'] ?? $_GET['client'] ?? null;
+        $scenarioId = $_GET['s'] ?? $_GET['scenario'] ?? $_GET['scenario_id'] ?? null;
+        if (!$clientId || !$scenarioId) {
+            jsonResponse(['error' => 'missing_params', 'reason' => 'client and scenario are required'], 400);
+        }
+        $app = requestApp($_GET['app'] ?? null);
+
+        $refusal = goClientGateReason($db, $clientId, $app);
+        if ($refusal !== null) {
+            jsonResponse(['error' => 'refused', 'reason' => $refusal[0]], $refusal[1]);
+        }
+
+        // The scenario must be granted to this client for this app.
+        $grant = $db->fetch(
+            'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
+            [$clientId, $scenarioId, $app]
+        );
+        if (!$grant) {
+            jsonResponse(['error' => 'refused', 'reason' => 'not_granted'], 403);
+        }
+
+        $scenario = $db->fetch('SELECT id, title FROM scenarios WHERE id = ?', [$scenarioId]);
+        if (!$scenario) {
+            jsonResponse(['error' => 'refused', 'reason' => 'unknown_scenario'], 403);
+        }
+
+        [$from, $to] = resolveBoardBounds();
+
+        // finished = 1 only: the player-facing board shows a team only once it has
+        // ENDED its game, so a live score mid-play doesn't pop in and jump around
+        // on the projector. (The operator's own leaderboard still sees in-progress
+        // teams.) `total` below is over the same finished set, so "showing X of Y"
+        // stays consistent.
+        $where = 'scenario_id = ? AND app = ? AND client_id = ? AND finished = 1';
+        $params = [$scenarioId, $app, $clientId];
+        // updated_at is UTC (connection pinned above); bounds arrive as UTC too.
+        if ($from !== '') { $where .= ' AND updated_at >= ?'; $params[] = $from; }
+        if ($to !== '')   { $where .= ' AND updated_at <= ?'; $params[] = $to; }
+
+        // Cap the payload - this is polled from phones. `total` lets the page say
+        // so out loud rather than silently truncating the field.
+        $limit = 200;
+        $totalRow = $db->fetch("SELECT COUNT(*) AS n FROM go_scores WHERE $where", $params);
+        $rows = $db->fetchAll(
+            "SELECT team_name, score, level, finished, elapsed_seconds, updated_at
+             FROM go_scores WHERE $where
+             ORDER BY score DESC, elapsed_seconds ASC
+             LIMIT $limit",
+            $params
+        );
+        jsonResponse([
+            'data' => $rows,
+            'total' => (int)($totalRow['n'] ?? count($rows)),
+            'title' => $scenario['title'] ?? '',
+        ]);
         break;
     }
 

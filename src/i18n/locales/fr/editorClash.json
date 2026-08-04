@@ -47,8 +47,21 @@
     "minTooltip": "Au moins {{count}} territoires requis",
     "name": "Nom du territoire",
     "pointsPerMinute": "Points / minute",
-    "balisesLabel": "Balises (codes de station physiques)",
-    "balisesPlaceholder": "ex. 1, 2, 3, 4, 5",
-    "balisesHint": "Une puce doit biper toutes ces balises puis s'enregistrer au lecteur central pour valider le territoire. Séparées par des virgules ; modifiables par site au lancement."
+    "balisesLabel": "Balises (numéros de station)",
+    "balisesHint": "Une puce doit biper toutes ces balises puis s'enregistrer au lecteur central pour valider le territoire. Chaque balise ne peut appartenir qu'à un seul territoire. Modifiables par site au lancement.",
+    "chooseBalises": "Choisir les balises",
+    "noBalises": "Aucune balise sélectionnée",
+    "pickerTitle": "Choisir les balises - {{territory}}",
+    "pickerSelectedCount_one": "{{count}} sélectionnée",
+    "pickerSelectedCount_other": "{{count}} sélectionnées",
+    "pickerSearchPlaceholder": "Rechercher une balise…",
+    "pickerLoading": "Chargement des balises…",
+    "pickerError": "Impossible de charger l'inventaire des balises. Fermez et réessayez.",
+    "pickerEmpty": "Aucune balise dans votre inventaire. Ajoutez d'abord des balises dans le gestionnaire de balises.",
+    "usedByTerritory": "Utilisée par {{territory}}",
+    "notNumeric": "Pas de numéro de station",
+    "unknownStation": "Absente de l'inventaire",
+    "cancel": "Annuler",
+    "confirm": "Confirmer"
   }
 }

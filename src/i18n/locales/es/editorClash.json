@@ -47,8 +47,21 @@
     "minTooltip": "Se requieren al menos {{count}} territorios",
     "name": "Nombre del territorio",
     "pointsPerMinute": "Puntos / minuto",
-    "balisesLabel": "Balizas (códigos de estación físicos)",
-    "balisesPlaceholder": "ej. 1, 2, 3, 4, 5",
-    "balisesHint": "Una ficha debe pasar por todas estas y luego registrarse en el lector central para completar el territorio. Separadas por comas; modificables por sede al iniciar."
+    "balisesLabel": "Balizas (números de estación)",
+    "balisesHint": "Un chip debe fichar todas estas balizas y luego registrarse en el lector central para completar el territorio. Cada baliza solo puede pertenecer a un territorio. Modificables por sede al iniciar.",
+    "chooseBalises": "Elegir balizas",
+    "noBalises": "Ninguna baliza seleccionada",
+    "pickerTitle": "Elegir balizas - {{territory}}",
+    "pickerSelectedCount_one": "{{count}} seleccionada",
+    "pickerSelectedCount_other": "{{count}} seleccionadas",
+    "pickerSearchPlaceholder": "Buscar balizas…",
+    "pickerLoading": "Cargando balizas…",
+    "pickerError": "No se pudo cargar el inventario de balizas. Cierre e inténtelo de nuevo.",
+    "pickerEmpty": "No hay balizas en su inventario. Añada balizas primero en el gestor de balizas.",
+    "usedByTerritory": "Usada por {{territory}}",
+    "notNumeric": "Sin número de estación",
+    "unknownStation": "No está en el inventario",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
   }
 }

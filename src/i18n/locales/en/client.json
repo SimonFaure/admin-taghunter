@@ -120,6 +120,15 @@
     "range_all": "All time",
     "range_custom": "Custom",
     "from": "From",
-    "to": "To"
+    "to": "To",
+    "openBoard": "Player ranking"
+  },
+  "publicBoard": {
+    "title": "Ranking",
+    "loading": "Loading…",
+    "unavailable": "This ranking is not available.",
+    "pinHint": "Tap your team to highlight it",
+    "truncated": "Showing the top {{shown}} of {{total}} teams.",
+    "stale": "Offline — last known scores."
   }
 }

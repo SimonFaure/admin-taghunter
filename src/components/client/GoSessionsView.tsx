@@ -1,77 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trophy, RefreshCw, CheckCircle2, QrCode, Maximize2, X, Image as ImageIcon } from 'lucide-react';
+import { Trophy, RefreshCw, CheckCircle2, QrCode, Maximize2, X, Image as ImageIcon, ListOrdered } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
 import { getGameVisualUrl } from './MyScenariosView';
+import {
+  DROP_BASE_URL,
+  GO_BASE_URL,
+  NAMED_RANGES,
+  fmtElapsed,
+  playerUrl,
+  rangeQuery,
+  type RangeKey,
+  type ScoreRow,
+} from '../../lib/goRanking';
 import type { ClientScenario } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
-// The player PWAs (Tag Hunter GO / Drop). The QR opens the app on a phone, scoped
-// to the client + scenario. There is no session - the leaderboard is filtered by
-// time range in this view, so the QR is durable (the same QR works for every run).
-const GO_BASE_URL = import.meta.env.VITE_GO_BASE_URL || 'https://go.taghunter.fr';
-const DROP_BASE_URL = import.meta.env.VITE_DROP_BASE_URL || 'https://drop.taghunter.fr';
 const POLL_MS = 4000;
-
-function playerUrl(base: string, clientId: string, scenarioId: number | string): string {
-  return `${base}/?c=${encodeURIComponent(clientId)}&s=${encodeURIComponent(String(scenarioId))}`;
-}
-
-// The time windows the operator can filter the leaderboard by. The named ranges
-// are resolved server-side against its clock; `custom` sends explicit from/to.
-type RangeKey = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom';
-const NAMED_RANGES: RangeKey[] = ['today', 'week', 'month', 'year', 'all'];
-
-interface ScoreRow {
-  team_uuid: string;
-  team_name: string | null;
-  score: number;
-  level: number;
-  finished: number;
-  elapsed_seconds: number;
-  updated_at: string;
-}
-
-function fmtElapsed(sec: number): string {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
-// A Date → UTC MySQL datetime ("YYYY-MM-DD HH:MM:SS"). toISOString() is always
-// UTC, so the server (whose connection is pinned to UTC) compares apples to
-// apples regardless of where the operator or the DB live.
-function toUtcSql(d: Date): string {
-  return d.toISOString().slice(0, 19).replace('T', ' ');
-}
-
-// The lower bound of a named range, computed in the OPERATOR's local timezone so
-// "Today" / "This week" / … mean the viewer's calendar period. null = no bound.
-function rangeStart(range: RangeKey, now: Date): Date | null {
-  const y = now.getFullYear();
-  const mo = now.getMonth();
-  const d = now.getDate();
-  switch (range) {
-    case 'today':
-      return new Date(y, mo, d);
-    case 'week': {
-      // Week starts Monday. getDay(): 0 = Sunday, so Monday offset = (day+6)%7.
-      const monday = new Date(y, mo, d);
-      monday.setDate(d - ((now.getDay() + 6) % 7));
-      return monday;
-    }
-    case 'month':
-      return new Date(y, mo, 1);
-    case 'year':
-      return new Date(y, 0, 1);
-    case 'all':
-    case 'custom':
-    default:
-      return null;
-  }
-}
 
 /**
  * Client "GO / Drop Leaderboards" - the animateur's leaderboard. Pick a scenario,
@@ -87,6 +34,16 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
   const baseUrl = app === 'drop' ? DROP_BASE_URL : GO_BASE_URL;
   const title = app === 'drop' ? t('goSessions.titleDrop', { defaultValue: 'Drop Leaderboards' }) : t('goSessions.title');
   const url = (scenarioId: number | string) => playerUrl(baseUrl, clientId, scenarioId);
+  // The public player board (components/public/PublicRankingView) - the operator
+  // opens it in a new tab to project it. The CURRENT time window is baked into
+  // the link, since the board has no picker of its own. Named ranges travel as
+  // range+tz (resolved server-side, like the board itself does); custom carries
+  // explicit from/to.
+  const boardUrl = (scenarioId: number | string, r: RangeKey, from: string, to: string) => {
+    const qs = new URLSearchParams(rangeQuery(r, from, to));
+    const path = `/r/${app}/${encodeURIComponent(clientId)}/${encodeURIComponent(String(scenarioId))}?${qs}`;
+    return `${window.location.origin}${path}`;
+  };
   const [goScenarios, setGoScenarios] = useState<ClientScenario[]>([]);
   const [scenario, setScenario] = useState<ClientScenario | null>(null);
   const [range, setRange] = useState<RangeKey>('today');
@@ -132,16 +89,12 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
   const loadBoard = useCallback(
     async (scenarioId: number | string, r: RangeKey, from: string, to: string) => {
       try {
-        const qs = new URLSearchParams({ action: 'leaderboard', scenario_id: String(scenarioId), app });
-        if (r === 'custom') {
-          // datetime-local strings are operator-local wall-clock → to UTC.
-          if (from) qs.set('from', toUtcSql(new Date(from)));
-          if (to) qs.set('to', toUtcSql(new Date(to)));
-        } else {
-          // Named ranges: compute the lower bound in the operator's timezone.
-          const start = rangeStart(r, new Date());
-          if (start) qs.set('from', toUtcSql(start));
-        }
+        const qs = new URLSearchParams({
+          action: 'leaderboard',
+          scenario_id: String(scenarioId),
+          app,
+          ...rangeQuery(r, from, to),
+        });
         const res = await authFetch(`${API_BASE_URL}/go.php?${qs.toString()}`, { credentials: 'include' });
         if (res.ok) {
           const json = await res.json();
@@ -310,6 +263,15 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
                       <QrCode className="w-3.5 h-3.5" />
                       {t('goSessions.showQr')}
                     </button>
+                    <a
+                      href={boardUrl(scenario.id, range, customFrom, customTo)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                    >
+                      <ListOrdered className="w-3.5 h-3.5" />
+                      {t('goSessions.openBoard', { defaultValue: 'Classement joueurs' })}
+                    </a>
                     <RefreshCw className={`w-4 h-4 text-slate-400 ${loadingBoard ? 'animate-spin' : ''}`} />
                   </div>
                 </div>

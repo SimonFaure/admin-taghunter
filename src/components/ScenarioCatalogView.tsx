@@ -39,7 +39,18 @@ interface CatalogScenario {
   difficulty: number;
   univers: string[];
   group: CatalogGroup;
+  // Tag Hunter GO / Drop adaptability. Two independent flags on game_meta -
+  // a scenario can be both, either, or neither.
+  adaptableGo: boolean;
+  adaptableDrop: boolean;
 }
+
+// The two companion apps a scenario can be adapted to, as filter chips.
+type AppFlag = 'go' | 'drop';
+const APP_FLAGS: { value: AppFlag; label: string; on: string; off: string }[] = [
+  { value: 'go', label: 'GO', on: 'bg-emerald-600 text-white border-emerald-600', off: 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-300' },
+  { value: 'drop', label: 'DROP', on: 'bg-sky-600 text-white border-sky-600', off: 'bg-white text-sky-700 border-sky-200 hover:border-sky-300' },
+];
 
 // Catalog section order + display labels. QUEST is the tagquest game type.
 const SECTIONS: { gameType: string; label: string }[] = [
@@ -71,6 +82,7 @@ export function ScenarioCatalogView() {
   const [bandFilters, setBandFilters] = useState<Set<AudienceBand>>(new Set());
   const [difficultyFilters, setDifficultyFilters] = useState<Set<number>>(new Set());
   const [universFilters, setUniversFilters] = useState<Set<string>>(new Set());
+  const [appFilters, setAppFilters] = useState<Set<AppFlag>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +104,8 @@ export function ScenarioCatalogView() {
               difficulty: coerceDifficulty(meta.difficulty),
               univers: normalizeUnivers(meta.univers),
               group: bandsToCatalogGroup(bands),
+              adaptableGo: meta.adaptable_go === true,
+              adaptableDrop: meta.adaptable_drop === true,
             };
           });
         if (!cancelled) setScenarios(rows);
@@ -127,10 +141,17 @@ export function ScenarioCatalogView() {
       const tags = s.univers.map((t) => t.toLowerCase());
       if (!tags.some((t) => universFilters.has(t))) return false;
     }
+    // OR within the app chips: GO+DROP selected means "adapted to either".
+    if (appFilters.size > 0) {
+      const apps: AppFlag[] = [];
+      if (s.adaptableGo) apps.push('go');
+      if (s.adaptableDrop) apps.push('drop');
+      if (!apps.some((a) => appFilters.has(a))) return false;
+    }
     return true;
   };
 
-  const filtered = useMemo(() => scenarios.filter(matches), [scenarios, bandFilters, difficultyFilters, universFilters]);
+  const filtered = useMemo(() => scenarios.filter(matches), [scenarios, bandFilters, difficultyFilters, universFilters, appFilters]);
 
   const sections = useMemo(
     () =>
@@ -152,7 +173,7 @@ export function ScenarioCatalogView() {
     // banners, Children/Teens-Adults group headers, then one row per scenario
     // with the six age-band columns, difficulty (numeric) and univers tags.
     const XLSX = await import('xlsx');
-    const header = ['Scenario', ...AUDIENCE_BANDS.map((b) => getBandLabel(b.value)), 'Difficulty', 'Univers'];
+    const header = ['Scenario', ...AUDIENCE_BANDS.map((b) => getBandLabel(b.value)), 'Difficulty', 'Apps', 'Univers'];
     const cols = header.length;
     const aoa: (string | number)[][] = [header];
     for (const section of sections) {
@@ -165,13 +186,14 @@ export function ScenarioCatalogView() {
             s.title,
             ...AUDIENCE_BANDS.map((b) => (bandSet.has(b.value) ? '●' : '')),
             s.difficulty,
+            [s.adaptableGo ? 'GO' : '', s.adaptableDrop ? 'DROP' : ''].filter(Boolean).join(' + '),
             s.univers.join(', '),
           ]);
         }
       }
     }
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 40 }, ...AUDIENCE_BANDS.map(() => ({ wch: 6 })), { wch: 10 }, { wch: 30 }];
+    ws['!cols'] = [{ wch: 40 }, ...AUDIENCE_BANDS.map(() => ({ wch: 6 })), { wch: 10 }, { wch: 12 }, { wch: 30 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Catalog');
     const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
@@ -246,7 +268,7 @@ export function ScenarioCatalogView() {
           <button
             key={level}
             type="button"
-            onClick={() => toggle(setDifficultyFilters, level)}
+            onClick={() => toggle<number>(setDifficultyFilters, level)}
             className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
               difficultyFilters.has(level)
                 ? 'bg-amber-500 text-white border-amber-500'
@@ -254,6 +276,20 @@ export function ScenarioCatalogView() {
             }`}
           >
             {'★'.repeat(level)}
+          </button>
+        ))}
+        <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">Apps</span>
+        {APP_FLAGS.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => toggle(setAppFilters, f.value)}
+            className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
+              appFilters.has(f.value) ? f.on : f.off
+            }`}
+          >
+            {f.label}
           </button>
         ))}
         {universPool.length > 0 && (
@@ -299,6 +335,7 @@ export function ScenarioCatalogView() {
                         </th>
                       ))}
                       <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-center">Difficulty</th>
+                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-center">Apps</th>
                       <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide">Univers</th>
                     </tr>
                   </thead>
@@ -306,7 +343,7 @@ export function ScenarioCatalogView() {
                     {section.groups.map((g) => (
                       <Fragment key={`${section.gameType}-${g.group}`}>
                         <tr className="bg-slate-100/70">
-                          <td colSpan={AUDIENCE_BANDS.length + 3} className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                          <td colSpan={AUDIENCE_BANDS.length + 4} className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-slate-500">
                             {GROUP_LABELS[g.group]}
                           </td>
                         </tr>
@@ -333,6 +370,18 @@ export function ScenarioCatalogView() {
                               ))}
                               <td className="px-3 py-2 text-center text-amber-500 whitespace-nowrap" title={`${s.difficulty} / 5`}>
                                 {formatDifficultyStars(s.difficulty)}
+                              </td>
+                              {/* Foreground-colored text, not filled badges, so the
+                                  column survives printing (same reason as the band dots). */}
+                              <td className="px-3 py-2 text-center whitespace-nowrap text-xs font-bold">
+                                {!s.adaptableGo && !s.adaptableDrop ? (
+                                  <span className="text-slate-200">·</span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    {s.adaptableGo && <span className="text-emerald-600">GO</span>}
+                                    {s.adaptableDrop && <span className="text-sky-600">DROP</span>}
+                                  </span>
+                                )}
                               </td>
                               <td className="px-3 py-2">
                                 <div className="flex flex-wrap gap-1">

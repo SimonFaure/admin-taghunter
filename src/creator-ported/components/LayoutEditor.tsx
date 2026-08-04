@@ -157,6 +157,16 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const [territoryCount, setTerritoryCount] = useState<number>(0);
   // Clash: authored territory display names (index-aligned), for marker labels.
   const [clashTerritoryNames, setClashTerritoryNames] = useState<string[]>([]);
+  // Clash: render-only dashboard chrome mock (ranking panel + score cards,
+  // event feed, frame images, clan visuals) mirroring ClashGameRenderer so the
+  // author sees the whole in-game screen while placing markers. Resolved to
+  // URLs at load; toggleable from the toolbar.
+  const [clashChrome, setClashChrome] = useState<{
+    frames: { ranking: string; event: string; timer: string; gauge: string; territoryName: string };
+    clans: Array<{ name: string; color: string; logo: string; scoreCard: string }>;
+    purgeImage: string;
+  } | null>(null);
+  const [showClashChrome, setShowClashChrome] = useState(true);
   const [checkpointCount, setCheckpointCount] = useState<number>(0);
   const [tracksIconSize, setTracksIconSize] = useState<number>(3);
   const [naturalAspects, setNaturalAspects] = useState<Record<string, number>>({});
@@ -179,6 +189,23 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const instructionLayoutImages = ['game_instructions_image', 'game_instructions_button_image', 'game_refresh_button_image'];
   const TRACKS_HUD_IDS = TRACKS_HUD_ITEMS.map((i) => i.id);
   const isCheckpointElement = (id: string) => isTracksGame && /^checkpoint_\d+$/.test(id);
+  // Clash map markers are anchored by their CENTER on the map image, exactly
+  // like the runtime draws them (ClashGameRenderer plants banner / name-gauge /
+  // purge / timer with translate(-50%,-50%) on the saved point). The drag box is
+  // only the grab target - its size is editor chrome, so these are move-only
+  // (the runtime sizes them itself). Anything else is a corner-anchored,
+  // resizable box.
+  const isClashMarkerElement = (id: string) =>
+    isClashGame && (/^territory_\d+_(banner|label|purge)$/.test(id) || id === 'clash_timer');
+  // Grab-box footprint of a clash marker (percent of the map box), sized to
+  // roughly what the runtime draws so the centred box reads as the real
+  // footprint. Single source of truth: hydration seeds and sidebar re-adds.
+  const clashMarkerBox = (id: string): { width: number; height: number } =>
+    id === 'clash_timer'
+      ? { width: 12, height: 5 }
+      : /^territory_\d+_banner$/.test(id)
+        ? { width: 8, height: 8 }
+        : { width: 6, height: 6 };
 
   // Sidebar items for the text-elements groups, partitioned by category id.
   // Uncategorized items go under the empty-string key. Names use the
@@ -692,9 +719,8 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         const seeds: Record<string, { left: number; top: number }> = {};
         const territoryEls: LayoutElement[] = [];
         const names: string[] = [];
-        const BANNER_SIZE = 8;
-        const LABEL_SIZE = 6;
-        const PURGE_SIZE = 6;
+        // Footprints come from clashMarkerBox() - see addSingleGroupItem, which
+        // restores the same box when a marker is re-added from the sidebar.
         // purge_image is a FLAT media field - stripped into the medias column
         // on save (unlike the nested clan banners), so read it from there.
         const purgeFile: string =
@@ -715,7 +741,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
           imagesList.push({ id: bannerId, name: `${base} · banner`, filename: bannerFile });
           territoryEls.push({
             type: 'image', id: bannerId, name: `${base} · banner`, filename: bannerFile,
-            x: seeds[bannerId].left, y: seeds[bannerId].top, width: BANNER_SIZE, height: BANNER_SIZE,
+            x: seeds[bannerId].left, y: seeds[bannerId].top, ...clashMarkerBox(bannerId),
           });
 
           const labelId = `territory_${n}_label`;
@@ -724,7 +750,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
           imagesList.push({ id: labelId, name: `${base} · name/gauge`, filename: '' });
           territoryEls.push({
             type: 'image', id: labelId, name: `${base} · name/gauge`, filename: '',
-            x: seeds[labelId].left, y: seeds[labelId].top, width: LABEL_SIZE, height: LABEL_SIZE,
+            x: seeds[labelId].left, y: seeds[labelId].top, ...clashMarkerBox(labelId),
           });
 
           // Purge anchor - where the purge image sits while this territory is
@@ -736,7 +762,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
           imagesList.push({ id: purgeId, name: `${base} · purge`, filename: purgeFile });
           territoryEls.push({
             type: 'image', id: purgeId, name: `${base} · purge`, filename: purgeFile,
-            x: seeds[purgeId].left, y: seeds[purgeId].top, width: PURGE_SIZE, height: PURGE_SIZE,
+            x: seeds[purgeId].left, y: seeds[purgeId].top, ...clashMarkerBox(purgeId),
           });
         }
         // Singleton, author-placeable timer marker (default: top-centre).
@@ -748,12 +774,46 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         imagesList.push({ id: 'clash_timer', name: 'Timer', filename: '' });
         territoryEls.push({
           type: 'image', id: 'clash_timer', name: 'Timer', filename: '',
-          x: timerPos.left, y: timerPos.top, width: 12, height: 5,
+          x: timerPos.left, y: timerPos.top, ...clashMarkerBox('clash_timer'),
         });
 
         tracksSeedRef.current = seeds;
         setAvailableImages(imagesList);
         setClashTerritoryNames(names);
+
+        // Dashboard chrome mock data. Frame images are FLAT media fields
+        // (stripped into medias.images on save); clan visuals stay inline in
+        // gm.clans (see the clash adapter's media model note). No clans yet
+        // still previews 4 placeholder rows so the panel reads correctly.
+        const frameUrl = (key: string) => {
+          const f = media?.images?.[key] || (typeof gm[key] === 'string' ? gm[key] : '');
+          return f ? getMediaUrl(uniqid, f) : '';
+        };
+        const CLAN_FALLBACK_COLORS = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad'];
+        const clansSrc: any[] =
+          Array.isArray(gm.clans) && gm.clans.length > 0 ? gm.clans : new Array(4).fill(null);
+        setClashChrome({
+          frames: {
+            ranking: frameUrl('frame_ranking'),
+            event: frameUrl('frame_event'),
+            timer: frameUrl('frame_timer'),
+            gauge: frameUrl('frame_gauge'),
+            territoryName: frameUrl('frame_territory_name'),
+          },
+          clans: clansSrc.map((c: any, i: number) => ({
+            name: resolveName(c?.name) || `Clan ${i + 1}`,
+            color:
+              typeof c?.color === 'string' && c.color
+                ? c.color
+                : CLAN_FALLBACK_COLORS[i % CLAN_FALLBACK_COLORS.length],
+            logo: typeof c?.logo === 'string' && c.logo ? getMediaUrl(uniqid, c.logo) : '',
+            scoreCard:
+              typeof c?.score_card === 'string' && c.score_card
+                ? getMediaUrl(uniqid, c.score_card)
+                : '',
+          })),
+          purgeImage: purgeFile ? getMediaUrl(uniqid, purgeFile) : '',
+        });
 
         const placedTextEls: LayoutElement[] = textEls
           .filter((te) => te?.id && te.position)
@@ -1059,13 +1119,20 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     if (itemDef.type === 'image') {
       const imgInfo = availableImages.find(img => img.id === itemId);
       if (!imgInfo) return currentElements;
-      // Tracks checkpoints restore to their map position (icon CENTER) at the
-      // configured icon size; HUD frames and everything else use a default box.
-      const seed = isCheckpointElement(itemId) ? tracksSeedRef.current[itemId] : undefined;
+      // Tracks checkpoints and clash markers restore to their saved map position
+      // (marker CENTER) at their own footprint - they're move-only, so a default
+      // box would be wrong and unfixable. HUD frames and everything else use a
+      // default box.
+      const isClashMarker = isClashMarkerElement(itemId);
+      const seed =
+        isCheckpointElement(itemId) || isClashMarker ? tracksSeedRef.current[itemId] : undefined;
+      const seedBox = isClashMarker
+        ? clashMarkerBox(itemId)
+        : { width: tracksIconSize, height: tracksIconSize };
       const newEl: ImageElement = seed
         ? {
             type: 'image', id: imgInfo.id, name: imgInfo.name, filename: imgInfo.filename,
-            x: seed.left, y: seed.top, width: tracksIconSize, height: tracksIconSize,
+            x: seed.left, y: seed.top, width: seedBox.width, height: seedBox.height,
           }
         : {
             type: 'image', id: imgInfo.id, name: imgInfo.name, filename: imgInfo.filename,
@@ -1600,6 +1667,11 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     return !instructionLayoutImages.includes(element.id);
   });
 
+  // Clash chrome mock: the runtime sizes its screen chrome in px on the real
+  // device screen; scale those px to the editor canvas (canvas width ≙ 1920).
+  const chromeScale = containerWidthPx > 0 ? containerWidthPx / 1920 : 0.4;
+  const chromePx = (n: number) => `${Math.max(1, n * chromeScale)}px`;
+
   return (
     <div className={`min-h-screen bg-gray-900 text-white ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
       <div className="border-b border-gray-800 bg-gray-950">
@@ -1642,6 +1714,15 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
               className={`px-2 py-1 rounded text-xs font-mono transition-colors border ${showGrid ? 'bg-blue-900/60 border-blue-600 text-blue-300' : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-600'}`}
               title="Grid"
             >#</button>
+            {isClashGame && (
+              <button
+                onClick={() => setShowClashChrome(v => !v)}
+                className={`px-2 py-1 rounded text-xs transition-colors border ${showClashChrome ? 'bg-blue-900/60 border-blue-600 text-blue-300' : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-gray-600'}`}
+                title="Dashboard preview (ranking, score cards, event feed)"
+              >
+                {showClashChrome ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              </button>
+            )}
           </div>
 
           <div className="flex-1" />
@@ -2107,13 +2188,149 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
               </>
             )}
 
+            {/* Clash dashboard chrome mock - render-only replica of the runtime
+                screen chrome (ClashGameRenderer): ranking panel + score cards
+                (right), event feed (bottom). Anchored to the CANVAS (the screen
+                proxy), not the map box, exactly like the runtime. Drawn under
+                the draggable markers so they stay grabbable; in-game the panel
+                draws above the map. */}
+            {isClashGame && showClashChrome && clashChrome && (() => {
+              const px = chromePx;
+              const chromeFont = resolveFontFamily(scenarioFont) || undefined;
+              const clans = clashChrome.clans;
+              const MOCK_POINTS = [120, 95, 70, 40];
+              const MOCK_RATES = [12, 9, 6, 3];
+              // Territory display name without the editor's "(N)" suffix.
+              const terrPlain = (i: number) =>
+                (clashTerritoryNames[i] || `Territory ${i + 1}`).replace(/ \(\d+\)$/, '');
+              const mockEvents = [
+                { verb: `a conquis ${terrPlain(0)} !`, age: "à l'instant" },
+                { verb: `attaque ${terrPlain(1)} !`, age: 'il y a 1 min' },
+                { verb: `a neutralisé ${terrPlain(2)} !`, age: 'il y a 3 min' },
+                { verb: `a conquis ${terrPlain(3)} !`, age: 'il y a 5 min' },
+              ].map((e, i) => ({ ...e, clan: clans[i % clans.length] }));
+              return (
+                <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" style={{ fontFamily: chromeFont }}>
+                  {/* Ranking panel (right) - frame image drives the aspect;
+                      dashed outline stands in when no frame is uploaded. */}
+                  <div className="absolute" style={{ top: px(16), right: px(16), width: px(340) }}>
+                    {clashChrome.frames.ranking ? (
+                      <img src={clashChrome.frames.ranking} alt="" className="block w-full h-auto" draggable={false} />
+                    ) : (
+                      <div
+                        className="w-full rounded-xl border border-dashed border-white/25 bg-black/30"
+                        style={{ height: containerHeightPx * 0.7 }}
+                      />
+                    )}
+                    <div
+                      className="absolute inset-0 flex flex-col"
+                      style={{ padding: `${36 * chromeScale}px ${16 * chromeScale}px ${16 * chromeScale}px` }}
+                    >
+                      <h2
+                        className="shrink-0 text-center font-bold uppercase text-white/80"
+                        style={{ fontSize: px(14), letterSpacing: '0.12em', marginBottom: px(16) }}
+                      >
+                        Classement des clans
+                      </h2>
+                      <div className="flex-1 grid grid-rows-4 min-h-0">
+                        {clans.map((c, i) => (
+                          <div key={i} className="relative self-center w-full">
+                            {c.scoreCard ? (
+                              <img src={c.scoreCard} alt="" className="block w-full h-auto" draggable={false} />
+                            ) : (
+                              <div className="w-full aspect-[16/5] rounded-lg border border-dashed border-white/20 bg-black/30" />
+                            )}
+                            <span
+                              className="font-bold text-white/90 tabular-nums"
+                              style={{ position: 'absolute', top: px(4), left: px(8), fontSize: px(24) }}
+                            >
+                              {i + 1}
+                            </span>
+                            {clashChrome.purgeImage && (
+                              <img
+                                src={clashChrome.purgeImage}
+                                alt=""
+                                className="object-contain"
+                                style={{ position: 'absolute', bottom: px(4), left: px(8), width: px(24), height: px(24) }}
+                                draggable={false}
+                              />
+                            )}
+                            <div
+                              className="absolute inset-0 flex items-center"
+                              style={{ paddingLeft: '16%', paddingRight: '7%', paddingTop: px(16) }}
+                            >
+                              <div className="flex-1 min-w-0 text-right leading-tight">
+                                <div className="font-bold uppercase truncate" style={{ color: c.color, fontSize: px(16) }}>
+                                  {c.name}
+                                </div>
+                                <div className="tabular-nums font-bold text-white">
+                                  <span style={{ fontSize: px(20) }}>{MOCK_POINTS[i % 4]}</span>
+                                  <span style={{ fontSize: px(12), marginLeft: px(4) }}>PTS</span>
+                                </div>
+                                <div className="text-white/70 whitespace-nowrap" style={{ fontSize: px(12) }}>
+                                  +{MOCK_RATES[i % 4]} pts/min
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Event feed (bottom) - a few mock conquest/attack entries. */}
+                  <div
+                    className="absolute flex items-stretch overflow-hidden rounded-xl shadow-lg"
+                    style={{
+                      left: px(12), right: px(12), bottom: px(12), height: px(64),
+                      ...(clashChrome.frames.event
+                        ? { backgroundImage: `url(${clashChrome.frames.event})`, backgroundSize: '100% 100%' }
+                        : { background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.15)' }),
+                    }}
+                  >
+                    {mockEvents.map((ev, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center shrink-0"
+                        style={{ gap: px(8), padding: `0 ${12 * chromeScale}px`, borderRight: '1px solid rgba(255,255,255,0.15)' }}
+                      >
+                        <div
+                          className="shrink-0 flex items-center justify-center overflow-hidden"
+                          style={{ width: px(32), height: px(32) }}
+                        >
+                          {ev.clan?.logo ? (
+                            <img src={ev.clan.logo} alt="" className="w-full h-full object-contain" draggable={false} />
+                          ) : (
+                            <span
+                              className="rounded-full"
+                              style={{ width: px(12), height: px(12), backgroundColor: ev.clan?.color ?? '#888' }}
+                            />
+                          )}
+                        </div>
+                        <div className="leading-tight" style={{ maxWidth: px(150) }}>
+                          <div className="font-semibold text-white/90" style={{ fontSize: px(12) }}>
+                            <span style={{ color: ev.clan?.color }}>{ev.clan?.name ?? '?'}</span> {ev.verb}
+                          </div>
+                          <div className="text-white/50" style={{ fontSize: px(10) }}>{ev.age}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {visibleElements.map(element => {
               if (element.hidden) return null;
               // Tracks checkpoints are anchored by their CENTER (matching the
               // runtime's translate(-50%,-50%)) and keep natural aspect; they
-              // are move-only (size is the global icon-size field). Everything
+              // are move-only (size is the global icon-size field). Clash map
+              // markers are also centre-anchored and move-only, but keep the
+              // box height (the box is the runtime footprint mock). Everything
               // else is a corner-anchored, resizable box.
               const isCp = isCheckpointElement(element.id);
+              const isClashMarker = isClashMarkerElement(element.id);
+              const isMoveOnly = isCp || isClashMarker;
               const hudMock = isTracksGame ? TRACKS_HUD_MOCK_TEXT[element.id] : undefined;
               const elLeft = imageBounds.x + (element.x / 100) * imageBounds.width;
               const elTop = imageBounds.y + (element.y / 100) * imageBounds.height;
@@ -2123,7 +2340,9 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
               const elWidthPx = containerWidthPx * (elWidth / 100);
               const wrapperStyle = isCp
                 ? { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, transform: 'translate(-50%, -50%)' }
-                : { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, height: `${elHeight}%` };
+                : isClashMarker
+                  ? { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, height: `${elHeight}%`, transform: 'translate(-50%, -50%)' }
+                  : { left: `${elLeft}%`, top: `${elTop}%`, width: `${elWidth}%`, height: `${elHeight}%` };
 
               // Per-type accent color drives both the wrapper border + the
               // selection chrome (label chip, drag dots, resize handle).
@@ -2183,7 +2402,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                   <img
                     src={getMediaUrl(scenarioUniqid, element.filename)}
                     alt={element.name}
-                    className={`${isCp ? 'w-full h-auto' : 'w-full h-full object-fill'} pointer-events-none`}
+                    className={`${isCp ? 'w-full h-auto' : 'w-full h-full object-contain'} pointer-events-none`}
                     draggable={false}
                     onLoad={(e) => {
                       const img = e.currentTarget;
@@ -2192,9 +2411,78 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       }
                     }}
                   />
-                  ) : isClashGame && (/^territory_\d+_(banner|label|purge)$/.test(element.id) || element.id === 'clash_timer') ? (
-                    // Clash banner / name-gauge / purge / timer marker - pin.
-                    // (Purge markers show gm.purge_image instead once uploaded.)
+                  ) : isClashGame && element.id === 'clash_timer' ? (
+                    // Timer marker - mock of the runtime chip (frame_timer
+                    // background when uploaded, else the default black pill).
+                    <div
+                      className="w-full h-full flex items-center justify-center pointer-events-none font-bold tabular-nums rounded-xl"
+                      style={{
+                        ...(clashChrome?.frames.timer
+                          ? { backgroundImage: `url(${clashChrome.frames.timer})`, backgroundSize: '100% 100%' }
+                          : { background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.15)' }),
+                        fontFamily: resolveFontFamily(scenarioFont) || undefined,
+                        color: scenarioFontColor || '#ffffff',
+                        fontSize: `${Math.max(8, elHeightPx * 0.55)}px`,
+                        textShadow: '0 1px 3px rgba(0,0,0,0.85)',
+                      }}
+                    >
+                      15:00
+                    </div>
+                  ) : isClashGame && /^territory_\d+_label$/.test(element.id) ? (
+                    // Name/gauge marker - mock of the runtime cluster: the
+                    // territory-name chip (frame_territory_name) over the
+                    // clan-coloured share gauge (frame_gauge). Centred on the
+                    // drag box and allowed to overflow it - the box stays the
+                    // grab target.
+                    (() => {
+                      const ti = parseInt(element.id.split('_')[1], 10) - 1;
+                      const gaugeClans = clashChrome?.clans ?? [];
+                      const MOCK_SHARES = [40, 30, 20, 10];
+                      return (
+                        <div
+                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none"
+                          style={{ gap: chromePx(4) }}
+                        >
+                          <span
+                            className="font-bold text-white whitespace-nowrap rounded"
+                            style={{
+                              fontSize: chromePx(14),
+                              padding: `${1 * chromeScale}px ${10 * chromeScale}px`,
+                              fontFamily: resolveFontFamily(scenarioFont) || undefined,
+                              ...(clashChrome?.frames.territoryName
+                                ? { backgroundImage: `url(${clashChrome.frames.territoryName})`, backgroundSize: '100% 100%' }
+                                : { background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.15)' }),
+                            }}
+                          >
+                            {clashTerritoryNames[ti] || `Territory ${ti + 1}`}
+                          </span>
+                          <div
+                            className="flex rounded-full overflow-hidden shadow"
+                            style={{
+                              width: chromePx(96), height: chromePx(8),
+                              ...(clashChrome?.frames.gauge
+                                ? { backgroundImage: `url(${clashChrome.frames.gauge})`, backgroundSize: '100% 100%' }
+                                : { background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,255,255,0.25)' }),
+                            }}
+                          >
+                            {gaugeClans.map((c, gi) => (
+                              <div
+                                key={gi}
+                                className="h-full"
+                                style={{
+                                  width: `${MOCK_SHARES[gi % 4] ?? 10}%`,
+                                  backgroundColor: c.color,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : isClashGame && /^territory_\d+_(banner|purge)$/.test(element.id) ? (
+                    // Clash banner / purge marker with no image yet - pin.
+                    // (Purge markers show gm.purge_image instead once uploaded;
+                    // banner markers preview the clan banner.)
                     <div className="w-full h-full flex items-center justify-center pointer-events-none text-blue-500 drop-shadow">
                       <MapPin className="w-full h-full" strokeWidth={1.5} />
                     </div>
@@ -2343,7 +2631,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       style={{ background: accentHex }}
                     />
 
-                    {!isCp && (
+                    {!isMoveOnly && (
                       <div
                         className={`absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize flex items-center justify-center ${accentHandleBg}`}
                         onMouseDown={(e) => handleResizeMouseDown(e, element.id)}

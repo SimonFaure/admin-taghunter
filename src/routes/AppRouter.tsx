@@ -14,6 +14,7 @@ import { MyDevicesView } from '../components/client/MyDevicesView';
 import { MyAccountView } from '../components/client/MyAccountView';
 import { AccountSecurityView } from '../components/client/AccountSecurityView';
 import { HomeRedirect, LoginPage } from '../auth/LoginPage';
+import { PublicRankingView } from '../components/public/PublicRankingView';
 import { StudioLayout } from '../layouts/StudioLayout';
 import { RequireAuth, RequireRole } from './guards';
 import { StudioScenarioRoute } from './studio/StudioScenarioRoute';
@@ -41,6 +42,11 @@ export function AppRouter() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<HomeRedirect />} />
+
+      {/* Public player ranking board - deliberately OUTSIDE RequireAuth. Players
+          have no account; they reach it by QR from the operator's leaderboard.
+          Backed by go.php?action=public_board, which does its own scoping. */}
+      <Route path="/r/:app/:clientId/:scenarioId" element={<PublicRankingView />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<RequireRole role="admin" />}>

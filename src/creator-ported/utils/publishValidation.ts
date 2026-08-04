@@ -120,6 +120,20 @@ export function validateClashConfig(config: any, scenarioTitle: string, scenario
     check(issues, !!t.points && t.points !== '0', `territories[${ti}].points`, `Territory ${ti + 1}: points/minute should be greater than 0`, 'warning');
   });
 
+  // A balise belongs to at most one territory - the playground's validation
+  // model has no notion of shared balises, so a duplicate silently breaks
+  // crediting. The editor's picker prevents this; guard hand-edited data.
+  const baliseOwner = new Map<number, number>();
+  territories.forEach((t: { balises?: unknown }, ti: number) => {
+    (Array.isArray(t.balises) ? t.balises : []).forEach((n: number) => {
+      if (baliseOwner.has(n)) {
+        check(issues, false, `territories[${ti}].balises`, `Territory ${ti + 1}: balise ${n} is already used by territory ${baliseOwner.get(n)! + 1} - a balise can belong to only one territory`, 'error');
+      } else {
+        baliseOwner.set(n, ti);
+      }
+    });
+  });
+
   // The Purge media is optional (no image ⇒ feature disabled at launch), but a
   // sound without an image will never play - flag the likely oversight.
   check(issues, !(config.purge_sound && !config.purge_image), 'purge_sound', 'Purge sound is set but there is no purge image - the purge is disabled (and the sound never plays) until an image is uploaded', 'warning');

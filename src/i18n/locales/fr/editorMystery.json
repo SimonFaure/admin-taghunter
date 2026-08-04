@@ -49,7 +49,7 @@
     "answerOptions": "Nombre d’options de réponse",
     "option2": "2 - A / B",
     "option4": "4 - A / B / C / D",
-    "hint": "4 options est réservé au mode GO et ajoute deux images de mauvaise réponse supplémentaires par énigme. Chaque énigme nécessite un code court ; la lettre correcte par énigme provient du patron GO (modèle)."
+    "hint": "4 options est réservé au mode GO et ajoute deux images de mauvaise réponse supplémentaires par énigme. Chaque énigme nécessite un code court ; la lettre correcte par énigme provient du modèle GO."
   },
   "dropOption": {
     "sectionTitle": "Tag Hunter Drop",
@@ -68,21 +68,25 @@
     "editRawCss": "Éditer le CSS brut"
   },
   "pattern": {
-    "title": "Patron par défaut",
-    "defaultMysteryPattern": "Patron mystère par défaut (images de réponse des énigmes → association aux stations)",
+    "title": "Modèle par défaut",
+    "defaultMysteryPattern": "Modèle mystère par défaut (images de réponse des énigmes → association aux stations)",
     "none": "- Aucun -",
     "notFound": "{{value}} (introuvable)",
     "rfidHint": "Associe les images de bonne/mauvaise réponse de chaque énigme aux stations/balises (Playground RFID). L’association est affichée à côté de chaque image ci-dessous. Modifiable au lancement.",
-    "defaultGoPattern": "Patron GO par défaut (clé des lettres de réponse pour Tag Hunter GO)",
+    "defaultGoPattern": "Modèle GO par défaut (clé des lettres de réponse pour Tag Hunter GO)",
     "createRandom": "Créer aléatoire",
-    "goHint": "Chaque client disposant de ce scénario en GO utilise ce patron. « Créer aléatoire » en construit un avec une lettre correcte aléatoire par énigme ; modifiez-le ensuite depuis la page Patrons.",
-    "createModalTitle": "Créer un patron GO aléatoire",
+    "goHint": "Chaque client disposant de ce scénario en GO utilise ce modèle. « Créer aléatoire » en construit un avec une lettre correcte aléatoire par énigme ; modifiez-le ensuite depuis la page Modèles.",
+    "createModalTitle": "Créer un modèle GO aléatoire",
     "numberOfEnigmas": "Nombre d’énigmes",
-    "generateHint": "Génère des réponses {{answers}} avec la lettre correcte aléatoire par énigme, et le sélectionne comme patron GO par défaut de ce scénario.",
+    "generateHint": "Génère des réponses {{answers}} avec la lettre correcte aléatoire par énigme, et le sélectionne comme modèle GO par défaut de ce scénario.",
     "cancel": "Annuler",
     "creating": "Création…",
     "create": "Créer",
     "insertFailed": "Échec de l’insertion",
-    "createFailed": "Échec de la création du patron"
+    "createFailed": "Échec de la création du modèle"
+  },
+  "goDrop": {
+    "title": "Tag Hunter GO & Drop",
+    "answerHint": "Nombre commun à GO et à Drop : en GO ce sont les lettres proposées (A/B ou A/B/C/D), en Drop le nombre de vignettes affichées. Choisir 4 ajoute deux images de mauvaise réponse supplémentaires par énigme."
   }
 }

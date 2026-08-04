@@ -47,8 +47,21 @@
     "minTooltip": "At least {{count}} territories required",
     "name": "Territory name",
     "pointsPerMinute": "Points / minute",
-    "balisesLabel": "Balises (physical station codes)",
-    "balisesPlaceholder": "e.g. 1, 2, 3, 4, 5",
-    "balisesHint": "A chip must bip all of these then register at the central reader to complete the territory. Comma-separated; overridable per venue at launch."
+    "balisesLabel": "Balises (station numbers)",
+    "balisesHint": "A chip must bip all of these stations then register at the central reader to complete the territory. Each station can belong to only one territory. Overridable per venue at launch.",
+    "chooseBalises": "Choose balises",
+    "noBalises": "No balises selected",
+    "pickerTitle": "Choose balises - {{territory}}",
+    "pickerSelectedCount_one": "{{count}} selected",
+    "pickerSelectedCount_other": "{{count}} selected",
+    "pickerSearchPlaceholder": "Search stations…",
+    "pickerLoading": "Loading stations…",
+    "pickerError": "Could not load the station inventory. Close and try again.",
+    "pickerEmpty": "No stations in your inventory. Add stations in the station manager first.",
+    "usedByTerritory": "Used by {{territory}}",
+    "notNumeric": "No station number",
+    "unknownStation": "Not in inventory",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   }
 }

@@ -10,11 +10,11 @@
     }
   },
   "pattern": {
-    "sectionTitle": "Patron par défaut",
-    "label": "Patron tagquest par défaut (images de quête → correspondance des stations)",
+    "sectionTitle": "Modèle par défaut",
+    "label": "Modèle tagquest par défaut (images de quête → correspondance des stations)",
     "none": "- Aucun -",
     "notFoundOption": "{{value}} (introuvable)",
-    "hint": "Associe les quatre images de pièces de chaque quête aux stations/balises. Créez des patrons tagquest dans la page Patrons. La correspondance est affichée à côté de chaque image ci-dessous. Modifiable au lancement."
+    "hint": "Associe les quatre images de pièces de chaque quête aux stations/balises. Créez des modèles tagquest dans la page Modèles. La correspondance est affichée à côté de chaque image ci-dessous. Modifiable au lancement."
   },
   "productTemplate": {
     "notice": "<0>Modèle de produit :</0> les options « utiliser les images/textes par défaut » de l'ancien éditeur ne sont pas encore portées. Elles reviendront dans une prochaine mise à jour ; pour l'instant, créez les nouveaux scénarios tagquest à partir de zéro."

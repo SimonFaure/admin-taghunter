@@ -84,5 +84,9 @@
     "create": "Crear",
     "insertFailed": "Error al insertar",
     "createFailed": "Error al crear el patrón"
+  },
+  "goDrop": {
+    "title": "Tag Hunter GO & Drop",
+    "answerHint": "Común a GO y Drop: en GO son las letras ofrecidas (A/B o A/B/C/D), en Drop el número de fichas mostradas. Elegir 4 añade dos imágenes de respuesta incorrecta adicionales por enigma."
   }
 }

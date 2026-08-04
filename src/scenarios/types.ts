@@ -220,6 +220,15 @@ export interface ScenarioEditorState<TGameMeta = any> {
   setAlert: (a: ShellAlert | null) => void;
 
   uploadAsset: (slotKey: string, file: File) => Promise<string>;
+  /**
+   * Mark a previously-uploaded media filename as orphaned (e.g. the user cleared
+   * or replaced a slot). The file is NOT unlinked immediately - it is queued and
+   * physically deleted from `media/<uniqid>/` only after the next successful
+   * save, and only if the saved scenario no longer references it. This avoids
+   * both orphaned files on disk and deleting a file the persisted scenario still
+   * points at when an edit is abandoned without saving.
+   */
+  deleteAsset: (filename: string) => void;
   getMediaUrl: (filename: string) => string;
 
   save: () => Promise<void>;

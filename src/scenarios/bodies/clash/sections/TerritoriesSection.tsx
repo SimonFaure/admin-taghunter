@@ -1,30 +1,26 @@
 /**
  * Territories section (V2) - a seeded, editable list of territories. Each
- * territory is one variable-size balise set (physical station codes, authored
- * inline and overridable at launch) worth pts/min ∝ balise count. No
+ * territory is one variable-size balise set worth pts/min ∝ balise count,
+ * picked from the client's si_balises inventory via a modal (station NUMBERS
+ * are stored; the playground resolves them to station ids at launch). No
  * combinations, no pattern. Control is strict-max validation count everywhere.
  *
  * Design: project_clash_game_type_design (V2).
  */
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, ListChecks, Plus, Trash2 } from 'lucide-react';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { getLocalized, setLocalized } from '../../../i18n/getLocalized';
 import type { Lang } from '../../../i18n/types';
 import type { ClashTerritory } from '../../../../types/scenario-data';
+import { db } from '../../../../creator-ported/lib/db';
+import { BalisePickerModal, type StationRow } from './BalisePickerModal';
 
 const MIN_TERRITORIES = 2;
 const MAX_TERRITORIES = 12;
-
-function parseBalises(text: string): number[] {
-  return text
-    .split(',')
-    .map((s) => parseInt(s.trim(), 10))
-    .filter((n) => !Number.isNaN(n));
-}
 
 interface TerritoryCardProps {
   territory: ClashTerritory;
@@ -32,29 +28,29 @@ interface TerritoryCardProps {
   canRemove: boolean;
   lang: Lang;
   defaultLang: Lang;
+  /** Numeric station numbers present in the inventory; null while unloaded. */
+  inventoryNumbers: Set<number> | null;
   onChange: (patch: Partial<ClashTerritory>) => void;
+  onOpenPicker: () => void;
   onRemove: () => void;
 }
 
-function TerritoryCard({ territory, index, canRemove, lang, defaultLang, onChange, onRemove }: TerritoryCardProps) {
+function TerritoryCard({
+  territory,
+  index,
+  canRemove,
+  lang,
+  defaultLang,
+  inventoryNumbers,
+  onChange,
+  onOpenPicker,
+  onRemove,
+}: TerritoryCardProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
   const displayName = getLocalized(territory.name as never, lang, defaultLang);
   const balises = territory.balises ?? [];
-
-  // Keep the raw text the user is typing in local state so that commas,
-  // trailing separators, and spacing are never stripped mid-keystroke by the
-  // parse→store→join round-trip. We only resync the draft from the model when
-  // the model's balises change to something other than what this draft encodes
-  // (e.g. scenario load, undo), never on our own edits.
-  const balisesText = balises.join(', ');
-  const [balisesDraft, setBalisesDraft] = useState(balisesText);
-  useEffect(() => {
-    if (parseBalises(balisesDraft).join(',') !== balises.join(',')) {
-      setBalisesDraft(balisesText);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [balisesText]);
+  const sortedBalises = [...balises].sort((a, b) => a - b);
 
   return (
     <div className="border border-gray-200 rounded-md bg-white">
@@ -114,16 +110,33 @@ function TerritoryCard({ territory, index, canRemove, lang, defaultLang, onChang
             <label className="block text-xs font-medium text-gray-700 mb-1">
               {t('editorClash:territories.balisesLabel')}
             </label>
-            <input
-              value={balisesDraft}
-              onChange={(e) => {
-                setBalisesDraft(e.target.value);
-                onChange({ balises: parseBalises(e.target.value) });
-              }}
-              onBlur={() => setBalisesDraft(balises.join(', '))}
-              placeholder={t('editorClash:territories.balisesPlaceholder')}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm font-mono"
-            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {sortedBalises.length === 0 ? (
+                <span className="text-xs text-gray-400 italic">{t('editorClash:territories.noBalises')}</span>
+              ) : (
+                sortedBalises.map((n) => {
+                  const unknown = inventoryNumbers !== null && !inventoryNumbers.has(n);
+                  return (
+                    <span
+                      key={n}
+                      title={unknown ? t('editorClash:territories.unknownStation') : undefined}
+                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-mono ${
+                        unknown ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'
+                      }`}
+                    >
+                      {n}
+                    </span>
+                  );
+                })
+              )}
+              <button
+                type="button"
+                onClick={onOpenPicker}
+                className="inline-flex items-center gap-1 px-2.5 py-1 border border-gray-300 rounded-md text-xs text-gray-700 hover:bg-gray-50"
+              >
+                <ListChecks className="w-3.5 h-3.5" /> {t('editorClash:territories.chooseBalises')}
+              </button>
+            </div>
             <p className="text-xs text-gray-500 mt-1">
               {t('editorClash:territories.balisesHint')}
             </p>
@@ -140,6 +153,63 @@ export function TerritoriesSection() {
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
   const territories = ((editor.gameMeta as Record<string, unknown>).territories ?? []) as ClashTerritory[];
+
+  // Station inventory - fetched lazily on first picker open, then reused for
+  // every territory (and for the unknown-number chip flags).
+  const [pickerIdx, setPickerIdx] = useState<number | null>(null);
+  const [stations, setStations] = useState<StationRow[] | null>(null);
+  const [stationsError, setStationsError] = useState(false);
+
+  async function openPicker(idx: number) {
+    setPickerIdx(idx);
+    if (stations !== null) return;
+    setStationsError(false); // a previous failure retries on reopen
+    try {
+      const { data, error } = await db
+        .from('si_balises')
+        .select('id, station_name, station_function')
+        .order('id', { ascending: true });
+      if (error) throw error;
+      setStations((data ?? []) as StationRow[]);
+    } catch (err) {
+      console.error('Error loading stations:', err);
+      setStationsError(true);
+    }
+  }
+
+  const inventoryNumbers = useMemo(() => {
+    if (!stations) return null;
+    const set = new Set<number>();
+    for (const s of stations) {
+      const name = (s.station_name ?? '').trim();
+      const num = Number(name);
+      if (name !== '' && Number.isInteger(num) && num >= 0) set.add(num);
+    }
+    return set;
+  }, [stations]);
+
+  function territoryDisplayLabel(terr: ClashTerritory, idx: number): string {
+    return (
+      getLocalized(terr.name as never, lang, defaultLang) ||
+      t('editorClash:territories.territoryLabel', { number: idx + 1 })
+    );
+  }
+
+  // Station number -> label of the territory using it, excluding the one the
+  // picker is open for (its own balises are the modal's selected set).
+  const usedBy = useMemo(() => {
+    const map = new Map<number, string>();
+    if (pickerIdx === null) return map;
+    territories.forEach((terr, i) => {
+      if (i === pickerIdx) return;
+      const label = territoryDisplayLabel(terr, i);
+      (terr.balises ?? []).forEach((n) => {
+        if (!map.has(n)) map.set(n, label);
+      });
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [territories, pickerIdx, lang, defaultLang, t]);
 
   function setTerritories(next: ClashTerritory[]) {
     editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), territories: next }) as typeof m);
@@ -161,42 +231,61 @@ export function TerritoriesSection() {
   }
 
   const atMax = territories.length >= MAX_TERRITORIES;
+  const pickerTerritory = pickerIdx !== null ? territories[pickerIdx] : null;
 
   return (
-    <CollapsibleSection
-      title={t('editorClash:territories.title')}
-      headerExtra={
-        <button
-          onClick={addTerritory}
-          disabled={atMax}
-          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-          title={atMax ? t('editorClash:territories.maxTooltip', { count: MAX_TERRITORIES }) : t('editorClash:territories.addTooltip')}
-        >
-          <Plus className="w-3 h-3" /> {t('editorClash:territories.add')}
-        </button>
-      }
-    >
-      <p className="text-xs text-gray-500 mb-3">
-        {t('editorClash:territories.hint')}
-      </p>
-      {territories.length === 0 ? (
-        <p className="text-sm text-gray-500">{t('editorClash:territories.empty')}</p>
-      ) : (
-        <div className="space-y-2">
-          {territories.map((t, i) => (
-            <TerritoryCard
-              key={t.id ?? i}
-              territory={t}
-              index={i}
-              canRemove={territories.length > MIN_TERRITORIES}
-              lang={lang}
-              defaultLang={defaultLang}
-              onChange={(patch) => updateTerritory(i, patch)}
-              onRemove={() => removeTerritory(i)}
-            />
-          ))}
-        </div>
+    <>
+      <CollapsibleSection
+        title={t('editorClash:territories.title')}
+        headerExtra={
+          <button
+            onClick={addTerritory}
+            disabled={atMax}
+            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={atMax ? t('editorClash:territories.maxTooltip', { count: MAX_TERRITORIES }) : t('editorClash:territories.addTooltip')}
+          >
+            <Plus className="w-3 h-3" /> {t('editorClash:territories.add')}
+          </button>
+        }
+      >
+        <p className="text-xs text-gray-500 mb-3">
+          {t('editorClash:territories.hint')}
+        </p>
+        {territories.length === 0 ? (
+          <p className="text-sm text-gray-500">{t('editorClash:territories.empty')}</p>
+        ) : (
+          <div className="space-y-2">
+            {territories.map((terr, i) => (
+              <TerritoryCard
+                key={terr.id ?? i}
+                territory={terr}
+                index={i}
+                canRemove={territories.length > MIN_TERRITORIES}
+                lang={lang}
+                defaultLang={defaultLang}
+                inventoryNumbers={inventoryNumbers}
+                onChange={(patch) => updateTerritory(i, patch)}
+                onOpenPicker={() => void openPicker(i)}
+                onRemove={() => removeTerritory(i)}
+              />
+            ))}
+          </div>
+        )}
+      </CollapsibleSection>
+
+      {pickerIdx !== null && pickerTerritory && (
+        <BalisePickerModal
+          key={pickerIdx}
+          territoryLabel={territoryDisplayLabel(pickerTerritory, pickerIdx)}
+          stations={stations ?? []}
+          loading={stations === null && !stationsError}
+          error={stationsError}
+          selected={pickerTerritory.balises ?? []}
+          usedBy={usedBy}
+          onConfirm={(nums) => updateTerritory(pickerIdx, { balises: nums })}
+          onClose={() => setPickerIdx(null)}
+        />
       )}
-    </CollapsibleSection>
+    </>
   );
 }

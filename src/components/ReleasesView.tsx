@@ -68,11 +68,26 @@ export function ReleasesView() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [channelFilter, setChannelFilter] = useState<'all' | 'stable' | 'test'>('all');
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const visibleReleases =
     channelFilter === 'all'
       ? releases
       : releases.filter((r) => (r.channel || 'stable') === channelFilter);
+
+  // Selection only ever covers rows currently on screen: switching the channel
+  // filter drops anything now hidden, so "delete selected" can't remove a row the
+  // admin can no longer see.
+  const visibleIds = visibleReleases.map((r) => r.id);
+  const selected = selectedIds.filter((id) => visibleIds.includes(id));
+  const allVisibleSelected = visibleIds.length > 0 && selected.length === visibleIds.length;
+  const selectedReleases = visibleReleases.filter((r) => selected.includes(r.id));
+
+  const toggleOne = (id: number) =>
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  const toggleAllVisible = () => setSelectedIds(allVisibleSelected ? [] : visibleIds);
 
   const fetchReleases = async () => {
     try {
@@ -82,6 +97,7 @@ export function ReleasesView() {
       if (!res.ok) throw new Error('Failed to fetch releases');
       const json = await res.json();
       setReleases(json.releases || []);
+      setSelectedIds([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load releases');
     } finally {
@@ -137,17 +153,42 @@ export function ReleasesView() {
 
   const remove = (rel: Release) => {
     const latestWarning = rel.is_latest
-      ? '\n\nThis is the current LATEST release. The next-newest build for ' +
-        `${rel.target}/${rel.arch} will be promoted to latest automatically ` +
-        '(or no release will be latest if this is the only one).'
+      ? '\n\nThis is the current latest release: the next-newest build for ' +
+        `${rel.target}/${rel.arch} will be promoted to latest, or no release ` +
+        'will be latest if this is the only one.'
       : '';
     if (
       !window.confirm(
-        `Are you sure you want to delete release ${rel.version} (${rel.target}/${rel.arch})?${latestWarning}\n\nThis action cannot be undone.`,
+        `Are you sure you want to delete release ${rel.version} (${rel.target}/${rel.arch})? ` +
+          `This action cannot be undone.${latestWarning}`,
       )
     )
       return;
     void postAction('delete', { id: rel.id });
+  };
+
+  const removeSelected = () => {
+    if (selected.length === 0) return;
+    const latestCount = selectedReleases.filter((r) => r.is_latest).length;
+    const preview = selectedReleases
+      .slice(0, 10)
+      .map((r) => `  • ${r.version} (${r.channel || 'stable'} — ${r.target}/${r.arch})`)
+      .join('\n');
+    const more =
+      selectedReleases.length > 10 ? `\n  … and ${selectedReleases.length - 10} more` : '';
+    const latestWarning = latestCount
+      ? `\n\n${latestCount} of them ${latestCount === 1 ? 'is' : 'are'} the current latest ` +
+        'release for their platform: the next-newest remaining build will be promoted ' +
+        'to latest, or no release will be latest if none remains.'
+      : '';
+    if (
+      !window.confirm(
+        `Delete ${selected.length} release${selected.length === 1 ? '' : 's'}?\n\n` +
+          `${preview}${more}\n\nThis action cannot be undone.${latestWarning}`,
+      )
+    )
+      return;
+    void postAction('delete_bulk', { ids: selected });
   };
 
   return (
@@ -209,9 +250,49 @@ export function ReleasesView() {
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {selected.length > 0 && (
+            <div className="flex items-center justify-between gap-3 px-4 py-2 bg-slate-900 text-white text-sm">
+              <span>
+                {selected.length} release{selected.length === 1 ? '' : 's'} selected
+                {selectedReleases.some((r) => r.is_latest) && (
+                  <span className="ml-2 text-amber-300">
+                    (includes {selectedReleases.filter((r) => r.is_latest).length} latest)
+                  </span>
+                )}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="px-3 py-1 rounded border border-white/30 hover:bg-white/10 transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={removeSelected}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded bg-red-600 hover:bg-red-500 disabled:opacity-50 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {busy ? 'Deleting…' : `Delete ${selected.length}`}
+                </button>
+              </div>
+            </div>
+          )}
           <table className="w-full">
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all releases"
+                    checked={allVisibleSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = selected.length > 0 && !allVisibleSelected;
+                    }}
+                    onChange={toggleAllVisible}
+                    className="w-4 h-4 accent-slate-900 cursor-pointer align-middle"
+                  />
+                </th>
                 <th className="text-left px-4 py-3 font-medium">Version</th>
                 <th className="text-left px-4 py-3 font-medium">Channel</th>
                 <th className="text-left px-4 py-3 font-medium">Platform</th>
@@ -223,7 +304,21 @@ export function ReleasesView() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {visibleReleases.map((r) => (
-                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                <tr
+                  key={r.id}
+                  className={`transition-colors ${
+                    selected.includes(r.id) ? 'bg-slate-50' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select release ${r.version} (${r.target}/${r.arch})`}
+                      checked={selected.includes(r.id)}
+                      onChange={() => toggleOne(r.id)}
+                      className="w-4 h-4 accent-slate-900 cursor-pointer align-middle"
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-medium text-slate-900">{r.version}</span>
