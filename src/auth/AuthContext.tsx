@@ -28,7 +28,7 @@ export interface AuthUser {
   // the old go_client_only flag. playground_enabled absent => treated as ON.
   playground_enabled?: boolean;
   go_enabled?: boolean;
-  drop_enabled?: boolean;
+  spot_enabled?: boolean;
   language?: string;
   created_at?: string;
   avatar_url?: string;
@@ -79,7 +79,7 @@ function buildUserFromPayload(payload: any, fallbackToken: string): AuthUser {
     // `!== false`, so we preserve an explicit false but coerce true otherwise.
     playground_enabled: payload.playground_enabled === undefined ? true : !!payload.playground_enabled,
     go_enabled: !!payload.go_enabled,
-    drop_enabled: !!payload.drop_enabled,
+    spot_enabled: !!payload.spot_enabled,
     language: payload.language,
     created_at: payload.created_at,
     avatar_url: payload.avatar_url,

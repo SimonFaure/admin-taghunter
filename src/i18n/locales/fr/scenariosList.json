@@ -36,6 +36,13 @@
     "audience": "Public",
     "difficulty": "Difficulté",
     "type": "Type",
-    "version": "Version"
+    "version": "Version",
+    "languages": "Langues"
+  },
+  "facets": {
+    "age": "Âge",
+    "difficulty": "Difficulté",
+    "univers": "Univers",
+    "clear": "Réinitialiser"
   }
 }

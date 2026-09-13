@@ -539,7 +539,7 @@ export function PatternsView() {
                 required
               >
                 <option value="" disabled>Select a game type…</option>
-                <option value="tagquest">TagQuest</option>
+                <option value="tagquest">Quest</option>
                 <option value="mystery">Mystery</option>
                 <option value="tracks">Track</option>
               </select>

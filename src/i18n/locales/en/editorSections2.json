@@ -15,9 +15,12 @@
     "empty": "No overscores yet.",
     "overscoreHeading": "Overscore {{label}}",
     "removeOverscore": "Remove overscore",
-    "imageLabel": "Overscore image",
-    "step": "Step",
-    "score": "Score",
-    "name": "Name ({{lang}})"
+    "imageLabel": "Overscore image (replaces the empty bonus image)",
+    "step": "Step (display order)",
+    "score": "Extra points",
+    "name": "Name ({{lang}})",
+    "scoreFullGame": "Score needed to fill the gauge",
+    "scoreFullGameHint": "This is the full-game score: the gauge reads 100% once a team reaches it. The overscores below are points ADDED on top of it — a team that beats the full game unlocks them.",
+    "scoreHint": "Points beyond the full-game score, not an absolute score. E.g. full game = 30 and overscore = 10 ⇒ this tier unlocks at 40."
   }
 }

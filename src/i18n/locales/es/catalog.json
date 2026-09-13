@@ -1,0 +1,27 @@
+{
+  "title": "Catálogo de escenarios",
+  "subtitle": "Toda la gama de escenarios Tag Hunter. Los escenarios que ya están en tu cuenta aparecen marcados; haz clic en uno para abrirlo.",
+  "count_one": "{{count}} escenario del catálogo",
+  "count_other": "{{count}} escenarios del catálogo",
+  "exportXls": "Exportar en XLS",
+  "print": "Imprimir",
+  "empty": "Ningún escenario coincide con estos filtros",
+  "ownedYes": "En tu cuenta",
+  "filters": {
+    "age": "Edad",
+    "difficulty": "Dificultad",
+    "apps": "Apps",
+    "univers": "Universo",
+    "ownedOnly": "En mi cuenta"
+  },
+  "columns": {
+    "scenario": "Escenario",
+    "difficulty": "Dificultad",
+    "apps": "Apps",
+    "univers": "Universo",
+    "owned": "En mi cuenta"
+  },
+  "errors": {
+    "load": "Error al cargar el catálogo"
+  }
+}

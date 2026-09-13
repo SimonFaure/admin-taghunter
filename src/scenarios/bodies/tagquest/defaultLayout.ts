@@ -22,6 +22,14 @@
  * NOTE: the old MySQL `layouts` table seed (tagquest_default_layout_migration.sql)
  * was retired - the playground no longer syncs layouts; it uses its bundled JSON.
  *
+ * THIS IS THE SKELETON, NOT THE LAST WORD on geometry. An admin can move and
+ * resize any element on the studio "Default layouts" page; those moves are stored
+ * per element id in the `default_config` row `default_layout_tagquest` and laid
+ * over this list by `layoutOverrides.ts` - in the studio preview and, via the
+ * sync manifest, in the playground. So keep editing this file for the shipped
+ * defaults (and its JSON mirror), but expect a deployment's real positions to be
+ * this plus that blob.
+ *
  * Position values are first-pass approximations against the default template
  * artwork (5692×3200). Fine-tune against the PNG.
  */
@@ -63,7 +71,20 @@ export interface DefaultLayout {
 }
 
 const FONT = 'Arial Black, Arial, sans-serif';
+/** Values (scores, multipliers, timer): they sit in the template's LIGHT cells. */
 const TEXT_COLOR = '#000000ff';
+/**
+ * Section titles: MALUS / MALUS RETARD / POINTS COMBO / COMBO 6-4-2 / SCORE.
+ * Every one of them is drawn over a DARK plaque or pill of the template, which
+ * already carries the same word in white - the app re-draws it because those
+ * labels are translatable (admin `ingame_tagquest` strings) while the artwork
+ * is not. Painted black they read as a dark smudge over that white lettering,
+ * which is retour #3's "titles are not centred in the frames": the boxes are
+ * centred, the colour was wrong. This constant existed for exactly that and was
+ * simply never wired up. Authors of a custom template with light title plaques
+ * can override it per role from the Aperçu modal's typography sidebar (click
+ * the title on the HUD, then set its colour).
+ */
 export const TEXT_COLOR_TITLE = '#ffffff';
 
 // ── Quest rows on the right side ────────────────────────────────────────────
@@ -138,7 +159,7 @@ function questElements(): LayoutElementInput[] {
 }
 
 export const defaultTagquestLayout: DefaultLayout = {
-  version: '3.1',
+  version: '3.2',
   background: '@background',
   elements: [
     // ── Template overlay (covers the whole 16:9 box, on top of background) ──
@@ -218,7 +239,7 @@ export const defaultTagquestLayout: DefaultLayout = {
       height: 3,
       fontSize: 12,
       fontFamily: FONT,
-      color: TEXT_COLOR,
+      color: TEXT_COLOR_TITLE,
     },
     {
       id: 'score',
@@ -246,7 +267,7 @@ export const defaultTagquestLayout: DefaultLayout = {
       height: 3,
       fontSize: 12,
       fontFamily: FONT,
-      color: TEXT_COLOR,
+      color: TEXT_COLOR_TITLE,
     },
     {
       id: 'malus_icon',
@@ -297,7 +318,7 @@ export const defaultTagquestLayout: DefaultLayout = {
       height: 3,
       fontSize: 12,
       fontFamily: FONT,
-      color: TEXT_COLOR,
+      color: TEXT_COLOR_TITLE,
     },
     {
       id: 'late_malus_icon',
@@ -348,7 +369,7 @@ y: 53.8,
       height: 3,
       fontSize: 12,
       fontFamily: FONT,
-      color: TEXT_COLOR,
+      color: TEXT_COLOR_TITLE,
     },
     // Column 1: combo 6
     {
@@ -362,7 +383,7 @@ y: 53.8,
       height: 4,
       fontSize: 11,
       fontFamily: FONT,
-      color: TEXT_COLOR,
+      color: TEXT_COLOR_TITLE,
     },
     {
       id: 'combo_6_multiplicator',
@@ -402,7 +423,7 @@ y: 53.8,
       height: 4,
         fontSize: 11,
       fontFamily: FONT,
-      color: TEXT_COLOR,
+      color: TEXT_COLOR_TITLE,
     },
     {
       id: 'combo_4_multiplicator',
@@ -442,7 +463,7 @@ y: 53.8,
       height: 4,
       fontSize: 11,
       fontFamily: FONT,
-      color: TEXT_COLOR,
+      color: TEXT_COLOR_TITLE,
     },
     {
       id: 'combo_2_multiplicator',

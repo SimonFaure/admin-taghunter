@@ -54,10 +54,20 @@ function buildMediasColumn(gameMeta: TagquestGameMeta, uniqid: string): MediasCo
   return { images, sounds, video, quests, overscores };
 }
 
+/**
+ * Fields that no longer exist but may sit in older scenario blobs (or arrive
+ * from the legacy ZIP importer, whose CSV map still knows them). Dropped on
+ * every save so the data converges on the current shape.
+ *   - `success_sound`: a global "success" sound with no trigger in the
+ *     playground - quest completion plays the quest's own sound. Retired.
+ */
+const RETIRED_FIELDS: readonly string[] = ['success_sound'];
+
 function cleanGameMetaForData(gameMeta: TagquestGameMeta): Record<string, unknown> {
   const copy: Record<string, unknown> = { ...(gameMeta as unknown as Record<string, unknown>) };
   for (const field of ALL_IMAGE_FIELDS) delete copy[field];
   for (const field of ALL_SOUND_FIELDS) delete copy[field];
+  for (const field of RETIRED_FIELDS) delete copy[field];
   delete copy.scenario_video;
 
   if (Array.isArray(copy.quests)) {
@@ -152,6 +162,7 @@ function buildZipPayload(
     combo_6_quests: gameMeta.combo_6_quests,
     malus_points: gameMeta.malus_points,
     malus_station_number: gameMeta.malus_station_number,
+    malus_station: gameMeta.malus_station,
     late_malus_points: gameMeta.late_malus_points,
     use_default_template: gameMeta.use_default_template,
     custom_template: gameMeta.custom_template,
@@ -210,7 +221,7 @@ function buildZipPayload(
 
 export const tagquestAdapter: ScenarioAdapter<TagquestGameMeta> = {
   kind: 'tagquest',
-  label: 'Tagquest',
+  label: 'Quest',
   capabilities: {
     hasLevels: true,
     hasOverscores: false,

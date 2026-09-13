@@ -18,16 +18,29 @@ export const mysteryMediaSlots: readonly MediaSlot[] = [
   { key: 'game_refresh_button_hover_image', kind: 'image', required: false, scope: 'type', label: 'Refresh button (hover)', labelKey: 'mystery_game_refresh_button_hover_image' },
   { key: 'time_background_image', kind: 'image', required: 'warning', scope: 'type', label: 'Time background', labelKey: 'mystery_time_background_image' },
   { key: 'score_background_image', kind: 'image', required: 'warning', scope: 'type', label: 'Score background', labelKey: 'mystery_score_background_image' },
+  // Frame drawn behind the author-placed team-name text (retour #36). The
+  // renderers already looked this key up via INGAME_ROLES.frameImageKey; without
+  // a slot there was simply no way to upload it on a mystery scenario.
+  { key: 'team_name_background_image', kind: 'image', required: false, scope: 'type', label: 'Team name frame', labelKey: 'mystery_team_name_background_image' },
   { key: 'enigmas_header_image', kind: 'image', required: 'warning', scope: 'type', label: 'Enigmas header', labelKey: 'mystery_enigmas_header_image' },
-  { key: 'steps_container_image', kind: 'image', required: false, scope: 'type', label: 'Steps container', labelKey: 'mystery_steps_container_image' },
+  // The "empty bonus" plate: always visible under the bonus badge, replaced by
+  // each overscore tier's image as the team unlocks it (legacy
+  // `.team_bonus_container_empty`).
+  { key: 'steps_container_image', kind: 'image', required: false, scope: 'type', label: 'Empty bonus image', labelKey: 'mystery_steps_container_image' },
   // Game-level images for the "both answers biped" / "no answer" enigma states.
   // Empty → playground falls back to the per-enigma good-answer image (color-tinted).
   { key: 'both_answers_image', kind: 'image', required: false, scope: 'type', label: 'Image both answers', labelKey: 'mystery_both_answers_image' },
   { key: 'no_answer_image', kind: 'image', required: false, scope: 'type', label: 'Image no answer', labelKey: 'mystery_no_answer_image' },
 
   // Mystery-only "level gauge" images - these go in `medias.levels` (not `medias.images`)
-  { key: 'levels_gauge_image', kind: 'image', required: 'warning', scope: 'type', label: 'Levels gauge', labelKey: 'mystery_levels_gauge_image' },
-  { key: 'levels_gauge_image_with_content', kind: 'image', required: 'warning', scope: 'type', label: 'Levels gauge w/ content', labelKey: 'mystery_levels_gauge_image_with_content' },
+  // Both are EMPTY gauges. `levels_gauge_image` is the plate WITH its background,
+  // drawn under the fill; `levels_gauge_image_with_content` is the same gauge
+  // WITHOUT background (transparent interior), drawn over the fill so the
+  // gradient shows through it. The legacy ids say it plainly:
+  // #progress_bar_gauge_with_back / #progress_bar_gauge_without_back. The old
+  // "w/ content" wording read as "upload the FULL gauge here" (retour #30).
+  { key: 'levels_gauge_image', kind: 'image', required: 'warning', scope: 'type', label: 'Empty gauge - background (under the fill)', labelKey: 'mystery_levels_gauge_image' },
+  { key: 'levels_gauge_image_with_content', kind: 'image', required: 'warning', scope: 'type', label: 'Empty gauge - frame (over the fill)', labelKey: 'mystery_levels_gauge_image_with_content' },
   { key: 'levels_gauge_player_icon_image', kind: 'image', required: false, scope: 'type', label: 'Player icon', labelKey: 'mystery_levels_gauge_player_icon_image' },
   { key: 'levels_gauge_level_icon_image', kind: 'image', required: false, scope: 'type', label: 'Level icon', labelKey: 'mystery_levels_gauge_level_icon_image' },
 
@@ -50,6 +63,7 @@ export const mysteryImageFields = [
   'game_refresh_button_hover_image',
   'time_background_image',
   'score_background_image',
+  'team_name_background_image',
   'enigmas_header_image',
   'steps_container_image',
   'both_answers_image',

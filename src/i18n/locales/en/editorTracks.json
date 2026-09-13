@@ -9,6 +9,11 @@
   "checkpoints": {
     "sectionTitle": "Checkpoints ({{count}})",
     "addCheckpoint": "Add checkpoint",
+    "maxCheckpointsTitle": "Maximum {{max}} checkpoints",
+    "patternRowMismatch": "The bound pattern has {{rows}} row(s) for {{checkpoints}} checkpoint(s). The binding is positional (row 1 = checkpoint 1): while the two counts differ, checkpoints point at the wrong stations and the game scores them as missed. Fix the pattern before publishing.",
+    "atCapNotice": "Limit reached: a Track scenario cannot exceed {{max}} checkpoints. Remove one before adding another.",
+    "overCapWarning_one": "This scenario has {{total}} checkpoints, but Track allows at most {{max}}. Remove {{count}} checkpoint - publishing stays blocked while the limit is exceeded.",
+    "overCapWarning_other": "This scenario has {{total}} checkpoints, but Track allows at most {{max}}. Remove {{count}} checkpoints - publishing stays blocked while the limit is exceeded.",
     "perCheckpoint": "Per checkpoint (each has its own icon)",
     "common": "Common (all checkpoints share one icon)",
     "none": "No checkpoints yet.",
@@ -27,28 +32,62 @@
     "sectionTitle": "Routes (parcours)",
     "hint": "Operators pick one of the enabled routes at launch time.",
     "items": {
-      "default": { "label": "Default", "help": "All checkpoints in order (1..N)." },
-      "first_half": { "label": "First half", "help": "Checkpoints 1..N/2." },
-      "last_half": { "label": "Last half", "help": "Checkpoints N/2+1..N." },
-      "odd": { "label": "Odd", "help": "Odd-numbered checkpoints (1, 3, 5, ...)." },
-      "even": { "label": "Even", "help": "Even-numbered checkpoints (2, 4, 6, ...)." }
+      "default": {
+        "label": "Default",
+        "help": "All checkpoints in order (1..N)."
+      },
+      "reverse": {
+        "label": "Reversed course",
+        "help": "The default course, walked from the end to the start (N..1)."
+      },
+      "first_half": {
+        "label": "First half",
+        "help": "Checkpoints 1..N/2."
+      },
+      "last_half": {
+        "label": "Last half",
+        "help": "Checkpoints N/2+1..N."
+      },
+      "odd": {
+        "label": "Odd",
+        "help": "Odd-numbered checkpoints (1, 3, 5, ...)."
+      },
+      "even": {
+        "label": "Even",
+        "help": "Even-numbered checkpoints (2, 4, 6, ...)."
+      }
     }
   },
   "displays": {
     "sectionTitle": "Display modes",
     "hint": "Operators pick one of the enabled display modes at launch time.",
     "items": {
-      "full": { "label": "Full", "help": "Map + checkpoint title, description, and reveal image with animation." },
-      "map": { "label": "Map", "help": "Map only; markers light up on hit. No title/description, no big reveal." },
-      "simple": { "label": "Simple", "help": "Minimal HUD (team name + score + current checkpoint number), no map." }
+      "full": {
+        "label": "Full",
+        "help": "Map + checkpoint title, description, and reveal image with animation."
+      },
+      "map": {
+        "label": "Map",
+        "help": "Map only; markers light up on hit. No title/description, no big reveal."
+      },
+      "simple": {
+        "label": "Simple",
+        "help": "Minimal HUD (team name + score + current checkpoint number), no map."
+      }
     }
   },
   "playModes": {
     "sectionTitle": "Play modes",
     "hint": "Operators pick one of the enabled play modes at launch time.",
     "items": {
-      "itinerary": { "label": "Itinerary", "help": "Teams must hit checkpoints in order." },
-      "free": { "label": "Free", "help": "Any order counts." }
+      "itinerary": {
+        "label": "Itinerary",
+        "help": "Teams must hit checkpoints in order."
+      },
+      "free": {
+        "label": "Free",
+        "help": "Any order counts."
+      }
     }
   },
   "scoreTypes": {
@@ -56,8 +95,14 @@
     "hint": "Operators pick one of the enabled score types at launch. The one marked \"default\" is pre-selected.",
     "default": "default",
     "items": {
-      "percentage": { "label": "Percentage", "help": "Score = % of checkpoints hit, capped at 100, minus time malus." },
-      "points": { "label": "Points", "help": "Score = sum of points across hit checkpoints, minus time malus." }
+      "percentage": {
+        "label": "Percentage",
+        "help": "Score = % of checkpoints hit, capped at 100, minus time malus."
+      },
+      "points": {
+        "label": "Points",
+        "help": "Score = sum of points across hit checkpoints, minus time malus."
+      }
     }
   },
   "timing": {
@@ -74,7 +119,8 @@
     "sectionTitle": "HUD frames"
   },
   "textElements": {
-    "sectionTitle": "Text elements ({{count}})",
+    "sectionTitle": "Text elements — optional ({{count}})",
+    "optionalHint": "This section is optional. These are free-form labels you can add on the map if you want to (place names, instructions, captions…), then position in the layout editor. Add none and the scenario works just the same.",
     "addCategory": "Add category",
     "addElement": "Add element",
     "uncategorized": "Uncategorized",
@@ -106,6 +152,10 @@
   },
   "sounds": {
     "sectionTitle": "Sounds"
+  },
+  "rankRewards": {
+    "sectionTitle": "Rank rewards — optional",
+    "hint": "Full-screen image and sound played at the end of a run when the team lands in the top 1, top 3 or top 10. Leave a field empty to play nothing. Scenarios imported from the legacy software often arrive with a sound already loaded here."
   },
   "typography": {
     "overrideOn": "Override on - element wins",

@@ -13,6 +13,13 @@ import type { MediaSlot } from '../../types';
 
 const COVER_KEYS = ['background_image', 'game_visual', 'scenario_video'] as const;
 
+// Retours #49 - Clash never draws `background_image`: its full-bleed surface IS
+// the territory map (`map_image`), and the only other place a scenario visual
+// shows is the registration screen, which uses `game_visual`. The field was pure
+// noise for the author, so it is not offered for this game type. Legacy values
+// still travel through the adapter's media partition (see clashImageFields).
+const CLASH_OMITTED_COVER_KEYS = new Set<string>(['background_image']);
+
 // Tracks places its checkpoints on top of a background map; the map field lives
 // here alongside the cover/background so all the full-scene backdrops are in one
 // place. `map_image` is part of the tracks adapter manifest (tracksMediaSlots),
@@ -28,7 +35,12 @@ const TRACKS_MAP_SLOT: MediaSlot = {
 export function CoverSection() {
   const { t } = useTranslation('editorSections1');
   const editor = useScenarioEditor();
-  const slots = commonMediaSlots.filter((s) => (COVER_KEYS as readonly string[]).includes(s.key));
+  const isClash = editor.gameType === 'clash';
+  const slots = commonMediaSlots.filter(
+    (s) =>
+      (COVER_KEYS as readonly string[]).includes(s.key) &&
+      !(isClash && CLASH_OMITTED_COVER_KEYS.has(s.key)),
+  );
   const isTracks = editor.gameType === 'tracks';
   const meta = editor.gameMeta as Record<string, unknown>;
   const tracksMapSlot: MediaSlot = { ...TRACKS_MAP_SLOT, label: t('cover.mapImage') };

@@ -5,7 +5,7 @@ require_once __DIR__ . '/database/Database.php';
 try {
     $db = Database::getInstance();
 
-    echo "Applying Client App columns migration (clients.playground_enabled / go_billing_* / drop_*)...\n";
+    echo "Applying Client App columns migration (clients.playground_enabled / go_billing_* / spot_*)...\n";
 
     $migrationFile = __DIR__ . '/database/add_client_app_columns.sql';
     $sql = file_get_contents($migrationFile);
@@ -29,7 +29,7 @@ try {
     $cols = [
         'playground_enabled',
         'go_billing_overdue_since', 'go_billing_grace_days',
-        'drop_enabled', 'drop_billing_ok', 'drop_billing_overdue_since', 'drop_billing_grace_days',
+        'spot_enabled', 'spot_billing_ok', 'spot_billing_overdue_since', 'spot_billing_grace_days',
     ];
     $result = $db->fetchAll('DESCRIBE clients');
     echo "clients per-app columns:\n";

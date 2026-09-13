@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, FileText, Loader2, AlertCircle, CheckCircle, Pencil, Maximize2, X, Smartphone } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, FileText, Loader2, AlertCircle, CheckCircle, Pencil, Maximize2, X, Smartphone, BookOpen, Printer } from 'lucide-react';
 import { secureAuth } from '../../lib/secureAuth';
 import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
@@ -12,6 +12,10 @@ import { getDifficultyLabel, getDifficultyBadgeClass } from '../../types/difficu
 import { getAudienceLabel } from '../../types/audience';
 import type { ClientScenario } from './types';
 import { GoPreviewContent, type GoPreviewEnigma } from '../../scenarios/preview/GoPreviewContent';
+import { ScenarioRecapView } from './ScenarioRecapView';
+
+/** Game types the scenario recap covers - the three the old app had one for. */
+const RECAP_GAME_TYPES = ['mystery', 'tagquest', 'tracks'];
 
 interface GoPreviewData {
   title: string;
@@ -91,6 +95,7 @@ function getBackgroundImageUrl(
 
 export function ScenarioDetailView() {
   const { t } = useTranslation('scenarioDetail');
+  const { t: tRecap } = useTranslation('scenarioRecap');
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -164,6 +169,9 @@ export function ScenarioDetailView() {
   // grant for this scenario, so a refusal simply means "don't show it".
   const [goPreview, setGoPreview] = useState<GoPreviewData | null>(null);
   const [goPreviewOpen, setGoPreviewOpen] = useState(false);
+  // Collapsed by default: the recap loads the pattern + station lists, and most
+  // visits to this page are not about the balise correspondence.
+  const [recapOpen, setRecapOpen] = useState(false);
 
   useEffect(() => {
     if (!uniqid) return;
@@ -217,7 +225,7 @@ export function ScenarioDetailView() {
     String(scenario.client_id) === String(user?.client_id);
   const canEdit = isAdmin || isOwnCustom;
 
-  // GO-only portal (GO/Drop without Playground): show only the game visual +
+  // GO-only portal (GO/Spot without Playground): show only the game visual +
   // background image (no other scenario media). Derived per-app
   // (project_client_app_section).
   const goClientOnly = getAppAccess(user).scenariosGoOnly;
@@ -696,6 +704,44 @@ export function ScenarioDetailView() {
           </div>
         </div>
       </div>
+
+      {/* Scenario recap - which balise produces which image, per pattern. The
+          old app's "little book" icon; rebuilt for retour #40. Only the three
+          game types that had one are covered. */}
+      {RECAP_GAME_TYPES.includes(scenario.game_type ?? '') && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                {tRecap('sectionTitle')}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">{tRecap('sectionSubtitle')}</p>
+            </div>
+            <button
+              onClick={() => setRecapOpen((v) => !v)}
+              className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200"
+            >
+              {recapOpen ? tRecap('hide') : tRecap('show')}
+            </button>
+          </div>
+
+          {recapOpen && (
+            <>
+              <a
+                href={`/recap/${scenario.uniqid}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 mb-4 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-500"
+              >
+                <Printer className="w-4 h-4" />
+                {tRecap('openPrintable')}
+              </a>
+              <ScenarioRecapView uniqid={scenario.uniqid} />
+            </>
+          )}
+        </div>
+      )}
 
       {goPreview && goPreviewOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">

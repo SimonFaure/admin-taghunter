@@ -32,6 +32,7 @@ export function defaultMysteryGameMeta(): MysteryGameMeta {
     levels_gauge_level_icon_image: '',
     time_background_image: '',
     score_background_image: '',
+    team_name_background_image: '',
     enigmas_header_image: '',
     steps_container_image: '',
     both_answers_image: '',
@@ -45,6 +46,17 @@ export function defaultMysteryGameMeta(): MysteryGameMeta {
     animation_message_duration: '2',
     default_time: '60',
     gauge_filling: DEFAULT_GAUGE_FILLING,
+    // Blank = keep the built-in fill geometry (see resolveMysteryGaugeGeometry).
+    gauge_fill_inset_left: '',
+    gauge_fill_inset_right: '',
+    gauge_fill_inset_y: '',
+    gauge_fill_radius: '',
+    // Blank = the built-in result sub-frame (see resolveMysteryStatusFrame).
+    status_frame_scale: '',
+    status_frame_radius: '',
+    status_frame_over_image: '',
+    // Blank = the main-image underlay fills its cell (resolveMysteryUnderlayScale).
+    enigma_underlay_scale: '',
     level_font_color: '#000000',
     scenario_version: '1.0',
     default_time_malus: '1',

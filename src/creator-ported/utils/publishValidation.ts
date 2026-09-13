@@ -1,3 +1,6 @@
+import { TRACKS_MAX_CHECKPOINTS } from '../../scenarios/bodies/tracks/limits';
+import { DEFAULT_CLASH_PURGE_STATION } from '../../scenarios/bodies/clash/defaults';
+
 export type ValidationSeverity = 'error' | 'warning';
 
 export interface ValidationIssue {
@@ -47,6 +50,16 @@ export function validateTagquestConfig(config: any, scenarioTitle: string, scena
 
   const levelCount = Object.keys(config.levels ?? {}).length;
   check(issues, levelCount > 0, 'levels', 'At least one level is required', 'warning');
+
+  // Malus station: the trap balise whose every punch costs `malus_points`.
+  // Points without a station (or the reverse) is always an authoring oversight
+  // - the feature is inert either way. The "not also a pattern station" rule
+  // needs pattern_items, which this sync validator has no access to; it is
+  // enforced at selection time by both pickers in the tagquest editor.
+  const malusPoints = parseInt(String(config.malus_points ?? '0'), 10) || 0;
+  const malusStation = config.malus_station ?? null;
+  check(issues, !(malusPoints > 0 && malusStation == null), 'malus_station', 'Malus points are set but no malus station is selected - no punch will ever trigger the malus', 'warning');
+  check(issues, !(malusStation != null && malusPoints <= 0), 'malus_points', 'A malus station is selected but malus points are 0 - punching it will cost nothing', 'warning');
 
   check(issues, !!config.end_station && config.end_station !== '0', 'end_station', 'End station number should be set', 'warning');
   check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
@@ -138,6 +151,22 @@ export function validateClashConfig(config: any, scenarioTitle: string, scenario
   // sound without an image will never play - flag the likely oversight.
   check(issues, !(config.purge_sound && !config.purge_image), 'purge_sound', 'Purge sound is set but there is no purge image - the purge is disabled (and the sound never plays) until an image is uploaded', 'warning');
 
+  // The purge station can never double as a territory balise: the same physical
+  // punch cannot both validate a territory and fire a purge, and the playground
+  // silently disables the purge for the whole launch when it collides. Refuse
+  // it here instead (retours #50).
+  const purgeStation = Number(config.purge_station ?? DEFAULT_CLASH_PURGE_STATION);
+  territories.forEach((t: { balises?: unknown }, ti: number) => {
+    const balises = Array.isArray(t.balises) ? t.balises : [];
+    check(
+      issues,
+      !balises.includes(purgeStation),
+      `territories[${ti}].balises`,
+      `Territory ${ti + 1}: balise ${purgeStation} is the Purge station - a station cannot both validate a territory and fire a purge. Remove it here, or change the purge station in "The Purge".`,
+      'error',
+    );
+  });
+
   check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
 
   return {
@@ -159,10 +188,18 @@ export function validateTracksConfig(config: any, scenarioTitle: string, scenari
   check(issues, !!config.team_name_background_image, 'team_name_background_image', 'Team name frame is required', 'warning');
   check(issues, !!config.timer_background_image, 'timer_background_image', 'Timer frame is required', 'warning');
   check(issues, !!config.score_background_image, 'score_background_image', 'Score frame is required', 'warning');
-  check(issues, !!config.time_background_image, 'time_background_image', 'Time frame is required', 'warning');
 
   const checkpointCount = config.checkpoints?.length ?? 0;
   check(issues, checkpointCount > 0, 'checkpoints', 'At least one checkpoint is required', 'error');
+  // Hard cap (retours point 48) - blocks publishing a course over the limit
+  // instead of quietly cutting it down. The editor also refuses to add past it.
+  check(
+    issues,
+    checkpointCount <= TRACKS_MAX_CHECKPOINTS,
+    'checkpoints',
+    `A Track scenario cannot exceed ${TRACKS_MAX_CHECKPOINTS} checkpoints (this one has ${checkpointCount}) - remove the extra ones`,
+    'error',
+  );
 
   if (checkpointCount > 0 && config.checkpoints_unique_image !== true) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

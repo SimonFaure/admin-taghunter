@@ -11,7 +11,7 @@ export function ScenarioTypeSelector({ onSelect, onClose, filterGameType }: Scen
     { value: 'ado_adultes', label: 'Mystery - Ado/Adultes', hasTwoLayouts: true, gameType: 'mystery' },
     { value: 'kids', label: 'Mystery - Kids', hasTwoLayouts: true, gameType: 'mystery' },
     { value: 'mini_kids', label: 'Mystery - Mini Kids', hasTwoLayouts: true, gameType: 'mystery' },
-    { value: 'tagquest', label: 'TagQuest', hasTwoLayouts: false, gameType: 'tagquest' },
+    { value: 'tagquest', label: 'Quest', hasTwoLayouts: false, gameType: 'tagquest' },
   ];
 
   const scenarioTypes = filterGameType

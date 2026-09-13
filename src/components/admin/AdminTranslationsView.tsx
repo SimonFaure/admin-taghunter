@@ -32,9 +32,10 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 const NS_LABEL: Record<IngameNamespace, string> = {
   ingame_common: 'Common (all games)',
-  ingame_tagquest: 'TagQuest',
+  ingame_tagquest: 'Quest',
   ingame_mystery: 'Mystery',
   ingame_tracks: 'Track',
+  ingame_clash: 'Clash',
 };
 
 /** Normalize legacy `{s}`/`{n}` tokens to i18next `{{s}}`/`{{n}}`. Idempotent. */

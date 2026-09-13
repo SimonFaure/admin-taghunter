@@ -11,9 +11,17 @@ export interface ClientScenario extends Scenario {
   // cards/filters can show audience + difficulty without parsing the data blob.
   difficulty?: string | null;
   audience?: string | null;
+  // Fine-grained age bands (game_meta.audience_bands) - the taxonomy admin uses.
+  // `audience` above stays as the derived name-pool tier shadow.
+  audience_bands?: string[];
+  // Free-text univers/theme tags (game_meta.univers).
+  univers?: string[];
+  // Languages the scenario is authored in (data.available_languages/default).
+  available_languages?: string[];
+  default_language?: string | null;
   // Tag Hunter GO: whether this scenario exists in GO mode (+ answer count).
   adaptable_go?: boolean;
   go_answer_count?: number | null;
-  // Tag Hunter Drop: whether this scenario is Drop-capable.
-  adaptable_drop?: boolean;
+  // Tag Hunter Spot: whether this scenario is Spot-capable.
+  adaptable_spot?: boolean;
 }

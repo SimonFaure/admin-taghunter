@@ -17,12 +17,19 @@ import { MOCK_MYSTERY_STATE } from './mockMysteryState';
 import {
   IDLE_ROLES,
   INGAME_ROLES,
+  MYSTERY_STATUS_NEUTRAL,
   MysteryFixedFrames,
   MysteryIdleBox,
   MysteryLayoutBox,
+  MysteryStatusPlate,
   resolveIdleLayout,
   resolveIngameLayout,
+  resolveMysteryBonusBox,
+  resolveMysteryGaugeGeometry,
+  resolveMysteryStatusFrame,
+  resolveMysteryUnderlayScale,
   type IdleLayout,
+  type IngameFrames,
   type IngameLayout,
   type IngameRoleKey,
 } from './mysteryIngameLayout';
@@ -48,6 +55,17 @@ export interface PreviewMysteryGameMeta {
   levels_gauge_player_icon_image?: string;
   levels_gauge_level_icon_image?: string;
   gauge_filling?: string;
+  /** Author-tunable gauge fill geometry (see resolveMysteryGaugeGeometry). */
+  gauge_fill_inset_left?: string;
+  gauge_fill_inset_right?: string;
+  gauge_fill_inset_y?: string;
+  gauge_fill_radius?: string;
+  /** Author-tunable result sub-frame (see resolveMysteryStatusFrame). */
+  status_frame_scale?: string;
+  status_frame_radius?: string;
+  status_frame_over_image?: string;
+  /** Size of the main-image underlay (see resolveMysteryUnderlayScale). */
+  enigma_underlay_scale?: string;
   game_refresh_button_image?: string;
   game_refresh_button_hover_image?: string;
   font?: string;
@@ -61,6 +79,9 @@ export interface PreviewMysteryGameMeta {
   custom_fonts?: CustomFont[];
   /** Author-placed positions for the 4 in-game text roles. Absent → defaults. */
   ingame_layout?: IngameLayout;
+  /** Author-placed rectangles for the timer/score/team-name frame images.
+   *  Absent → the historical fixed positions. */
+  ingame_frames?: IngameFrames;
   /** Author-placed styled title/subtitle for the idle (between-teams) screen. */
   idle_layout?: IdleLayout;
   [key: string]: unknown;
@@ -88,6 +109,30 @@ export interface MysteryPreviewRendererProps {
    *  editor uses this so the preview is a clean backdrop under its own
    *  draggable boxes. */
   hideIngameTextOverlays?: boolean;
+  /** Verdict tint painted on the enigma tiles, so the author can size the result
+   *  sub-frame against their own artwork (retour #85). Empty ⇒ the neutral
+   *  plate, i.e. an enigma no one has answered yet. */
+  statusColor?: string;
+  /**
+   * Reports where the centre enigma tile lands, as percentages of the stage.
+   *
+   * The in-game layout editor needs that rectangle to hang a drag handle on the
+   * main-image underlay, and the tile is positioned by this file's flex layout -
+   * not by a stored box. Measuring and reporting it beats mirroring the layout
+   * in constants on the editor side (which is what the gauge handles had to do,
+   * and which their own comment flags as a sync hazard).
+   *
+   * Must be a STABLE callback - it is an effect dependency here.
+   */
+  onEnigmaTileRect?: (rect: EnigmaTileRect | null) => void;
+}
+
+/** Rectangle of the centre enigma tile, in % of the stage box. */
+export interface EnigmaTileRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
 }
 
 export function MysteryPreviewRenderer({
@@ -102,8 +147,12 @@ export function MysteryPreviewRenderer({
   canonicalWidth,
   canonicalHeight,
   hideIngameTextOverlays,
+  statusColor,
+  onEnigmaTileRect,
 }: MysteryPreviewRendererProps) {
   const fitWrapperRef = useRef<HTMLDivElement>(null);
+  const stageBoxRef = useRef<HTMLDivElement>(null);
+  const enigmaTileRef = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   const scenarioFontFamily = resolveFontFamily(gameMeta.font);
@@ -148,18 +197,66 @@ export function MysteryPreviewRenderer({
     activeOverscore?.image_overscore_step
       ? resolveMediaUrl(activeOverscore.image_overscore_step)
       : '';
+  // The "empty bonus" plate sits under the tier images and is visible from the
+  // first second of the game - the preview showed neither it nor the tier
+  // artwork before (retour #34).
+  const emptyBonusUrl = gameMeta.steps_container_image
+    ? resolveMediaUrl(gameMeta.steps_container_image)
+    : '';
+  // Where the bonus plate sits - author-placed like the element frames, default
+  // = the board grid's left cell (its former fixed home).
+  const bonusBox = resolveMysteryBonusBox(gameMeta.ingame_frames);
 
   const pointsUnits = gameMeta.points_units ?? 'points';
   const scoreFullGame = gameMeta.score_full_game ?? '100';
 
   // Gauge geometry - shared by the gradient bar, level icons, and player
-  // icon so they stay perfectly aligned. The inset keeps icons at 0%/100%
-  // inside the gauge frame instead of overflowing the gauge image edges.
-  const gaugeBarHeight = stage.height * 0.08;
-  const gaugeIconHeight = gaugeBarHeight - 14; // same as gradient bar height
-  const gaugeInset = gaugeIconHeight / 2 + 8;
-  const gaugeInsetPx = `${gaugeInset}px`;
-  const gaugeDoubleInsetPx = `${gaugeInset * 2}px`;
+  // icon so they stay perfectly aligned, and tunable per scenario via the
+  // gauge_fill_* fields (retour #31).
+  const gauge = resolveMysteryGaugeGeometry(gameMeta, stage.height);
+
+  // Result sub-frame geometry - the same resolver the playground board uses, so
+  // the size/rounding an author sets here is what the postes de jeu draw
+  // (retours #83 + #85).
+  const statusFrame = resolveMysteryStatusFrame(gameMeta);
+
+  // Size of the square underlay the centre enigma image sits on. Same resolver
+  // the playground board uses, so the size an author sets here is the one the
+  // postes de jeu draw - except that the board never PAINTS the neutral
+  // underlay, while the preview does so the author can see what they size.
+  const underlayScale = resolveMysteryUnderlayScale(gameMeta);
+
+  // Measure the centre tile for the layout editor's underlay handle. Observing
+  // both the stage and the tile covers every way the rectangle can move: the
+  // modal resizing, and the author changing the scale.
+  useEffect(() => {
+    if (!onEnigmaTileRect) return;
+    const report = () => {
+      const stageEl = stageBoxRef.current;
+      const tileEl = enigmaTileRef.current;
+      if (!stageEl || !tileEl) {
+        onEnigmaTileRect(null);
+        return;
+      }
+      const sr = stageEl.getBoundingClientRect();
+      const tr = tileEl.getBoundingClientRect();
+      if (sr.width <= 0 || sr.height <= 0) {
+        onEnigmaTileRect(null);
+        return;
+      }
+      onEnigmaTileRect({
+        left: ((tr.left - sr.left) / sr.width) * 100,
+        top: ((tr.top - sr.top) / sr.height) * 100,
+        width: (tr.width / sr.width) * 100,
+        height: (tr.height / sr.height) * 100,
+      });
+    };
+    report();
+    const ro = new ResizeObserver(report);
+    if (stageBoxRef.current) ro.observe(stageBoxRef.current);
+    if (enigmaTileRef.current) ro.observe(enigmaTileRef.current);
+    return () => ro.disconnect();
+  }, [onEnigmaTileRect, stage.width, stage.height, underlayScale, screen, selectedEnigmaIndex]);
 
   return (
     <div
@@ -194,6 +291,7 @@ export function MysteryPreviewRenderer({
 
       {stage.width > 0 && (
         <div
+          ref={stageBoxRef}
           style={{
             position: 'relative',
             width: `${stage.width}px`,
@@ -225,29 +323,11 @@ export function MysteryPreviewRenderer({
               minHeight: 0,
             }}
           >
-            {/* Left column: overscore image only. Timer + score are now
-                author-placed overlays (see below). */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: `${stage.height * 0.02}px` }}>
-              {/* Overscore display - shown when the modal selects a stage. */}
-              {overscoreImageUrl && (
-                <div
-                  style={{
-                    flex: 1,
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: 0,
-                  }}
-                >
-                  <img
-                    src={overscoreImageUrl}
-                    alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                </div>
-              )}
-            </div>
+            {/* Left column: an empty spacer. The bonus plate that used to live
+                here is now an author-placed overlay (drawn after the board,
+                below) - the cell stays so the centre enigma image and the right
+                recap keep their fixed positions. */}
+            <div />
 
             {/* Center column: ONE big enigma - text on top, image below. */}
             <div
@@ -277,31 +357,67 @@ export function MysteryPreviewRenderer({
                   <>
                     {/* Enigma name is now an author-placed overlay (below); the
                         centre column shows only the featured image. */}
+                    {/* Flexible area centring a SQUARE tile, exactly like the
+                        playground board - so the result sub-frame an author
+                        sizes here is the one the postes de jeu draw. */}
                     <div
                       style={{
                         flex: '1 1 0',
                         width: '100%',
                         minHeight: 0,
-                        position: 'relative',
-                        background: 'rgba(255,255,255,0.06)',
-                        borderRadius: 12,
-                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
-                      {imgSrc && (
-                        <img
-                          src={imgSrc}
-                          alt={text}
-                          className={enigmaView === 'locked' ? 'mystery-preview-blur' : ''}
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                          }}
+                      <div
+                        ref={enigmaTileRef}
+                        style={{
+                          position: 'relative',
+                          height: `${underlayScale}%`,
+                          aspectRatio: '1 / 1',
+                          maxWidth: `${underlayScale}%`,
+                          overflow: 'hidden',
+                          // Authoring aid: the neutral plate alone is a 6 % white
+                          // wash, too faint to judge a size against. Outline the
+                          // underlay while it has no verdict colour of its own.
+                          outline: statusColor ? undefined : '1px dashed rgba(255,255,255,0.35)',
+                          outlineOffset: '-1px',
+                        }}
+                      >
+                        {/* The underlay. In-game the neutral (no-verdict) layer
+                            is not painted at all - no white slab behind the
+                            artwork - but the preview always paints it so the
+                            author can see the box `enigma_underlay_scale`
+                            sizes. */}
+                        <MysteryStatusPlate
+                          color={statusColor || MYSTERY_STATUS_NEUTRAL}
+                          frame={statusFrame}
+                          legacyRadius={12}
                         />
-                      )}
+                        {imgSrc && (
+                          <img
+                            src={imgSrc}
+                            alt={text}
+                            className={enigmaView === 'locked' ? 'mystery-preview-blur' : ''}
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'contain',
+                            }}
+                          />
+                        )}
+                        {statusColor && (
+                          <MysteryStatusPlate
+                            color={statusColor}
+                            frame={statusFrame}
+                            legacyRadius={12}
+                            over
+                          />
+                        )}
+                      </div>
                     </div>
                   </>
                 );
@@ -340,17 +456,33 @@ export function MysteryPreviewRenderer({
                         width: '100%',
                         aspectRatio: '1 / 1',
                         position: 'relative',
-                        background: 'rgba(255,255,255,0.06)',
-                        borderRadius: 4,
                         overflow: 'hidden',
                       }}
                     >
+                      <MysteryStatusPlate
+                        color={statusColor || MYSTERY_STATUS_NEUTRAL}
+                        frame={statusFrame}
+                        legacyRadius={4}
+                      />
                       {imgSrc && (
                         <img
                           src={imgSrc}
                           alt=""
                           className={enigmaView === 'locked' ? 'mystery-preview-blur' : ''}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          style={{
+                            position: 'relative',
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                      )}
+                      {statusColor && (
+                        <MysteryStatusPlate
+                          color={statusColor}
+                          frame={statusFrame}
+                          legacyRadius={4}
+                          over
                         />
                       )}
                     </div>
@@ -359,6 +491,55 @@ export function MysteryPreviewRenderer({
               </div>
             </div>
           </div>
+
+          {/* The bonus plate, placed by the author (ingame_frames.bonus,
+              default = the board's left cell). The empty-bonus image is on
+              screen permanently; each overscore tier REPLACES what is showing
+              rather than stacking next to it (legacy
+              `.team_bonus_container_empty` + absolutely-stacked
+              `.team_bonus_container`). The modal's stage selector picks which
+              tier is on top. Absolutely positioned over the stage, so moving or
+              resizing it never disturbs the board columns. */}
+          {(emptyBonusUrl || overscoreImageUrl) && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${bonusBox.left}%`,
+                top: `${bonusBox.top}%`,
+                width: `${bonusBox.width}%`,
+                height: `${bonusBox.height}%`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
+            >
+              {emptyBonusUrl && (
+                <img
+                  src={emptyBonusUrl}
+                  alt=""
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              )}
+              {overscoreImageUrl && (
+                <img
+                  src={overscoreImageUrl}
+                  alt=""
+                  style={{
+                    // Same share of the plate the playground gives a tier image
+                    // (37 %), centred - the preview used to stretch it over the
+                    // whole cell, which is not what a poste de jeu draws.
+                    position: 'relative',
+                    maxWidth: '100%',
+                    maxHeight: '37%',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain',
+                  }}
+                />
+              )}
+            </div>
+          )}
 
           {/* Bottom: level gauge. The outer wrapper is taller than the gauge
               bar itself so level icons + labels that stick out above/below
@@ -374,7 +555,7 @@ export function MysteryPreviewRenderer({
               flexShrink: 0,
             }}
           >
-            <div style={{ position: 'relative', width: '100%', height: `${stage.height * 0.08}px` }}>
+            <div style={{ position: 'relative', width: '100%', height: `${gauge.barHeight}px` }}>
               {gameMeta.levels_gauge_image && (
                 <img
                   src={resolveMediaUrl(gameMeta.levels_gauge_image)}
@@ -391,13 +572,13 @@ export function MysteryPreviewRenderer({
               <div
                 style={{
                   position: 'absolute',
-                  left: gaugeInsetPx,
-                  top: 7,
-                  bottom: 7,
-                  width: `calc((100% - ${gaugeDoubleInsetPx}) * ${Math.max(0, Math.min(100, gaugePercent)) / 100})`,
+                  left: gauge.insetLeft,
+                  top: gauge.insetY,
+                  height: gauge.trackHeight,
+                  width: gauge.trackWidth(Math.max(0, Math.min(100, gaugePercent)) / 100),
                   background: gameMeta.gauge_filling || 'linear-gradient(90deg, #ffc700 0%, #fee300 100%)',
                   opacity: 0.85,
-                  borderRadius: 6,
+                  borderRadius: gauge.radius,
                 }}
               />
               {gameMeta.levels_gauge_image_with_content && (
@@ -426,7 +607,7 @@ export function MysteryPreviewRenderer({
                   : '';
                 // Same as gradient bar height + same inset, so 0%/100% icons
                 // sit just inside the gauge frame instead of overflowing.
-                const iconHeight = gaugeIconHeight;
+                const iconHeight = gauge.iconHeight;
                 const fontSize = stage.height * 0.018;
                 const barHeight = stage.height * 0.012;
                 const labelOffset = iconHeight / 2 + barHeight;
@@ -444,7 +625,7 @@ export function MysteryPreviewRenderer({
                   const name = level?.name
                     ? readLocalized(level.name as Localized | string | undefined)
                     : '';
-                  const leftCalc = `calc(${gaugeInsetPx} + (100% - ${gaugeDoubleInsetPx}) * ${fraction})`;
+                  const leftCalc = gauge.trackLeft(fraction);
 
                   // Icon (or fallback dot)
                   if (iconUrl) {
@@ -546,9 +727,9 @@ export function MysteryPreviewRenderer({
                     alt=""
                     style={{
                       position: 'absolute',
-                      left: `calc(${gaugeInsetPx} + (100% - ${gaugeDoubleInsetPx}) * ${fraction})`,
-                      top: 7,
-                      height: 'calc(100% - 14px)',
+                      left: gauge.trackLeft(fraction),
+                      top: gauge.insetY,
+                      height: gauge.trackHeight,
                       width: 'auto',
                       transform: 'translateX(-50%)',
                       pointerEvents: 'none',
@@ -560,9 +741,9 @@ export function MysteryPreviewRenderer({
             </div>
           </div>
 
-          {/* Fixed element frame images (non-movable), drawn behind the
-              author-placed text. Shown even when text overlays are hidden (the
-              in-game layout editor uses this as its backdrop). */}
+          {/* Element frame images, drawn behind the author-placed text at the
+              rectangles stored in `ingame_frames`. Shown even when text overlays
+              are hidden (the in-game layout editor uses this as its backdrop). */}
           {(() => {
             const frameUrls: Partial<Record<IngameRoleKey, string>> = {};
             for (const role of INGAME_ROLES) {
@@ -571,7 +752,7 @@ export function MysteryPreviewRenderer({
                 : undefined;
               if (file) frameUrls[role.key] = resolveMediaUrl(file);
             }
-            return <MysteryFixedFrames frameUrls={frameUrls} />;
+            return <MysteryFixedFrames frameUrls={frameUrls} frames={gameMeta.ingame_frames} />;
           })()}
 
           {/* Author-placed text overlays - the 4 in-game roles positioned via
@@ -585,7 +766,11 @@ export function MysteryPreviewRenderer({
               ? readLocalized(featured.text as Localized | string | undefined) ||
                 `Enigma ${featured.number ?? selectedEnigmaIndex + 1}`
               : '';
-            const scoreText = `${MOCK_MYSTERY_STATE.score}${pointsUnits === 'percentage' ? '%' : `/${scoreFullGame}`}`;
+            // In points mode the board shows the bare score - NOT "60/100". The
+            // playground has never drawn the "sur X" half (MysteryGamePage
+            // .formatScore); the preview did, so an author sized the score box
+            // for a string the postes de jeu never render.
+            const scoreText = `${MOCK_MYSTERY_STATE.score}${pointsUnits === 'percentage' ? '%' : ''}`;
             const textByRole: Record<string, string> = {
               enigma_name: enigmaName,
               timer: MOCK_MYSTERY_STATE.timer,
@@ -661,9 +846,11 @@ export function MysteryPreviewRenderer({
             const refreshHoverImg = gameMeta.game_refresh_button_hover_image
               ? resolveMediaUrl(gameMeta.game_refresh_button_hover_image)
               : '';
+            // Bare score in points mode, like the in-game board and like the
+            // playground's own end screen (MysteryGamePage.finalScoreText).
             const scoreDisplay = pointsUnits === 'percentage'
               ? `${Math.round(currentScore)}%`
-              : `${Math.round(currentScore)} / ${scoreFullGame}`;
+              : `${Math.round(currentScore)}`;
             return (
               <div
                 style={{

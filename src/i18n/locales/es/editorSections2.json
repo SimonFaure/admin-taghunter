@@ -15,9 +15,12 @@
     "empty": "Aún no hay sobrepuntuaciones.",
     "overscoreHeading": "Sobrepuntuación {{label}}",
     "removeOverscore": "Quitar sobrepuntuación",
-    "imageLabel": "Imagen de sobrepuntuación",
-    "step": "Paso",
-    "score": "Puntuación",
-    "name": "Nombre ({{lang}})"
+    "imageLabel": "Imagen del sobrepunto (sustituye la imagen de bonus vacío)",
+    "step": "Etapa (orden de visualización)",
+    "score": "Puntos adicionales",
+    "name": "Nombre ({{lang}})",
+    "scoreFullGame": "Puntuación necesaria para llenar el medidor",
+    "scoreFullGameHint": "Es la puntuación de partida completa: el medidor llega al 100 % cuando el equipo la alcanza. Los sobrepuntos de abajo son puntos que se SUMAN a ella: los desbloquea un equipo que supere la partida completa.",
+    "scoreHint": "Puntos por encima de la puntuación de partida completa, no una puntuación absoluta. Ej.: partida completa = 30 y sobrepunto = 10 ⇒ este nivel se desbloquea en 40."
   }
 }

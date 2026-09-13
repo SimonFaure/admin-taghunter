@@ -92,6 +92,18 @@ function ti_loc_fr($s) {
  * `[mapped, skipped]` where `mapped` is keyed by text_* field (Localized<fr>)
  * and `skipped` is a list of the original keys that have no unambiguous home.
  */
+// Mystery wrong-answer points are authored SIGNED (negative = penalty), the same
+// way the two game-level maluses are. Legacy exports carry the bare magnitude
+// ("5" meaning "-5 points"), so fold a positive value to its negative on import
+// and the editor shows - and every runtime scores - the same number.
+function ti_signed_wrong_points($raw) {
+    $s = trim((string)($raw ?? ''));
+    if ($s === '' || !is_numeric($s)) return $s === '' ? '0' : $s;
+    $n = (float)$s;
+    if ($n == 0) return '0';
+    return $n > 0 ? '-' . ltrim($s, '+') : $s;
+}
+
 function ti_map_mystery_user_meta($tempDir, $slug) {
     $path = ti_find_game_file($tempDir, $slug, 'game_user_meta.csv');
     if (!$path) return [[], []];
@@ -393,7 +405,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                     'number' => $r['number'] ?? ($r['enigma_number'] ?? ''),
                     'text' => $r['text'] ?? ($r['enigma_text'] ?? ''),
                     'good_answer_points' => $r['good_answer_points'] ?? '10',
-                    'wrong_answer_points' => $r['wrong_answer_points'] ?? '0',
+                    'wrong_answer_points' => ti_signed_wrong_points($r['wrong_answer_points'] ?? '0'),
                     'good_answer_image' => $r['good_answer_image'] ?? '',
                 ];
             }
@@ -777,7 +789,7 @@ function ti_import_game($pdo, $tempDir, $game, $ownership, $clientId, $createdBy
                     'number' => $e['number'] ?? '',
                     'text' => ti_loc_fr($e['text'] ?? ''),
                     'good_answer_points' => $e['good_answer_points'] ?? '10',
-                    'wrong_answer_points' => $e['wrong_answer_points'] ?? '0',
+                    'wrong_answer_points' => ti_signed_wrong_points($e['wrong_answer_points'] ?? '0'),
                     'good_answer_image' => $remap($e['good_answer_image'] ?? ''),
                 ];
             }, $enigmas);

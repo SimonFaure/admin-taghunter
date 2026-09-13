@@ -4,6 +4,7 @@ import { Upload, FileArchive, CheckCircle, XCircle, Loader2, ArrowLeft, FolderTr
 import JSZip from 'jszip';
 import { db } from '../lib/db';
 import { parseCSV, csvToKeyValue } from '../utils/csvParser';
+import { normalizeWrongAnswerPoints } from '../../scenarios/bodies/mystery/wrongAnswerPoints';
 
 interface ZipImportProps {
   onBack: () => void;
@@ -502,7 +503,8 @@ export function ZipImport({ onBack, onSuccess }: ZipImportProps) {
               number: enigma.number || enigma.enigma_number,
               text: enigma.text || enigma.enigma_text || '',
               good_answer_points: enigma.good_answer_points || '10',
-              wrong_answer_points: enigma.wrong_answer_points || '0',
+              // Signed like the maluses; legacy exports carry the bare magnitude.
+              wrong_answer_points: normalizeWrongAnswerPoints(enigma.wrong_answer_points || '0'),
               good_answer_image: enigma.good_answer_image || ''
             });
           });

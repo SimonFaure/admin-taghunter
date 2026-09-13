@@ -6,10 +6,13 @@ import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
 import { getGameVisualUrl } from './MyScenariosView';
 import {
-  DROP_BASE_URL,
+  SPOT_BASE_URL,
   GO_BASE_URL,
   NAMED_RANGES,
+  distinctDurations,
   fmtElapsed,
+  formatDuration,
+  groupByDuration,
   playerUrl,
   rangeQuery,
   type RangeKey,
@@ -21,26 +24,33 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const POLL_MS = 4000;
 
 /**
- * Client "GO / Drop Leaderboards" - the animateur's leaderboard. Pick a scenario,
+ * Client "GO / Spot Leaderboards" - the animateur's leaderboard. Pick a scenario,
  * then a time range (today / this week / month / year / all time / custom) and
  * watch teams' scores via go.php?action=leaderboard&app=… . Online-only (the field
  * is offline). Sessions were retired in favour of these time ranges. The `app`
- * prop drives which grants/board/QR base are used (project_taghunter_drop).
+ * prop drives which grants/board/QR base are used (project_taghunter_spot).
  */
-export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
+export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'spot' } = {}) {
   const { t } = useTranslation('client');
   const { user } = useAuth();
   const clientId = user?.client_id ?? '';
-  const baseUrl = app === 'drop' ? DROP_BASE_URL : GO_BASE_URL;
-  const title = app === 'drop' ? t('goSessions.titleDrop', { defaultValue: 'Drop Leaderboards' }) : t('goSessions.title');
+  const baseUrl = app === 'spot' ? SPOT_BASE_URL : GO_BASE_URL;
+  const title = app === 'spot' ? t('goSessions.titleSpot', { defaultValue: 'Spot Leaderboards' }) : t('goSessions.title');
+  // The product name this page is showing. The scenario-picker labels used to be
+  // hardcoded to "GO" even on the Spot page (#63), so a Spot operator was asked
+  // to "choose a GO scenario".
+  const appLabel = app === 'spot' ? 'Spot' : 'GO';
   const url = (scenarioId: number | string) => playerUrl(baseUrl, clientId, scenarioId);
   // The public player board (components/public/PublicRankingView) - the operator
   // opens it in a new tab to project it. The CURRENT time window is baked into
   // the link, since the board has no picker of its own. Named ranges travel as
   // range+tz (resolved server-side, like the board itself does); custom carries
   // explicit from/to.
-  const boardUrl = (scenarioId: number | string, r: RangeKey, from: string, to: string) => {
+  // The challenge filter travels with the window, so the projected board opens on
+  // exactly the ranking the operator is looking at (project_go_spot_durations).
+  const boardUrl = (scenarioId: number | string, r: RangeKey, from: string, to: string, d: number | null) => {
     const qs = new URLSearchParams(rangeQuery(r, from, to));
+    if (d !== null) qs.set('d', String(d));
     const path = `/r/${app}/${encodeURIComponent(clientId)}/${encodeURIComponent(String(scenarioId))}?${qs}`;
     return `${window.location.origin}${path}`;
   };
@@ -50,36 +60,33 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [scores, setScores] = useState<ScoreRow[]>([]);
+  // null = "All": every challenge, split into one ranked section each.
+  const [durationFilter, setDurationFilter] = useState<number | null>(null);
   const [loadingBoard, setLoadingBoard] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [qrFullscreen, setQrFullscreen] = useState(false);
   const pollRef = useRef<number | null>(null);
 
-  // The client's scenarios for this app - the pool whose leaderboards the operator
-  // views. GO = adaptable_go grants from `list`; Drop = the mode='drop' grants.
+  // The client's scenarios for this app - the pool whose leaderboards the
+  // operator views. Both apps read the same per-app list the QR grid uses
+  // (list_go / list_spot), which is exactly what go.php will serve: grants, plus
+  // the whole eligible product catalogue for a premium client. GO used to read
+  // the generic `list` filtered on adaptable_go, which also surfaced scenarios
+  // granted for the Playground only.
   const loadGoScenarios = useCallback(async () => {
     if (!clientId) return;
     try {
-      if (app === 'drop') {
-        const res = await authFetch(
-          `${API_BASE_URL}/client_scenarios.php?action=list_drop&client_id=${clientId}`,
-          { credentials: 'include' },
-        );
-        if (res.ok) {
-          const json = await res.json();
-          // list_drop returns scenario_id (not id) - normalize to the picker shape.
-          const rows = (json.data || []) as Array<ClientScenario & { scenario_id: number | string }>;
-          setGoScenarios(rows.map((r) => ({ ...r, id: String(r.scenario_id) })));
-        }
-      } else {
-        const res = await authFetch(
-          `${API_BASE_URL}/client_scenarios.php?action=list&client_id=${clientId}`,
-          { credentials: 'include' },
-        );
-        if (res.ok) {
-          const json = await res.json();
-          setGoScenarios((json.data || []).filter((s: ClientScenario) => s.adaptable_go));
-        }
+      const action = app === 'spot' ? 'list_spot' : 'list_go';
+      const res = await authFetch(
+        `${API_BASE_URL}/client_scenarios.php?action=${action}&client_id=${clientId}`,
+        { credentials: 'include' },
+      );
+      if (res.ok) {
+        const json = await res.json();
+        // Both list actions return scenario_id (not id) - normalize to the
+        // picker shape.
+        const rows = (json.data || []) as Array<ClientScenario & { scenario_id: number | string }>;
+        setGoScenarios(rows.map((r) => ({ ...r, id: String(r.scenario_id) })));
       }
     } catch {
       /* ignore - the picker just stays empty */
@@ -130,6 +137,20 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
     };
   }, [scenario, range, customFrom, customTo, loadBoard]);
 
+  // The challenges present in the current result set drive the chip row (never
+  // the client's current config — un-ticking a duration must not hide the teams
+  // who already played it). The board always fetches every duration and splits
+  // client-side, so the chips stay stable whichever one is selected.
+  const durations = distinctDurations(scores);
+  // A selected challenge that vanished from the results (window changed) falls
+  // back to "All" rather than showing an empty board under a dead chip.
+  const activeDuration = durationFilter !== null && durations.includes(durationFilter) ? durationFilter : null;
+  const sections =
+    activeDuration === null
+      ? groupByDuration(scores)
+      : groupByDuration(scores).filter((g) => g.duration === activeDuration);
+  const durationLabel = (d: number) => (d > 0 ? formatDuration(d) : t('goViews:durations.unspecified'));
+
   // Esc exits fullscreen QR.
   useEffect(() => {
     if (!qrFullscreen) return;
@@ -152,9 +173,11 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
         {/* Scenario picker */}
         <div className="lg:col-span-1 space-y-4">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
-            <div className="text-sm font-semibold text-slate-800 mb-3">{t('goSessions.startScenarioPrompt')}</div>
+            <div className="text-sm font-semibold text-slate-800 mb-3">
+              {t('goSessions.startScenarioPrompt', { app: appLabel })}
+            </div>
             {goScenarios.length === 0 ? (
-              <p className="text-sm text-slate-400">{t('goSessions.noGoScenarios')}</p>
+              <p className="text-sm text-slate-400">{t('goSessions.noGoScenarios', { app: appLabel })}</p>
             ) : (
               <div className="grid grid-cols-2 gap-2.5">
                 {goScenarios.map((s) => {
@@ -195,7 +218,7 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
           {!scenario ? (
             <div className="text-center py-16 bg-slate-50 rounded-lg">
               <Trophy className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">{t('goSessions.pickPrompt')}</p>
+              <p className="text-slate-500">{t('goSessions.pickPrompt', { app: appLabel })}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -225,6 +248,36 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
                   {t('goSessions.range_custom')}
                 </button>
               </div>
+
+              {/* Challenge selector — only worth showing once more than one
+                  duration has actually been played in this window. */}
+              {durations.length > 1 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setDurationFilter(null)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      activeDuration === null
+                        ? 'bg-slate-900 text-white'
+                        : 'border border-slate-300 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {t('goViews:durations.allDurations')}
+                  </button>
+                  {durations.map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDurationFilter(d)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                        activeDuration === d
+                          ? 'bg-slate-900 text-white'
+                          : 'border border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {durationLabel(d)}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {range === 'custom' && (
                 <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -264,7 +317,7 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
                       {t('goSessions.showQr')}
                     </button>
                     <a
-                      href={boardUrl(scenario.id, range, customFrom, customTo)}
+                      href={boardUrl(scenario.id, range, customFrom, customTo, activeDuration)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
@@ -278,33 +331,45 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'drop' } = {}) {
                 {scores.length === 0 ? (
                   <div className="text-center py-12 text-slate-500">{t('goSessions.waiting')}</div>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                      <tr>
-                        <th className="px-4 py-2 w-12">#</th>
-                        <th className="px-4 py-2">{t('goSessions.team')}</th>
-                        <th className="px-4 py-2 text-right">{t('goSessions.score')}</th>
-                        <th className="px-4 py-2 text-right">{t('goSessions.level')}</th>
-                        <th className="px-4 py-2 text-right">{t('goSessions.time')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scores.map((row, i) => (
-                        <tr key={row.team_uuid} className="border-t border-slate-100">
-                          <td className="px-4 py-2.5 font-bold text-slate-400">{i + 1}</td>
-                          <td className="px-4 py-2.5 font-medium text-slate-900">
-                            <span className="inline-flex items-center gap-1.5">
-                              {row.finished ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : null}
-                              {row.team_name || '-'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right font-bold text-emerald-600">{row.score}</td>
-                          <td className="px-4 py-2.5 text-right">{row.level}</td>
-                          <td className="px-4 py-2.5 text-right text-slate-500">{fmtElapsed(row.elapsed_seconds)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  // One ranked table per challenge: rank restarts in each section
+                  // because a 30-min run is only ever ranked against 30-min runs.
+                  sections.map((section) => (
+                    <div key={section.duration}>
+                      {sections.length > 1 && (
+                        <div className="border-t border-slate-200 bg-slate-100/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                          {durationLabel(section.duration)}
+                        </div>
+                      )}
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                          <tr>
+                            <th className="px-4 py-2 w-12">#</th>
+                            <th className="px-4 py-2">{t('goSessions.team')}</th>
+                            <th className="px-4 py-2 text-right">{t('goSessions.score')}</th>
+                            {/* Spot has no levels (project_taghunter_spot). */}
+                            {app !== 'spot' && <th className="px-4 py-2 text-right">{t('goSessions.level')}</th>}
+                            <th className="px-4 py-2 text-right">{t('goSessions.time')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.rows.map((row, i) => (
+                            <tr key={row.team_uuid ?? `${section.duration}-${i}`} className="border-t border-slate-100">
+                              <td className="px-4 py-2.5 font-bold text-slate-400">{i + 1}</td>
+                              <td className="px-4 py-2.5 font-medium text-slate-900">
+                                <span className="inline-flex items-center gap-1.5">
+                                  {row.finished ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : null}
+                                  {row.team_name || '-'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-bold text-emerald-600">{row.score}</td>
+                              {app !== 'spot' && <td className="px-4 py-2.5 text-right">{row.level}</td>}
+                              <td className="px-4 py-2.5 text-right text-slate-500">{fmtElapsed(row.elapsed_seconds)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))
                 )}
               </div>
             </div>

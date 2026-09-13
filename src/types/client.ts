@@ -33,13 +33,13 @@ export interface Client {
   go_subscription_active?: boolean;
   go_billing_overdue_since?: string | null;
   go_billing_grace_days?: number;
-  // Drop: future app. master = drop_enabled; billing-ok = drop_billing_ok
-  // (clock = drop_billing_overdue_since + drop_billing_grace_days). No runtime
+  // Spot: future app. master = spot_enabled; billing-ok = spot_billing_ok
+  // (clock = spot_billing_overdue_since + spot_billing_grace_days). No runtime
   // consumes these yet.
-  drop_enabled?: boolean;
-  drop_billing_ok?: boolean;
-  drop_billing_overdue_since?: string | null;
-  drop_billing_grace_days?: number;
+  spot_enabled?: boolean;
+  spot_billing_ok?: boolean;
+  spot_billing_overdue_since?: string | null;
+  spot_billing_grace_days?: number;
   // Emergency device-disable + billing auto-lock (Playground). devices_disabled
   // is the immediate hard switch; billing_overdue_since (server-managed, set when
   // billing flips to Overdue) + billing_grace_days drive the auto-lock; a
@@ -73,9 +73,9 @@ export interface CreateClientData {
   go_enabled?: boolean;
   go_subscription_active?: boolean;
   go_billing_grace_days?: number;
-  drop_enabled?: boolean;
-  drop_billing_ok?: boolean;
-  drop_billing_grace_days?: number;
+  spot_enabled?: boolean;
+  spot_billing_ok?: boolean;
+  spot_billing_grace_days?: number;
   devices_disabled?: boolean;
   billing_grace_days?: number;
   billing_reprieve_days?: number;

@@ -26,7 +26,14 @@
   "purge": {
     "title": "The Purge",
     "hint": "Une fois par partie, un clan peut poinçonner la station de purge pour réinitialiser à neutre le territoire le plus fort du clan en tête. L'image marque la cible actuelle sur la carte (positionnez-la par territoire dans l'éditeur de mise en page) et le son est joué sur tous les appareils lorsqu'une purge se déclenche.",
-    "warning": "Sans image, la Purge est désactivée au lancement dans le playground (aucune image par défaut n'est fournie)."
+    "warning": "Sans image, la Purge est désactivée au lancement dans le playground (aucune image par défaut n'est fournie).",
+    "stationLabel": "Balise de purge",
+    "stationHint": "La balise physique qui déclenche une purge, choisie dans votre parc de balises. Elle est réservée : le sélecteur de balises des territoires la grise, et le lancement préremplit ce numéro. Par défaut 25.",
+    "stationCollision": "La balise {{station}} est déjà attribuée au territoire {{number}}. Une même balise ne peut pas à la fois valider un territoire et déclencher une purge : retirez-la du territoire ou choisissez une autre balise.",
+    "stationUnknown": "La balise {{station}} ne fait pas partie de votre parc de balises. Choisissez-en une dans la liste.",
+    "chooseStation": "Choisir la balise",
+    "pickerTitle": "Balise de purge",
+    "pickerHint": "Une seule balise. Celles déjà attribuées à un territoire ne sont pas sélectionnables."
   },
   "territories": {
     "title": "Territoires",
@@ -62,6 +69,33 @@
     "notNumeric": "Pas de numéro de station",
     "unknownStation": "Absente de l'inventaire",
     "cancel": "Annuler",
-    "confirm": "Confirmer"
+    "confirm": "Confirmer",
+    "reservedForPurge": "Réservée à la purge"
+  },
+  "eventTexts": {
+    "title": "Textes du bandeau d'événements",
+    "hint": "Les phrases qui défilent dans le bandeau du bas pendant la partie. Laissez un champ vide pour garder la formulation par défaut de l'application dans la langue de lancement.",
+    "placeholderHint": "Astuce : %CLAN% est remplacé par le nom du clan (affiché dans sa couleur) et %TERRITORY% par le nom du territoire. Sans %CLAN%, le nom du clan est ajouté au début, comme dans la formulation par défaut.",
+    "labels": {
+      "event_text_conquest": "Conquête",
+      "event_text_attack": "Attaque",
+      "event_text_neutralized": "Neutralisation",
+      "event_text_purge": "Purge",
+      "ranking_title": "Titre du classement des clans"
+    },
+    "placeholders": {
+      "event_text_conquest": "%CLAN% a conquis %TERRITORY% !",
+      "event_text_attack": "%CLAN% attaque %TERRITORY% !",
+      "event_text_neutralized": "%CLAN% a neutralisé %TERRITORY% !",
+      "event_text_purge": "%CLAN% a purgé %TERRITORY% !",
+      "ranking_title": "Classement des clans"
+    },
+    "whens": {
+      "event_text_conquest": "Un clan prend le contrôle d'un territoire qu'il ne détenait pas.",
+      "event_text_attack": "Un clan valide un territoire détenu par un autre clan sans encore le lui prendre.",
+      "event_text_neutralized": "Un territoire repasse à personne (égalité entre clans).",
+      "event_text_purge": "Un clan utilise sa purge unique et remet un territoire à neutre.",
+      "ranking_title": "En-tête du cadre de classement des clans, sur l'écran de jeu."
+    }
   }
 }

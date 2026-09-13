@@ -1,7 +1,7 @@
--- Tag Hunter Drop foundations: discriminate GO vs Drop rows in the shared
--- leaderboard/usage tables. Design: project_taghunter_drop.
+-- Tag Hunter Spot foundations: discriminate GO vs Spot rows in the shared
+-- leaderboard/usage tables. Design: project_taghunter_spot.
 --
--- A scenario can run in BOTH GO and Drop, which would collide on go_scores'
+-- A scenario can run in BOTH GO and Spot, which would collide on go_scores'
 -- (client_id, scenario_id, team_uuid) key. We add an `app` discriminator to
 -- go_scores + go_loads and re-key go_scores to include it. Leaderboard/stats
 -- queries filter by app. Existing rows are GO, so DEFAULT 'go' backfills them.
@@ -20,7 +20,7 @@ SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
        WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'go_loads' AND COLUMN_NAME = 'app') > 0,
     'SELECT 1',
-    'ALTER TABLE go_loads ADD COLUMN app ENUM(''go'',''drop'') NOT NULL DEFAULT ''go'''
+    'ALTER TABLE go_loads ADD COLUMN app ENUM(''go'',''spot'') NOT NULL DEFAULT ''go'''
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
@@ -37,7 +37,7 @@ SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
        WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'go_scores' AND COLUMN_NAME = 'app') > 0,
     'SELECT 1',
-    'ALTER TABLE go_scores ADD COLUMN app ENUM(''go'',''drop'') NOT NULL DEFAULT ''go'''
+    'ALTER TABLE go_scores ADD COLUMN app ENUM(''go'',''spot'') NOT NULL DEFAULT ''go'''
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 

@@ -114,7 +114,7 @@ export function ScenarioList({ onCreateNew, onEdit, onConfigure, onImport, onVie
   const getGameTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       mystery: 'Mystery',
-      tagquest: 'Tag Quest',
+      tagquest: 'Quest',
       tracks: 'Track'
     };
     return labels[type] || type;

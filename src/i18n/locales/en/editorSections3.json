@@ -11,7 +11,7 @@
       "text_all_team_ended": "all team ended",
       "text_scenario_ended": "scenario ended",
       "text_team_reached_new_level": "team reached new level",
-      "text_card_empty": "card empty",
+      "text_card_empty": "card with no punch at all",
       "text_late_malus": "late malus",
       "text_team_enters_top_ranking": "team enters top ranking",
       "text_team_enters_podium": "team enters podium",
@@ -20,6 +20,15 @@
       "text_if_error": "if error",
       "text_is_card_empty": "is card empty",
       "text_team_cheating": "team cheating"
+    },
+    "hintsTitle": "When is this message shown?",
+    "hints": {
+      "text_card_empty": "The presented card carries NO punch at all: it is blank or was just wiped. This is not the \"card not wiped\" case — that one is \"team cheating\". Example: a player bips on the station before visiting any control.",
+      "text_team_cheating": "The presented card does not extend the previous read: punches vanished or were replaced since the last pass. Example: the player re-presents a card that was already read then wiped, or presents someone else's card.",
+      "text_team_ended": "The team has already finished (end time recorded) and bips again. Example: a player comes back to the station after the finish punch.",
+      "text_if_error": "The punch could not be processed for a technical reason: unreadable game data, failed write, unreachable mother station. Never a player mistake. The exact cause is appended after your text on screen so the operator knows what to do.",
+      "text_all_team_ended": "The LAST team still playing has just finished. The message shows once, then the game closes automatically. This is the Mystery counterpart of \"scenario ended\" (used by Tracks): both fire at the same moment, and each game type uses only one of them.",
+      "text_scenario_ended": "Every team has finished its course: the message shows right after the last team's \"team ended\" message. This is the Tracks counterpart of \"all team ended\" (used by Mystery): both fire at the same moment, and each game type uses only one of them."
     }
   },
   "typography": {

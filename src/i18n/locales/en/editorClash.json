@@ -26,7 +26,14 @@
   "purge": {
     "title": "The Purge",
     "hint": "Once per game, a clan can punch the purge station to reset the leading clan's strongest territory to neutral. The image marks the current target on the map (position it per territory in the Layout editor) and the sound plays on every device when a purge fires.",
-    "warning": "Without an image, The Purge is disabled at launch in the playground (no default image is provided)."
+    "warning": "Without an image, The Purge is disabled at launch in the playground (no default image is provided).",
+    "stationLabel": "Purge balise",
+    "stationHint": "The physical balise that fires a purge, picked from your balise inventory. It is reserved: the territory balise picker greys it out, and the launch modal prefills this number. Defaults to 25.",
+    "stationCollision": "Balise {{station}} is already assigned to territory {{number}}. One balise cannot both validate a territory and fire a purge: remove it from the territory, or pick another balise.",
+    "stationUnknown": "Balise {{station}} is not in your balise inventory. Pick one from the list.",
+    "chooseStation": "Choose balise",
+    "pickerTitle": "Purge balise",
+    "pickerHint": "One balise only. Those already assigned to a territory can't be selected."
   },
   "territories": {
     "title": "Territories",
@@ -62,6 +69,33 @@
     "notNumeric": "No station number",
     "unknownStation": "Not in inventory",
     "cancel": "Cancel",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "reservedForPurge": "Reserved for the purge"
+  },
+  "eventTexts": {
+    "title": "Event-banner texts",
+    "hint": "The sentences scrolling in the bottom banner during a match. Leave a field blank to keep the app's default wording in the launch language.",
+    "placeholderHint": "Tip: %CLAN% is replaced by the clan name (drawn in its colour) and %TERRITORY% by the territory name. With no %CLAN%, the clan name is prepended, like the default wording.",
+    "labels": {
+      "event_text_conquest": "Conquest",
+      "event_text_attack": "Attack",
+      "event_text_neutralized": "Neutralised",
+      "event_text_purge": "Purge",
+      "ranking_title": "Clan-ranking heading"
+    },
+    "placeholders": {
+      "event_text_conquest": "%CLAN% conquered %TERRITORY%!",
+      "event_text_attack": "%CLAN% is attacking %TERRITORY%!",
+      "event_text_neutralized": "%CLAN% neutralised %TERRITORY%!",
+      "event_text_purge": "%CLAN% purged %TERRITORY%!",
+      "ranking_title": "Clan ranking"
+    },
+    "whens": {
+      "event_text_conquest": "A clan takes control of a territory it did not hold.",
+      "event_text_attack": "A clan validates a territory held by another clan without taking it yet.",
+      "event_text_neutralized": "A territory falls back to nobody (clans are tied).",
+      "event_text_purge": "A clan spends its one purge and resets a territory to neutral.",
+      "ranking_title": "Heading of the clan-ranking panel on the game screen."
+    }
   }
 }

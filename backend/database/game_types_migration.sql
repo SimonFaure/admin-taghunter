@@ -32,7 +32,8 @@ ALTER TABLE clients ADD COLUMN preferences JSON NULL;
 
 INSERT INTO game_types (code, name, supports_tutorial_video, supports_intro_video) VALUES
   ('mystery',  'Mystery',  1, 1),
-  ('tagquest', 'TagQuest', 0, 0),
+  -- Display name is "Quest" - the mode has no "Tag" in front of it (retour 19).
+  ('tagquest', 'Quest',    0, 0),
   ('tracks',   'Track',    1, 1),
   ('clash',    'Clash',    1, 1)
 ON DUPLICATE KEY UPDATE name = VALUES(name);

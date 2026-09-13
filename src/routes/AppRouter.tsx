@@ -3,9 +3,11 @@ import { Dashboard } from '../components/Dashboard';
 import { ClientLayout } from '../layouts/ClientLayout';
 import { MyHomeView } from '../components/client/MyHomeView';
 import { MyScenariosView } from '../components/client/MyScenariosView';
+import { MyCatalogView } from '../components/client/MyCatalogView';
 import { MyQrCodesView } from '../components/client/MyQrCodesView';
 import { RankingsView } from '../components/client/RankingsView';
 import { ScenarioDetailView } from '../components/client/ScenarioDetailView';
+import { ScenarioRecapPage } from '../components/client/ScenarioRecapPage';
 import { MyPatternsView } from '../components/client/MyPatternsView';
 import { MyCardsView } from '../components/client/MyCardsView';
 import { MyTeamNamesView } from '../components/client/MyTeamNamesView';
@@ -25,6 +27,7 @@ import { MySettingsView } from '../components/client/MySettingsView';
 import { ClientStatisticsView } from '../components/client/ClientStatisticsView';
 import { MyHelpView } from '../components/client/MyHelpView';
 import { MyReleasesView } from '../components/client/MyReleasesView';
+import { TutorialVideoDownloadsView } from '../components/client/TutorialVideoDownloadsView';
 
 // Admin list views (/admin/scenarios etc.) aren't split out yet - Dashboard's
 // existing tab state still owns those. Leaving them as placeholder routes for
@@ -49,6 +52,12 @@ export function AppRouter() {
       <Route path="/r/:app/:clientId/:scenarioId" element={<PublicRankingView />} />
 
       <Route element={<RequireAuth />}>
+        {/* Printable scenario recap. Chrome-free and role-free on purpose: it is
+            a document to print, and admins need to open it for the scenarios
+            they author just as much as licensees do (retour #40). Access is
+            enforced server-side by scenario_files.php?action=recap. */}
+        <Route path="/recap/:uniqid" element={<ScenarioRecapPage />} />
+
         <Route element={<RequireRole role="admin" />}>
           <Route path="/admin/scenarios" element={<Placeholder path="/admin/scenarios" />} />
           <Route path="/admin/patterns" element={<Placeholder path="/admin/patterns" />} />
@@ -61,11 +70,14 @@ export function AppRouter() {
             <Route path="home" element={<MyHomeView />} />
             <Route path="scenarios" element={<MyScenariosView />} />
             <Route path="scenarios/:uniqid" element={<ScenarioDetailView />} />
+            <Route path="catalog" element={<MyCatalogView />} />
             <Route path="qr-codes" element={<MyQrCodesView />} />
             <Route path="rankings" element={<RankingsView />} />
             {/* Old per-app routes kept as redirects for bookmarks; leaderboards
-                and GO/Drop stats are now merged (project_client_app_section). */}
+                and GO/Spot stats are now merged (project_client_app_section). */}
             <Route path="go-sessions" element={<Navigate to="../rankings" replace />} />
+            <Route path="spot-sessions" element={<Navigate to="../rankings" replace />} />
+            {/* Pre-rename bookmark (Spot used to be called Drop). */}
             <Route path="drop-sessions" element={<Navigate to="../rankings" replace />} />
             <Route path="go-statistics" element={<Navigate to="../statistics" replace />} />
             <Route path="patterns" element={<MyPatternsView />} />
@@ -75,6 +87,7 @@ export function AppRouter() {
             <Route path="devices" element={<MyDevicesView />} />
             <Route path="releases" element={<MyReleasesView />} />
             <Route path="game-types" element={<GameTypesView />} />
+            <Route path="tutorial-downloads" element={<TutorialVideoDownloadsView />} />
             <Route path="statistics" element={<ClientStatisticsView />} />
             <Route path="settings" element={<MySettingsView />} />
             <Route path="help" element={<MyHelpView />} />

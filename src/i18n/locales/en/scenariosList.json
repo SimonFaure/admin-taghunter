@@ -36,6 +36,13 @@
     "audience": "Audience",
     "difficulty": "Difficulty",
     "type": "Type",
-    "version": "Version"
+    "version": "Version",
+    "languages": "Languages"
+  },
+  "facets": {
+    "age": "Age",
+    "difficulty": "Difficulty",
+    "univers": "Universe",
+    "clear": "Clear"
   }
 }

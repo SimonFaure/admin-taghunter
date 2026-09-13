@@ -76,7 +76,7 @@ try {
                 ], 429);
             }
 
-            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar, report_use_brand_logo, playground_enabled, go_enabled, drop_enabled FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, password_hash, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar, report_use_brand_logo, playground_enabled, go_enabled, spot_enabled FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
 
@@ -162,7 +162,7 @@ try {
                     // (project_client_app_section).
                     $response['data']['playground_enabled'] = (bool)($client['playground_enabled'] ?? true);
                     $response['data']['go_enabled'] = (bool)($client['go_enabled'] ?? false);
-                    $response['data']['drop_enabled'] = (bool)($client['drop_enabled'] ?? false);
+                    $response['data']['spot_enabled'] = (bool)($client['spot_enabled'] ?? false);
                 }
 
                 RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
@@ -332,7 +332,7 @@ try {
                 jsonResponse(['error' => $codeValidation['reason']], 401);
             }
 
-            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar, report_use_brand_logo, playground_enabled, go_enabled, drop_enabled FROM clients WHERE email = ?', [$email]);
+            $client = $db->fetch('SELECT id, email, name, license_type, billing_up_to_date, created_at, avatar_url, company_logo_url, company_logo_uses_avatar, report_use_brand_logo, playground_enabled, go_enabled, spot_enabled FROM clients WHERE email = ?', [$email]);
             $admin = null;
             $userType = 'client';
             $userId = null;
@@ -349,7 +349,7 @@ try {
             // side). Default playground ON.
             $playgroundEnabled = true;
             $goEnabled = false;
-            $dropEnabled = false;
+            $spotEnabled = false;
 
             if (!$client) {
                 $admin = $db->fetch('SELECT id, email, name FROM admin_users WHERE email = ?', [$email]);
@@ -373,7 +373,7 @@ try {
                 $reportUseBrandLogo = (bool)($client['report_use_brand_logo'] ?? false);
                 $playgroundEnabled = (bool)($client['playground_enabled'] ?? true);
                 $goEnabled = (bool)($client['go_enabled'] ?? false);
-                $dropEnabled = (bool)($client['drop_enabled'] ?? false);
+                $spotEnabled = (bool)($client['spot_enabled'] ?? false);
             }
 
             if (!$client && !$admin) {
@@ -410,7 +410,7 @@ try {
                 $response['data']['language'] = $languageVal;
                 $response['data']['playground_enabled'] = $playgroundEnabled;
                 $response['data']['go_enabled'] = $goEnabled;
-                $response['data']['drop_enabled'] = $dropEnabled;
+                $response['data']['spot_enabled'] = $spotEnabled;
             }
 
             Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);
@@ -457,7 +457,7 @@ try {
                 // Hydrate logo prefs so MyAccountView can render the Brand identity
                 // card without an extra fetch. TokenManager doesn't carry these.
                 $logoRow = $db->fetch(
-                    'SELECT company_logo_url, company_logo_uses_avatar, report_use_brand_logo, language, playground_enabled, go_enabled, drop_enabled FROM clients WHERE id = ?',
+                    'SELECT company_logo_url, company_logo_uses_avatar, report_use_brand_logo, language, playground_enabled, go_enabled, spot_enabled FROM clients WHERE id = ?',
                     [$tokenData['user_id']]
                 );
                 $response['company_logo_url'] = $logoRow['company_logo_url'] ?? null;
@@ -471,7 +471,7 @@ try {
                 // takes effect on the client's next token validation.
                 $response['playground_enabled'] = (bool)($logoRow['playground_enabled'] ?? true);
                 $response['go_enabled'] = (bool)($logoRow['go_enabled'] ?? false);
-                $response['drop_enabled'] = (bool)($logoRow['drop_enabled'] ?? false);
+                $response['spot_enabled'] = (bool)($logoRow['spot_enabled'] ?? false);
             }
 
             Logger::log('secure_auth', 'POST', 'validate', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], $response, 200);

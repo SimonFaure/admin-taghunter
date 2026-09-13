@@ -3,11 +3,23 @@
     "title": "Sonidos de los enigmas"
   },
   "frame": {
-    "title": "Marco y decoración"
+    "title": "Marco y decoración",
+    "statusFrame": "Submarco de resultado",
+    "statusFrameHint": "La placa de color (verde, rojo, ámbar, gris) que se muestra sobre cada imagen de enigma según el resultado. Redúcela si tus marcos no son perfectamente rectangulares y sobresale. El tinte sobre la imagen mantiene el color visible incluso en imágenes con fondo opaco. Déjalo vacío para conservar el aspecto original; compruébalo con el selector «Resultado» de la vista previa.",
+    "statusFrameScale": "Tamaño (% de la casilla)",
+    "statusFrameRadius": "Redondeo (% de la casilla)",
+    "statusFrameOver": "Tinte sobre la imagen (%)"
   },
   "gauge": {
     "title": "Medidor de niveles",
-    "gaugeFilling": "Relleno del medidor"
+    "gaugeFilling": "Relleno del medidor",
+    "fillGeometry": "Ajuste del relleno",
+    "fillGeometryHint": "Ajusta dónde se sitúa el relleno de color dentro de tu imagen del medidor. Los márgenes son % del medidor, el redondeo en píxeles. Déjalo en blanco para conservar el ajuste automático. Los iconos de nivel y el icono del jugador siguen los mismos valores.",
+    "fillGeometryLayoutHint": "También puedes ajustarlos con el ratón sobre el medidor real: botón «In-game layout» arriba, pestaña «Medidor».",
+    "fillInsetLeft": "Margen izquierdo (%)",
+    "fillInsetRight": "Margen derecho (%)",
+    "fillInsetY": "Margen superior/inferior (%)",
+    "fillRadius": "Redondeo (px)"
   },
   "instructions": {
     "title": "Botón de actualización"
@@ -15,7 +27,7 @@
   "scoring": {
     "title": "Puntuación",
     "numberOfEnigmas": "número de enigmas",
-    "scoreFullGame": "puntuación partida completa",
+    "scoreFullGame": "Puntuación necesaria para llenar el medidor",
     "malusBothAnswers": "penalización si ambas respuestas están bipeadas",
     "malusNoAnswer": "penalización si no hay respuesta",
     "pointsUnits": "unidades de puntos",
@@ -30,30 +42,39 @@
     "enigmaLabel": "Enigma {{number}}",
     "removeEnigma": "Eliminar enigma",
     "number": "Número",
-    "goShortCode": "Código corto GO (impreso en el panel)",
+    "goShortCode": "Código corto GO (impreso en el enigma)",
     "shortCodePlaceholder": "ej. AXQ",
     "generateUniqueCode": "Generar un código único",
     "questionText": "Pregunta / texto ({{lang}})",
     "goodAnswerPoints": "Puntos respuesta correcta",
     "wrongAnswerPoints": "Puntos respuesta incorrecta",
+    "wrongAnswerPointsHint": "Negativo = penalización (p. ej. -5). Igual que las penalizaciones.",
     "goodAnswerImage": "Imagen de la respuesta correcta",
     "wrongAnswerImage": "Imagen de la respuesta incorrecta",
     "wrongAnswerImage2": "Imagen de respuesta incorrecta 2 (GO)",
     "wrongAnswerImage3": "Imagen de respuesta incorrecta 3 (GO)",
-    "unknownStation": "Estación desconocida"
+    "unknownStation": "Estación desconocida",
+    "spotQuestion": "Pregunta Spot ({{lang}})",
+    "spotQuestionPlaceholder": "Pregunta mostrada encima de las imágenes",
+    "difficulty": "Dificultad (Spot)",
+    "difficultyStar": "{{count}} estrella(s)",
+    "difficultyUnset": "sin definir",
+    "addEnigmaTitle": "Añadir un enigma",
+    "maxEnigmasTitle": "Máximo {{max}} enigmas",
+    "overCapWarning": "Este escenario tiene {{total}} enigmas, por encima del máximo de {{max}}. Elimina {{count}} para volver al límite."
   },
   "goOption": {
     "sectionTitle": "Tag Hunter GO",
     "toggleLabel": "Adaptable a Tag Hunter GO",
-    "description": "Versión sin hardware, en navegador móvil, de este Misterio. Los jugadores escriben un código corto en cada panel y tocan una letra - sin RFID. Las secciones atenuadas de abajo no se usan en GO.",
+    "description": "Versión sin hardware, en navegador móvil, de este Misterio. Los jugadores escriben un código corto en cada enigma y tocan una letra - sin RFID. Las secciones atenuadas de abajo no se usan en GO.",
     "answerOptions": "Número de opciones de respuesta",
     "option2": "2 - A / B",
     "option4": "4 - A / B / C / D",
     "hint": "4 opciones es exclusivo de GO y añade dos imágenes de respuesta incorrecta adicionales por enigma. Cada enigma necesita un código corto; la letra correcta por enigma proviene del patrón GO (modelo)."
   },
-  "dropOption": {
-    "sectionTitle": "Tag Hunter Drop",
-    "toggleLabel": "Adaptable a Tag Hunter Drop",
+  "spotOption": {
+    "sectionTitle": "Tag Hunter Spot",
+    "toggleLabel": "Adaptable a Tag Hunter Spot",
     "description": "Versión sin hardware, en pantalla, de este Misterio. Las imágenes de respuesta aparecen en el dispositivo en lugar de escanearse mediante estaciones RFID - sin chips. Activarlo mantiene el escenario utilizable también con RFID y GO."
   },
   "gradient": {
@@ -68,8 +89,8 @@
     "editRawCss": "Editar CSS en bruto"
   },
   "pattern": {
-    "title": "Patrón por defecto",
-    "defaultMysteryPattern": "Patrón de misterio por defecto (imágenes de respuesta de los enigmas → asignación de estaciones)",
+    "title": "Modelo por defecto",
+    "defaultMysteryPattern": "Modelo Mystery por defecto (imágenes de respuesta de los enigmas → asociación con las estaciones)",
     "none": "- Ninguno -",
     "notFound": "{{value}} (no encontrado)",
     "rfidHint": "Asigna las imágenes de respuesta correcta/incorrecta de cada enigma a estaciones/balizas (Playground RFID). La asignación se muestra junto a cada imagen más abajo. Modificable al lanzar.",
@@ -85,8 +106,8 @@
     "insertFailed": "Error al insertar",
     "createFailed": "Error al crear el patrón"
   },
-  "goDrop": {
-    "title": "Tag Hunter GO & Drop",
-    "answerHint": "Común a GO y Drop: en GO son las letras ofrecidas (A/B o A/B/C/D), en Drop el número de fichas mostradas. Elegir 4 añade dos imágenes de respuesta incorrecta adicionales por enigma."
+  "goSpot": {
+    "title": "Tag Hunter GO & Spot",
+    "answerHint": "Común a GO y Spot: en GO son las letras ofrecidas (A/B o A/B/C/D), en Spot el número de fichas mostradas. Elegir 4 añade dos imágenes de respuesta incorrecta adicionales por enigma."
   }
 }

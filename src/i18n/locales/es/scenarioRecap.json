@@ -1,0 +1,39 @@
+{
+  "sectionTitle": "Resumen del escenario",
+  "sectionSubtitle": "Las imágenes del escenario y la baliza a la que se asocia cada una, según el modelo elegido.",
+  "show": "Mostrar",
+  "hide": "Ocultar",
+  "openPrintable": "Abrir la versión imprimible",
+  "backToScenario": "Volver al escenario",
+  "subtitle": "Resumen del escenario — versión {{version}}",
+  "print": "Imprimir",
+  "choosePattern": "Modelo:",
+  "noPattern": "Ningún modelo",
+  "defaultSuffix": "(por defecto)",
+  "noPatternsAvailable": "No hay ningún modelo disponible para este tipo de juego.",
+  "patternPrinted": "Modelo: {{name}}",
+  "noItems": "Este escenario aún no tiene ningún elemento.",
+  "noImages": "No hay imagen para este elemento.",
+  "noStation": "Elige un modelo",
+  "unassigned": "Baliza sin asignar",
+  "unknownStation": "Baliza desconocida",
+  "notAvailableForType": "El resumen no está disponible para este tipo de juego.",
+  "failedToLoad": "No se ha podido cargar el resumen.",
+  "pointsValue": "{{points}} pts",
+  "goodWrongPoints": "Respuesta correcta: {{good}} pts · Respuesta incorrecta: {{wrong}} pts",
+  "itemHeading": {
+    "mystery": "Enigma {{number}}",
+    "tagquest": "Misión {{number}}",
+    "tracks": "Punto de control {{number}}"
+  },
+  "imageLabel": {
+    "good_answer": "Respuesta correcta",
+    "wrong_answer": "Respuesta incorrecta",
+    "main_image": "Imagen completa",
+    "image_1": "Pieza 1",
+    "image_2": "Pieza 2",
+    "image_3": "Pieza 3",
+    "image_4": "Pieza 4",
+    "checkpoint": "Imagen del punto de control"
+  }
+}

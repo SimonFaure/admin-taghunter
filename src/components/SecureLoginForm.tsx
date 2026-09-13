@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Mail, Lock, ArrowRight, Shield } from 'lucide-react';
 import { useSecureAuth } from '../contexts/SecureAuthContext';
 
@@ -7,6 +8,10 @@ interface SecureLoginFormProps {
 }
 
 export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
+  // Pre-auth screen: no account language is known yet, so the chrome i18n
+  // bootstrap has already resolved the browser language (stored pref → browser
+  // → default) - this form just consumes it.
+  const { t } = useTranslation('auth');
   const { login } = useSecureAuth();
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
@@ -30,13 +35,13 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
       if (result.error) {
         setError(result.error);
       } else if (result.code_required) {
-        setSuccessMessage(result.message || 'Code sent! Check your email.');
+        setSuccessMessage(result.message || t('codeSent'));
         setStep('code');
       } else if (result.success && result.data) {
         await login(email, '', false, result.data);
       }
     } catch (err) {
-      setError('Failed to login. Please try again.');
+      setError(t('loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -55,11 +60,11 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
       if (result.error) {
         setError(result.error);
       } else {
-        setSuccessMessage(result.message || 'Code sent! Check your email.');
+        setSuccessMessage(result.message || t('codeSent'));
         setStep('code');
       }
     } catch (err) {
-      setError('Failed to send code. Please try again.');
+      setError(t('sendCodeFailed'));
     } finally {
       setLoading(false);
     }
@@ -74,10 +79,10 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
       const result = await login(email, code, rememberMe);
 
       if (!result.success) {
-        setError(result.error || 'Failed to verify code');
+        setError(result.error || t('verifyError'));
       }
     } catch (err) {
-      setError('Failed to verify code. Please try again.');
+      setError(t('verifyFailed'));
     } finally {
       setLoading(false);
     }
@@ -102,11 +107,9 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
               className="h-24 w-auto object-contain max-w-full"
             />
           </div>
-          <h2 className="text-3xl font-bold text-white">Secure Login</h2>
+          <h2 className="text-3xl font-bold text-white">{t('title')}</h2>
           <p className="mt-2 text-slate-400">
-            {step === 'email'
-              ? 'Enter your credentials to login'
-              : 'Enter the code sent to your email'}
+            {step === 'email' ? t('subtitleCredentials') : t('subtitleCode')}
           </p>
         </div>
 
@@ -115,7 +118,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                  Email Address
+                  {t('email')}
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -128,14 +131,14 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="you@example.com"
+                    placeholder={t('emailPlaceholder')}
                   />
                 </div>
               </div>
 
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-                  Password
+                  {t('password')}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -148,7 +151,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your password"
+                    placeholder={t('enterPassword')}
                   />
                 </div>
               </div>
@@ -165,10 +168,10 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
-                  'Logging in...'
+                  t('loggingIn')
                 ) : (
                   <>
-                    Login
+                    {t('loginButton')}
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -178,7 +181,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
             <form onSubmit={handleVerifyCode} className="space-y-6">
               <div>
                 <label htmlFor="code" className="block text-sm font-medium text-slate-300 mb-2">
-                  Verification Code
+                  {t('codeLabel')}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -196,7 +199,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                   />
                 </div>
                 <p className="mt-2 text-sm text-slate-400">
-                  Code sent to: <span className="text-white font-medium">{email}</span>
+                  {t('codeSentTo')} <span className="text-white font-medium">{email}</span>
                 </p>
               </div>
 
@@ -209,7 +212,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                   className="w-4 h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500"
                 />
                 <label htmlFor="rememberMe" className="ml-2 text-sm text-slate-300">
-                  Don't ask for a code for 30 days
+                  {t('rememberMe')}
                 </label>
               </div>
 
@@ -231,7 +234,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                   disabled={loading || code.length !== 6}
                   className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Verifying...' : 'Verify & Login'}
+                  {loading ? t('verifying') : t('verifyButton')}
                 </button>
 
                 <button
@@ -239,7 +242,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                   onClick={handleBackToEmail}
                   className="w-full py-3 px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium rounded-lg transition-colors"
                 >
-                  Back to Email
+                  {t('backToEmail')}
                 </button>
               </div>
 
@@ -250,28 +253,25 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                   disabled={loading}
                   className="text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
                 >
-                  Resend Code
+                  {t('resendCode')}
                 </button>
               </div>
             </form>
           )}
         </div>
 
-        <div className="text-center">
-          <p className="text-sm text-slate-400 mb-4">
-            Secured with token-based authentication and rate limiting
-          </p>
-          {onSwitchToAdmin && step === 'email' && (
+        {onSwitchToAdmin && step === 'email' && (
+          <div className="text-center">
             <button
               type="button"
               onClick={onSwitchToAdmin}
               className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
             >
               <Shield className="w-4 h-4 inline mr-1" />
-              Admin Login
+              {t('adminLogin')}
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

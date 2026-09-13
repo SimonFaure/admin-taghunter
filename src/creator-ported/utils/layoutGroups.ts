@@ -112,26 +112,44 @@ export function buildGroups(numQuests: number): GroupDef[] {
 }
 
 /**
- * Tracks HUD frame elements - the four background frames for the in-game HUD.
- * Ids match `gameMeta.*_background_image` (also mirrored to medias.images).
+ * Tracks HUD frame elements - the three background frames the runtime draws
+ * (team name, timer, score). Ids match `gameMeta.*_background_image` (also
+ * mirrored to medias.images).
+ *
+ * `time_background_image` used to sit here as a fourth entry; the runtime never
+ * drew it, so it was dropped 2026-09-04 (retours point 43).
  */
 export const TRACKS_HUD_ITEMS: GroupItemDef[] = [
   { id: 'team_name_background_image', name: 'Team name frame', type: 'image' },
   { id: 'timer_background_image', name: 'Timer frame', type: 'image' },
   { id: 'score_background_image', name: 'Score frame', type: 'image' },
-  { id: 'time_background_image', name: 'Time frame', type: 'image' },
 ];
 
 /**
- * Mock preview text overlaid on the HUD frames in the layout editor so the
- * designer can see how the live values sit on each frame. Render-only - never
- * persisted to the layout.
+ * Mock preview content overlaid on the HUD frames in the layout editor so the
+ * designer sees exactly what the runtime draws in each frame. Render-only -
+ * never persisted to the layout.
+ *
+ * `defaultScale` is the value font size as a percentage of the box height, and
+ * MUST stay in sync with `PositionedHudBox` in the playground's
+ * TracksGameRenderer (0.45 with a label, 0.55 without). The author can override
+ * it per box via `textScale` on the layout element (retours point 45).
  */
-export const TRACKS_HUD_MOCK_TEXT: Record<string, string> = {
-  team_name_background_image: 'TEAM 1',
-  timer_background_image: '00:25:02',
-  score_background_image: '1500',
+export interface TracksHudMock {
+  /** Small uppercase caption drawn above the value, when the runtime draws one. */
+  label?: string;
+  value: string;
+  defaultScale: number;
+}
+
+export const TRACKS_HUD_MOCK: Record<string, TracksHudMock> = {
+  team_name_background_image: { value: 'TEAM 1', defaultScale: 55 },
+  timer_background_image: { label: 'Time', value: '00:25:02', defaultScale: 45 },
+  score_background_image: { label: 'Score', value: '1500', defaultScale: 45 },
 };
+
+/** Label font size as a fraction of the value font size (runtime: .18/.45). */
+export const TRACKS_HUD_LABEL_RATIO = 0.4;
 
 /**
  * Tracks groups: Checkpoints + HUD frames, then one group per text-element
@@ -211,7 +229,17 @@ export function buildClashGroups(
   }
   const groups: GroupDef[] = [
     { id: 'clash_territories', name: 'Territories', mainImageId: '', items: territoryItems },
-    { id: 'clash_hud', name: 'Timer', mainImageId: '', items: [{ id: 'clash_timer', name: 'Timer', type: 'image' }] },
+    // Dashboard chrome the author can place + size: the timer plate and the
+    // clan-ranking panel (retours #52 - the panel used to be unmovable).
+    {
+      id: 'clash_hud',
+      name: 'Dashboard',
+      mainImageId: '',
+      items: [
+        { id: 'clash_timer', name: 'Timer', type: 'image' },
+        { id: 'clash_ranking', name: 'Clan ranking panel', type: 'image' },
+      ],
+    },
   ];
   for (const cat of textCategories) {
     groups.push({

@@ -3,7 +3,9 @@
     "sectionTitle": "Scenario info",
     "title": "Title",
     "description": "Description",
-    "story": "Story"
+    "story": "Information",
+    "descriptionHint": "The game's pitch. This is what players see (sign-up screen, briefing) and what licensees read in the catalogue.",
+    "storyHint": "Technical or gameplay notes for the licensee: same artwork as another scenario, which mode, quirks. Never shown to players."
   },
   "cover": {
     "sectionTitleTracks": "Cover, background & map",
@@ -13,10 +15,10 @@
   "timing": {
     "sectionTitle": "Timing",
     "keys": {
-      "default_time": "default time",
-      "default_time_malus": "default time malus",
-      "message_display_time": "message display time",
-      "animation_enigma_duration": "animation enigma duration"
+      "default_time": "default time (minutes)",
+      "default_time_malus": "default time malus (points per minute over)",
+      "message_display_time": "message display time (seconds)",
+      "animation_enigma_duration": "enigma animation duration (seconds)"
     }
   },
   "admin": {

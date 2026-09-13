@@ -9,6 +9,7 @@
 //   list_devices          GET   all devices (or ?client_id=N), with error_count_7d, attached client
 //   device_detail         GET   one device + its recent errors + game launches
 //   list_errors           GET   fleet-wide error feed, grouped by fingerprint
+//   error_detail          GET   every report row behind one feed group (drill-down)
 //
 // All actions are read-only. No writes from the admin UI; the playground is
 // the only writer (via telemetry.php).
@@ -218,6 +219,12 @@ try {
             // device. A bug hitting several devices now yields one row per
             // device (rows with a NULL device_id collapse to one "unknown"
             // group per client+fingerprint).
+            //
+            // ?days=N widens/narrows the window (default 30, max 365).
+            $days = isset($_GET['days']) ? (int)$_GET['days'] : 30;
+            if ($days <= 0) $days = 30;
+            if ($days > 365) $days = 365;
+
             $rows = $db->fetchAll(
                 "SELECT
                     e.client_id,
@@ -226,23 +233,109 @@ try {
                     MAX(e.error_message) AS error_message,
                     MAX(e.stack_trace) AS stack_trace,
                     SUM(e.occurrence_count) AS total_count,
+                    COUNT(*) AS report_count,
                     MIN(e.first_seen_at) AS first_seen_at,
                     MAX(e.last_seen_at) AS last_seen_at,
                     MAX(e.app_version) AS app_version,
+                    MAX(e.id) AS latest_report_id,
                     c.email AS client_email,
                     c.name AS client_name,
                     d.device_label,
-                    d.display_name
+                    d.display_name,
+                    d.device_uniq,
+                    d.os AS device_os,
+                    d.os_version AS device_os_version,
+                    d.playground_version AS device_current_version
                  FROM error_reports e
                  LEFT JOIN clients c ON c.id = e.client_id
                  LEFT JOIN devices d ON d.id = e.device_id
-                 WHERE e.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+                 WHERE e.created_at >= DATE_SUB(NOW(), INTERVAL $days DAY)
                  GROUP BY e.client_id, e.device_id, e.fingerprint_hash
                  ORDER BY MAX(e.last_seen_at) DESC
                  LIMIT 200"
             );
 
+            // The grouped MAX() above picks a lexicographically-largest message
+            // / stack, which is arbitrary when a fingerprint drifts. Pull the
+            // newest actual report row per group (MAX(id) - the table is
+            // append-only with an auto-increment id) so the feed shows the most
+            // recent occurrence verbatim, and attach context_json, which the
+            // ingest has always stored but this endpoint never returned. That
+            // context carries the crash's origin (window.error /
+            // unhandledrejection / rust_panic / sync_cycle + phase), which is
+            // usually the single most useful field for triage.
+            $latestIds = [];
+            foreach ($rows as $r) {
+                if (!empty($r['latest_report_id'])) $latestIds[] = (int)$r['latest_report_id'];
+            }
+            $latestById = [];
+            if (count($latestIds) > 0) {
+                $ph = implode(',', array_fill(0, count($latestIds), '?'));
+                $latest = $db->fetchAll(
+                    "SELECT id, event_uuid, error_message, stack_trace, app_version,
+                            occurrence_count, context_json, created_at
+                     FROM error_reports WHERE id IN ($ph)",
+                    $latestIds
+                );
+                foreach ($latest as $l) {
+                    $latestById[(int)$l['id']] = $l;
+                }
+            }
+            foreach ($rows as &$r) {
+                $l = $latestById[(int)($r['latest_report_id'] ?? 0)] ?? null;
+                if ($l === null) {
+                    $r['context_json'] = null;
+                    continue;
+                }
+                if (($l['error_message'] ?? '') !== '') {
+                    $r['error_message'] = $l['error_message'];
+                }
+                // A newer report without a stack shouldn't hide an older one
+                // that had one.
+                if ($l['stack_trace'] !== null && $l['stack_trace'] !== '') {
+                    $r['stack_trace'] = $l['stack_trace'];
+                }
+                $r['context_json'] = $l['context_json'];
+                $r['latest_event_uuid'] = $l['event_uuid'];
+                $r['latest_reported_at'] = $l['created_at'];
+            }
+            unset($r);
+
             jsonResponse(['data' => $rows]);
+            break;
+        }
+
+        case 'error_detail': {
+            // Drill-down for one feed row: every individual report row behind a
+            // (client, device, fingerprint) group, newest first. Each row is one
+            // delivered outbox event, so its context_json / app_version /
+            // occurrence_count describe that specific episode rather than the
+            // whole group.
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            $clientId = isset($_GET['client_id']) ? (int)$_GET['client_id'] : 0;
+            $fingerprint = (string)($_GET['fingerprint'] ?? '');
+            if ($clientId <= 0 || strlen($fingerprint) !== 64 || !ctype_xdigit($fingerprint)) {
+                jsonResponse(['error' => 'client_id and a 64-hex fingerprint are required'], 400);
+            }
+            // device_id is part of the group key; an absent/empty value means
+            // the "unknown device" group (device_id IS NULL), which is distinct
+            // from any real device.
+            $rawDevice = $_GET['device_id'] ?? '';
+            $hasDevice = ($rawDevice !== '' && $rawDevice !== 'none' && (int)$rawDevice > 0);
+
+            $sql = "SELECT id, event_uuid, device_id, app_version, error_message, stack_trace,
+                           occurrence_count, first_seen_at, last_seen_at, context_json, created_at
+                    FROM error_reports
+                    WHERE client_id = ? AND fingerprint_hash = ?
+                      AND device_id " . ($hasDevice ? '= ?' : 'IS NULL') . "
+                    ORDER BY id DESC
+                    LIMIT 100";
+            $params = [$clientId, $fingerprint];
+            if ($hasDevice) $params[] = (int)$rawDevice;
+
+            jsonResponse(['data' => $db->fetchAll($sql, $params)]);
             break;
         }
 

@@ -15,9 +15,12 @@
     "empty": "Aucun surscore pour l'instant.",
     "overscoreHeading": "Surscore {{label}}",
     "removeOverscore": "Retirer le surscore",
-    "imageLabel": "Image du surscore",
-    "step": "Étape",
-    "score": "Score",
-    "name": "Nom ({{lang}})"
+    "imageLabel": "Image du surscore (remplace l’image bonus vide)",
+    "step": "Étape (ordre d’affichage)",
+    "score": "Points supplémentaires",
+    "name": "Nom ({{lang}})",
+    "scoreFullGame": "Score à atteindre pour remplir la jauge",
+    "scoreFullGameHint": "C’est le score d’une partie complète : la jauge est pleine à 100 % quand l’équipe l’atteint. Les surscores ci-dessous sont des points qui s’AJOUTENT à ce score — une équipe qui dépasse la partie complète les débloque.",
+    "scoreHint": "Points au-delà du score de partie complète, pas un score absolu. Ex. : partie complète = 30 et surscore = 10 ⇒ ce palier se débloque à 40."
   }
 }

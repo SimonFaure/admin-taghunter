@@ -9,6 +9,13 @@
 
 import type { ClashGameMeta, ClashTerritory } from '../../../types/scenario-data';
 
+/**
+ * Default "The Purge" station number. Authorable per scenario since retours #50
+ * (it used to be a launch-only field defaulting to 25, so an author had no way
+ * to know 25 was taken and happily assigned it to a territory).
+ */
+export const DEFAULT_CLASH_PURGE_STATION = 25;
+
 function territory(id: string, points: string, balises: number[]): ClashTerritory {
   return { id, name: {}, points, balises };
 }
@@ -32,7 +39,8 @@ export function defaultClashGameMeta(): ClashGameMeta {
     title: {},
     description: {},
     story: {},
-    background_image: '',
+    // No `background_image`: Clash renders the territory map full-bleed and the
+    // registration screen uses `game_visual` (retours #49).
     game_visual: '',
     map_image: '',
     clans: [
@@ -48,6 +56,19 @@ export function defaultClashGameMeta(): ClashGameMeta {
     frame_separator: '',
     purge_image: '',
     purge_sound: '',
+    purge_station: DEFAULT_CLASH_PURGE_STATION,
+    // On-map sizes + text colours, edited in the Layout editor's sidebar
+    // (retours #53/#57). These seeds ARE the runtime's historic hard-coded
+    // look, so a new scenario starts exactly where the old one rendered.
+    banner_size_percentage: 5,
+    purge_size_percentage: 4,
+    gauge_size_percentage: 5,
+    territory_name_scale: 100,
+    timer_scale: 100,
+    timer_color: '#ffffff',
+    ranking_color: '#ffffff',
+    territory_name_color: '#ffffff',
+    event_color: '#ffffff',
     text_elements: [],
     text_categories: [],
     game_public: 'ado_adultes',
@@ -59,10 +80,15 @@ export function defaultClashGameMeta(): ClashGameMeta {
     auto_reset: false,
     delay_auto_reset: '0',
     custom_fonts: [],
-    // Translatable in-game text strings (shared shell TextStringsSection).
-    text_player_starts: {},
-    text_card_not_empty: {},
-    text_scenario_ended: {},
+    // No `text_*` UI strings: Clash surfaces none of them (retours #55 - the
+    // shell's "Textes de l'interface" section is hidden for this game type).
+    // The player-facing wording it DOES author lives in the event-banner texts
+    // below, and everything else comes from the app's `ingame_clash` bucket.
+    event_text_conquest: {},
+    event_text_attack: {},
+    event_text_neutralized: {},
+    event_text_purge: {},
+    ranking_title: {},
     message_display_time: '2',
     animation_display_time: '1',
   };

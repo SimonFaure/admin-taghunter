@@ -4,7 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Trophy, CheckCircle2, WifiOff } from 'lucide-react';
 import {
   clientTz,
+  distinctDurations,
   fmtElapsed,
+  formatDuration,
+  groupByDuration,
   parseRange,
   type GoApp,
   type ScoreRow,
@@ -39,7 +42,7 @@ function rowKey(r: ScoreRow): string {
 }
 
 /**
- * The player-facing GO / Drop ranking board. Public - no account, no token: a
+ * The player-facing GO / Spot ranking board. Public - no account, no token: a
  * phone reaches it by QR from the operator's Studio space, or it is projected on
  * a screen at the venue.
  *
@@ -58,7 +61,7 @@ export function PublicRankingView() {
   const params = useParams<{ app: string; clientId: string; scenarioId: string }>();
   const [search] = useSearchParams();
 
-  const app: GoApp = params.app === 'drop' ? 'drop' : 'go';
+  const app: GoApp = params.app === 'spot' ? 'spot' : 'go';
   const clientId = params.clientId ?? '';
   const scenarioId = params.scenarioId ?? '';
   const range = parseRange(search.get('range'));
@@ -68,6 +71,10 @@ export function PublicRankingView() {
   const tz = search.get('tz') || clientTz();
   const customFrom = search.get('from') ?? '';
   const customTo = search.get('to') ?? '';
+  // The challenge the operator's link opened on. The board still fetches every
+  // duration and splits client-side, so `d` is just the initial chip — players
+  // can switch to their own challenge. (project_go_spot_durations)
+  const initialDuration = search.get('d');
 
   const [scores, setScores] = useState<ScoreRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -76,6 +83,10 @@ export function PublicRankingView() {
   const [stale, setStale] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [pinned, setPinned] = useState<string | null>(null);
+  // null = "All": one ranked section per challenge, never a mixed ranking.
+  const [durationFilter, setDurationFilter] = useState<number | null>(
+    initialDuration !== null && initialDuration !== '' ? Number(initialDuration) : null,
+  );
   const pollRef = useRef<number | null>(null);
   // Teams already on the board, and the ones that appeared on the latest poll
   // (which get the entrance animation). Seeded silently on first load so the
@@ -169,6 +180,18 @@ export function PublicRankingView() {
 
   const rangeLabel = t(`goSessions.range_${range}`, { defaultValue: '' });
 
+  // Chips come from the rows on screen, so a challenge nobody played never shows
+  // and a since-removed one still does. A filter that isn't in the data (the
+  // link's `d`, before anyone has played it) falls back to "All".
+  const durations = distinctDurations(scores);
+  const activeDuration = durationFilter !== null && durations.includes(durationFilter) ? durationFilter : null;
+  const sections =
+    activeDuration === null
+      ? groupByDuration(scores)
+      : groupByDuration(scores).filter((g) => g.duration === activeDuration);
+  const durationLabel = (d: number) =>
+    d > 0 ? formatDuration(d) : t('goViews:durations.unspecified', { defaultValue: '—' });
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Entrance animation for a team that just finished and joined the board:
@@ -198,6 +221,34 @@ export function PublicRankingView() {
           </h1>
           {title && <p className="mt-1 text-base text-slate-300">{title}</p>}
           {rangeLabel && <p className="mt-1 text-sm text-slate-500">{rangeLabel}</p>}
+
+          {/* Challenge chips — players tap through to their own game length.
+              Only shown once more than one has actually been played. */}
+          {durations.length > 1 && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setDurationFilter(null)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  activeDuration === null ? 'bg-white text-slate-900' : 'border border-white/20 text-slate-300'
+                }`}
+              >
+                {t('goViews:durations.allDurations', { defaultValue: 'Toutes' })}
+              </button>
+              {durations.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDurationFilter(d)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    activeDuration === d ? 'bg-white text-slate-900' : 'border border-white/20 text-slate-300'
+                  }`}
+                >
+                  {durationLabel(d)}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
 
         {error ? (
@@ -216,8 +267,15 @@ export function PublicRankingView() {
             {t('goSessions.waiting', { defaultValue: 'En attente des scores des équipes…' })}
           </div>
         ) : (
-          <ol className="space-y-2">
-            {scores.map((row, i) => {
+          sections.map((section) => (
+          <section key={section.duration} className="mb-6 last:mb-0">
+            {sections.length > 1 && (
+              <h2 className="mb-2 text-center text-sm font-semibold uppercase tracking-widest text-slate-400">
+                {durationLabel(section.duration)}
+              </h2>
+            )}
+            <ol className="space-y-2">
+            {section.rows.map((row, i) => {
               const name = row.team_name || '-';
               const isPinned = pinned !== null && pinned === row.team_name;
               const key = rowKey(row);
@@ -243,7 +301,8 @@ export function PublicRankingView() {
                         <span className="truncate">{name}</span>
                       </span>
                       <span className="text-xs text-slate-400">
-                        {t('goSessions.level', { defaultValue: 'Niveau' })} {row.level} ·{' '}
+                        {/* Spot has no levels (project_taghunter_spot) — just the time. */}
+                        {app !== 'spot' && `${t('goSessions.level', { defaultValue: 'Niveau' })} ${row.level} · `}
                         {fmtElapsed(row.elapsed_seconds)}
                       </span>
                     </span>
@@ -252,7 +311,9 @@ export function PublicRankingView() {
                 </li>
               );
             })}
-          </ol>
+            </ol>
+          </section>
+          ))
         )}
 
         {/* Say it out loud rather than silently truncating the field. */}

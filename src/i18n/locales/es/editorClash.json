@@ -26,7 +26,14 @@
   "purge": {
     "title": "The Purge",
     "hint": "Una vez por partida, un clan puede fichar en la estación de purga para restablecer a neutral el territorio más fuerte del clan líder. La imagen marca el objetivo actual en el mapa (colócala por territorio en el editor de diseño) y el sonido se reproduce en todos los dispositivos cuando se activa una purga.",
-    "warning": "Sin imagen, The Purge se desactiva al iniciar en el playground (no se proporciona ninguna imagen predeterminada)."
+    "warning": "Sin imagen, The Purge se desactiva al iniciar en el playground (no se proporciona ninguna imagen predeterminada).",
+    "stationLabel": "Baliza de purga",
+    "stationHint": "La baliza física que dispara una purga, elegida entre tus balizas. Está reservada: el selector de balizas de los territorios la desactiva y el lanzamiento rellena este número. Por defecto 25.",
+    "stationCollision": "La baliza {{station}} ya está asignada al territorio {{number}}. Una misma baliza no puede validar un territorio y disparar una purga: quítala del territorio o elige otra baliza.",
+    "stationUnknown": "La baliza {{station}} no está en tu inventario de balizas. Elige una de la lista.",
+    "chooseStation": "Elegir la baliza",
+    "pickerTitle": "Baliza de purga",
+    "pickerHint": "Una sola baliza. Las ya asignadas a un territorio no se pueden seleccionar."
   },
   "territories": {
     "title": "Territorios",
@@ -62,6 +69,33 @@
     "notNumeric": "Sin número de estación",
     "unknownStation": "No está en el inventario",
     "cancel": "Cancelar",
-    "confirm": "Confirmar"
+    "confirm": "Confirmar",
+    "reservedForPurge": "Reservada para la purga"
+  },
+  "eventTexts": {
+    "title": "Textos de la franja de eventos",
+    "hint": "Las frases que desfilan en la franja inferior durante la partida. Deja un campo vacío para conservar el texto por defecto de la aplicación en el idioma de lanzamiento.",
+    "placeholderHint": "Consejo: %CLAN% se sustituye por el nombre del clan (en su color) y %TERRITORY% por el nombre del territorio. Sin %CLAN%, el nombre del clan se añade al principio, como en el texto por defecto.",
+    "labels": {
+      "event_text_conquest": "Conquista",
+      "event_text_attack": "Ataque",
+      "event_text_neutralized": "Neutralización",
+      "event_text_purge": "Purga",
+      "ranking_title": "Título de la clasificación de clanes"
+    },
+    "placeholders": {
+      "event_text_conquest": "¡%CLAN% ha conquistado %TERRITORY%!",
+      "event_text_attack": "¡%CLAN% ataca %TERRITORY%!",
+      "event_text_neutralized": "¡%CLAN% ha neutralizado %TERRITORY%!",
+      "event_text_purge": "¡%CLAN% ha purgado %TERRITORY%!",
+      "ranking_title": "Clasificación de clanes"
+    },
+    "whens": {
+      "event_text_conquest": "Un clan toma el control de un territorio que no tenía.",
+      "event_text_attack": "Un clan valida un territorio de otro clan sin arrebatárselo todavía.",
+      "event_text_neutralized": "Un territorio vuelve a no tener dueño (empate entre clanes).",
+      "event_text_purge": "Un clan usa su única purga y deja un territorio en neutral.",
+      "ranking_title": "Encabezado del panel de clasificación de clanes en la pantalla de juego."
+    }
   }
 }

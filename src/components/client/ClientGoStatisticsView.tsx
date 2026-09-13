@@ -40,18 +40,18 @@ function fmtDate(iso: string | null): string {
 }
 
 /**
- * GO & Drop usage sections for the merged Statistics page. Each app's section
+ * GO & Spot usage sections for the merged Statistics page. Each app's section
  * shows the caller's own usage (go.php?action=client_go_stats&app=… - scoped to
  * their client_id): how many times each scenario was opened (loads) and what
  * teams scored. Sections render per enabled app; the whole block hides when the
- * client has neither GO nor Drop (project_client_app_section / project_taghunter_drop).
+ * client has neither GO nor Spot (project_client_app_section / project_taghunter_spot).
  */
-export function GoDropStatsSections() {
+export function GoSpotStatsSections() {
   const { t } = useTranslation('client');
   const { user } = useAuth();
   const access = getAppAccess(user);
 
-  if (!access.go && !access.drop) return null;
+  if (!access.go && !access.spot) return null;
 
   return (
     <div className="mt-10">
@@ -62,13 +62,13 @@ export function GoDropStatsSections() {
       <p className="text-slate-500 mb-6">{t('goStats.subtitle')}</p>
 
       {access.go && <StatsSection app="go" heading={t('goStats.goHeading')} />}
-      {access.drop && <StatsSection app="drop" heading={t('goStats.dropHeading')} />}
+      {access.spot && <StatsSection app="spot" heading={t('goStats.spotHeading')} />}
     </div>
   );
 }
 
 /** One app's stats block (cards + per-scenario table), self-fetching by app. */
-function StatsSection({ app, heading }: { app: 'go' | 'drop'; heading: string }) {
+function StatsSection({ app, heading }: { app: 'go' | 'spot'; heading: string }) {
   const { t } = useTranslation('client');
   const [stats, setStats] = useState<GoStats | null>(null);
   const [loading, setLoading] = useState(true);

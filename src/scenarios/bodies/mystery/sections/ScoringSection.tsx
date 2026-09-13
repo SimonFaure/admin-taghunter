@@ -1,5 +1,6 @@
 /**
- * Scoring section - number_of_enigmas, score_full_game, points_units.
+ * Scoring section - number_of_enigmas, the two outcome maluses, points_units.
+ * (`score_full_game` moved to the Overscores section - see below.)
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
@@ -11,7 +12,12 @@ import { CollapsibleSection } from '../../../shell/components/CollapsibleSection
 
 // Free-text numeric fields. `points_units` is a radio pair (see below) - it must
 // be one of the two canonical values the playground reads (`points` / `percentage`).
-const TEXT_KEYS = ['number_of_enigmas', 'score_full_game'] as const;
+//
+// `score_full_game` deliberately does NOT live here: the overscore tiers are
+// authored as points ON TOP of it, and reading them in isolation was impossible
+// (retour #24). It now sits at the head of the Overscores section, immediately
+// above the tiers it is the baseline for.
+const TEXT_KEYS = ['number_of_enigmas'] as const;
 
 // Signed maluses (default 0; negative = penalty, positive = bonus). Applied once
 // per enigma in the matching outcome state. See plan
@@ -33,7 +39,6 @@ const POINTS_UNITS_OPTIONS = (t: TFunction) =>
 // Localized labels for the free-text numeric fields (replaces the old prettyKey).
 const TEXT_KEY_LABELS: Record<(typeof TEXT_KEYS)[number], string> = {
   number_of_enigmas: 'editorMystery:scoring.numberOfEnigmas',
-  score_full_game: 'editorMystery:scoring.scoreFullGame',
 };
 
 export function ScoringSection() {

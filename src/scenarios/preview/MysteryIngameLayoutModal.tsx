@@ -1,10 +1,23 @@
 /**
  * Mystery in-game / idle layout editor - full-screen modal launched from the
- * Mystery scenario editor. Two authoring modes, switched by a header toggle:
+ * Mystery scenario editor. Four authoring modes, switched by a header toggle:
  *
- *   • In-game - place the 4 in-game text roles (enigma name, timer, score, team
+ *   • Texts - place the 4 in-game text roles (enigma name, timer, score, team
  *     name) over the real in-game board; each box's dimensions drive its font
  *     size (long team names shrink to fit). Stored at `gameMeta.ingame_layout`.
+ *   • Frames - place the timer / score / team-name plates and the bonus
+ *     ("overscore") plate, independently of the text that sits in them. Stored
+ *     at `gameMeta.ingame_frames`.
+ *   • Gauge - "calage du remplissage": where the coloured fill starts and stops
+ *     inside the author's own gauge artwork. The same four values the Gauge
+ *     section holds (`gauge_fill_inset_*` / `gauge_fill_radius`), but dragged on
+ *     the real gauge instead of typed blind.
+ *   • Image - "fond de l'image principale": how big the square underlay the
+ *     centre enigma image sits on is, dragged by a corner handle on the tile
+ *     itself. Stored at `gameMeta.enigma_underlay_scale`. It started life as a
+ *     text field in the editor's "Cadre et habillage" section and was moved here
+ *     for the same reason the gauge calibration was: a geometry value typed
+ *     blind against artwork you cannot see is a guess.
  *   • Idle - place up to two fully styled text elements (scenario title +
  *     subtitle) over the background. This is the screen the playground shows
  *     between teams when "reveal results on Enter/click" is off. Each element
@@ -20,7 +33,7 @@
  * Plan: C:\Users\faure\.claude\plans\giggly-weaving-gosling.md
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X, RotateCcw, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { useTranslation, Trans } from 'react-i18next';
 import { useScenarioEditor } from '../shell/useScenarioEditor';
@@ -30,17 +43,24 @@ import { resolveFontFamily } from '../../fonts/resolveFontFamily';
 import {
   MysteryPreviewRenderer,
   IDLE_SUBTITLE_SAMPLE,
+  type EnigmaTileRect,
   type PreviewMysteryGameMeta,
 } from './MysteryPreviewRenderer';
 import {
   INGAME_ROLES,
   IDLE_ROLES,
+  FRAME_ROLES,
+  BONUS_FRAME_ROLE,
   MysteryLayoutBox,
   MysteryIdleBox,
   resolveIngameLayout,
   resolveIdleLayout,
+  resolveIngameFrames,
+  resolveMysteryUnderlayScale,
   type IngameAlign,
   type IngameBox,
+  type IngameFrameKey,
+  type IngameFrames,
   type IngameLayout,
   type IngameRoleKey,
   type IdleElement,
@@ -60,15 +80,52 @@ const MIN_BOX = 4; // minimum box width/height in %
 
 const DEFAULT_TEAM_SAMPLE = 'Les Aventuriers du Temps Perdu';
 
-type EditorMode = 'ingame' | 'idle';
+type EditorMode = 'ingame' | 'frames' | 'gauge' | 'underlay' | 'idle';
+
+/** Bounds on the main-image underlay: below a tenth of the cell there is
+ *  nothing left to look at, and 100 % is the historical full-height tile. */
+const UNDERLAY_MIN_PCT = 10;
+const UNDERLAY_MAX_PCT = 100;
+
+/** Frame plates the author can place: the three text plates + the bonus plate
+ *  (an image block, not a text role - see BONUS_FRAME_ROLE). */
+const FRAME_EDIT_ROLES = [...FRAME_ROLES, BONUS_FRAME_ROLE];
+
+/* ── Gauge geometry, in % of the CANONICAL stage ──────────────────────────────
+ * The renderers lay the gauge out in flow: 2 % stage padding, then the bar
+ * strip along the bottom (0.18 stage-height wrapper + 0.01 margin) with the
+ * 0.08-high bar centred in it. The draggable handles have to sit on that exact
+ * rectangle, so the numbers are mirrored here. Keep in sync with the gauge
+ * block of MysteryPreviewRenderer / MysteryGameRenderer. */
+const GAUGE_BAR_LEFT_PCT = 2;
+const GAUGE_BAR_WIDTH_PCT = 96;
+const GAUGE_BAR_HEIGHT_PCT = 8;
+const GAUGE_BAR_TOP_PCT = 85; // 100 - 2 (padding) - 18 (strip) + 5 (centring)
+/** Largest inset the handles allow, so the fill track can never invert. */
+const GAUGE_MAX_INSET_PCT = 45;
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
+/** Round to 1 decimal - the values are authored as strings in game_meta. */
+function round1(v: number): number {
+  return Math.round(v * 10) / 10;
+}
+
+/** Parse an authored gauge field; null on blank/garbage (= "legacy value"). */
+function gaugeField(value: unknown): number | null {
+  if (value === undefined || value === null) return null;
+  const s = String(value).trim();
+  if (s === '') return null;
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutModalProps) {
   const { t } = useTranslation();
-  const roleLabel = (key: IngameRoleKey) => t(`scenarioPreview:ingameLayout.roles.${key}`);
+  const roleLabel = (key: IngameRoleKey | IngameFrameKey) =>
+    t(`scenarioPreview:ingameLayout.roles.${key}`);
   const idleRoleLabel = (key: IdleRoleKey) => t(`scenarioPreview:ingameLayout.idleRoles.${key}`);
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as PreviewMysteryGameMeta;
@@ -83,6 +140,29 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
   );
   const [selected, setSelected] = useState<IngameRoleKey>('enigma_name');
   const [teamSample, setTeamSample] = useState(DEFAULT_TEAM_SAMPLE);
+
+  // Frame rectangles (timer / score / team name plates). Placed independently of
+  // the text they sit behind, so an author can enlarge the score plate without
+  // blowing up the score text with it (retour #42) and can position the newly
+  // uploadable team-name frame (retour #36).
+  const [frames, setFrames] = useState<Record<IngameFrameKey, IngameBox>>(() =>
+    resolveIngameFrames(meta.ingame_frames),
+  );
+  const [selectedFrame, setSelectedFrame] = useState<IngameFrameKey>('timer');
+
+  // Gauge "calage du remplissage" - the fill inset/radius values. Unlike the
+  // boxes above these are written straight into gameMeta (they are the very
+  // same four fields the Gauge section edits, so there is nothing to keep in
+  // sync locally). `gaugeDemo` only drives the preview's fill %.
+  const [gaugeDemo, setGaugeDemo] = useState(60);
+  // What the author is currently TYPING in a gauge field, per key. Without it a
+  // controlled numeric input rewrites "12." to "12" mid-keystroke and decimals
+  // become unenterable. Dropped on blur, so the stored value wins again.
+  const [gaugeDraft, setGaugeDraft] = useState<Record<string, string>>({});
+
+  // Where the centre enigma tile currently sits, measured and reported by the
+  // backdrop renderer (the underlay mode hangs its handle on it).
+  const [enigmaTileRect, setEnigmaTileRect] = useState<EnigmaTileRect | null>(null);
 
   // Idle layout state.
   const [idleLayout, setIdleLayout] = useState<Required<IdleLayout>>(() =>
@@ -100,6 +180,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
     if (open) {
       setLayout(resolveIngameLayout(meta.ingame_layout));
       setIdleLayout(resolveIdleLayout(meta.idle_layout));
+      setFrames(resolveIngameFrames(meta.ingame_frames));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -121,6 +202,15 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idleLayout, open]);
+
+  // Same for the frame rectangles.
+  useEffect(() => {
+    if (!open) return;
+    editor.setGameMeta(
+      (m) => ({ ...(m as Record<string, unknown>), ingame_frames: frames }) as typeof m,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frames, open]);
 
   // Fit a CANON_W×CANON_H stage inside the canvas wrapper, centred - identical
   // math to MysteryPreviewRenderer so our draggable layer aligns with the board.
@@ -178,7 +268,10 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
     () => ({
       enigma_name: enigmaSample,
       timer: '88:88',
-      score: pointsUnits === 'percentage' ? '100%' : `${scoreFullGame}/${scoreFullGame}`,
+      // In points mode the board draws the bare score, never "60/100" - sizing
+      // the box against a "sur X" string the postes de jeu never render made
+      // every score plate come out too wide.
+      score: pointsUnits === 'percentage' ? '100%' : `${scoreFullGame}`,
       team_name: teamSample || t('scenarioPreview:ingameLayout.sample.teamName'),
     }),
     [enigmaSample, pointsUnits, scoreFullGame, teamSample],
@@ -198,6 +291,10 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
 
   function updateIdle(role: IdleRoleKey, patch: Partial<IdleElement>) {
     setIdleLayout((prev) => ({ ...prev, [role]: { ...prev[role], ...patch } }));
+  }
+
+  function updateFrame(role: IngameFrameKey, patch: Partial<IngameBox>) {
+    setFrames((prev) => ({ ...prev, [role]: { ...prev[role], ...patch } }));
   }
 
   // Shared pointer drag (move) / resize (bottom-right handle): deltas px → %.
@@ -248,16 +345,146 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
     dragBox(e, dragMode, idleLayout[role], (patch) => updateIdle(role, patch));
   }
 
+  function startFrameDrag(e: React.PointerEvent, role: IngameFrameKey, dragMode: 'move' | 'resize') {
+    setSelectedFrame(role);
+    dragBox(e, dragMode, frames[role], (patch) => updateFrame(role, patch));
+  }
+
+  /* ── Gauge fill geometry ─────────────────────────────────────────────────
+   * The four values are stored as strings on gameMeta, blank meaning "keep the
+   * historical value". The historical value is a px inset derived from the bar
+   * height, so it is resolution-dependent - the seeds below convert it to the
+   * equivalent % on this stage, which is exactly what the handles then write.
+   */
+  const gaugeBarWidthPx = (GAUGE_BAR_WIDTH_PCT / 100) * stage.width;
+  const gaugeBarHeightPx = (GAUGE_BAR_HEIGHT_PCT / 100) * stage.height;
+  // Mirrors resolveMysteryGaugeGeometry: half an icon (bar height - 14) plus
+  // 8 px of breathing room horizontally, a flat 7 px vertically.
+  const legacyInsetPx = (gaugeBarHeightPx - 14) / 2 + 8;
+  const legacyInsetXPct = gaugeBarWidthPx > 0 ? round1((legacyInsetPx / gaugeBarWidthPx) * 100) : 0;
+  const legacyInsetYPct = gaugeBarHeightPx > 0 ? round1((7 / gaugeBarHeightPx) * 100) : 0;
+
+  const insetLeftPct = gaugeField(meta.gauge_fill_inset_left) ?? legacyInsetXPct;
+  const insetRightPct = gaugeField(meta.gauge_fill_inset_right) ?? legacyInsetXPct;
+  const insetYPct = gaugeField(meta.gauge_fill_inset_y) ?? legacyInsetYPct;
+  const fillRadiusPx = gaugeField(meta.gauge_fill_radius) ?? 6;
+
+  function setGaugeField(key: string, value: number | '') {
+    editor.setGameMeta(
+      (m) => ({ ...(m as Record<string, unknown>), [key]: value === '' ? '' : String(value) }) as typeof m,
+    );
+  }
+
+  /** Drag one edge of the fill track. Deltas px → % of the gauge BAR (which is
+   *  what resolveMysteryGaugeGeometry's percentages are relative to). */
+  function startGaugeDrag(e: React.PointerEvent, edge: 'left' | 'right' | 'y') {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const barW = gaugeBarWidthPx || 1;
+    const barH = gaugeBarHeightPx || 1;
+    const start = { left: insetLeftPct, right: insetRightPct, y: insetYPct };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+
+    function onMove(ev: PointerEvent) {
+      const dxPct = ((ev.clientX - startX) / barW) * 100;
+      const dyPct = ((ev.clientY - startY) / barH) * 100;
+      if (edge === 'left') {
+        setGaugeField('gauge_fill_inset_left', round1(clamp(start.left + dxPct, 0, GAUGE_MAX_INSET_PCT)));
+      } else if (edge === 'right') {
+        setGaugeField('gauge_fill_inset_right', round1(clamp(start.right - dxPct, 0, GAUGE_MAX_INSET_PCT)));
+      } else {
+        setGaugeField('gauge_fill_inset_y', round1(clamp(start.y + dyPct, 0, GAUGE_MAX_INSET_PCT)));
+      }
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
+  /* ── Main-image underlay ("fond de l'image principale") ────────────────────
+   * One number, `enigma_underlay_scale`: the square the centre enigma image
+   * sits on, as a % of the cell available to it. The tile is positioned by the
+   * board's flex layout, so instead of mirroring that layout here the renderer
+   * MEASURES the tile and reports its rectangle - `onEnigmaTileRect`.
+   * ───────────────────────────────────────────────────────────────────────── */
+  const underlayScale = resolveMysteryUnderlayScale(meta);
+  const reportEnigmaTileRect = useCallback((rect: EnigmaTileRect | null) => {
+    setEnigmaTileRect((prev) => {
+      if (prev === rect) return prev;
+      if (
+        prev &&
+        rect &&
+        Math.abs(prev.left - rect.left) < 0.01 &&
+        Math.abs(prev.top - rect.top) < 0.01 &&
+        Math.abs(prev.width - rect.width) < 0.01 &&
+        Math.abs(prev.height - rect.height) < 0.01
+      ) {
+        // Same rectangle: bail out so a measure pass cannot drive a render loop.
+        return prev;
+      }
+      return rect;
+    });
+  }, []);
+
+  function setUnderlayScale(value: number | '') {
+    editor.setGameMeta(
+      (m) =>
+        ({
+          ...(m as Record<string, unknown>),
+          enigma_underlay_scale: value === '' ? '' : String(value),
+        }) as typeof m,
+    );
+  }
+
+  /**
+   * Drag the tile's bottom-right corner. The tile is CENTRED in its cell, so
+   * moving the corner out by d grows the side by 2d - hence the halved delta.
+   * The full-size side is recovered from the current one and the current scale,
+   * which keeps the maths independent of how the board lays the cell out.
+   */
+  function startUnderlayDrag(e: React.PointerEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!enigmaTileRect || stage.height <= 0) return;
+    const startSidePx = (enigmaTileRect.height / 100) * stage.height;
+    if (startSidePx <= 0) return;
+    const fullSidePx = startSidePx / (underlayScale / 100);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+
+    function onMove(ev: PointerEvent) {
+      const d = (ev.clientX - startX + (ev.clientY - startY)) / 2;
+      const side = startSidePx + 2 * d;
+      setUnderlayScale(
+        round1(clamp((side / fullSidePx) * 100, UNDERLAY_MIN_PCT, UNDERLAY_MAX_PCT)),
+      );
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
   if (!open) return null;
 
   const sel = layout[selected];
   const selIdle = idleLayout[selectedIdle];
+  const selFrame = frames[selectedFrame];
 
   // gameMeta for the backdrop: live meta + our in-progress layouts, with text
   // overlays suppressed (we draw our own draggable copies on top).
   const backdropMeta: PreviewMysteryGameMeta = {
     ...meta,
     ingame_layout: layout,
+    ingame_frames: frames as IngameFrames,
     idle_layout: idleLayout,
   };
 
@@ -283,19 +510,18 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-200 bg-slate-50">
           <h2 className="text-sm font-semibold text-gray-900">
-            {mode === 'idle'
-              ? t('scenarioPreview:ingameLayout.title.idle')
-              : t('scenarioPreview:ingameLayout.title.ingame')}
+            {t(`scenarioPreview:ingameLayout.title.${mode}`)}
           </h2>
           {/* Mode toggle */}
           <div className="flex items-center gap-0.5 p-0.5 bg-gray-100 rounded border border-gray-200">
             {modeBtn('ingame', t('scenarioPreview:ingameLayout.mode.ingame'))}
+            {modeBtn('frames', t('scenarioPreview:ingameLayout.mode.frames'))}
+            {modeBtn('gauge', t('scenarioPreview:ingameLayout.mode.gauge'))}
+            {modeBtn('underlay', t('scenarioPreview:ingameLayout.mode.underlay'))}
             {modeBtn('idle', t('scenarioPreview:ingameLayout.mode.idle'))}
           </div>
           <span className="text-xs text-gray-500">
-            {mode === 'idle'
-              ? t('scenarioPreview:ingameLayout.hint.idle')
-              : t('scenarioPreview:ingameLayout.hint.ingame')}
+            {t(`scenarioPreview:ingameLayout.hint.${mode}`)}
           </span>
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -322,7 +548,198 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
         <div className="flex-1 flex min-h-0">
           {/* Sidebar */}
           <div className="w-72 shrink-0 border-r border-gray-200 bg-white overflow-y-auto p-3 space-y-4">
-            {mode === 'ingame' ? (
+            {mode === 'frames' ? (
+              <>
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 mb-1.5">{t('scenarioPreview:ingameLayout.elements')}</p>
+                  <div className="space-y-1">
+                    {FRAME_EDIT_ROLES.map((role) => {
+                      const hasImage = !!meta[role.frameImageKey];
+                      return (
+                        <button
+                          key={role.key}
+                          type="button"
+                          onClick={() => setSelectedFrame(role.key as IngameFrameKey)}
+                          className={`w-full text-left px-2.5 py-1.5 text-sm rounded border ${
+                            selectedFrame === role.key
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {roleLabel(role.key)}
+                          {!hasImage && (
+                            <span className="ml-1 text-[11px] text-gray-400">
+                              {t('scenarioPreview:ingameLayout.noFrameImage')}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {t('scenarioPreview:ingameLayout.framesHint')}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['left', 'top', 'width', 'height'] as const).map((field) => (
+                      <label key={field} className="text-xs text-gray-600">
+                        <span className="capitalize">{t(`scenarioPreview:ingameLayout.field.${field}`)}</span>
+                        <input
+                          type="number"
+                          value={Math.round(selFrame[field])}
+                          onChange={(e) => {
+                            const n = parseFloat(e.target.value);
+                            if (!isFinite(n)) return;
+                            updateFrame(selectedFrame, { [field]: clamp(n, 0, 100) } as Partial<IngameBox>);
+                          }}
+                          className="mt-0.5 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setFrames(resolveIngameFrames(undefined))}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-700 border border-gray-200 rounded hover:bg-gray-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> {t('scenarioPreview:ingameLayout.resetDefaults')}
+                </button>
+              </>
+            ) : mode === 'gauge' ? (
+              <>
+                <p className="text-[11px] text-gray-500 leading-snug">
+                  {t('scenarioPreview:ingameLayout.gaugeHelp')}
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    ['gauge_fill_inset_left', insetLeftPct, 'fillInsetLeft'],
+                    ['gauge_fill_inset_right', insetRightPct, 'fillInsetRight'],
+                    ['gauge_fill_inset_y', insetYPct, 'fillInsetY'],
+                  ] as Array<[string, number, string]>).map(([key, value, labelKey]) => (
+                    <label key={key} className="text-xs text-gray-600">
+                      <span>{t(`scenarioPreview:ingameLayout.${labelKey}`)}</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={gaugeDraft[key] ?? String(value)}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setGaugeDraft((d) => ({ ...d, [key]: raw }));
+                          const n = parseFloat(raw);
+                          if (!isFinite(n)) return;
+                          setGaugeField(key, round1(clamp(n, 0, GAUGE_MAX_INSET_PCT)));
+                        }}
+                        onBlur={() =>
+                          setGaugeDraft((d) => {
+                            const rest = { ...d };
+                            delete rest[key];
+                            return rest;
+                          })
+                        }
+                        className="mt-0.5 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                    </label>
+                  ))}
+                  <label className="text-xs text-gray-600">
+                    <span>{t('scenarioPreview:ingameLayout.fillRadius')}</span>
+                    <input
+                      type="number"
+                      step={1}
+                      min={0}
+                      value={fillRadiusPx}
+                      onChange={(e) => {
+                        const n = parseFloat(e.target.value);
+                        if (!isFinite(n)) return;
+                        setGaugeField('gauge_fill_radius', Math.max(0, Math.round(n)));
+                      }}
+                      className="mt-0.5 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </label>
+                </div>
+
+                {/* Preview-only: how full the gauge is drawn while calibrating. */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 mb-1">
+                    {t('scenarioPreview:ingameLayout.gaugeDemo', { percent: gaugeDemo })}
+                  </p>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={gaugeDemo}
+                    onChange={(e) => setGaugeDemo(parseInt(e.target.value, 10))}
+                    className="w-full accent-blue-600"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {t('scenarioPreview:ingameLayout.gaugeDemoHint')}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGaugeField('gauge_fill_inset_left', '');
+                    setGaugeField('gauge_fill_inset_right', '');
+                    setGaugeField('gauge_fill_inset_y', '');
+                    setGaugeField('gauge_fill_radius', '');
+                    setGaugeDraft({});
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-700 border border-gray-200 rounded hover:bg-gray-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> {t('scenarioPreview:ingameLayout.resetDefaults')}
+                </button>
+              </>
+            ) : mode === 'underlay' ? (
+              <>
+                <p className="text-[11px] text-gray-500 leading-snug">
+                  {t('scenarioPreview:ingameLayout.underlayHelp')}
+                </p>
+
+                <label className="block text-xs text-gray-600">
+                  <span>{t('scenarioPreview:ingameLayout.underlayScale')}</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={gaugeDraft.enigma_underlay_scale ?? String(underlayScale)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setGaugeDraft((d) => ({ ...d, enigma_underlay_scale: raw }));
+                      const n = parseFloat(raw);
+                      if (!isFinite(n)) return;
+                      setUnderlayScale(round1(clamp(n, UNDERLAY_MIN_PCT, UNDERLAY_MAX_PCT)));
+                    }}
+                    onBlur={() =>
+                      setGaugeDraft((d) => {
+                        const rest = { ...d };
+                        delete rest.enigma_underlay_scale;
+                        return rest;
+                      })
+                    }
+                    className="mt-0.5 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                  />
+                </label>
+
+                <p className="text-[11px] text-gray-400 leading-snug">
+                  {t('scenarioPreview:ingameLayout.underlayNote')}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUnderlayScale('');
+                    setGaugeDraft({});
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-700 border border-gray-200 rounded hover:bg-gray-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> {t('scenarioPreview:ingameLayout.resetDefaults')}
+                </button>
+              </>
+            ) : mode === 'ingame' ? (
               <>
                 <div>
                   <p className="text-xs font-semibold text-gray-700 mb-1.5">{t('scenarioPreview:ingameLayout.elements')}</p>
@@ -588,7 +1005,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                 resolveMediaUrl={editor.getMediaUrl}
                 readLocalized={(value) => getLocalized(value as never, lang, defaultLang)}
                 enigmaView="revealed"
-                gaugePercent={60}
+                gaugePercent={mode === 'gauge' ? gaugeDemo : 60}
                 overscoreStage={0}
                 selectedEnigmaIndex={0}
                 screen={mode === 'idle' ? 'idle' : 'ingame'}
@@ -597,6 +1014,7 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                 lang={lang}
                 defaultLang={defaultLang}
                 hideIngameTextOverlays
+                onEnigmaTileRect={mode === 'underlay' ? reportEnigmaTileRect : undefined}
               />
             </div>
 
@@ -612,7 +1030,197 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                   height: `${stage.height}px`,
                 }}
               >
-                {mode === 'ingame'
+                {mode === 'frames'
+                  ? FRAME_EDIT_ROLES.map((role) => {
+                      const key = role.key as IngameFrameKey;
+                      const box = frames[key];
+                      const isSel = selectedFrame === key;
+                      return (
+                        <div
+                          key={role.key}
+                          onPointerDown={(e) => startFrameDrag(e, key, 'move')}
+                          style={{
+                            position: 'absolute',
+                            left: `${box.left}%`,
+                            top: `${box.top}%`,
+                            width: `${box.width}%`,
+                            height: `${box.height}%`,
+                            cursor: 'move',
+                            outline: isSel ? '2px solid #3b82f6' : '1px dashed rgba(255,255,255,0.55)',
+                            outlineOffset: '0px',
+                            // No fill: the real frame image is drawn underneath
+                            // by the backdrop renderer, and tinting it would
+                            // defeat the point of placing it visually.
+                            background: isSel ? 'rgba(59,130,246,0.10)' : 'transparent',
+                            boxSizing: 'border-box',
+                          }}
+                        >
+                          {/* Resize handle (bottom-right) */}
+                          <div
+                            onPointerDown={(e) => startFrameDrag(e, key, 'resize')}
+                            style={{
+                              position: 'absolute',
+                              right: -6,
+                              bottom: -6,
+                              width: 12,
+                              height: 12,
+                              borderRadius: 2,
+                              background: '#3b82f6',
+                              border: '2px solid #fff',
+                              cursor: 'nwse-resize',
+                            }}
+                          />
+                          {/* Role label */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 'calc(100% + 2px)',
+                              fontSize: 11,
+                              lineHeight: '16px',
+                              padding: '0 4px',
+                              color: '#fff',
+                              background: isSel ? '#3b82f6' : 'rgba(0,0,0,0.55)',
+                              borderRadius: 3,
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            {roleLabel(role.key)}
+                          </div>
+                        </div>
+                      );
+                    })
+                  : mode === 'gauge'
+                  ? (() => {
+                      // Handles on the gauge bar itself: the two vertical fill
+                      // edges and the top/bottom inset (symmetric, so one
+                      // handle drives both). The coloured fill under them is
+                      // the real one, drawn by the backdrop renderer.
+                      const barStyle: React.CSSProperties = {
+                        position: 'absolute',
+                        left: `${GAUGE_BAR_LEFT_PCT}%`,
+                        top: `${GAUGE_BAR_TOP_PCT}%`,
+                        width: `${GAUGE_BAR_WIDTH_PCT}%`,
+                        height: `${GAUGE_BAR_HEIGHT_PCT}%`,
+                      };
+                      const handleBase: React.CSSProperties = {
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        width: 10,
+                        marginLeft: -5,
+                        cursor: 'ew-resize',
+                        background: 'rgba(59,130,246,0.35)',
+                        borderLeft: '2px solid #3b82f6',
+                        borderRight: '2px solid #3b82f6',
+                        boxSizing: 'border-box',
+                        touchAction: 'none',
+                      };
+                      return (
+                        <div style={{ ...barStyle, outline: '1px dashed rgba(255,255,255,0.55)' }}>
+                          <div
+                            onPointerDown={(e) => startGaugeDrag(e, 'left')}
+                            title={t('scenarioPreview:ingameLayout.fillInsetLeft')}
+                            style={{ ...handleBase, left: `${insetLeftPct}%` }}
+                          />
+                          <div
+                            onPointerDown={(e) => startGaugeDrag(e, 'right')}
+                            title={t('scenarioPreview:ingameLayout.fillInsetRight')}
+                            style={{ ...handleBase, left: `${100 - insetRightPct}%` }}
+                          />
+                          <div
+                            onPointerDown={(e) => startGaugeDrag(e, 'y')}
+                            title={t('scenarioPreview:ingameLayout.fillInsetY')}
+                            style={{
+                              position: 'absolute',
+                              left: `${insetLeftPct}%`,
+                              right: `${insetRightPct}%`,
+                              top: `${insetYPct}%`,
+                              height: 8,
+                              marginTop: -4,
+                              cursor: 'ns-resize',
+                              background: 'rgba(59,130,246,0.35)',
+                              borderTop: '2px solid #3b82f6',
+                              borderBottom: '2px solid #3b82f6',
+                              boxSizing: 'border-box',
+                              touchAction: 'none',
+                            }}
+                          />
+                          {/* Mirror of the top inset - not draggable itself,
+                              it just shows where the fill actually stops. */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: `${insetLeftPct}%`,
+                              right: `${insetRightPct}%`,
+                              bottom: `${insetYPct}%`,
+                              height: 0,
+                              borderTop: '2px dashed rgba(59,130,246,0.8)',
+                              pointerEvents: 'none',
+                            }}
+                          />
+                        </div>
+                      );
+                    })()
+                  : mode === 'underlay'
+                  ? (() => {
+                      // One handle, on the corner of the centre tile. The tile's
+                      // rectangle is MEASURED by the backdrop renderer rather
+                      // than recomputed here, so this layer cannot drift from the
+                      // board's flex layout the way the gauge constants above can.
+                      if (!enigmaTileRect) return null;
+                      return (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: `${enigmaTileRect.left}%`,
+                            top: `${enigmaTileRect.top}%`,
+                            width: `${enigmaTileRect.width}%`,
+                            height: `${enigmaTileRect.height}%`,
+                            outline: '2px solid #3b82f6',
+                            outlineOffset: '-1px',
+                            boxSizing: 'border-box',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          <div
+                            onPointerDown={startUnderlayDrag}
+                            title={t('scenarioPreview:ingameLayout.underlayScale')}
+                            style={{
+                              position: 'absolute',
+                              right: -6,
+                              bottom: -6,
+                              width: 12,
+                              height: 12,
+                              background: '#3b82f6',
+                              border: '2px solid #ffffff',
+                              cursor: 'nwse-resize',
+                              pointerEvents: 'auto',
+                              touchAction: 'none',
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 'calc(100% + 2px)',
+                              fontSize: 11,
+                              lineHeight: '16px',
+                              padding: '0 4px',
+                              color: '#fff',
+                              background: '#3b82f6',
+                              borderRadius: 3,
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            {underlayScale} %
+                          </div>
+                        </div>
+                      );
+                    })()
+                  : mode === 'ingame'
                   ? INGAME_ROLES.map((role) => {
                       const box = layout[role.key];
                       const isSel = selected === role.key;

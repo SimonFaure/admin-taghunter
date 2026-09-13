@@ -20,11 +20,90 @@ function getRequestData() {
     return json_decode(file_get_contents('php://input'), true) ?? [];
 }
 
+// `client_scenarios.durations` holds the GO/Spot challenge offer for that grant
+// (JSON array of minutes, NULL = none configured → the scenario's authored time
+// is used instead). Hand it to callers as a plain int array, never a raw JSON
+// string. (project_go_spot_durations)
+function decodeGrantDurations(array $grants) {
+    foreach ($grants as &$g) {
+        $d = !empty($g['durations']) ? json_decode($g['durations'], true) : [];
+        $g['durations'] = is_array($d) ? array_values(array_map('intval', $d)) : [];
+    }
+    unset($g);
+    return $grants;
+}
+
 function requireAuth() {
     if (!isset($_SESSION['user_id'])) {
         jsonResponse(['error' => 'Unauthorized'], 401);
     }
     return $_SESSION['user_id'];
+}
+
+/**
+ * The scenarios a client holds in one player app ('go' | 'spot').
+ *
+ * Normally that is its mode='<app>' grant rows. A PREMIUM client has none: the
+ * `list` action above serves it the whole product catalogue directly, without
+ * grants. Reading only grants therefore left premium clients with an empty QR
+ * grid - "aucun QR code n'a été généré" (retour Ludiom #65) - even though they
+ * could see the GO/Spot scenarios in their catalogue. So for premium we return
+ * every product scenario carrying the app's own eligibility flag
+ * (`adaptable_go` / `adaptable_spot`), LEFT JOINing whatever grant row happens to
+ * exist so a configured challenge list still comes through.
+ *
+ * go.php applies the same rule (goResolveGrant), so a QR built from this list
+ * always loads instead of refusing `not_granted`.
+ *
+ * `$grantsOnly` opts out of the premium widening: the admin client page manages
+ * grant ROWS (add / remove), so it must see exactly the rows that exist.
+ */
+function appScenariosForClient($db, $clientId, $app, $grantsOnly = false) {
+    $isPremium = false;
+    if (!$grantsOnly) {
+        $client = $db->fetch('SELECT license_type FROM clients WHERE id = ?', [$clientId]);
+        if ($client && ($client['license_type'] ?? '') === 'premium') $isPremium = true;
+    }
+
+    $patternCols = $app === 'go'
+        ? ', p.name AS pattern_name, p.answer_count AS pattern_answer_count'
+        : '';
+    $patternJoin = $app === 'go' ? ' LEFT JOIN patterns p ON cs.pattern_id = p.id' : '';
+
+    if (!$isPremium) {
+        return decodeGrantDurations($db->fetchAll(
+            'SELECT cs.scenario_id, cs.pattern_id, cs.granted_at, cs.durations,
+                    s.title, s.uniqid, s.status, s.medias' . $patternCols . '
+             FROM client_scenarios cs
+             JOIN scenarios s ON cs.scenario_id = s.id' . $patternJoin . '
+             WHERE cs.client_id = ? AND cs.mode = ?
+             ORDER BY cs.granted_at DESC',
+            [$clientId, $app]
+        ));
+    }
+
+    $rows = $db->fetchAll(
+        'SELECT s.id AS scenario_id, cs.pattern_id, s.created_at AS granted_at, cs.durations,
+                s.title, s.uniqid, s.status, s.medias, s.data' . $patternCols . '
+         FROM scenarios s
+         LEFT JOIN client_scenarios cs
+                ON cs.scenario_id = s.id AND cs.client_id = ? AND cs.mode = ?' . $patternJoin . '
+         WHERE s.scenario_type = "product"
+         ORDER BY s.created_at DESC',
+        [$clientId, $app]
+    );
+    // The eligibility flag lives in game_meta, so filter in PHP (both the flat
+    // and wrapped shapes exist on disk, as everywhere else that reads it).
+    $flag = $app === 'spot' ? 'adaptable_spot' : 'adaptable_go';
+    $out = [];
+    foreach ($rows as $r) {
+        $dataArr = !empty($r['data']) ? json_decode($r['data'], true) : null;
+        $gm = is_array($dataArr) ? ($dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? null)) : null;
+        if (!is_array($gm) || empty($gm[$flag])) continue;
+        unset($r['data']);
+        $out[] = $r;
+    }
+    return decodeGrantDurations($out);
 }
 
 function requireClientOrAdminAuth($db) {
@@ -67,11 +146,11 @@ try {
 
         $clientId = $data['client_id'] ?? null;
         $scenarioId = $data['scenario_id'] ?? null;
-        // A grant is scoped to a mode ('playground' | 'go' | 'drop'). A scenario
+        // A grant is scoped to a mode ('playground' | 'go' | 'spot'). A scenario
         // can be granted for several (one row each). pattern_id binds the client's
-        // GO plaque set (the answer key); only meaningful for mode=go (Drop ignores
-        // it - Drop shows answer images on-screen, project_taghunter_drop).
-        $mode = in_array($data['mode'] ?? '', ['go', 'drop'], true) ? $data['mode'] : 'playground';
+        // GO plaque set (the answer key); only meaningful for mode=go (Spot ignores
+        // it - Spot shows answer images on-screen, project_taghunter_spot).
+        $mode = in_array($data['mode'] ?? '', ['go', 'spot'], true) ? $data['mode'] : 'playground';
         $patternId = isset($data['pattern_id']) && is_numeric($data['pattern_id']) ? (int)$data['pattern_id'] : null;
 
         if (!$clientId || !$scenarioId) {
@@ -139,9 +218,9 @@ try {
         $clientId = $data['client_id'] ?? null;
         $scenarioId = $data['scenario_id'] ?? null;
         // Scope the removal to a mode so removing one grant leaves the others
-        // (playground / go / drop) intact. Defaults to 'playground' for callers
-        // that predate the GO/Drop modes.
-        $mode = in_array($data['mode'] ?? '', ['go', 'drop'], true) ? $data['mode'] : 'playground';
+        // (playground / go / spot) intact. Defaults to 'playground' for callers
+        // that predate the GO/Spot modes.
+        $mode = in_array($data['mode'] ?? '', ['go', 'spot'], true) ? $data['mode'] : 'playground';
 
         if (!$clientId || !$scenarioId) {
             $response = ['error' => 'client_id and scenario_id are required'];
@@ -251,13 +330,34 @@ try {
             $gm = is_array($dataArr) ? ($dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? null)) : null;
             $s['difficulty'] = (is_array($gm) && isset($gm['difficulty'])) ? $gm['difficulty'] : null;
             $s['audience'] = (is_array($gm) && isset($gm['game_public'])) ? $gm['game_public'] : null;
+            // Age bands (the fine-grained taxonomy the admin catalog uses) and the
+            // univers tags, so the client list can filter on the same criteria as
+            // admin instead of the coarse mini_kids/kids/ado_adultes trio.
+            $s['audience_bands'] = (is_array($gm) && is_array($gm['audience_bands'] ?? null))
+                ? array_values($gm['audience_bands'])
+                : [];
+            $s['univers'] = (is_array($gm) && is_array($gm['univers'] ?? null))
+                ? array_values(array_filter($gm['univers'], 'is_string'))
+                : [];
+            // Languages the scenario is authored in, for the list card chips.
+            $langRoot = is_array($dataArr)
+                ? ((isset($dataArr['available_languages']) || isset($dataArr['default_language']))
+                    ? $dataArr
+                    : ($dataArr['data'] ?? $dataArr))
+                : null;
+            $s['available_languages'] = (is_array($langRoot) && is_array($langRoot['available_languages'] ?? null))
+                ? array_values(array_filter($langRoot['available_languages'], 'is_string'))
+                : [];
+            $s['default_language'] = (is_array($langRoot) && is_string($langRoot['default_language'] ?? null))
+                ? $langRoot['default_language']
+                : null;
             // Tag Hunter GO: surface whether this scenario exists in GO mode, for
             // the list "GO" badge + filter.
             $s['adaptable_go'] = (is_array($gm) && !empty($gm['adaptable_go']));
             $s['go_answer_count'] = (is_array($gm) && isset($gm['go_answer_count'])) ? (int)$gm['go_answer_count'] : null;
-            // Tag Hunter Drop: surface whether this scenario is Drop-capable, for
-            // the list "Drop" badge + filter.
-            $s['adaptable_drop'] = (is_array($gm) && !empty($gm['adaptable_drop']));
+            // Tag Hunter Spot: surface whether this scenario is Spot-capable, for
+            // the list "Spot" badge + filter.
+            $s['adaptable_spot'] = (is_array($gm) && !empty($gm['adaptable_spot']));
             unset($s['data']);
             return $s;
         }, $scenarios);
@@ -269,7 +369,11 @@ try {
 
     case 'list_go':
         // Tag Hunter GO: the GO grants for a client (mode='go'), with the bound
-        // GO pattern. Used by the admin client page to manage GO scenario access.
+        // GO pattern + the scenario's challenge offer (cs.durations). This is
+        // exactly the set go.php will serve in GO, which is why the client QR
+        // grid reads it rather than the generic `list` action - that one returns
+        // every product scenario for PREMIUM clients regardless of grants, so its
+        // QR codes could refuse with `not_granted` when scanned.
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
@@ -281,27 +385,17 @@ try {
         if ($auth['type'] === 'client' && (string)$clientId !== (string)$auth['id']) {
             jsonResponse(['error' => 'Unauthorized'], 403);
         }
-        $grants = $db->fetchAll(
-            'SELECT cs.scenario_id, cs.pattern_id, cs.granted_at,
-                    s.title, s.uniqid, s.status,
-                    p.name AS pattern_name, p.answer_count AS pattern_answer_count
-             FROM client_scenarios cs
-             JOIN scenarios s ON cs.scenario_id = s.id
-             LEFT JOIN patterns p ON cs.pattern_id = p.id
-             WHERE cs.client_id = ? AND cs.mode = "go"
-             ORDER BY cs.granted_at DESC',
-            [$clientId]
-        );
+        $grants = appScenariosForClient($db, $clientId, 'go', !empty($_GET['grants_only']));
         $response = ['data' => $grants];
         Logger::log('client_scenarios', 'GET', 'list_go', $auth['id'], ['client_id' => $clientId], ['count' => count($grants)], 200);
         jsonResponse($response);
         break;
 
-    case 'list_drop':
-        // Tag Hunter Drop: the Drop grants for a client (mode='drop'). No bound
-        // pattern - Drop shows answer images on-screen and shuffles them, so
-        // correctness is the good_answer_image (project_taghunter_drop). Used by
-        // the admin client page to manage Drop scenario access.
+    case 'list_spot':
+        // Tag Hunter Spot: the Spot grants for a client (mode='spot'). No bound
+        // pattern - Spot shows answer images on-screen and shuffles them, so
+        // correctness is the good_answer_image (project_taghunter_spot). Used by
+        // the admin client page to manage Spot scenario access.
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
@@ -313,16 +407,9 @@ try {
         if ($auth['type'] === 'client' && (string)$clientId !== (string)$auth['id']) {
             jsonResponse(['error' => 'Unauthorized'], 403);
         }
-        $grants = $db->fetchAll(
-            'SELECT cs.scenario_id, cs.granted_at, s.title, s.uniqid, s.status, s.medias
-             FROM client_scenarios cs
-             JOIN scenarios s ON cs.scenario_id = s.id
-             WHERE cs.client_id = ? AND cs.mode = "drop"
-             ORDER BY cs.granted_at DESC',
-            [$clientId]
-        );
+        $grants = appScenariosForClient($db, $clientId, 'spot', !empty($_GET['grants_only']));
         $response = ['data' => $grants];
-        Logger::log('client_scenarios', 'GET', 'list_drop', $auth['id'], ['client_id' => $clientId], ['count' => count($grants)], 200);
+        Logger::log('client_scenarios', 'GET', 'list_spot', $auth['id'], ['client_id' => $clientId], ['count' => count($grants)], 200);
         jsonResponse($response);
         break;
 

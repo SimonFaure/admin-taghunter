@@ -14,12 +14,11 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Check, Search, X } from 'lucide-react';
+import type { StationRow } from '../useClashStations';
 
-export interface StationRow {
-  id: number;
-  station_name: string;
-  station_function: string | null;
-}
+// Re-exported so the existing importers (TerritoriesSection) keep working; the
+// inventory row shape itself lives with the fetch hook.
+export type { StationRow };
 
 interface BalisePickerModalProps {
   /** Header context, e.g. "Territoire 3 · Nord". */
@@ -31,6 +30,8 @@ interface BalisePickerModalProps {
   selected: number[];
   /** Station number -> label of the OTHER territory already using it. */
   usedBy: Map<number, string>;
+  /** "The Purge" station (retours #50) - reserved, never selectable here. */
+  purgeStation: number | null;
   /** Receives the drafted numbers, sorted ascending. */
   onConfirm: (numbers: number[]) => void;
   onClose: () => void;
@@ -55,6 +56,7 @@ export function BalisePickerModal({
   error,
   selected,
   usedBy,
+  purgeStation,
   onConfirm,
   onClose,
 }: BalisePickerModalProps) {
@@ -176,9 +178,16 @@ export function BalisePickerModal({
                 const num = c.number;
                 const isSelected = draft.has(num);
                 // A used-elsewhere station stays deselectable while selected
-                // here (legacy duplicate) - but can never be (re)added.
+                // here (legacy duplicate) - but can never be (re)added. Same
+                // rule for the purge station (retours #50): a legacy scenario
+                // that already has it selected can drop it, nobody can add it.
+                const isPurge = purgeStation != null && num === purgeStation;
                 const usedLabel = !isSelected ? usedBy.get(num) : undefined;
-                const disabled = usedLabel !== undefined;
+                const reservedLabel = !isSelected && isPurge
+                  ? t('editorClash:territories.reservedForPurge')
+                  : undefined;
+                const blockedLabel = usedLabel ?? reservedLabel;
+                const disabled = blockedLabel !== undefined;
                 return (
                   <button
                     key={c.key}
@@ -186,11 +195,13 @@ export function BalisePickerModal({
                     disabled={disabled}
                     onClick={() => toggle(num)}
                     title={
-                      disabled
+                      usedLabel !== undefined
                         ? t('editorClash:territories.usedByTerritory', { territory: usedLabel })
-                        : c.unknown
-                          ? t('editorClash:territories.unknownStation')
-                          : undefined
+                        : reservedLabel !== undefined
+                          ? reservedLabel
+                          : c.unknown
+                            ? t('editorClash:territories.unknownStation')
+                            : undefined
                     }
                     className={`relative aspect-square rounded-lg border flex flex-col items-center justify-center p-1 text-center transition-colors ${
                       disabled
@@ -224,9 +235,14 @@ export function BalisePickerModal({
                         {t('editorClash:territories.unknownStation')}
                       </span>
                     )}
-                    {disabled && usedLabel && (
+                    {usedLabel !== undefined && (
                       <span className="text-[10px] text-gray-400 truncate max-w-full">
                         {t('editorClash:territories.usedByTerritory', { territory: usedLabel })}
+                      </span>
+                    )}
+                    {reservedLabel !== undefined && (
+                      <span className="text-[10px] text-gray-400 truncate max-w-full">
+                        {reservedLabel}
                       </span>
                     )}
                   </button>

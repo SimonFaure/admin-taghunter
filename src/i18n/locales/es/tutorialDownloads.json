@@ -1,0 +1,15 @@
+{
+  "loading": "Cargando los vídeos tutoriales…",
+  "title": "Descargar los tutoriales",
+  "description": "Descargue el vídeo tutorial de Tag Hunter de cada tipo de juego, junto con sus pistas de subtítulos. Úselos para sus briefings, sus pantallas de bienvenida o su propio sitio web.",
+  "empty": "Todavía no hay ningún vídeo tutorial disponible para descargar.",
+  "dismiss": "Descartar",
+  "error": {
+    "failedToLoad": "Error al cargar"
+  },
+  "row": {
+    "meta": "Vídeo Tag Hunter · versión {{version}} · {{ext}}",
+    "downloadVideo": "Descargar el vídeo",
+    "subtitles": "Subtítulos (.vtt)"
+  }
+}

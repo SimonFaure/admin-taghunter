@@ -73,17 +73,17 @@ function formatClientData($client) {
     if (array_key_exists('go_subscription_active', $client)) {
         $client['go_subscription_active'] = (bool)$client['go_subscription_active'];
     }
-    if (array_key_exists('drop_enabled', $client)) {
-        $client['drop_enabled'] = (bool)$client['drop_enabled'];
+    if (array_key_exists('spot_enabled', $client)) {
+        $client['spot_enabled'] = (bool)$client['spot_enabled'];
     }
-    if (array_key_exists('drop_billing_ok', $client)) {
-        $client['drop_billing_ok'] = (bool)$client['drop_billing_ok'];
+    if (array_key_exists('spot_billing_ok', $client)) {
+        $client['spot_billing_ok'] = (bool)$client['spot_billing_ok'];
     }
     if (isset($client['go_billing_grace_days'])) {
         $client['go_billing_grace_days'] = (int)$client['go_billing_grace_days'];
     }
-    if (isset($client['drop_billing_grace_days'])) {
-        $client['drop_billing_grace_days'] = (int)$client['drop_billing_grace_days'];
+    if (isset($client['spot_billing_grace_days'])) {
+        $client['spot_billing_grace_days'] = (int)$client['spot_billing_grace_days'];
     }
     // "Use my logo on reports" (project_report_layouts_editor_labels).
     if (array_key_exists('report_use_brand_logo', $client)) {
@@ -275,7 +275,7 @@ try {
             $existingClient = $db->fetch(
                 'SELECT id, billing_up_to_date, billing_overdue_since,
                         go_subscription_active, go_billing_overdue_since,
-                        drop_billing_ok, drop_billing_overdue_since
+                        spot_billing_ok, spot_billing_overdue_since
                  FROM clients WHERE id = ?',
                 [$id]
             );
@@ -297,9 +297,9 @@ try {
             // go_subscription_valid_until is retired (project_client_app_section):
             // GO billing is now the same overdue_since + grace clock as the other
             // apps, so the explicit expiry date is no longer read or written.
-            // playground_enabled / drop_* are the per-app provisioning + billing
+            // playground_enabled / spot_* are the per-app provisioning + billing
             // columns added by add_client_app_columns.sql.
-            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'language', 'update_channel', 'playground_version', 'creator_version', 'playground_enabled', 'max_devices', 'go_enabled', 'go_subscription_active', 'go_billing_grace_days', 'drop_enabled', 'drop_billing_ok', 'drop_billing_grace_days', 'devices_disabled', 'billing_grace_days', 'billing_reprieve_days', 'report_use_brand_logo'];
+            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'language', 'update_channel', 'playground_version', 'creator_version', 'playground_enabled', 'max_devices', 'go_enabled', 'go_subscription_active', 'go_billing_grace_days', 'spot_enabled', 'spot_billing_ok', 'spot_billing_grace_days', 'devices_disabled', 'billing_grace_days', 'billing_reprieve_days', 'report_use_brand_logo'];
             foreach ($allowedFields as $field) {
                 if (array_key_exists($field, $data)) {
                     $updates[] = "$field = ?";
@@ -310,12 +310,12 @@ try {
                         $value = sanitizeLanguage($value);
                     } elseif ($field === 'update_channel') {
                         $value = sanitizeChannel($value);
-                    } elseif (in_array($field, ['go_enabled', 'go_subscription_active', 'playground_enabled', 'drop_enabled', 'drop_billing_ok'], true)) {
+                    } elseif (in_array($field, ['go_enabled', 'go_subscription_active', 'playground_enabled', 'spot_enabled', 'spot_billing_ok'], true)) {
                         // Per-app capability / billing-ok / portal-scope flags (booleans).
                         $value = $value ? 1 : 0;
                     } elseif ($field === 'devices_disabled' || $field === 'report_use_brand_logo') {
                         $value = $value ? 1 : 0;
-                    } elseif (in_array($field, ['billing_grace_days', 'billing_reprieve_days', 'go_billing_grace_days', 'drop_billing_grace_days'], true)) {
+                    } elseif (in_array($field, ['billing_grace_days', 'billing_reprieve_days', 'go_billing_grace_days', 'spot_billing_grace_days'], true)) {
                         // Whole non-negative days; clamp so a bad value can't
                         // produce a never-locks / never-reprieves window.
                         $value = max(0, (int)$value);
@@ -334,12 +334,12 @@ try {
             // Current. Only acts on an actual transition so re-saving an
             // already-overdue client never resets (and thus extends) the
             // countdown. Playground uses billing_up_to_date/billing_overdue_since;
-            // GO uses go_subscription_active/go_billing_overdue_since; Drop uses
-            // drop_billing_ok/drop_billing_overdue_since. (project_client_app_section)
+            // GO uses go_subscription_active/go_billing_overdue_since; Spot uses
+            // spot_billing_ok/spot_billing_overdue_since. (project_client_app_section)
             $billingClocks = [
                 ['flag' => 'billing_up_to_date',     'since' => 'billing_overdue_since'],
                 ['flag' => 'go_subscription_active', 'since' => 'go_billing_overdue_since'],
-                ['flag' => 'drop_billing_ok',        'since' => 'drop_billing_overdue_since'],
+                ['flag' => 'spot_billing_ok',        'since' => 'spot_billing_overdue_since'],
             ];
             foreach ($billingClocks as $clock) {
                 if (array_key_exists($clock['flag'], $data)) {

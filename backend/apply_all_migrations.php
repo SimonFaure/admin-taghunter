@@ -4,7 +4,7 @@
 // WHY THIS IS SAFE TO RE-RUN:
 //   Every backend/database/*.sql migration is idempotent - CREATE TABLE IF NOT
 //   EXISTS, INFORMATION_SCHEMA-gated ALTERs, or INSERT ... ON DUPLICATE KEY - so
-//   an already-applied migration is a no-op. Errors are caught per-statement and
+//   an already-applied migration is a no-op. Errors are caught per-statement andnow)
 //   reported, never fatal, so a "column already exists" on a non-guarded ALTER
 //   just gets logged and the run continues.
 //

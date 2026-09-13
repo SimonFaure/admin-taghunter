@@ -37,7 +37,7 @@ type TabType = 'all' | GameType;
 
 const GAME_TYPE_TABS: { key: TabType; label: string }[] = [
   { key: 'all', label: 'All Patterns' },
-  { key: 'tagquest', label: 'TagQuest' },
+  { key: 'tagquest', label: 'Quest' },
   { key: 'mystery', label: 'Mystery' },
   { key: 'tracks', label: 'Track' },
 ];

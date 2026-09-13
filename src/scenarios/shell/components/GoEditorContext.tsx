@@ -13,10 +13,10 @@ import { createContext, useContext, type ReactNode } from 'react';
 export interface GoEditorValue {
   /** Scenario has the "Adaptable à TGH Go" box checked. */
   adaptableGo: boolean;
-  /** Scenario has the "Adaptable à Tag Hunter Drop" box checked. */
-  adaptableDrop: boolean;
+  /** Scenario has the "Adaptable à Tag Hunter Spot" box checked. */
+  adaptableSpot: boolean;
   /**
-   * Answer options per enigma - GO's letters (2 = A/B, 4 = A/B/C/D) and Drop's
+   * Answer options per enigma - GO's letters (2 = A/B, 4 = A/B/C/D) and Spot's
    * on-screen tiles. Shared by both adaptations (`go_answer_count`).
    */
   answerCount: 2 | 4;
@@ -24,7 +24,7 @@ export interface GoEditorValue {
 
 const GoEditorContext = createContext<GoEditorValue>({
   adaptableGo: false,
-  adaptableDrop: false,
+  adaptableSpot: false,
   answerCount: 2,
 });
 

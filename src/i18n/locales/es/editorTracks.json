@@ -9,6 +9,11 @@
   "checkpoints": {
     "sectionTitle": "Puntos de control ({{count}})",
     "addCheckpoint": "Añadir punto de control",
+    "maxCheckpointsTitle": "Máximo {{max}} puntos de control",
+    "patternRowMismatch": "El modelo asociado tiene {{rows}} fila(s) para {{checkpoints}} punto(s) de control. La correspondencia es posicional (fila 1 = punto de control 1): mientras los dos números difieran, los puntos de control apuntan a las balizas equivocadas y el juego los contará como fallados. Corrige el modelo antes de publicar.",
+    "atCapNotice": "Límite alcanzado: un escenario Track no puede superar {{max}} puntos de control. Elimine uno antes de añadir otro.",
+    "overCapWarning_one": "Este escenario tiene {{total}} puntos de control, pero Track admite como máximo {{max}}. Elimine {{count}} punto de control: la publicación queda bloqueada mientras se supere el límite.",
+    "overCapWarning_other": "Este escenario tiene {{total}} puntos de control, pero Track admite como máximo {{max}}. Elimine {{count}} puntos de control: la publicación queda bloqueada mientras se supere el límite.",
     "perCheckpoint": "Por punto de control (cada uno tiene su propio icono)",
     "common": "Común (todos los puntos de control comparten un icono)",
     "none": "Aún no hay puntos de control.",
@@ -27,28 +32,62 @@
     "sectionTitle": "Rutas",
     "hint": "Los operadores eligen una de las rutas activadas en el momento del lanzamiento.",
     "items": {
-      "default": { "label": "Por defecto", "help": "Todos los puntos de control en orden (1..N)." },
-      "first_half": { "label": "Primera mitad", "help": "Puntos de control 1..N/2." },
-      "last_half": { "label": "Última mitad", "help": "Puntos de control N/2+1..N." },
-      "odd": { "label": "Impares", "help": "Puntos de control impares (1, 3, 5, ...)." },
-      "even": { "label": "Pares", "help": "Puntos de control pares (2, 4, 6, ...)." }
+      "default": {
+        "label": "Por defecto",
+        "help": "Todos los puntos de control en orden (1..N)."
+      },
+      "reverse": {
+        "label": "Recorrido invertido",
+        "help": "El recorrido por defecto, pero del final al principio (N..1)."
+      },
+      "first_half": {
+        "label": "Primera mitad",
+        "help": "Puntos de control 1..N/2."
+      },
+      "last_half": {
+        "label": "Última mitad",
+        "help": "Puntos de control N/2+1..N."
+      },
+      "odd": {
+        "label": "Impares",
+        "help": "Puntos de control impares (1, 3, 5, ...)."
+      },
+      "even": {
+        "label": "Pares",
+        "help": "Puntos de control pares (2, 4, 6, ...)."
+      }
     }
   },
   "displays": {
     "sectionTitle": "Modos de visualización",
     "hint": "Los operadores eligen uno de los modos de visualización activados en el momento del lanzamiento.",
     "items": {
-      "full": { "label": "Completo", "help": "Mapa + título, descripción e imagen de revelación del punto de control con animación." },
-      "map": { "label": "Mapa", "help": "Solo el mapa; los marcadores se iluminan al alcanzarlos. Sin título/descripción, sin gran revelación." },
-      "simple": { "label": "Simple", "help": "HUD mínimo (nombre del equipo + puntuación + número del punto de control actual), sin mapa." }
+      "full": {
+        "label": "Completo",
+        "help": "Mapa + título, descripción e imagen de revelación del punto de control con animación."
+      },
+      "map": {
+        "label": "Mapa",
+        "help": "Solo el mapa; los marcadores se iluminan al alcanzarlos. Sin título/descripción, sin gran revelación."
+      },
+      "simple": {
+        "label": "Simple",
+        "help": "HUD mínimo (nombre del equipo + puntuación + número del punto de control actual), sin mapa."
+      }
     }
   },
   "playModes": {
     "sectionTitle": "Modos de juego",
     "hint": "Los operadores eligen uno de los modos de juego activados en el momento del lanzamiento.",
     "items": {
-      "itinerary": { "label": "Itinerario", "help": "Los equipos deben alcanzar los puntos de control en orden." },
-      "free": { "label": "Libre", "help": "Cuenta cualquier orden." }
+      "itinerary": {
+        "label": "Itinerario",
+        "help": "Los equipos deben alcanzar los puntos de control en orden."
+      },
+      "free": {
+        "label": "Libre",
+        "help": "Cuenta cualquier orden."
+      }
     }
   },
   "scoreTypes": {
@@ -56,8 +95,14 @@
     "hint": "Los operadores eligen uno de los tipos de puntuación activados al lanzar. El marcado como «por defecto» viene preseleccionado.",
     "default": "por defecto",
     "items": {
-      "percentage": { "label": "Porcentaje", "help": "Puntuación = % de puntos de control alcanzados, con un tope de 100, menos el malus de tiempo." },
-      "points": { "label": "Puntos", "help": "Puntuación = suma de los puntos de los puntos de control alcanzados, menos el malus de tiempo." }
+      "percentage": {
+        "label": "Porcentaje",
+        "help": "Puntuación = % de puntos de control alcanzados, con un tope de 100, menos el malus de tiempo."
+      },
+      "points": {
+        "label": "Puntos",
+        "help": "Puntuación = suma de los puntos de los puntos de control alcanzados, menos el malus de tiempo."
+      }
     }
   },
   "timing": {
@@ -74,7 +119,8 @@
     "sectionTitle": "Marcos HUD"
   },
   "textElements": {
-    "sectionTitle": "Elementos de texto ({{count}})",
+    "sectionTitle": "Elementos de texto — opcional ({{count}})",
+    "optionalHint": "Esta sección es opcional. Son textos libres que puede añadir en el mapa si lo desea (nombre de lugar, consigna, leyenda…), y que luego se colocan en el editor de diseño. Si no añade ninguno, el escenario funciona igualmente.",
     "addCategory": "Añadir categoría",
     "addElement": "Añadir elemento",
     "uncategorized": "Sin categoría",
@@ -106,6 +152,10 @@
   },
   "sounds": {
     "sectionTitle": "Sonidos"
+  },
+  "rankRewards": {
+    "sectionTitle": "Recompensas de clasificación — opcional",
+    "hint": "Imagen a pantalla completa y sonido reproducidos al final de un recorrido cuando el equipo entra en el top 1, el top 3 o el top 10. Deja un campo vacío para no reproducir nada. Los escenarios importados del software antiguo suelen llegar con un sonido ya cargado aquí."
   },
   "typography": {
     "overrideOn": "Anulación activada - el elemento prevalece",

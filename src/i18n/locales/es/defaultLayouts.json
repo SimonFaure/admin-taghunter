@@ -1,0 +1,38 @@
+{
+  "title": "Diseños predeterminados",
+  "intro": "Estos ajustes son el punto de partida de TODOS los escenarios del tipo elegido. Un escenario que define su propio valor lo conserva; el resto sigue esta página. Las posiciones se guardan elemento por elemento: solo se almacenan los que mueves, los demás siguen el diseño incluido en la aplicación.",
+  "loading": "Cargando…",
+  "loadFailed": "No se pudieron cargar los valores predeterminados.",
+  "save": "Guardar",
+  "saved": "Valores predeterminados guardados. Los puestos de juego los recibirán en la próxima sincronización.",
+  "saveFailed": "Error al guardar.",
+  "saveFailedOne": "Error al guardar «{{meta}}» ({{status}}).",
+  "mustBeAdmin": "Debes iniciar sesión como administrador para guardar.",
+  "notAvailableYet": "Todavía no disponible para este tipo de juego.",
+  "summary": "{{moved}} elemento(s) movido(s) · {{styled}} rol(es) de texto personalizado(s)",
+  "moved": "movido",
+  "resetElement": "Devolver este elemento a su posición original",
+  "positionsHint": "Arrastra un elemento en la pantalla para moverlo; selecciónalo para obtener su control de tamaño y sus valores exactos. Todo se expresa en porcentaje de la pantalla 16:9.",
+  "selectedHint": "Seleccionado: {{name}}",
+  "typographyTitle": "Tamaño y color de los textos predeterminados",
+  "typographySubtitle": "Haz clic en un texto de la pantalla para elegir su rol. Estos valores se aplican a todos los escenarios Quest que no definan los suyos.",
+  "typographyFooter": "El tamaño es un porcentaje del tamaño original. Un escenario puede redefinir cada ajuste por separado desde su Aperçu.",
+  "mainImageMargin": "Margen interior",
+  "mainImageMarginHint": "Margen alrededor de la imagen completa (% del lado más corto de la casilla). El halo verde o rojo del resultado sigue el contorno de la imagen: sin margen, se desborda sobre el marco de la plantilla. La cuadrícula de las cuatro piezas no se ve afectada.",
+  "types": {
+    "tagquest": "Quest",
+    "mystery": "Mystery",
+    "tracks": "Tracks",
+    "clash": "Clash"
+  },
+  "tabs": {
+    "positions": "Posiciones",
+    "typography": "Textos"
+  },
+  "fields": {
+    "x": "X",
+    "y": "Y",
+    "width": "Ancho",
+    "height": "Alto"
+  }
+}

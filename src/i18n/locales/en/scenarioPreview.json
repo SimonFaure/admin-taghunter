@@ -1,16 +1,25 @@
 {
   "ingameLayout": {
     "title": {
-      "ingame": "In-game layout",
-      "idle": "Idle screen layout"
+      "ingame": "Text layout",
+      "idle": "Idle screen layout",
+      "frames": "Element frames",
+      "gauge": "Gauge fill alignment",
+      "underlay": "Main image underlay"
     },
     "mode": {
-      "ingame": "In-game",
-      "idle": "Idle"
+      "ingame": "Texts",
+      "idle": "Idle",
+      "frames": "Frames",
+      "gauge": "Gauge",
+      "underlay": "Image"
     },
     "hint": {
       "ingame": "Drag to place the 4 text elements. The font auto-fits the box width - size each box to the maximum space its text should occupy.",
-      "idle": "Background-only screen shown between teams (when \"reveal on Enter/click\" is off). Add a title and/or subtitle."
+      "idle": "Background-only screen shown between teams (when \"reveal on Enter/click\" is off). Add a title and/or subtitle.",
+      "frames": "Place and size the timer, score and team-name frame images, and the bonus plate. They are placed independently of the text, so you can enlarge a plate without changing the size of the text inside it.",
+      "gauge": "Drag the blue handles to align the coloured fill inside your own gauge artwork.",
+      "underlay": "Drag the blue handle at the corner of the centre image to set the size of its underlay."
     },
     "save": "Save scenario",
     "saving": "Saving…",
@@ -20,7 +29,8 @@
       "enigma_name": "Enigma name",
       "timer": "Timer",
       "score": "Score",
-      "team_name": "Team name"
+      "team_name": "Team name",
+      "bonus": "Bonus plate"
     },
     "idleRoles": {
       "title": "Title",
@@ -57,7 +67,19 @@
       "enigmaNumber": "Enigma {{number}}",
       "scenarioTitle": "Scenario title",
       "teamName": "Team name"
-    }
+    },
+    "framesHint": "A frame and its text are placed separately. Set the frame here, then the text on the “Texts” tab.",
+    "noFrameImage": "(no image)",
+    "gaugeHelp": "Where the coloured fill starts and stops inside your own gauge artwork. Drag the blue handles on the gauge, or type the values. Insets are % of the gauge, radius is in pixels. The level icons and the player icon follow the same values.",
+    "fillInsetLeft": "Left inset (%)",
+    "fillInsetRight": "Right inset (%)",
+    "fillInsetY": "Top/bottom inset (%)",
+    "fillRadius": "Corner radius (px)",
+    "gaugeDemo": "Test fill: {{percent}}%",
+    "gaugeDemoHint": "Preview only - it changes nothing in the scenario.",
+    "underlayScale": "Underlay size (% of the cell)",
+    "underlayHelp": "The square tile each enigma's main image sits on - what the coloured sub-frame fills and what the artwork is fitted inside. Shrink it when the image takes up too much of the board.",
+    "underlayNote": "The preview always draws this tile so you can see it; on the postes de jeu it stays invisible until the enigma has a result. Leave blank to go back to the original size (100 %)."
   },
   "mysteryPreview": {
     "title": "Preview",
@@ -75,7 +97,13 @@
     "enterFullscreen": "Enter fullscreen",
     "exitFullscreen": "Exit fullscreen",
     "fullscreen": "Fullscreen",
-    "closePreview": "Close preview"
+    "closePreview": "Close preview",
+    "status": "Result",
+    "statusNone": "None",
+    "statusCorrect": "Correct answer",
+    "statusIncorrect": "Wrong answer",
+    "statusBoth": "Both answers biped",
+    "statusNoAnswer": "No answer"
   },
   "tagquestPreview": {
     "title": "Preview",

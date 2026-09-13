@@ -1,0 +1,15 @@
+{
+  "loading": "Chargement des vidéos tutorielles…",
+  "title": "Télécharger les tutoriels",
+  "description": "Récupérez les vidéos tutorielles Tag Hunter de chaque type de jeu, ainsi que leurs pistes de sous-titres. Utilisez-les pour vos briefings, vos écrans d'accueil ou votre propre site.",
+  "empty": "Aucune vidéo tutorielle n'est disponible au téléchargement pour le moment.",
+  "dismiss": "Ignorer",
+  "error": {
+    "failedToLoad": "Échec du chargement"
+  },
+  "row": {
+    "meta": "Vidéo Tag Hunter · version {{version}} · {{ext}}",
+    "downloadVideo": "Télécharger la vidéo",
+    "subtitles": "Sous-titres (.vtt)"
+  }
+}

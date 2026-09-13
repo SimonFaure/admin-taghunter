@@ -11,7 +11,7 @@
       "text_all_team_ended": "toutes les équipes terminées",
       "text_scenario_ended": "scénario terminé",
       "text_team_reached_new_level": "équipe atteint nouveau niveau",
-      "text_card_empty": "puce vide",
+      "text_card_empty": "puce sans aucun poinçon",
       "text_late_malus": "malus de retard",
       "text_team_enters_top_ranking": "équipe entre dans le classement",
       "text_team_enters_podium": "équipe entre sur le podium",
@@ -20,6 +20,15 @@
       "text_if_error": "si erreur",
       "text_is_card_empty": "puce est vide",
       "text_team_cheating": "équipe triche"
+    },
+    "hintsTitle": "Quand ce message s'affiche-t-il ?",
+    "hints": {
+      "text_card_empty": "La puce présentée ne contient AUCUN poinçon : elle est vierge ou vient d'être effacée. Il ne s'agit donc pas d'une puce « mal effacée » — ce cas-là, c'est « équipe triche ». Exemple : un joueur bipe sur le poste avant d'être passé sur la moindre balise.",
+      "text_team_cheating": "La puce présentée ne prolonge pas la lecture précédente : des poinçons ont disparu ou ont été remplacés depuis le dernier passage. Exemple : le joueur repasse une puce déjà lue puis effacée, ou présente la puce d'un autre.",
+      "text_team_ended": "L'équipe a déjà terminé sa partie (heure de fin enregistrée) et bipe à nouveau. Exemple : un joueur revient au poste après le poinçon d'arrivée.",
+      "text_if_error": "Le traitement du bip a échoué techniquement : données du jeu illisibles, écriture impossible, poste mère injoignable. Ce n'est jamais une erreur du joueur. La cause exacte est ajoutée derrière votre texte, à l'écran, pour que l'opérateur sache quoi faire.",
+      "text_all_team_ended": "La DERNIÈRE équipe encore en jeu vient de terminer. Le message s'affiche une seule fois, puis la partie se clôture automatiquement. C'est le pendant Mystery de « scénario terminé » (utilisé par Tracks) : les deux se déclenchent au même moment, chaque type de jeu n'en utilise qu'un.",
+      "text_scenario_ended": "Toutes les équipes ont terminé leur parcours : le message s'affiche juste après le « équipe terminée » de la dernière équipe. C'est le pendant Tracks de « toutes les équipes terminées » (utilisé par Mystery) : les deux se déclenchent au même moment, chaque type de jeu n'en utilise qu'un."
     }
   },
   "typography": {

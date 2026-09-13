@@ -1,11 +1,11 @@
 --- Per-app provisioning + billing columns on `clients` for the "Client App"
 --- admin section. Design: project_client_app_section.
 ---
---- Model: each app (Playground / GO / Drop) has a master on/off ({app}_enabled)
+--- Model: each app (Playground / GO / Spot) has a master on/off ({app}_enabled)
 --- plus an independent billing clock identical to the existing Playground one
 --- (billing-ok bool -> server-stamped *_overdue_since on transition -> grace_days
---- countdown -> app locks). No recovery reprieve for GO/Drop (that stays a
---- Playground-only concept). GO/Drop billing-ok reuse / add columns below.
+--- countdown -> app locks). No recovery reprieve for GO/Spot (that stays a
+--- Playground-only concept). GO/Spot billing-ok reuse / add columns below.
 ---
 ---   Playground  : reuses billing_up_to_date / billing_overdue_since /
 ---                 billing_grace_days / billing_reprieve_days / devices_disabled /
@@ -14,8 +14,8 @@
 ---                 NEW: go_billing_overdue_since, go_billing_grace_days.
 ---                 go_subscription_valid_until is RETIRED (code stops reading it;
 ---                 column left in place to avoid a destructive drop).
----   Drop        : NEW drop_enabled, drop_billing_ok, drop_billing_overdue_since,
----                 drop_billing_grace_days (no app consumes them yet).
+---   Spot        : NEW spot_enabled, spot_billing_ok, spot_billing_overdue_since,
+---                 spot_billing_grace_days (no app consumes them yet).
 ---
 --- Safe to run multiple times: each ALTER is gated on INFORMATION_SCHEMA so an
 --- existing column is skipped (avoids MariaDB-only `ADD COLUMN IF NOT EXISTS`,
@@ -60,48 +60,48 @@ SET @sql = (SELECT IF(
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- clients.drop_enabled -- master on/off for the (future) Drop app. No existing
--- client owns Drop, so default 0.
+-- clients.spot_enabled -- master on/off for the (future) Spot app. No existing
+-- client owns Spot, so default 0.
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'drop_enabled') > 0,
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'spot_enabled') > 0,
     'SELECT 1',
-    'ALTER TABLE clients ADD COLUMN drop_enabled TINYINT(1) NOT NULL DEFAULT 0'
+    'ALTER TABLE clients ADD COLUMN spot_enabled TINYINT(1) NOT NULL DEFAULT 0'
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- clients.drop_billing_ok -- billing-ok bool for Drop. Default 1 (current).
+-- clients.spot_billing_ok -- billing-ok bool for Spot. Default 1 (current).
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'drop_billing_ok') > 0,
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'spot_billing_ok') > 0,
     'SELECT 1',
-    'ALTER TABLE clients ADD COLUMN drop_billing_ok TINYINT(1) NOT NULL DEFAULT 1'
+    'ALTER TABLE clients ADD COLUMN spot_billing_ok TINYINT(1) NOT NULL DEFAULT 1'
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- clients.drop_billing_overdue_since -- stamped on drop_billing_ok 1 -> 0.
+-- clients.spot_billing_overdue_since -- stamped on spot_billing_ok 1 -> 0.
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'drop_billing_overdue_since') > 0,
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'spot_billing_overdue_since') > 0,
     'SELECT 1',
-    'ALTER TABLE clients ADD COLUMN drop_billing_overdue_since DATETIME NULL DEFAULT NULL'
+    'ALTER TABLE clients ADD COLUMN spot_billing_overdue_since DATETIME NULL DEFAULT NULL'
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- clients.drop_billing_grace_days -- days after drop_billing_overdue_since before
--- Drop locks. Default 30.
+-- clients.spot_billing_grace_days -- days after spot_billing_overdue_since before
+-- Spot locks. Default 30.
 -- ─────────────────────────────────────────────────────────────────────────────
 SET @sql = (SELECT IF(
     (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'drop_billing_grace_days') > 0,
+       WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'clients' AND COLUMN_NAME = 'spot_billing_grace_days') > 0,
     'SELECT 1',
-    'ALTER TABLE clients ADD COLUMN drop_billing_grace_days INT NOT NULL DEFAULT 30'
+    'ALTER TABLE clients ADD COLUMN spot_billing_grace_days INT NOT NULL DEFAULT 30'
 ));
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 

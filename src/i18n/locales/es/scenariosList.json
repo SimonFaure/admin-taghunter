@@ -36,6 +36,13 @@
     "audience": "Público",
     "difficulty": "Dificultad",
     "type": "Tipo",
-    "version": "Versión"
+    "version": "Versión",
+    "languages": "Idiomas"
+  },
+  "facets": {
+    "age": "Edad",
+    "difficulty": "Dificultad",
+    "univers": "Universo",
+    "clear": "Restablecer"
   }
 }

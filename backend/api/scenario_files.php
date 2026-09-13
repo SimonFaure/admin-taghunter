@@ -24,6 +24,59 @@ function resolveEmailFromRequest() {
     return null;
 }
 
+/**
+ * May this caller read a scenario's attached files?
+ *
+ * The three historical checks were: owns it, is an admin, or holds an explicit
+ * `client_scenarios` grant. That misses PREMIUM clients entirely - they hold the
+ * whole product catalogue with NO grant rows (see client_scenarios.php?action=list,
+ * which serves them `scenario_type = "product"` directly and even counts the
+ * attached files for the card badge). So a premium client saw the scenario, saw
+ * that it had downloadable files, opened the tab and got a silent 403: "aucun
+ * fichier disponible pour le moment" (retour Ludiom #59). This adds that fourth
+ * case, matching what the catalogue already shows them.
+ *
+ * @param int|string $scenarioId
+ */
+function clientMayReadScenarioFiles($pdo, $scenarioId, $email) {
+    $stmt = $pdo->prepare("
+        SELECT s.scenario_type, c.email AS client_email, a.email AS admin_email
+        FROM scenarios s
+        LEFT JOIN clients c ON s.client_id = c.id
+        LEFT JOIN admin_users a ON s.created_by = a.id
+        WHERE s.id = ?
+    ");
+    $stmt->execute([$scenarioId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) return false;
+
+    // Owner (client or authoring admin).
+    if ($row['client_email'] === $email || $row['admin_email'] === $email) return true;
+
+    // Any admin.
+    $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+    $stmt->execute([$email]);
+    if ($stmt->fetch(PDO::FETCH_ASSOC)) return true;
+
+    // Explicit grant, in any mode.
+    $stmt = $pdo->prepare("
+        SELECT cs.id FROM client_scenarios cs
+        JOIN clients c ON cs.client_id = c.id
+        WHERE cs.scenario_id = ? AND c.email = ?
+    ");
+    $stmt->execute([$scenarioId, $email]);
+    if ($stmt->fetch(PDO::FETCH_ASSOC)) return true;
+
+    // Premium client + product scenario = implicit access.
+    if ($row['scenario_type'] === 'product') {
+        $stmt = $pdo->prepare("SELECT id FROM clients WHERE email = ? AND license_type = 'premium'");
+        $stmt->execute([$email]);
+        if ($stmt->fetch(PDO::FETCH_ASSOC)) return true;
+    }
+
+    return false;
+}
+
 try {
     $dbInstance = Database::getInstance();
     $pdo = $dbInstance->getConnection();
@@ -52,6 +105,10 @@ try {
 
         case 'get_scenario':
             handleGetScenario($pdo);
+            break;
+
+        case 'recap':
+            handleRecap($pdo);
             break;
 
         case 'upload_video':
@@ -101,23 +158,8 @@ function handleGetScenario($pdo) {
         return;
     }
 
-    $hasAccess = ($scenario['client_email'] === $email);
-    if (!$hasAccess) {
-        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
-        $stmt2->execute([$email]);
-        $hasAccess = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
-    }
-    if (!$hasAccess) {
-        $stmt3 = $pdo->prepare("
-            SELECT cs.id FROM client_scenarios cs
-            JOIN clients c ON cs.client_id = c.id
-            WHERE cs.scenario_id = ? AND c.email = ?
-        ");
-        $stmt3->execute([$scenario['id'], $email]);
-        $hasAccess = ($stmt3->fetch(PDO::FETCH_ASSOC) !== false);
-    }
-
-    if (!$hasAccess) {
+    // Read access: owner / admin / explicit grant / premium+product (#59).
+    if (!clientMayReadScenarioFiles($pdo, $scenario['id'], $email)) {
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized']);
         return;
@@ -204,6 +246,221 @@ function handleGetScenario($pdo) {
             'files_count' => count($files),
             'files' => $fileList,
         ]
+    ]);
+}
+
+/* ───────────────────────────── Scenario recap ───────────────────────────────
+ * The "little book" page of the old Laravel app (/jeux/scenario/...), which
+ * licensees used to read which balise produced which image. It disappeared in
+ * the Studio rewrite and was missed (retour Ludiom #40).
+ *
+ * This action returns the ONE thing that page was really for: the scenario's
+ * items (enigmas / quests / checkpoints) with their images, points and - via
+ * `pattern_slot` on each image - which pattern row slot the image is assigned
+ * to. The frontend joins that against `patterns.php?action=list` +
+ * `?action=stations` to print the station number and name, so a licensee can
+ * pick a pattern and see the full correspondence.
+ *
+ * Localized fields are flattened to the scenario's default language (the recap
+ * is a paper document; there is no language switcher on it).
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** Flatten a Localized<string> map (or a legacy plain string) to one language. */
+function recapText($value, $lang) {
+    if (is_string($value)) return $value;
+    if (!is_array($value)) return '';
+    if (isset($value[$lang]) && is_string($value[$lang]) && $value[$lang] !== '') {
+        return $value[$lang];
+    }
+    foreach ($value as $v) {
+        if (is_string($v) && $v !== '') return $v;
+    }
+    return '';
+}
+
+/** Resolve a bare media filename to the path the frontend prefixes with VITE_MEDIA_BASE_URL. */
+// Mystery wrong-answer points are authored SIGNED (negative = penalty), like the
+// maluses. Legacy scenarios stored the bare magnitude, so show it as the
+// negative it actually scores rather than an ambiguous "5 pts".
+function recapWrongPoints($raw) {
+    $s = trim((string)($raw ?? ''));
+    if ($s === '' || !is_numeric($s)) return $s;
+    $n = (float)$s;
+    if ($n == 0) return '0';
+    return $n > 0 ? '-' . ltrim($s, '+') : $s;
+}
+
+function recapMediaUrl($filename, $uniqid) {
+    $filename = trim((string)$filename);
+    if ($filename === '') return null;
+    if (strpos($filename, 'http') === 0 || strpos($filename, '/') === 0) return $filename;
+    return '/media/' . $uniqid . '/' . basename($filename);
+}
+
+/**
+ * One recap image entry. `pattern_slot` is the `pattern_items.assignment_type`
+ * this image is read from at runtime - null for images a pattern never maps
+ * (a quest's assembled picture, say).
+ */
+function recapImage($label, $slot, $filename, $uniqid) {
+    $url = recapMediaUrl($filename, $uniqid);
+    if ($url === null) return null;
+    return ['label' => $label, 'pattern_slot' => $slot, 'url' => $url];
+}
+
+function handleRecap($pdo) {
+    $uniqid = $_GET['uniqid'] ?? null;
+    if (!$uniqid) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing uniqid']);
+        return;
+    }
+
+    $email = resolveEmailFromRequest();
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        SELECT id, title, description, uniqid, game_type, scenario_type,
+               IFNULL(version, '1.0') AS version, data, medias
+        FROM scenarios WHERE uniqid = ?
+    ");
+    $stmt->execute([$uniqid]);
+    $scenario = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$scenario) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Scenario not found']);
+        return;
+    }
+
+    // Same read gate as the files tab - including the premium/product case.
+    if (!clientMayReadScenarioFiles($pdo, $scenario['id'], $email)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    $dataArr = $scenario['data'] ? json_decode($scenario['data'], true) : [];
+    if (!is_array($dataArr)) $dataArr = [];
+    // Tolerate the wrapped (`data.data.game_meta`) shape older rows carry.
+    $root = isset($dataArr['game_meta']) ? $dataArr : ($dataArr['data'] ?? $dataArr);
+    $gameMeta = is_array($root['game_meta'] ?? null) ? $root['game_meta'] : [];
+    $lang = is_string($root['default_language'] ?? null) ? $root['default_language'] : 'fr';
+
+    $medias = $scenario['medias'] ? json_decode($scenario['medias'], true) : [];
+    if (!is_array($medias)) $medias = [];
+
+    $gameType = $scenario['game_type'];
+    $items = [];
+
+    if ($gameType === 'mystery') {
+        // Per-enigma images live in `medias.enigmas[]` keyed by enigma_number
+        // (cleanGameMetaForData strips them out of game_meta on save).
+        $byNumber = [];
+        foreach ((is_array($medias['enigmas'] ?? null) ? $medias['enigmas'] : []) as $m) {
+            if (is_array($m) && isset($m['enigma_number'])) {
+                $byNumber[(string)$m['enigma_number']] = $m;
+            }
+        }
+        foreach ((is_array($gameMeta['enigmas'] ?? null) ? $gameMeta['enigmas'] : []) as $i => $e) {
+            if (!is_array($e)) continue;
+            $number = (string)($e['number'] ?? ($i + 1));
+            $m = $byNumber[$number] ?? [];
+            $images = array_values(array_filter([
+                recapImage('good_answer', 'good_answer_station', $m['good_answer_image'] ?? ($e['good_answer_image'] ?? ''), $uniqid),
+                recapImage('wrong_answer', 'wrong_answer_station', $m['wrong_answer_image'] ?? ($e['wrong_answer_image'] ?? ''), $uniqid),
+            ]));
+            $items[] = [
+                // `pattern_index` is what a pattern row is matched on. Mystery
+                // matches by enigma NUMBER (that is what item_index carries),
+                // not by position - see useMysteryPatternStations.
+                'pattern_index' => is_numeric($number) ? (int)$number : ($i + 1),
+                'number' => $number,
+                'title' => recapText($e['text'] ?? '', $lang),
+                'description' => '',
+                'points' => [
+                    'good' => (string)($e['good_answer_points'] ?? ''),
+                    'wrong' => recapWrongPoints($e['wrong_answer_points'] ?? ''),
+                ],
+                'images' => $images,
+            ];
+        }
+    } elseif ($gameType === 'tagquest') {
+        $byIndex = [];
+        foreach ((is_array($medias['quests'] ?? null) ? $medias['quests'] : []) as $m) {
+            if (is_array($m) && isset($m['quest_index'])) {
+                $byIndex[(int)$m['quest_index']] = $m;
+            }
+        }
+        foreach ((is_array($gameMeta['quests'] ?? null) ? $gameMeta['quests'] : []) as $i => $q) {
+            if (!is_array($q)) continue;
+            $m = $byIndex[$i] ?? [];
+            $images = [];
+            // The assembled picture the four pieces build up to - the very thing
+            // the old recap page existed to show next to its balises.
+            $main = recapImage('main_image', null, $m['main_image'] ?? ($q['main_image'] ?? ''), $uniqid);
+            if ($main) $images[] = $main;
+            foreach ([1, 2, 3, 4] as $n) {
+                $piece = recapImage('image_' . $n, 'image_' . $n, $m['image_' . $n] ?? ($q['image_' . $n] ?? ''), $uniqid);
+                if ($piece) $images[] = $piece;
+            }
+            $items[] = [
+                // Tagquest patterns are matched POSITIONALLY onto quests
+                // (see useTagquestPatternStations), so row 1 = quest 1.
+                'pattern_index' => $i + 1,
+                'number' => (string)($i + 1),
+                'title' => recapText($q['name'] ?? '', $lang),
+                'description' => '',
+                'points' => ['points' => (string)($q['points'] ?? '')],
+                'images' => $images,
+            ];
+        }
+    } elseif ($gameType === 'tracks') {
+        $byNumber = [];
+        foreach ((is_array($medias['checkpoints'] ?? null) ? $medias['checkpoints'] : []) as $m) {
+            if (is_array($m) && isset($m['checkpoint_number'])) {
+                $byNumber[(int)$m['checkpoint_number']] = $m;
+            }
+        }
+        foreach ((is_array($gameMeta['checkpoints'] ?? null) ? $gameMeta['checkpoints'] : []) as $i => $c) {
+            if (!is_array($c)) continue;
+            $m = $byNumber[$i + 1] ?? [];
+            $images = array_values(array_filter([
+                recapImage('checkpoint', 'station', $m['image'] ?? ($c['image'] ?? ''), $uniqid),
+            ]));
+            $items[] = [
+                'pattern_index' => $i + 1,
+                'number' => (string)($i + 1),
+                'title' => recapText($c['title'] ?? '', $lang),
+                'description' => recapText($c['description'] ?? '', $lang),
+                'points' => ['points' => (string)($c['points'] ?? '')],
+                'images' => $images,
+            ];
+        }
+    }
+
+    echo json_encode([
+        'success' => true,
+        'data' => [
+            'uniqid' => $scenario['uniqid'],
+            'title' => $scenario['title'],
+            'description' => $scenario['description'],
+            'game_type' => $gameType,
+            'scenario_type' => $scenario['scenario_type'],
+            'version' => $scenario['version'],
+            'language' => $lang,
+            'background_image' => recapMediaUrl($medias['images']['background_image'] ?? '', $uniqid),
+            // The pattern the author picked as this scenario's default, so the
+            // recap can preselect it instead of making the licensee guess.
+            'default_pattern_uniqid' => is_string($gameMeta['scenario_default_pattern'] ?? null)
+                ? $gameMeta['scenario_default_pattern']
+                : null,
+            'items' => $items,
+        ],
     ]);
 }
 
@@ -545,22 +802,9 @@ function handleDownloadZip($pdo) {
         return;
     }
 
-    $isOwner = ($scenario['client_email'] === $email) || ($scenario['admin_email'] === $email);
+    // Same read rule as the per-file download (#59).
+    $isOwner = clientMayReadScenarioFiles($pdo, $scenario['id'], $email);
     $isAdmin = false;
-    if (!$isOwner) {
-        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
-        $stmt2->execute([$email]);
-        $isAdmin = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
-    }
-    if (!$isOwner && !$isAdmin) {
-        $stmt3 = $pdo->prepare("
-            SELECT cs.id FROM client_scenarios cs
-            JOIN clients c ON cs.client_id = c.id
-            WHERE cs.scenario_id = ? AND c.email = ?
-        ");
-        $stmt3->execute([$scenario['id'], $email]);
-        $isOwner = ($stmt3->fetch(PDO::FETCH_ASSOC) !== false);
-    }
 
     if (!$isOwner && !$isAdmin) {
         http_response_code(403);
@@ -645,24 +889,9 @@ function handleDownloadFile($pdo) {
         return;
     }
 
-    $isOwner = ($file['client_email'] === $email) || ($file['admin_email'] === $email);
-    $isAdmin = false;
-    if (!$isOwner) {
-        $stmt2 = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
-        $stmt2->execute([$email]);
-        $isAdmin = ($stmt2->fetch(PDO::FETCH_ASSOC) !== false);
-    }
-    if (!$isOwner && !$isAdmin) {
-        $stmt3 = $pdo->prepare("
-            SELECT cs.id FROM client_scenarios cs
-            JOIN clients c ON cs.client_id = c.id
-            WHERE cs.scenario_id = ? AND c.email = ?
-        ");
-        $stmt3->execute([$file['scenario_id'], $email]);
-        $isOwner = ($stmt3->fetch(PDO::FETCH_ASSOC) !== false);
-    }
-
-    if (!$isOwner && !$isAdmin) {
+    // Same read rule as the listing that offered this file (#59) - otherwise a
+    // premium client can see the file but not download it.
+    if (!clientMayReadScenarioFiles($pdo, $file['scenario_id'], $email)) {
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized']);
         return;

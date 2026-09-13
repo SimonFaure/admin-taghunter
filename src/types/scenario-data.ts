@@ -70,6 +70,15 @@ export const EnigmaSchema = z.looseObject({
   short_code: z.string().optional(),
   wrong_answer_image_2: z.string().optional(),
   wrong_answer_image_3: z.string().optional(),
+
+  // Tag Hunter Spot additions (only used when the scenario is `adaptable_spot`).
+  // `spot_question` is the question shown above the answer tiles - Spot has no
+  // physical panneau to carry it, so it replaces the generic "tap the right
+  // image" prompt. `difficulty` is 1..3 stars, shown under the enigma title next
+  // to the points and used to break the final recap down by difficulty.
+  // See memory project_taghunter_spot.
+  spot_question: LocalizedStringSchema.optional(),
+  difficulty: z.union([z.number(), z.string()]).optional(),
 });
 
 export const QuestSchema = z.looseObject({
@@ -189,6 +198,24 @@ export const MysteryGameMetaSchema = BaseGameMetaSchema.extend({
   score_full_game: z.string().optional(),
   animation_enigma_duration: z.string().optional(),
   gauge_filling: z.string().optional(),
+  // Where the coloured fill sits inside the gauge artwork. Insets are % of the
+  // gauge bar (left/right of its width, y of its height), radius is px. Blank →
+  // the built-in geometry. See resolveMysteryGaugeGeometry.
+  gauge_fill_inset_left: z.string().optional(),
+  gauge_fill_inset_right: z.string().optional(),
+  gauge_fill_inset_y: z.string().optional(),
+  gauge_fill_radius: z.string().optional(),
+  // Geometry of the coloured result plate ("sous-cadre") drawn on each enigma
+  // tile: size as % of the tile, corner rounding as % of the tile, and how much
+  // of the tint is repeated over the artwork (% of the plate colour, 0 = none).
+  // Blank → the built-in look. See resolveMysteryStatusFrame (retours #83/#85).
+  status_frame_scale: z.string().optional(),
+  status_frame_radius: z.string().optional(),
+  status_frame_over_image: z.string().optional(),
+  // Size of the square underlay each enigma's main image sits on, % of the
+  // space available for it. Blank → 100 (the historical full-height tile).
+  // See resolveMysteryUnderlayScale.
+  enigma_underlay_scale: z.string().optional(),
   game_instructions_image: z.string().optional(),
   game_instructions_button_image: z.string().optional(),
   game_instructions_button_hover_image: z.string().optional(),
@@ -200,6 +227,9 @@ export const MysteryGameMetaSchema = BaseGameMetaSchema.extend({
   levels_gauge_level_icon_image: z.string().optional(),
   time_background_image: z.string().optional(),
   score_background_image: z.string().optional(),
+  // Frame drawn behind the author-placed team-name text. Mystery had no upload
+  // slot for it until retour #36, so team names sat straight on the background.
+  team_name_background_image: z.string().optional(),
   enigmas_header_image: z.string().optional(),
   steps_container_image: z.string().optional(),
   enigma_success: z.string().optional(),
@@ -236,19 +266,42 @@ export const MysteryGameMetaSchema = BaseGameMetaSchema.extend({
   // enigma correct letters from it. Set in the editor's Default pattern section.
   scenario_default_go_pattern: z.string().nullable().optional(),
 
-  // Tag Hunter Drop - the hardware-free, on-screen-image variant of Mystery.
-  // When true, this scenario is also usable in Drop (answer images shown on the
-  // device, no RFID). A scenario can be BOTH RFID/GO and Drop - enabling this
-  // never removes RFID data. See memory project_taghunter_drop.
-  adaptable_drop: z.boolean().optional(),
+  // Tag Hunter Spot - the hardware-free, on-screen-image variant of Mystery.
+  // When true, this scenario is also usable in Spot (answer images shown on the
+  // device, no RFID). A scenario can be BOTH RFID/GO and Spot - enabling this
+  // never removes RFID data. See memory project_taghunter_spot.
+  adaptable_spot: z.boolean().optional(),
 });
 
 export const TagquestGameMetaSchema = BaseGameMetaSchema.extend({
   quests: z.array(QuestSchema).optional(),
   end_station: z.string().optional(),
   malus_points: z.string().optional(),
+  // Legacy, unused: a station NUMBER that never had an editor field nor a
+  // playground consumer. Superseded by `malus_station` below - kept so old
+  // scenario blobs still parse.
   malus_station_number: z.string().optional(),
+  // The "trap" station: every punch on it costs `malus_points`. Stored as an
+  // `si_balises.id` - the SAME space as `pattern_items.station_key_number` and
+  // as the SI punch `code`, so the playground matches it with no resolution
+  // step (unlike Clash, which authors station NUMBERS and resolves at launch).
+  // Must never be one of the selected pattern's stations; both pickers in the
+  // tagquest editor enforce that.
+  malus_station: z.number().int().nullable().optional(),
   late_malus_points: z.string().optional(),
+  // Per-role HUD text size + colour (retours #1/#2). Keyed by the category ids
+  // in bodies/tagquest/typographyCategories.ts; `size` is a PERCENTAGE of the
+  // size authored in defaultLayout.ts (100 = unchanged) so the proportions
+  // between elements of one role survive. Absent on every pre-feature scenario.
+  tagquest_typography: z
+    .record(
+      z.string(),
+      z.looseObject({
+        size: z.number().optional(),
+        color: z.string().optional(),
+      }),
+    )
+    .optional(),
   combo_2_quests: z.string().optional(),
   combo_4_quests: z.string().optional(),
   combo_6_quests: z.string().optional(),
@@ -256,7 +309,10 @@ export const TagquestGameMetaSchema = BaseGameMetaSchema.extend({
   late_malus_image: z.string().optional(),
   custom_template: z.string().optional(),
   use_default_template: z.boolean().optional(),
-  success_sound: z.string().optional(),
+  // NOTE: the former `success_sound` (a global "success" sound) is retired - it
+  // had no trigger in the playground and was never played. Legacy blobs may
+  // still carry the key; the schema is loose, and `cleanGameMetaForData` drops
+  // it on the next save.
   cheating_sound: z.string().optional(),
   malus_sound: z.string().optional(),
   late_malus_sound: z.string().optional(),
@@ -362,11 +418,12 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
   map_image: z.string().optional(),
 
   // HUD frame images (renderered by the layout editor; positions live in
-  // scenarios.scenario_layout, NOT here)
+  // scenarios.scenario_layout, NOT here). Three only - `time_background_image`
+  // was a never-drawn duplicate of the timer frame, dropped 2026-09-04
+  // (retours point 43). Legacy values still round-trip via looseObject.
   team_name_background_image: z.string().optional(),
   timer_background_image: z.string().optional(),
   score_background_image: z.string().optional(),
-  time_background_image: z.string().optional(),
 
   // Feedback cue images (legacy maximus wrong_order_image / absent_image).
   // Shown full-screen at scoring time: a wrong-order break in itinerary mode,
@@ -384,12 +441,14 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
   checkpoints_unique_image_id: z.string().optional(),
   checkpoint_image_width_percentage: z.string().optional(),
 
-  // Routes (parcours) - 5 fixed presets, multi-enable at scenario level.
+  // Routes (parcours) - 6 fixed presets, multi-enable at scenario level.
   // Legacy key renames: half_first → first_half, half_last → last_half,
   // half_one_out_of_two → odd, half_one_out_of_two_plus → even.
+  // `reverse` = the default course walked backwards (added 2026-09-04).
   routes: z
     .looseObject({
       default: ToggleSchema.optional(),
+      reverse: ToggleSchema.optional(),
       first_half: ToggleSchema.optional(),
       last_half: ToggleSchema.optional(),
       odd: ToggleSchema.optional(),
@@ -438,6 +497,18 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
   checkpoint_success: z.string().optional(),
   checkpoint_error: z.string().optional(),
   checkpoint_no_answer: z.string().optional(),
+
+  // Rank rewards - the full-screen image + sound played when a team lands in
+  // the top 1 / 3 / 10 at the end of its run. Legacy `maximus` shipped these
+  // and the playground runtime has always played them; they only became
+  // AUTHORABLE on 2026-09-07 (retours point 94: an unexplained applause on an
+  // imported scenario, with no field in the editor to find or clear it).
+  top_1_image: z.string().optional(),
+  top_3_image: z.string().optional(),
+  top_10_image: z.string().optional(),
+  top_1_sound: z.string().optional(),
+  top_3_sound: z.string().optional(),
+  top_10_sound: z.string().optional(),
 
   // Pattern inheritance (theme bundle: ado_adultes / kids / mini_kids).
   // Renamed from legacy `game_default_pattern`.
@@ -507,8 +578,54 @@ export const ClashGameMetaSchema = BaseGameMetaSchema.extend({
   clans: z.array(ClashClanSchema).optional(),
   /** 8 territory slots (seeded skeleton, editable). */
   territories: z.array(ClashTerritorySchema).optional(),
-  /** Timer widget anchor on the map (percent). Placed in the editor; defaults top-centre (V2). */
+  /** Timer widget anchor on the map (percent). Placed in the editor; defaults
+   *  top-centre (V2). Since retours #52/#54 it also carries the plate's BOX
+   *  (`width`/`height`, percent of the map) - the frame image is stretched to
+   *  it and the clock is centred inside. ClashAnchorSchema is loose, so older
+   *  rows with only top/left keep working. */
   timer_position: ClashAnchorSchema.optional(),
+  /** Nudge of the clock text inside its plate, in percent of the plate box.
+   *  Retours #54 - the frame art is rarely centred on its own artwork, so the
+   *  text needs to move independently of the box. */
+  timer_text_offset: z.object({ x: z.number(), y: z.number() }).optional(),
+  /** Clan-ranking panel box (percent of the map box). Retours #52 - the panel
+   *  used to be pinned top-right at a fixed 340px, which reads tiny on a large
+   *  screen and could not be moved. Placed in the LayoutEditor. */
+  ranking_position: z
+    .object({ left: z.number(), top: z.number(), width: z.number(), height: z.number() })
+    .optional(),
+
+  /* -- On-map element sizes (retours #57 - nothing here used to be authorable,
+        so a scenario needing big flags could not have them). Image/gauge sizes
+        are a percent of the map WIDTH, like the tracks checkpoint icon; text
+        sizes are a percent SCALE where 100 = the historic default, like the
+        tracks HUD textScale. All optional. -- */
+  /** Clan banner/flag width over a controlled territory (% of map width). */
+  banner_size_percentage: z.number().optional(),
+  /** Purge marker width on the current target territory (% of map width). */
+  purge_size_percentage: z.number().optional(),
+  /** Territory relative-share gauge width (% of map width). */
+  gauge_size_percentage: z.number().optional(),
+  /** Territory-name plate font scale (% - 100 = default). */
+  territory_name_scale: z.number().optional(),
+  /** Timer clock font scale (% - 100 = default). */
+  timer_scale: z.number().optional(),
+
+  /* -- Per-element text colours (retours #53). Unset ⇒ white, as before. -- */
+  timer_color: z.string().optional(),
+  ranking_color: z.string().optional(),
+  territory_name_color: z.string().optional(),
+  event_color: z.string().optional(),
+
+  /* -- Event-banner sentences (retours #56). Blank ⇒ the app's translated
+        default for the launch language. `%CLAN%` / `%TERRITORY%` are
+        substituted; `%CLAN%` renders in the clan's colour. -- */
+  event_text_conquest: LocalizedStringSchema.optional(),
+  event_text_attack: LocalizedStringSchema.optional(),
+  event_text_neutralized: LocalizedStringSchema.optional(),
+  event_text_purge: LocalizedStringSchema.optional(),
+  /** Heading of the clan-ranking panel. Blank ⇒ the app default. */
+  ranking_title: LocalizedStringSchema.optional(),
   /** Optional dashboard chrome frames (fall back to default styling if unset) (V2). */
   frame_separator: z.string().optional(),
   frame_ranking: z.string().optional(),
@@ -522,6 +639,10 @@ export const ClashGameMetaSchema = BaseGameMetaSchema.extend({
   purge_image: z.string().optional(),
   /** Sound played on every in-game device when a purge fires (optional). */
   purge_sound: z.string().optional(),
+  /** Physical SI station number whose punch attempts a purge. Authored here so
+   *  the territory picker can keep it out of the balise sets (retours #50);
+   *  the launch modal seeds its own field from this value. Default 25. */
+  purge_station: z.number().optional(),
   /** Authored text overlays placed on the map via the LayoutEditor (reused from tracks). */
   text_elements: z.array(TextElementSchema).optional(),
   text_categories: z.array(TextCategorySchema).optional(),

@@ -17,8 +17,10 @@ export const tagquestMediaSlots: readonly MediaSlot[] = [
   { key: 'late_malus_image', kind: 'image', required: false, scope: 'type', label: 'Late malus icon', labelKey: 'tagquest_late_malus_image' },
   { key: 'custom_template', kind: 'image', required: false, scope: 'type', label: 'Custom template', labelKey: 'tagquest_custom_template' },
 
-  // Tagquest-only sounds
-  { key: 'success_sound', kind: 'sound', required: false, scope: 'type', label: 'Success sound', labelKey: 'tagquest_success_sound' },
+  // Tagquest-only sounds. Each one is played by an identified event in the
+  // playground - see TagQuestGamePage (`playScenarioSound`). The former global
+  // "success sound" was retired: it had no trigger of its own (quest completion
+  // already plays the quest's own sound) and was silently never played.
   { key: 'cheating_sound', kind: 'sound', required: false, scope: 'type', label: 'Cheating sound', labelKey: 'tagquest_cheating_sound' },
   { key: 'malus_sound', kind: 'sound', required: false, scope: 'type', label: 'Malus sound', labelKey: 'tagquest_malus_sound' },
   { key: 'late_malus_sound', kind: 'sound', required: false, scope: 'type', label: 'Late malus sound', labelKey: 'tagquest_late_malus_sound' },
@@ -38,7 +40,6 @@ export const tagquestImageFields = [
 
 export const tagquestSoundFields = [
   'final_image_sound',
-  'success_sound',
   'cheating_sound',
   'malus_sound',
   'late_malus_sound',

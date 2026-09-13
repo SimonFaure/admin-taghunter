@@ -17,6 +17,7 @@ import { HudFramesSection } from './sections/HudFramesSection';
 import { TextElementsSection } from './sections/TextElementsSection';
 import { FeedbackImagesSection } from './sections/FeedbackImagesSection';
 import { SoundsSection } from './sections/SoundsSection';
+import { RankRewardsSection } from './sections/RankRewardsSection';
 import { PatternSection } from './sections/PatternSection';
 
 export function TracksBody() {
@@ -34,6 +35,7 @@ export function TracksBody() {
       <TextElementsSection />
       <FeedbackImagesSection />
       <SoundsSection />
+      <RankRewardsSection />
     </>
   );
 }

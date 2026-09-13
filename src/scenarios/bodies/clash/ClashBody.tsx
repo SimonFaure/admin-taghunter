@@ -9,6 +9,7 @@ import { ClansSection } from './sections/ClansSection';
 import { TerritoriesSection } from './sections/TerritoriesSection';
 import { ClashMapSection } from './sections/ClashMapSection';
 import { ClashPurgeSection } from './sections/ClashPurgeSection';
+import { ClashEventTextsSection } from './sections/ClashEventTextsSection';
 // Reused as-is - the tracks text-elements section is game-type-agnostic (it
 // edits gameMeta.text_elements + text_categories). Positions are placed in the
 // LayoutEditor over the map.
@@ -21,6 +22,7 @@ export function ClashBody() {
       <ClansSection />
       <TerritoriesSection />
       <ClashPurgeSection />
+      <ClashEventTextsSection />
       <TextElementsSection />
     </>
   );

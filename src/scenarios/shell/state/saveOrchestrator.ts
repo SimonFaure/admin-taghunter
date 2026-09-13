@@ -113,11 +113,14 @@ function buildCanonicalUpdate<TGameMeta>(payload: SavePayload<TGameMeta>) {
  * the local one, so every content save MUST advance it - otherwise edits stay
  * invisible to already-synced playgrounds. The playground compares versions as
  * floats, so a 0.1 step is enough. Shared by the editor save and layout save.
+ *
+ * Returns the value written, or null when the read failed and the version was
+ * left untouched - callers that need to mirror it (see performSave) use that.
  */
 export async function bumpScenarioVersion(
   scenarioId: number | string,
   update: Record<string, unknown>,
-): Promise<void> {
+): Promise<string | null> {
   try {
     const { data } = await db
       .from('scenarios')
@@ -125,9 +128,12 @@ export async function bumpScenarioVersion(
       .eq('id', scenarioId)
       .single();
     const cur = Number((data as { version?: unknown } | null)?.version) || 0;
-    update.version = String(Number((cur + 0.1).toFixed(1)));
+    const next = String(Number((cur + 0.1).toFixed(1)));
+    update.version = next;
+    return next;
   } catch {
     // Leave version untouched if the read fails - better than writing a bad value.
+    return null;
   }
 }
 
@@ -141,7 +147,16 @@ export async function performSave<TGameMeta>(payload: SavePayload<TGameMeta>): P
     const update = buildCanonicalUpdate(payload);
     // Bump the row version (+0.1) so already-synced playgrounds re-download the
     // edited scenario. Read-then-increment.
-    await bumpScenarioVersion(payload.scenarioId, update);
+    const newVersion = await bumpScenarioVersion(payload.scenarioId, update);
+    // Retours #15 - one version number, everywhere. `scenarios.version` (the
+    // row) is what the scenario vignette and the editor's read-only field show;
+    // `game_meta.scenario_version` is what the ZIP, the playground's scenario
+    // details modal and the publish toast used to show. They drifted because
+    // only the row bumped on a plain save. Mirroring the row value into
+    // game_meta on every write keeps the two identical from now on.
+    if (newVersion) {
+      update.data.game_meta.scenario_version = newVersion;
+    }
     const { data, error } = await db
       .from('scenarios')
       .update(update)

@@ -1,6 +1,6 @@
 /**
- * HUD frames section - background frames for the 4 in-play HUD elements
- * (team name, timer, score, time). Positions/sizes live in the layout editor
+ * HUD frames section - background frames for the 3 in-play HUD elements
+ * (team name, timer, score). Positions/sizes live in the layout editor
  * (scenarios.scenario_layout column), NOT here.
  */
 
@@ -14,7 +14,6 @@ const KEYS = [
   'team_name_background_image',
   'timer_background_image',
   'score_background_image',
-  'time_background_image',
 ] as const;
 
 export function HudFramesSection() {

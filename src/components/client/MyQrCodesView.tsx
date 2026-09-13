@@ -5,13 +5,17 @@ import { Download, QrCode } from 'lucide-react';
 import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
 import { getAppAccess } from '../../auth/appAccess';
-import type { ClientScenario } from './types';
+import {
+  DurationCatalogCard,
+  ScenarioDurationPicker,
+  useDurationCatalog,
+} from '../go/durations';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 // The player PWAs. Each QR opens the app pointed at a specific client + scenario;
-// the QR is durable/printable (memory project_taghunter_go / project_taghunter_drop).
+// the QR is durable/printable (memory project_taghunter_go / project_taghunter_spot).
 const GO_BASE_URL = import.meta.env.VITE_GO_BASE_URL || 'https://go.taghunter.fr';
-const DROP_BASE_URL = import.meta.env.VITE_DROP_BASE_URL || 'https://drop.taghunter.fr';
+const SPOT_BASE_URL = import.meta.env.VITE_SPOT_BASE_URL || 'https://spot.taghunter.fr';
 
 function playerUrl(base: string, clientId: string, scenarioId: string): string {
   return `${base}/?c=${encodeURIComponent(clientId)}&s=${encodeURIComponent(scenarioId)}`;
@@ -21,19 +25,24 @@ function playerUrl(base: string, clientId: string, scenarioId: string): string {
 interface QrItem {
   id: string;
   title: string;
+  /** The challenges offered for this scenario in this app (minutes). */
+  durations: number[];
 }
 
 /**
- * Client "QR codes" - printable launch QR codes for the GO / Drop scenarios this
+ * Client "QR codes" - printable launch QR codes for the GO / Spot scenarios this
  * client has been granted. Each QR opens the matching player PWA on a phone,
  * scoped to this client + scenario. One section per enabled app
- * (project_taghunter_go / project_taghunter_drop).
+ * (project_taghunter_go / project_taghunter_spot).
  */
 export function MyQrCodesView() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const access = getAppAccess(user);
   const clientId = user?.client_id ?? '';
+  // The catalog is loaded once here and handed to every QR card, so the tick-box
+  // rows don't each re-fetch it (project_go_spot_durations).
+  const { catalog, loading: catalogLoading, save: saveCatalog } = useDurationCatalog();
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -45,11 +54,13 @@ export function MyQrCodesView() {
         {t('clientGameConfig:qrCodes.subtitle')}
       </p>
 
+      <DurationCatalogCard catalog={catalog} onSave={saveCatalog} loading={catalogLoading} />
+
       {access.go && (
-        <QrSection clientId={clientId} app="go" baseUrl={GO_BASE_URL} heading="Tag Hunter GO" accent="emerald" />
+        <QrSection clientId={clientId} app="go" baseUrl={GO_BASE_URL} heading="Tag Hunter GO" accent="emerald" catalog={catalog} />
       )}
-      {access.drop && (
-        <QrSection clientId={clientId} app="drop" baseUrl={DROP_BASE_URL} heading="Tag Hunter Drop" accent="sky" />
+      {access.spot && (
+        <QrSection clientId={clientId} app="spot" baseUrl={SPOT_BASE_URL} heading="Tag Hunter Spot" accent="sky" catalog={catalog} />
       )}
     </div>
   );
@@ -62,12 +73,14 @@ function QrSection({
   baseUrl,
   heading,
   accent,
+  catalog,
 }: {
   clientId: string;
-  app: 'go' | 'drop';
+  app: 'go' | 'spot';
   baseUrl: string;
   heading: string;
   accent: 'emerald' | 'sky';
+  catalog: number[];
 }) {
   const { t } = useTranslation();
   const [items, setItems] = useState<QrItem[]>([]);
@@ -78,27 +91,30 @@ function QrSection({
     (async () => {
       setLoading(true);
       try {
-        if (app === 'drop') {
-          // Drop grants (mode='drop') - exactly the scenarios this client runs in Drop.
-          const res = await authFetch(
-            `${API_BASE_URL}/client_scenarios.php?action=list_drop&client_id=${clientId}`,
-            { credentials: 'include' },
-          );
-          if (res.ok) {
-            const json = await res.json();
-            const rows = (json.data || []) as Array<{ scenario_id: string | number; title: string }>;
-            if (!cancelled) setItems(rows.map((r) => ({ id: String(r.scenario_id), title: r.title })));
-          }
-        } else {
-          // GO uses the regular grant list, filtered to GO-capable scenarios.
-          const res = await authFetch(
-            `${API_BASE_URL}/client_scenarios.php?action=list&client_id=${clientId}`,
-            { credentials: 'include' },
-          );
-          if (res.ok) {
-            const json = await res.json();
-            const rows = ((json.data || []) as ClientScenario[]).filter((s) => s.adaptable_go);
-            if (!cancelled) setItems(rows.map((s) => ({ id: String(s.id), title: s.title })));
+        // Both apps read their real grants (mode='go' / mode='spot') — exactly
+        // the pairs go.php will serve. The generic `list` action returns every
+        // product scenario for PREMIUM clients regardless of grants, so building
+        // the GO grid from it produced QR codes that refused when scanned.
+        const action = app === 'spot' ? 'list_spot' : 'list_go';
+        const res = await authFetch(
+          `${API_BASE_URL}/client_scenarios.php?action=${action}&client_id=${clientId}`,
+          { credentials: 'include' },
+        );
+        if (res.ok) {
+          const json = await res.json();
+          const rows = (json.data || []) as Array<{
+            scenario_id: string | number;
+            title: string;
+            durations?: number[];
+          }>;
+          if (!cancelled) {
+            setItems(
+              rows.map((r) => ({
+                id: String(r.scenario_id),
+                title: r.title,
+                durations: r.durations ?? [],
+              })),
+            );
           }
         }
       } catch (err) {
@@ -158,6 +174,17 @@ function QrSection({
               >
                 <Download className="w-4 h-4" /> {t('clientGameConfig:qrCodes.downloadSvg')}
               </button>
+
+              {/* Which challenges this QR proposes. One = applied silently;
+                  several = the player picks on the setup screen. */}
+              <div className="mt-4 w-full border-t border-slate-100 pt-3">
+                <ScenarioDurationPicker
+                  scenarioId={s.id}
+                  app={app}
+                  catalog={catalog}
+                  initial={s.durations}
+                />
+              </div>
             </div>
           ))}
         </div>

@@ -351,6 +351,42 @@ try {
         jsonResponseWithAuthState($db, $clientId, ['success' => true]);
         break;
 
+    // Upsert ONLY the given keys, leaving every other key untouched. Unlike
+    // update_meta (whole-map replace) this is safe to call from several devices
+    // at once - self-register writes per-chip keys from every registration
+    // station concurrently, and a client-side read-merge-write loses whichever
+    // key lost the race. A null value deletes the key.
+    case 'merge_meta':
+        if ($method !== 'POST') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $data = getRequestData();
+        $id = isset($data['id']) ? (int)$data['id'] : 0;
+        $meta = isset($data['meta']) && is_array($data['meta']) ? $data['meta'] : [];
+        requireLaunchedGameOwned($db, $id, $clientId);
+        $db->execute('START TRANSACTION');
+        try {
+            foreach ($meta as $k => $v) {
+                if (!is_string($k)) continue;
+                $db->execute(
+                    'DELETE FROM launched_game_meta WHERE launched_game_id = ? AND meta_name = ?',
+                    [$id, $k]
+                );
+                if ($v !== null) {
+                    $db->execute(
+                        'INSERT INTO launched_game_meta (launched_game_id, meta_name, meta_value) VALUES (?, ?, ?)',
+                        [$id, $k, (string)$v]
+                    );
+                }
+            }
+            $db->execute('COMMIT');
+        } catch (Exception $e) {
+            try { $db->execute('ROLLBACK'); } catch (Exception $rb) { /* swallow */ }
+            throw $e;
+        }
+        jsonResponseWithAuthState($db, $clientId, ['success' => true]);
+        break;
+
     case 'state':
         if ($method !== 'GET') {
             jsonResponse(['error' => 'Method not allowed'], 405);
@@ -548,6 +584,19 @@ try {
         $id = isset($data['id']) ? (int)$data['id'] : 0;
         requireLaunchedGameOwned($db, $id, $clientId);
         $db->execute('UPDATE launched_games SET ended = 1 WHERE id = ?', [$id]);
+        // Closing the game closes every run still open, for EVERY game type: a
+        // team stopped mid-run by the operator (or by the timer) is finished,
+        // not eternally "in progress". Mirrors the mother's end_game and the
+        // per-team "end team" button - end_time = the moment of closure, and a
+        // team that never started gets start_time backfilled so its recorded
+        // duration is 0 rather than a bogus negative.
+        $endedAt = time();
+        $db->execute(
+            'UPDATE teams
+                SET end_time = ?, start_time = COALESCE(start_time, ?)
+              WHERE launched_game_id = ? AND end_time IS NULL',
+            [$endedAt, $endedAt, $id]
+        );
         jsonResponseWithAuthState($db, $clientId, ['success' => true]);
         break;
 

@@ -2,19 +2,71 @@
   "malusCombo": {
     "sectionTitle": "Penalización y combo",
     "keys": {
-      "malus_points": "puntos de penalización",
-      "late_malus_points": "puntos de penalización por retraso",
-      "combo_2_quests": "combo 2 misiones",
-      "combo_4_quests": "combo 4 misiones",
-      "combo_6_quests": "combo 6 misiones"
+      "malus_points": "puntos de penalización (por picada en la estación de penalización)",
+      "late_malus_points": "puntos de retraso (por minuto de exceso)",
+      "combo_2_quests": "puntos por combo de 2 misiones",
+      "combo_4_quests": "puntos por combo de 4 misiones",
+      "combo_6_quests": "puntos por combo de 6 misiones"
     }
+  },
+  "typography": {
+    "sectionTitle": "Textos del juego: tamaño y color",
+    "editButton": "Tamaño y color de los textos",
+    "clickHint": "Haz clic en un texto de la pantalla para elegir su rol y luego ajusta su tamaño y color. Todos los textos de ese rol cambian a la vez.",
+    "hint": "El tamaño es un porcentaje del tamaño original: al 120 % todos los textos del rol crecen igual y mantienen sus proporciones.",
+    "size": "Tamaño",
+    "color": "Color",
+    "customColor": "Color personalizado",
+    "background": "Fondo",
+    "backgroundOpacity": "Opacidad",
+    "inherited": "heredado",
+    "reset": "Restablecer este rol",
+    "resetAll": "Restablecer todo",
+    "categories": {
+      "timer": "Cronómetro",
+      "teamName": "Nombre del equipo",
+      "scoreTitle": "Título de la puntuación",
+      "scoreData": "Puntuación",
+      "chromeTitles": "Títulos de penalización, retraso y combo",
+      "malusData": "Datos de penalización y retraso (multiplicadores y puntos)",
+      "comboTitles": "Títulos de los combos (combo 6, combo 4, combo 2)",
+      "comboData": "Datos de los combos (multiplicadores y puntos)",
+      "questTitles": "Títulos de las misiones (franja derecha)",
+      "questData": "Datos de las misiones (multiplicadores y puntos)",
+      "activeQuestName": "Nombre de la misión en curso (centro)"
+    }
+  },
+  "malusStation": {
+    "label": "Estación de penalización",
+    "none": "Elegir una estación de penalización",
+    "selected": "Estación {{name}} (#{{id}})",
+    "hint": "Cada picada en esta estación resta los «puntos de penalización» de arriba. No puede formar parte del patrón seleccionado.",
+    "clear": "Quitar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "pickerTitle": "Elegir la estación de penalización",
+    "pickerHint": "Una sola estación. Las estaciones usadas por el patrón están desactivadas.",
+    "pickerSearchPlaceholder": "Buscar una estación…",
+    "pickerLoading": "Cargando estaciones…",
+    "pickerError": "No se pudo cargar el inventario de estaciones.",
+    "pickerEmpty": "No hay estaciones en el inventario.",
+    "usedByPattern": "Ya usada por el patrón seleccionado",
+    "usedByPatternShort": "en el patrón",
+    "unknownSelected": "La estación #{{id}} ya no está en el inventario.",
+    "conflict": "La estación de penalización #{{id}} también la usa el patrón seleccionado. Una misma picada no puede validar una pieza de misión y restar puntos a la vez.",
+    "conflictFix": "Quitar la estación de penalización"
   },
   "pattern": {
     "sectionTitle": "Patrón por defecto",
     "label": "Patrón tagquest por defecto (imágenes de misión → correspondencia de estaciones)",
     "none": "- Ninguno -",
     "notFoundOption": "{{value}} (no encontrado)",
-    "hint": "Asigna las cuatro imágenes de pieza de cada misión a estaciones/balizas. Crea patrones tagquest en la página Patrones. La correspondencia se muestra junto a cada imagen debajo. Modificable al lanzar."
+    "hint": "Asigna las cuatro imágenes de pieza de cada misión a estaciones/balizas. Crea patrones tagquest en la página Patrones. La correspondencia se muestra junto a cada imagen debajo. Modificable al lanzar.",
+    "collidesSuffix": "— usa la estación de penalización",
+    "collisionRefused": "«{{pattern}}» usa la estación #{{id}}, definida como estación de penalización. Patrón no aplicado.",
+    "collisionCurrent": "El patrón seleccionado usa la estación #{{id}}, definida como estación de penalización.",
+    "collisionFix": "Quitar la estación de penalización",
+    "collisionFixAndApply": "Quitar la estación de penalización y aplicar este patrón"
   },
   "productTemplate": {
     "notice": "<0>Plantilla de producto:</0> las opciones «usar imágenes/textos por defecto» del editor anterior aún no están portadas. Volverán en una próxima actualización; por ahora, crea los nuevos escenarios tagquest desde cero."
@@ -39,8 +91,8 @@
     "soundLabel": "Sonido de la misión",
     "fourImages": "Cuatro imágenes por encontrar <1>- cada una forma un cuadrante de la imagen principal</1>",
     "noQuests": "Aún no hay misiones.",
-    "overCapWarning_one": "Este escenario tiene {{total}} misiones, pero Tagquest ahora admite un máximo de {{max}}. La {{count}} misión sobrante se eliminará al guardar. Elimina las misiones no deseadas para elegir cuáles conservar.",
-    "overCapWarning_other": "Este escenario tiene {{total}} misiones, pero Tagquest ahora admite un máximo de {{max}}. Las {{count}} misiones sobrantes se eliminarán al guardar. Elimina las misiones no deseadas para elegir cuáles conservar.",
+    "overCapWarning_one": "Este escenario tiene {{total}} misiones, pero Quest ahora admite un máximo de {{max}}. La {{count}} misión sobrante se eliminará al guardar. Elimina las misiones no deseadas para elegir cuáles conservar.",
+    "overCapWarning_other": "Este escenario tiene {{total}} misiones, pero Quest ahora admite un máximo de {{max}}. Las {{count}} misiones sobrantes se eliminarán al guardar. Elimina las misiones no deseadas para elegir cuáles conservar.",
     "pieces": {
       "topLeft": "Arriba a la izquierda",
       "topRight": "Arriba a la derecha",
@@ -49,7 +101,7 @@
     }
   },
   "images": {
-    "sectionTitle": "Imágenes tagquest",
+    "sectionTitle": "Imágenes Quest",
     "useDefaultTemplate": "Usar plantilla por defecto",
     "downloadDefault": "Descargar la plantilla por defecto (úsala como guía para un diseño personalizado)",
     "customTemplateHint": "La plantilla personalizada debe ser un PNG 16:9 con fondo transparente. Las posiciones del texto (temporizador, puntuación, penalización, combo, lista de misiones) permanecen fijas - alinea tu diseño con la plantilla por defecto descargable.",
@@ -61,6 +113,12 @@
     "errOpaque": "La plantilla debe tener un fondo transparente (las cuatro esquinas parecen opacas)."
   },
   "sounds": {
-    "sectionTitle": "Sonidos tagquest"
+    "sectionTitle": "Sonidos Quest",
+    "hint": "Un espacio vacío permanece en silencio. El sonido de misión se ajusta misión por misión en la sección Misiones; suena cuando aparece la imagen completa de la misión.",
+    "triggers": {
+      "cheating_sound": "Suena cuando se rechaza una tarjeta por trampa (han desaparecido o se han sustituido picadas desde la lectura anterior), junto con el mensaje en pantalla.",
+      "malus_sound": "Suena cuando el equipo ha picado en la estación de penalización, mientras el contador «penalización» sube en pantalla.",
+      "late_malus_sound": "Suena cuando se descuentan puntos de retraso (tiempo de juego superado), mientras el contador «retraso» sube en pantalla."
+    }
   }
 }

@@ -106,7 +106,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
     setError('');
   };
 
-  // Per-app (Go / Drop) status badge for the list. Mirrors ClientDetailView's
+  // Per-app (Go / Spot) status badge for the list. Mirrors ClientDetailView's
   // appBillingBadge: app off ⇒ "Not enabled"; on ⇒ Active / Overdue / Locked
   // from the billing-ok flag + overdue_since/grace lock clock.
   const lockDateFrom = (overdueSince: string | null | undefined, graceDays?: number): Date | null => {
@@ -189,7 +189,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                   Go
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Drop
+                  Spot
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Actions
@@ -253,11 +253,11 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                         overdueSince: client.go_billing_overdue_since,
                         graceDays: client.go_billing_grace_days,
                       });
-                      const drop = appStatusBadge({
-                        enabled: client.drop_enabled,
-                        billingOk: client.drop_billing_ok,
-                        overdueSince: client.drop_billing_overdue_since,
-                        graceDays: client.drop_billing_grace_days,
+                      const spot = appStatusBadge({
+                        enabled: client.spot_enabled,
+                        billingOk: client.spot_billing_ok,
+                        overdueSince: client.spot_billing_overdue_since,
+                        graceDays: client.spot_billing_grace_days,
                       });
                       return (
                         <>
@@ -267,8 +267,8 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${drop.cls}`}>
-                              {drop.label}
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${spot.cls}`}>
+                              {spot.label}
                             </span>
                           </td>
                         </>

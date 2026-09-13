@@ -323,6 +323,27 @@ try {
             $gameData['game_media_images'] = $allImages ?: new stdClass();
             $gameData['game_sounds'] = $mediaSounds ?: new stdClass();
 
+            // The scenario intro video followed the same path as the images:
+            // every body adapter does `delete copy.scenario_video` in
+            // `cleanGameMetaForData` and parks it in `medias.video` as a full
+            // "/media/<uniqid>/<file>" path. Unlike the images it was never
+            // spliced back here, so `game_data` reached the playground with NO
+            // scenario_video anywhere - and `resolveVideosByKind` probes exactly
+            // the three slots below. Result: every scenario saved by the current
+            // studio editor looked like it had no intro video, so the operator's
+            // "Play → Intro" entry was permanently greyed out and the launch
+            // modal's play-on-first-bip toggle stayed off.
+            // Retours Ludiom #73. Emit the bare filename; the playground
+            // basenames it anyway, and that is what ?action=get_media wants.
+            $mediaVideo = $structuredMedias['video'] ?? null;
+            if (is_string($mediaVideo) && $mediaVideo !== '') {
+                $videoFile = basename($mediaVideo);
+                $gameData['scenario_video'] = $videoFile;
+                if (is_array($gameData['game_meta'] ?? null)) {
+                    $gameData['game_meta']['scenario_video'] = $videoFile;
+                }
+            }
+
             // Pre-refactor, top-level image filenames (`background_image`,
             // `malus_image`, `custom_template`, …) lived INSIDE `game_meta`.
             // The playground's tagquest renderer still resolves sentinel
@@ -970,16 +991,21 @@ try {
             $lanNetworksVersion = 0;
         }
 
-        // Global admin-managed in-game translation rows (bucket 2). Small enough
-        // to ship inline (a few hundred bytes per row). Add new meta keys here to
-        // surface them in the playground. `tagquest_translations` is the legacy
-        // key for the tagquest HUD labels (the playground absorbs it into the
+        // Global admin-managed config rows (bucket 2). Small enough to ship
+        // inline (a few hundred bytes per row). Add new meta keys here to surface
+        // them in the playground. `tagquest_translations` is the legacy key for
+        // the tagquest HUD labels (the playground absorbs it into the
         // `ingame_tagquest` namespace); `ingame_*` are the per-namespace blobs
-        // authored in the studio Translations admin. The `__meta` source-hash
+        // authored in the studio Translations admin. `default_layout_tagquest` and
+        // `default_typography_tagquest` are the studio-wide Quest HUD defaults
+        // authored on the admin "Default layouts" page - not translations, but the
+        // same shape of small global blob, so they ride the same channel rather
+        // than needing a second table on the device. The `__meta` source-hash
         // companions are intentionally NOT published (studio-only).
         $translations = $db->fetchAll(
             'SELECT meta AS `key`, value, version FROM default_config
-             WHERE meta IN ("tagquest_translations", "ingame_common", "ingame_mystery", "ingame_tracks")
+             WHERE meta IN ("tagquest_translations", "ingame_common", "ingame_mystery", "ingame_tracks", "ingame_clash",
+                            "default_layout_tagquest", "default_typography_tagquest")
              ORDER BY meta'
         );
         foreach ($translations as &$t) {

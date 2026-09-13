@@ -1,0 +1,38 @@
+{
+  "title": "Default layouts",
+  "intro": "These settings are the starting point for EVERY scenario of the chosen game type. A scenario that sets its own value keeps it; the rest follow this page. Positions are stored element by element: only the ones you move are saved, everything else keeps following the layout shipped with the app.",
+  "loading": "Loading…",
+  "loadFailed": "Could not load the defaults.",
+  "save": "Save",
+  "saved": "Defaults saved. The postes de jeu pick them up on their next sync.",
+  "saveFailed": "Save failed.",
+  "saveFailedOne": "Saving “{{meta}}” failed ({{status}}).",
+  "mustBeAdmin": "You must be signed in as an admin to save.",
+  "notAvailableYet": "Not available for this game type yet.",
+  "summary": "{{moved}} element(s) moved · {{styled}} text role(s) customised",
+  "moved": "moved",
+  "resetElement": "Put this element back where the app ships it",
+  "positionsHint": "Drag an element on the screen to move it; select it for a resize handle and its exact values. Everything is a percentage of the 16:9 screen.",
+  "selectedHint": "Selected: {{name}}",
+  "typographyTitle": "Default text size & colour",
+  "typographySubtitle": "Click a text on the screen to pick its role. These values apply to every Quest scenario that does not set its own.",
+  "typographyFooter": "Size is a percentage of the authored size. A scenario can override each setting separately from its Aperçu.",
+  "mainImageMargin": "Inner margin",
+  "mainImageMarginHint": "Margin around the completed image (% of the box's shorter side). The green or red result glow follows the image's outline, so with no margin it bleeds onto the template frame. The four-piece grid is not affected.",
+  "types": {
+    "tagquest": "Quest",
+    "mystery": "Mystery",
+    "tracks": "Tracks",
+    "clash": "Clash"
+  },
+  "tabs": {
+    "positions": "Positions",
+    "typography": "Text"
+  },
+  "fields": {
+    "x": "X",
+    "y": "Y",
+    "width": "Width",
+    "height": "Height"
+  }
+}

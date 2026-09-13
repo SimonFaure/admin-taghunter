@@ -3,7 +3,9 @@
     "sectionTitle": "Informations du scénario",
     "title": "Titre",
     "description": "Description",
-    "story": "Histoire"
+    "story": "Informations",
+    "descriptionHint": "Le pitch du jeu. C'est ce texte que voient les joueurs (écran d'inscription, briefing) et les licenciés dans le catalogue.",
+    "storyHint": "Précisions techniques ou de gameplay à l'attention du licencié : mêmes visuels qu'un autre scénario, mode concerné, particularités. Jamais montré aux joueurs."
   },
   "cover": {
     "sectionTitleTracks": "Couverture, arrière-plan et carte",
@@ -13,10 +15,10 @@
   "timing": {
     "sectionTitle": "Minutage",
     "keys": {
-      "default_time": "temps par défaut",
-      "default_time_malus": "malus de temps par défaut",
-      "message_display_time": "temps d'affichage du message",
-      "animation_enigma_duration": "durée de l'animation d'énigme"
+      "default_time": "temps par défaut (minutes)",
+      "default_time_malus": "malus de temps par défaut (points par minute de dépassement)",
+      "message_display_time": "temps d'affichage du message (secondes)",
+      "animation_enigma_duration": "durée de l'animation d'énigme (secondes)"
     }
   },
   "admin": {

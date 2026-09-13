@@ -36,7 +36,14 @@ export const clashMediaSlots: readonly MediaSlot[] = [
   ...clashPurgeSlots,
 ] as const;
 
-/** Flat top-level image fields partitioned into medias.images on save. */
+/**
+ * Flat top-level image fields partitioned into medias.images on save.
+ *
+ * `background_image` is NOT authorable in Clash any more (retours #49 - the map
+ * is the backdrop) but stays listed so a value left over on a pre-#49 scenario
+ * is still stripped out of game_meta into the medias column instead of leaking
+ * into `data`.
+ */
 export const clashImageFields = [
   'background_image',
   'game_visual',

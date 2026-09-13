@@ -43,9 +43,21 @@ export function LevelsSection() {
     setLevels({ ...levels, [nextKey]: { name: {}, points: '', description: {} } });
   }
 
+  /**
+   * Delete a level and renumber the rest 1..n in place. Without the renumber,
+   * deleting level 2 left {1, 3} - the heading still read "Niveau 3" (retour
+   * #39) and, worse, `addLevel` would then mint key "3" again and silently
+   * overwrite the surviving level. Keys carry no meaning beyond display order
+   * (the playground ranks levels by `points`), and the translations envelope is
+   * re-synthesized from this map on save, so renumbering is safe.
+   */
   function removeLevel(k: string) {
-    const next = { ...levels };
-    delete next[k];
+    const next: Record<string, Level> = {};
+    keys
+      .filter((key) => key !== k)
+      .forEach((key, idx) => {
+        next[String(idx + 1)] = levels[key];
+      });
     setLevels(next);
   }
 

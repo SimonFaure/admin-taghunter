@@ -9,6 +9,7 @@ import {
   Plus,
   Pencil,
   User,
+  Globe,
 } from 'lucide-react';
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,8 +17,15 @@ import { useNavigate } from 'react-router-dom';
 import { recencyKey } from './scenarioSort';
 import { ScenarioListControls } from '../scenarios/ScenarioListControls';
 import { GameTypeIcon } from '../icons/GameTypeIcons';
-import { AUDIENCE_OPTIONS, getAudienceLabel, normalizeAudience } from '../../types/audience';
-import { getDifficultyLabel, getDifficultyBadgeClass } from '../../types/difficulty';
+import { AUDIENCE_BANDS, type AudienceBand, getBandLabel, resolveBands } from '../../types/audience';
+import {
+  DIFFICULTY_LEVELS,
+  coerceDifficulty,
+  getDifficultyLabel,
+  getDifficultyBadgeClass,
+} from '../../types/difficulty';
+import { normalizeUnivers } from '../../types/univers';
+import { formatLangCode, resolveScenarioLanguages } from '../../types/scenarioLanguages';
 import { listRegisteredAdapters } from '../../scenarios';
 import type { ClientScenario } from './types';
 import { HelpButton } from '../../help';
@@ -47,10 +55,11 @@ export function getGameVisualUrl(
   }
 }
 
-// Provenance/status pills, plus dynamically a game-type kind (e.g. 'mystery')
-// or an `audience:`-prefixed value. `(string & {})` keeps literal autocomplete
-// while accepting any game-type kind.
-type Filter = 'all' | 'products' | 'mine' | 'drafts' | (string & {});
+// Provenance pills - a single-select axis. Every other criterion (game type,
+// GO/Spot format, age band, difficulty, univers) is its own independent
+// multi-select, ANDed across axes and ORed within one, so a licensee can cross
+// "8-10 years" with "3 stars" the way the admin catalog already allows.
+type Filter = 'all' | 'products' | 'mine' | 'drafts';
 type ViewMode = 'grid' | 'list';
 type GroupBy = 'none' | 'game_type' | 'scenario_type';
 type SortBy = 'recent' | 'name' | 'created';
@@ -78,7 +87,7 @@ export function MyScenariosView() {
   const { t } = useTranslation('scenariosList');
   const navigate = useNavigate();
   const { user } = useSecureAuth();
-  // GO-only portal (client has GO/Drop but not Playground): show ONLY GO
+  // GO-only portal (client has GO/Spot but not Playground): show ONLY GO
   // scenarios, and keep just the cards/list view toggle + the audience filter;
   // hide the subtitle header, sort/group/new-scenario controls, and the
   // provenance/game-type filter chips. Derived per-app (project_client_app_section).
@@ -88,9 +97,33 @@ export function MyScenariosView() {
   const [error, setError] = useState<string | null>(null);
 
   const [filter, setFilter] = useState<Filter>('all');
+  // Independent multi-select facets (item 23 - "filtrage multicritère").
+  const [gameTypeFilter, setGameTypeFilter] = useState<Set<string>>(new Set());
+  const [formatFilter, setFormatFilter] = useState<Set<'go' | 'spot'>>(new Set());
+  const [bandFilter, setBandFilter] = useState<Set<AudienceBand>>(new Set());
+  const [difficultyFilter, setDifficultyFilter] = useState<Set<number>>(new Set());
+  const [universFilter, setUniversFilter] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [groupBy, setGroupBy] = useState<GroupBy>('none');
   const [sortBy, setSortBy] = useState<SortBy>('recent');
+
+  const toggleSetItem = <T,>(setState: React.Dispatch<React.SetStateAction<Set<T>>>, item: T) =>
+    setState((prev) => {
+      const next = new Set(prev);
+      if (next.has(item)) next.delete(item);
+      else next.add(item);
+      return next;
+    });
+
+  const activeFacetCount =
+    gameTypeFilter.size + formatFilter.size + bandFilter.size + difficultyFilter.size + universFilter.size;
+  const clearFacets = () => {
+    setGameTypeFilter(new Set());
+    setFormatFilter(new Set());
+    setBandFilter(new Set());
+    setDifficultyFilter(new Set());
+    setUniversFilter(new Set());
+  };
 
   // One filter chip per registered game type, driven by the adapter registry -
   // but only for types actually present in this client's scenarios. The server
@@ -102,6 +135,29 @@ export function MyScenariosView() {
     return listRegisteredAdapters()
       .filter((a) => present.has(a.kind))
       .map((a) => ({ key: a.kind, label: a.label }));
+  }, [scenarios]);
+
+  // Age bands actually present in this client's catalog, in canonical
+  // young→old order - a pill for a band nobody authored is dead weight.
+  const bandOptions = useMemo(() => {
+    const present = new Set<AudienceBand>();
+    for (const s of scenarios) {
+      for (const b of resolveBands(s.audience_bands, s.audience)) present.add(b);
+    }
+    return AUDIENCE_BANDS.filter((b) => present.has(b.value)).map((b) => b.value);
+  }, [scenarios]);
+
+  // Distinct univers tags across the client's scenarios (case-folded key, first
+  // spelling kept for display).
+  const universOptions = useMemo(() => {
+    const pool = new Map<string, string>();
+    for (const s of scenarios) {
+      for (const tag of normalizeUnivers(s.univers)) {
+        const key = tag.toLowerCase();
+        if (!pool.has(key)) pool.set(key, tag);
+      }
+    }
+    return Array.from(pool.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [scenarios]);
 
   useEffect(() => {
@@ -142,10 +198,9 @@ export function MyScenariosView() {
     const isMine = (s: ClientScenario) =>
       !isProduct(s) && String(s.client_id ?? '') === String(user?.client_id ?? '');
 
-    const passesFilter = (s: ClientScenario): boolean => {
+    // Provenance - single select.
+    const passesProvenance = (s: ClientScenario): boolean => {
       switch (filter) {
-        case 'all':
-          return true;
         case 'products':
           return isProduct(s);
         case 'mine':
@@ -153,27 +208,40 @@ export function MyScenariosView() {
         case 'drafts':
           // Products are explicitly never "drafts" to the client, regardless of data.
           return !isProduct(s) && (s.status || 'draft') === 'draft';
-        case 'go':
-          // Tag Hunter GO: scenarios that exist in GO mode.
-          return s.adaptable_go === true;
-        case 'drop':
-          // Tag Hunter Drop: the hardware-free on-screen-image variant.
-          return s.adaptable_drop === true;
+        case 'all':
         default:
-          // Audience pills carry an `audience:` prefix so their values can't
-          // collide with game-type kinds (e.g. 'audience:kids').
-          if (filter.startsWith('audience:')) {
-            return normalizeAudience(s.audience || '') === filter.slice('audience:'.length);
-          }
-          // Otherwise `filter` is a game-type kind (e.g. 'mystery' | 'tagquest').
-          return s.game_type === filter;
+          return true;
       }
     };
 
+    // Every facet AND-ed; within a facet, any selected value matches.
+    const passesFacets = (s: ClientScenario): boolean => {
+      if (gameTypeFilter.size > 0 && !gameTypeFilter.has(s.game_type || '')) return false;
+      if (formatFilter.size > 0) {
+        const go = formatFilter.has('go') && s.adaptable_go === true;
+        const spot = formatFilter.has('spot') && s.adaptable_spot === true;
+        if (!go && !spot) return false;
+      }
+      if (bandFilter.size > 0) {
+        const bands = resolveBands(s.audience_bands, s.audience);
+        if (!bands.some((b) => bandFilter.has(b))) return false;
+      }
+      if (difficultyFilter.size > 0) {
+        if (s.difficulty === null || s.difficulty === undefined || s.difficulty === '') return false;
+        if (!difficultyFilter.has(coerceDifficulty(s.difficulty))) return false;
+      }
+      if (universFilter.size > 0) {
+        const tags = normalizeUnivers(s.univers).map((tag) => tag.toLowerCase());
+        if (!tags.some((tag) => universFilter.has(tag))) return false;
+      }
+      return true;
+    };
+
     // GO-only portal: hard-restrict to GO scenarios regardless of the active
-    // filter, so a GO/Drop-without-Playground client only ever sees GO content.
+    // filter, so a GO/Spot-without-Playground client only ever sees GO content.
     const filtered = scenarios.filter(
-      (s) => (!goClientOnly || s.adaptable_go === true) && passesFilter(s),
+      (s) =>
+        (!goClientOnly || s.adaptable_go === true) && passesProvenance(s) && passesFacets(s),
     );
 
     const sorted = [...filtered].sort((a, b) => {
@@ -189,7 +257,18 @@ export function MyScenariosView() {
     });
 
     return sorted;
-  }, [scenarios, filter, sortBy, user?.client_id, goClientOnly]);
+  }, [
+    scenarios,
+    filter,
+    gameTypeFilter,
+    formatFilter,
+    bandFilter,
+    difficultyFilter,
+    universFilter,
+    sortBy,
+    user?.client_id,
+    goClientOnly,
+  ]);
 
   const groups = useMemo(() => {
     if (groupBy === 'none') {
@@ -248,7 +327,7 @@ export function MyScenariosView() {
         />
       </div>
 
-      <div className="mb-6 flex items-center gap-2 flex-wrap">
+      <div className="mb-3 flex items-center gap-2 flex-wrap">
         {!goClientOnly && FILTERS.map((f) => (
           <button
             key={f.value}
@@ -272,9 +351,9 @@ export function MyScenariosView() {
           return (
             <button
               type="button"
-              onClick={() => setFilter('go')}
+              onClick={() => toggleSetItem<'go' | 'spot'>(setFormatFilter, 'go')}
               className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                filter === 'go'
+                formatFilter.has('go')
                   ? 'bg-emerald-600 text-white border-emerald-600'
                   : 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-300'
               }`}
@@ -284,21 +363,21 @@ export function MyScenariosView() {
           );
         })()}
 
-        {/* Tag Hunter Drop filter - same "only when it differentiates" rule. */}
+        {/* Tag Hunter Spot filter - same "only when it differentiates" rule. */}
         {(() => {
-          const dropCount = scenarios.filter((s) => s.adaptable_drop).length;
-          if (dropCount === 0 || dropCount === scenarios.length) return null;
+          const spotCount = scenarios.filter((s) => s.adaptable_spot).length;
+          if (spotCount === 0 || spotCount === scenarios.length) return null;
           return (
             <button
               type="button"
-              onClick={() => setFilter('drop')}
+              onClick={() => toggleSetItem<'go' | 'spot'>(setFormatFilter, 'spot')}
               className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                filter === 'drop'
+                formatFilter.has('spot')
                   ? 'bg-sky-600 text-white border-sky-600'
                   : 'bg-white text-sky-700 border-sky-200 hover:border-sky-300'
               }`}
             >
-              DROP
+              SPOT
             </button>
           );
         })()}
@@ -311,9 +390,9 @@ export function MyScenariosView() {
           <button
             key={key}
             type="button"
-            onClick={() => setFilter(key)}
+            onClick={() => toggleSetItem<string>(setGameTypeFilter, key)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-              filter === key
+              gameTypeFilter.has(key)
                 ? 'bg-slate-900 text-white border-slate-900'
                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
             }`}
@@ -322,29 +401,87 @@ export function MyScenariosView() {
             {label}
           </button>
         ))}
+      </div>
 
-        {!goClientOnly && (
-          <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+      {/* Catalog facets - age bands (the six admin ranges, not the coarse trio),
+          difficulty stars and univers tags. Combine freely: AND across rows,
+          OR within a row. */}
+      <div className="mb-6 flex items-center gap-1.5 flex-wrap">
+        {bandOptions.length > 0 && (
+          <>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">
+              {t('facets.age')}
+            </span>
+            {bandOptions.map((band) => (
+              <button
+                key={band}
+                type="button"
+                onClick={() => toggleSetItem(setBandFilter, band)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded-full border transition-colors ${
+                  bandFilter.has(band)
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                {getBandLabel(band, t)}
+              </button>
+            ))}
+            <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+          </>
         )}
 
-        {AUDIENCE_OPTIONS.map(({ value }) => {
-          const key = `audience:${value}`;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(key)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                filter === key
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              {getAudienceLabel(value, t)}
-            </button>
-          );
-        })}
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">
+          {t('facets.difficulty')}
+        </span>
+        {DIFFICULTY_LEVELS.map((level) => (
+          <button
+            key={level}
+            type="button"
+            onClick={() => toggleSetItem<number>(setDifficultyFilter, level)}
+            title={`${level} / 5`}
+            className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
+              difficultyFilter.has(level)
+                ? 'bg-amber-500 text-white border-amber-500'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            {'★'.repeat(level)}
+          </button>
+        ))}
+
+        {universOptions.length > 0 && (
+          <>
+            <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">
+              {t('facets.univers')}
+            </span>
+            {universOptions.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => toggleSetItem(setUniversFilter, key)}
+                className={`px-2.5 py-1 text-sm rounded-full border transition-colors ${
+                  universFilter.has(key)
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </>
+        )}
+
+        {activeFacetCount > 0 && (
+          <button
+            type="button"
+            onClick={clearFacets}
+            className="ml-1 px-2.5 py-1 text-sm rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"
+          >
+            {t('facets.clear')}
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -408,6 +545,11 @@ function ScenarioGrid({
       {scenarios.map((scenario) => {
         const visual = getGameVisualUrl(scenario.medias, scenario.uniqid);
         const editable = scenario.scenario_type !== 'product' && !!scenario.uniqid;
+        const bands = resolveBands(scenario.audience_bands, scenario.audience);
+        const languages = resolveScenarioLanguages(
+          scenario.available_languages,
+          scenario.default_language,
+        );
         return (
           <button
             key={scenario.id}
@@ -467,8 +609,8 @@ function ScenarioGrid({
               </div>
               <p className="text-sm text-slate-500 line-clamp-2 mb-3">{scenario.description}</p>
 
-              {(scenario.game_type || scenario.difficulty || scenario.audience || scenario.scenario_type || scenario.version || scenario.adaptable_go || scenario.adaptable_drop) && (
-                <div className="flex gap-2 flex-wrap items-center">
+              {(scenario.game_type || scenario.difficulty || bands.length > 0 || languages.length > 0 || scenario.scenario_type || scenario.version || scenario.adaptable_go || scenario.adaptable_spot) && (
+                <div className="flex gap-1.5 flex-wrap items-center">
                   {scenario.game_type && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
                       <GameTypeIcon type={scenario.game_type} className="w-3 h-3" />
@@ -480,9 +622,9 @@ function ScenarioGrid({
                       GO
                     </span>
                   )}
-                  {scenario.adaptable_drop && (
+                  {scenario.adaptable_spot && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full text-xs font-semibold">
-                      DROP
+                      SPOT
                     </span>
                   )}
                   {scenario.difficulty && (
@@ -490,12 +632,22 @@ function ScenarioGrid({
                       {getDifficultyLabel(scenario.difficulty, t)}
                     </span>
                   )}
-                  {scenario.audience && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full text-xs font-medium capitalize">
+                  {bands.length > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">
                       <User className="w-3 h-3" />
-                      {getAudienceLabel(scenario.audience, t)}
+                      {bands.map((b) => getBandLabel(b, t)).join(' · ')}
                     </span>
                   )}
+                  {/* Authored languages, visible without opening the details. */}
+                  {languages.map((code) => (
+                    <span
+                      key={code}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-full text-xs font-semibold"
+                    >
+                      <Globe className="w-3 h-3" />
+                      {formatLangCode(code)}
+                    </span>
+                  ))}
                   {scenario.version && (
                     <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium">
                       {t('versionShort', { version: scenario.version })}
@@ -536,6 +688,7 @@ function ScenarioTable({
             <th className="px-4 py-2">{t('table.gameType')}</th>
             <th className="px-4 py-2">{t('table.audience')}</th>
             <th className="px-4 py-2">{t('table.difficulty')}</th>
+            <th className="px-4 py-2">{t('table.languages')}</th>
             <th className="px-4 py-2">{t('table.type')}</th>
             <th className="px-4 py-2">{t('table.version')}</th>
             <th className="px-4 py-2 w-24"></th>
@@ -545,6 +698,11 @@ function ScenarioTable({
           {scenarios.map((scenario) => {
             const visual = getGameVisualUrl(scenario.medias, scenario.uniqid);
             const editable = scenario.scenario_type !== 'product' && !!scenario.uniqid;
+            const bands = resolveBands(scenario.audience_bands, scenario.audience);
+            const languages = resolveScenarioLanguages(
+              scenario.available_languages,
+              scenario.default_language,
+            );
             return (
               <tr
                 key={scenario.id}
@@ -570,10 +728,10 @@ function ScenarioTable({
                   ) : '-'}
                 </td>
                 <td className="px-4 py-2">
-                  {scenario.audience ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-50 text-violet-700 rounded-full text-xs font-medium capitalize">
+                  {bands.length > 0 ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium">
                       <User className="w-3 h-3" />
-                      {getAudienceLabel(scenario.audience, t)}
+                      {bands.map((b) => getBandLabel(b, t)).join(' · ')}
                     </span>
                   ) : <span className="text-slate-400">-</span>}
                 </td>
@@ -581,6 +739,20 @@ function ScenarioTable({
                   {scenario.difficulty ? (
                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${getDifficultyBadgeClass(scenario.difficulty)}`}>
                       {getDifficultyLabel(scenario.difficulty, t)}
+                    </span>
+                  ) : <span className="text-slate-400">-</span>}
+                </td>
+                <td className="px-4 py-2">
+                  {languages.length > 0 ? (
+                    <span className="inline-flex items-center gap-1 flex-wrap">
+                      {languages.map((code) => (
+                        <span
+                          key={code}
+                          className="inline-flex items-center px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded-full text-xs font-semibold"
+                        >
+                          {formatLangCode(code)}
+                        </span>
+                      ))}
                     </span>
                   ) : <span className="text-slate-400">-</span>}
                 </td>

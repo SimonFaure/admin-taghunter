@@ -34,6 +34,7 @@ import { CollapseAllProvider } from './components/CollapsibleSection';
 import { GoEditorProvider } from './components/GoEditorContext';
 import { SectionsTOC } from './components/SectionsTOC';
 import { LanguageBar } from './components/LanguageBar';
+import { normalizeWrongAnswerPoints } from '../bodies/mystery/wrongAnswerPoints';
 import { MetaSection } from './sections/MetaSection';
 import { CoverSection } from './sections/CoverSection';
 import { LevelsSection } from './sections/LevelsSection';
@@ -160,6 +161,17 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
         // per-enigma good_answer_image (cleanGameMetaForData strips it off
         // gameMeta.enigmas on save). Match by enigma_number - the medias array
         // only contains entries that HAVE an image, so indices may not align.
+        // Mystery wrong-answer points are authored signed (negative = penalty,
+        // like the maluses). Scenarios written before that convention stored the
+        // bare magnitude, so fold them to their negative on load - the field
+        // then reads the way it scores, and the next save persists it.
+        if (adapter.kind === 'mystery' && Array.isArray(merged.enigmas)) {
+          for (const e of merged.enigmas as Array<Record<string, unknown>>) {
+            if (!e) continue;
+            e.wrong_answer_points = normalizeWrongAnswerPoints(e.wrong_answer_points);
+          }
+        }
+
         if (parsedMedia?.enigmas && Array.isArray(merged.enigmas)) {
           const inMerged = merged.enigmas as Array<Record<string, unknown>>;
           const byNumber = new Map<string, Record<string, string | undefined>>();
@@ -355,18 +367,26 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
 
   const publish = useCallback(async () => {
     dispatch({ type: 'BEGIN_PUBLISHING' });
-    const meta = state.gameMeta as Record<string, unknown>;
-    const currentVersion = parseFloat(String(meta.scenario_version ?? '0'));
-    const safeCurrent = Number.isFinite(currentVersion) ? currentVersion : 0;
-    const nextVersion = (Math.round((safeCurrent + 0.1) * 10) / 10).toFixed(1);
-    const bumpedMeta = { ...meta, scenario_version: nextVersion };
-    dispatch({ type: 'SET_GAME_META', payload: bumpedMeta });
+    // Retours #15 - the publish toast used to announce a SECOND, locally
+    // computed version (`game_meta.scenario_version` + 0.1) which had long
+    // drifted from the row version shown on the scenario's vignette, because
+    // only the row bumps on a plain save. There is now one number: performSave
+    // bumps `scenarios.version` and mirrors it into `game_meta.scenario_version`,
+    // and the toast reports what the save actually wrote.
     // Publishing flips the row's status draft -> published (the save path leaves
     // status untouched).
-    const payload: SavePayload = { ...buildPayload(), gameMeta: bumpedMeta, status: 'published' };
+    const payload: SavePayload = { ...buildPayload(), status: 'published' };
     const result = await performSave(payload);
+    const publishedVersion =
+      result.savedScenario?.version != null
+        ? String(result.savedScenario.version)
+        : String((state.gameMeta as Record<string, unknown>).scenario_version ?? '');
     if (result.ok) {
       await flushOrphanedAssets();
+      dispatch({
+        type: 'SET_GAME_META',
+        payload: { ...(state.gameMeta as Record<string, unknown>), scenario_version: publishedVersion },
+      });
       dispatch({
         type: 'HYDRATE',
         payload: {
@@ -380,7 +400,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     dispatch({
       type: 'END_PUBLISHING',
       payload: result.ok
-        ? { type: 'success', message: t('alert.published', { version: nextVersion }) }
+        ? { type: 'success', message: t('alert.published', { version: publishedVersion }) }
         : { type: 'error', message: result.error ?? t('alert.publishFailed') },
     });
   }, [buildPayload, flushOrphanedAssets, state.gameMeta, t]);
@@ -482,7 +502,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
   // (enigma codes/extra images, the GO default-pattern block, etc.).
   const goValue = {
     adaptableGo: goMeta.adaptable_go === true && isAdmin,
-    adaptableDrop: goMeta.adaptable_drop === true && isAdmin,
+    adaptableSpot: goMeta.adaptable_spot === true && isAdmin,
     answerCount: (goMeta.go_answer_count === 4 ? 4 : 2) as 2 | 4,
   };
 

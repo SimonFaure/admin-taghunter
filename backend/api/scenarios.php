@@ -503,6 +503,89 @@ try {
             jsonResponse(['scenarios' => $scenarios]);
             break;
 
+        // The product catalog ("Scenarios TH" sheet), served to BOTH admins and
+        // licensees. Unlike `list` it never exposes another client's custom
+        // scenarios: only product rows, trimmed to the catalog columns, with the
+        // `data` blob decoded server-side into the taxonomy fields the grid needs.
+        //
+        // For a client caller it also carries `owned` (the scenario is already in
+        // their account) and applies the disabled-game-type cascade, exactly like
+        // client_scenarios.php?action=list does.
+        case 'catalog':
+            requireAuth();
+
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                Logger::log('scenarios', $method, 'catalog', $_SESSION['user_id'] ?? null, [], ['error' => 'Method not allowed'], 405);
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $isAdminViewer = ($_SESSION['user_type'] ?? '') === 'admin';
+            $viewerId = (int)($_SESSION['user_id'] ?? 0);
+
+            $rows = $db->fetchAll(
+                'SELECT s.id, s.uniqid, s.title, s.game_type, s.scenario_type, s.status, s.data
+                 FROM scenarios s
+                 WHERE s.scenario_type = "product" OR s.client_id IS NULL
+                 ORDER BY s.title ASC'
+            );
+
+            // Ownership, client side only. A premium licence holds every product
+            // with NO client_scenarios row at all (project_premium_client_grant_blind_spot),
+            // so premium => everything is owned.
+            $ownedIds = [];
+            $ownsEverything = $isAdminViewer;
+            if (!$isAdminViewer) {
+                $client = $db->fetch('SELECT license_type FROM clients WHERE id = ?', [$viewerId]);
+                if ($client && ($client['license_type'] ?? '') === 'premium') {
+                    $ownsEverything = true;
+                } else {
+                    foreach ($db->fetchAll(
+                        'SELECT DISTINCT scenario_id FROM client_scenarios WHERE client_id = ?',
+                        [$viewerId]
+                    ) as $g) {
+                        $ownedIds[(int)$g['scenario_id']] = true;
+                    }
+                }
+            }
+
+            // A client never sees a game type disabled for them.
+            $disabledTypes = [];
+            if (!$isAdminViewer) {
+                require_once __DIR__ . '/../utils/GameTypes.php';
+                $disabledTypes = GameTypes::disabledForClient($db->getConnection(), $viewerId);
+            }
+
+            $catalog = [];
+            foreach ($rows as $r) {
+                if ($disabledTypes && in_array($r['game_type'] ?? '', $disabledTypes, true)) {
+                    continue;
+                }
+                // Both the flat (`game_meta.…`) and wrapped (`data.game_meta.…`)
+                // shapes exist on disk - tolerate either, as everywhere else.
+                $dataArr = !empty($r['data']) ? json_decode($r['data'], true) : null;
+                $gm = is_array($dataArr) ? ($dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? null)) : null;
+                if (!is_array($gm)) $gm = [];
+
+                $catalog[] = [
+                    'id' => (int)$r['id'],
+                    'uniqid' => $r['uniqid'],
+                    'title' => $r['title'],
+                    'game_type' => $r['game_type'],
+                    'status' => $r['status'],
+                    'audience_bands' => is_array($gm['audience_bands'] ?? null) ? array_values($gm['audience_bands']) : [],
+                    'audience' => isset($gm['game_public']) ? $gm['game_public'] : null,
+                    'difficulty' => isset($gm['difficulty']) ? $gm['difficulty'] : null,
+                    'univers' => is_array($gm['univers'] ?? null) ? array_values(array_filter($gm['univers'], 'is_string')) : [],
+                    'adaptable_go' => !empty($gm['adaptable_go']),
+                    'adaptable_spot' => !empty($gm['adaptable_spot']),
+                    'owned' => $ownsEverything || isset($ownedIds[(int)$r['id']]),
+                ];
+            }
+
+            Logger::log('scenarios', $method, 'catalog', $viewerId, [], ['count' => count($catalog)], 200);
+            jsonResponse(['scenarios' => $catalog]);
+            break;
+
         case 'get':
             requireAuth();
 
@@ -870,7 +953,7 @@ try {
 
         default:
             Logger::log('scenarios', $method, $action ?: 'none', $_SESSION['user_id'] ?? null, [], ['error' => 'Invalid action'], 400);
-            jsonResponse(['error' => 'Invalid action. Available actions: create, list, get, update, delete, upload_media'], 400);
+            jsonResponse(['error' => 'Invalid action. Available actions: create, list, catalog, get, update, delete, upload_media'], 400);
     }
 } catch (Exception $e) {
     Logger::log('scenarios', $method, $action ?? 'unknown', $_SESSION['user_id'] ?? null, [], ['error' => $e->getMessage()], 500);

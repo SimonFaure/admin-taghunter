@@ -1,31 +1,31 @@
 /**
- * "Tag Hunter GO & Drop" section - the two hardware-free adaptations of a
+ * "Tag Hunter GO & Spot" section - the two hardware-free adaptations of a
  * Mystery scenario, authored together because they share their content.
  *
  * Top: the two independent "Adaptable à ..." toggles (a scenario can be RFID,
- * GO and Drop at once - turning either on never removes RFID data). Below them,
+ * GO and Spot at once - turning either on never removes RFID data). Below them,
  * COMMON to both: the number of answer options (`go_answer_count`), which drives
- * GO's letters (A/B vs A/B/C/D) and Drop's on-screen tile count, plus the extra
+ * GO's letters (A/B vs A/B/C/D) and Spot's on-screen tile count, plus the extra
  * wrong-answer image slots per enigma when set to 4.
  *
  * Replaces the former stacked TopSection pair (GoOptionSection +
- * DropOptionSection) so GO/Drop reads like every other editor section.
+ * SpotOptionSection) so GO/Spot reads like every other editor section.
  *
- * Design: memory project_taghunter_go / project_taghunter_drop.
+ * Design: memory project_taghunter_go / project_taghunter_spot.
  */
 
 import { useTranslation } from 'react-i18next';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 
-export function GoDropSection() {
+export function GoSpotSection() {
   const { t } = useTranslation();
   const editor = useScenarioEditor();
-  // GO/Drop authoring is admin-only - clients never see these toggles.
+  // GO/Spot authoring is admin-only - clients never see these toggles.
   if (!editor.isAdmin) return null;
   const meta = editor.gameMeta as Record<string, unknown>;
   const adaptableGo = meta.adaptable_go === true;
-  const adaptableDrop = meta.adaptable_drop === true;
+  const adaptableSpot = meta.adaptable_spot === true;
   const answerCount: 2 | 4 = meta.go_answer_count === 4 ? 4 : 2;
 
   const setMeta = (patch: Record<string, unknown>) =>
@@ -36,7 +36,7 @@ export function GoDropSection() {
     on && meta.go_answer_count == null ? { go_answer_count: 2 } : {};
 
   return (
-    <CollapsibleSection title={t('editorMystery:goDrop.title')}>
+    <CollapsibleSection title={t('editorMystery:goSpot.title')}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <label
           className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
@@ -61,27 +61,27 @@ export function GoDropSection() {
 
         <label
           className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
-            adaptableDrop ? 'border-emerald-300 bg-emerald-50/40' : 'border-gray-200 bg-white'
+            adaptableSpot ? 'border-emerald-300 bg-emerald-50/40' : 'border-gray-200 bg-white'
           }`}
         >
           <input
             type="checkbox"
             className="mt-1 h-5 w-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-            checked={adaptableDrop}
-            onChange={(e) => setMeta({ adaptable_drop: e.target.checked, ...seed(e.target.checked) })}
+            checked={adaptableSpot}
+            onChange={(e) => setMeta({ adaptable_spot: e.target.checked, ...seed(e.target.checked) })}
           />
           <span>
             <span className="text-sm font-semibold text-gray-900">
-              {t('editorMystery:dropOption.toggleLabel')}
+              {t('editorMystery:spotOption.toggleLabel')}
             </span>
             <span className="mt-0.5 block text-xs text-gray-600">
-              {t('editorMystery:dropOption.description')}
+              {t('editorMystery:spotOption.description')}
             </span>
           </span>
         </label>
       </div>
 
-      {(adaptableGo || adaptableDrop) && (
+      {(adaptableGo || adaptableSpot) && (
         <div className="mt-4 border-t border-gray-200 pt-4">
           <div className="text-sm font-medium text-gray-800">
             {t('editorMystery:goOption.answerOptions')}
@@ -107,7 +107,7 @@ export function GoDropSection() {
               </label>
             ))}
           </div>
-          <p className="mt-2 text-xs text-gray-500">{t('editorMystery:goDrop.answerHint')}</p>
+          <p className="mt-2 text-xs text-gray-500">{t('editorMystery:goSpot.answerHint')}</p>
         </div>
       )}
     </CollapsibleSection>

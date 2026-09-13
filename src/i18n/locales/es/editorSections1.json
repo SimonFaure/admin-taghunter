@@ -3,7 +3,9 @@
     "sectionTitle": "Información del escenario",
     "title": "Título",
     "description": "Descripción",
-    "story": "Historia"
+    "story": "Información",
+    "descriptionHint": "El pitch del juego. Es lo que ven los jugadores (pantalla de inscripción, briefing) y lo que leen los licenciatarios en el catálogo.",
+    "storyHint": "Detalles técnicos o de jugabilidad para el licenciatario: mismos visuales que otro escenario, modo afectado, particularidades. Nunca se muestra a los jugadores."
   },
   "cover": {
     "sectionTitleTracks": "Portada, fondo y mapa",
@@ -13,10 +15,10 @@
   "timing": {
     "sectionTitle": "Tiempos",
     "keys": {
-      "default_time": "tiempo predeterminado",
-      "default_time_malus": "penalización de tiempo predeterminada",
-      "message_display_time": "tiempo de visualización del mensaje",
-      "animation_enigma_duration": "duración de la animación del enigma"
+      "default_time": "tiempo predeterminado (minutos)",
+      "default_time_malus": "penalización de tiempo predeterminada (puntos por minuto de exceso)",
+      "message_display_time": "tiempo de visualización del mensaje (segundos)",
+      "animation_enigma_duration": "duración de la animación del enigma (segundos)"
     }
   },
   "admin": {

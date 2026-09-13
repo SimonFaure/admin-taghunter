@@ -19,6 +19,21 @@ import { defaultTracksGameMeta } from './defaults';
 const ALL_IMAGE_FIELDS: readonly string[] = tracksImageFields;
 const ALL_SOUND_FIELDS: readonly string[] = tracksSoundFields;
 
+/**
+ * The `text_*` UI strings the tracks runtime can surface. Same list as the
+ * studio's TextStringsSection (tracks branch) and the playground's
+ * TRACKS_TEXT_KEYS in TracksGamePage - keep the three in sync.
+ */
+const TRACKS_TEXT_KEYS: readonly string[] = [
+  'text_player_starts',
+  'text_team_starts_card_not_empty',
+  'text_card_not_corresponding',
+  'text_team_ended',
+  'text_scenario_ended',
+  'text_card_empty',
+  'text_if_error',
+];
+
 function buildMediasColumn(gameMeta: TracksGameMeta, uniqid: string): MediasColumn {
   const meta = gameMeta as unknown as Record<string, string | undefined>;
   const images: Record<string, string> = {};
@@ -148,6 +163,19 @@ function buildZipPayload(
     // the inheritance chain in TracksGameRenderer.
     // Plan: tracks-text-elements-categories.md
     text_categories: (gm as Record<string, unknown>).text_categories,
+
+    // Authored run messages ("Textes de l'interface"). This game_meta is an
+    // allow-list, and it used to omit every `text_*` key - so a ZIP-installed
+    // scenario reached the playground with none of them and TracksGamePage
+    // silently fell back to its built-in French wording. The cloud path
+    // (playground.php -> LocalizedCompat) always carried them, which is why
+    // this only ever showed up on ZIP installs. Kept as Localized<string>
+    // maps: the runtime's readLocalized() resolves them per player language.
+    ...Object.fromEntries(
+      TRACKS_TEXT_KEYS
+        .filter((k) => (gm as Record<string, unknown>)[k] != null)
+        .map((k) => [k, (gm as Record<string, unknown>)[k]]),
+    ),
   };
 
   const meta = gm as unknown as Record<string, string | undefined>;

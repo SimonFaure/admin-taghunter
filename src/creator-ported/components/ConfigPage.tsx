@@ -167,7 +167,7 @@ export function ConfigPage({ onNavigate, onNavigateWithGameType, onOpenLayoutEdi
                     onClick={() => onNavigateWithGameType?.('default-config', 'tagquest')}
                     className="w-full px-4 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg transition-colors text-left"
                   >
-                    <div className="font-semibold">TagQuest</div>
+                    <div className="font-semibold">Quest</div>
                     <div className="text-xs text-slate-300 mt-1">Default configuration</div>
                   </button>
                   <button

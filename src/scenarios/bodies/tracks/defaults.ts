@@ -27,7 +27,6 @@ export function defaultTracksGameMeta(): TracksGameMeta {
     team_name_background_image: '',
     timer_background_image: '',
     score_background_image: '',
-    time_background_image: '',
 
     // Feedback cue images (full-screen; legacy maximus wrong_order/absent)
     wrong_order_image: '',
@@ -48,10 +47,11 @@ export function defaultTracksGameMeta(): TracksGameMeta {
     checkpoints_unique_image_id: '',
     checkpoint_image_width_percentage: '3',
 
-    // Routes - all five presets disabled by default except `default`. The
+    // Routes - all presets disabled by default except `default`. The
     // operator opts in to additional courses per scenario.
     routes: {
       default: { enabled: true },
+      reverse: { enabled: false },
       first_half: { enabled: false },
       last_half: { enabled: false },
       odd: { enabled: false },

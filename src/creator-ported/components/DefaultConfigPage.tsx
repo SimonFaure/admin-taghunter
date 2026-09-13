@@ -48,7 +48,7 @@ interface DefaultConfigPageProps {
 export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConfigPageProps) {
   const [config, setConfig] = useState<DefaultConfig>({
     team_title: 'Équipe',
-    pdf_title: 'TagQuest',
+    pdf_title: 'Quest',
     auto_reset: false,
     delay_auto_reset: '5',
     text_player_starts: 'Début de la partie',
@@ -550,7 +550,7 @@ export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConf
           </button>
           <div>
             <h1 className="text-3xl font-bold text-white">
-              Default Configuration - {gameType === 'tagquest' ? 'TagQuest' : gameType === 'mystery' ? 'Mystery' : 'Track'}
+              Default Configuration - {gameType === 'tagquest' ? 'Quest' : gameType === 'mystery' ? 'Mystery' : 'Track'}
             </h1>
             <p className="text-sm text-slate-400 mt-1">Version {currentVersion.toFixed(1)}</p>
           </div>

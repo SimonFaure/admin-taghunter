@@ -1,0 +1,39 @@
+{
+  "sectionTitle": "Récapitulatif du scénario",
+  "sectionSubtitle": "Les images du scénario et la balise à laquelle chacune est associée, selon le modèle choisi.",
+  "show": "Afficher",
+  "hide": "Masquer",
+  "openPrintable": "Ouvrir la version imprimable",
+  "backToScenario": "Retour au scénario",
+  "subtitle": "Récapitulatif du scénario — version {{version}}",
+  "print": "Imprimer",
+  "choosePattern": "Modèle :",
+  "noPattern": "Aucun modèle",
+  "defaultSuffix": "(par défaut)",
+  "noPatternsAvailable": "Aucun modèle disponible pour ce type de jeu.",
+  "patternPrinted": "Modèle : {{name}}",
+  "noItems": "Ce scénario ne contient encore aucun élément.",
+  "noImages": "Aucune image pour cet élément.",
+  "noStation": "Sélectionnez un modèle",
+  "unassigned": "Balise non attribuée",
+  "unknownStation": "Balise inconnue",
+  "notAvailableForType": "Le récapitulatif n’est pas disponible pour ce type de jeu.",
+  "failedToLoad": "Impossible de charger le récapitulatif.",
+  "pointsValue": "{{points}} pts",
+  "goodWrongPoints": "Bonne réponse : {{good}} pts · Mauvaise réponse : {{wrong}} pts",
+  "itemHeading": {
+    "mystery": "Énigme {{number}}",
+    "tagquest": "Quête {{number}}",
+    "tracks": "Point de contrôle {{number}}"
+  },
+  "imageLabel": {
+    "good_answer": "Bonne réponse",
+    "wrong_answer": "Mauvaise réponse",
+    "main_image": "Image complète",
+    "image_1": "Pièce 1",
+    "image_2": "Pièce 2",
+    "image_3": "Pièce 3",
+    "image_4": "Pièce 4",
+    "checkpoint": "Image du point de contrôle"
+  }
+}

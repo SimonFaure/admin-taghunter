@@ -1,16 +1,25 @@
 {
   "ingameLayout": {
     "title": {
-      "ingame": "Disposition en jeu",
-      "idle": "Disposition de l'écran d'attente"
+      "ingame": "Disposition des textes",
+      "idle": "Disposition de l'écran d'attente",
+      "frames": "Cadres des éléments",
+      "gauge": "Calage du remplissage de la jauge",
+      "underlay": "Fond de l'image principale"
     },
     "mode": {
-      "ingame": "En jeu",
-      "idle": "Attente"
+      "ingame": "Textes",
+      "idle": "Attente",
+      "frames": "Cadres",
+      "gauge": "Jauge",
+      "underlay": "Image"
     },
     "hint": {
       "ingame": "Faites glisser pour placer les 4 éléments de texte. La police s'ajuste automatiquement à la largeur de la boîte — dimensionnez chaque boîte selon l'espace maximal que son texte doit occuper.",
-      "idle": "Écran d'arrière-plan seul affiché entre les équipes (quand « révéler à la touche Entrée/au clic » est désactivé). Ajoutez un titre et/ou un sous-titre."
+      "idle": "Écran d'arrière-plan seul affiché entre les équipes (quand « révéler à la touche Entrée/au clic » est désactivé). Ajoutez un titre et/ou un sous-titre.",
+      "frames": "Placez et dimensionnez les images de cadre du minuteur, du score et du nom d’équipe, ainsi que la plaque de bonus. Elles se placent indépendamment du texte : agrandissez la plaque sans changer la taille du texte qu’elle contient.",
+      "gauge": "Faites glisser les poignées bleues pour caler le remplissage coloré à l’intérieur de votre image de jauge.",
+      "underlay": "Faites glisser la poignée bleue au coin de l'image centrale pour régler la taille de son fond."
     },
     "save": "Enregistrer le scénario",
     "saving": "Enregistrement…",
@@ -20,7 +29,8 @@
       "enigma_name": "Nom de l'énigme",
       "timer": "Minuteur",
       "score": "Score",
-      "team_name": "Nom de l'équipe"
+      "team_name": "Nom de l'équipe",
+      "bonus": "Plaque de bonus"
     },
     "idleRoles": {
       "title": "Titre",
@@ -57,7 +67,19 @@
       "enigmaNumber": "Énigme {{number}}",
       "scenarioTitle": "Titre du scénario",
       "teamName": "Nom de l'équipe"
-    }
+    },
+    "framesHint": "Le cadre et son texte se placent séparément. Réglez d’abord le cadre ici, puis le texte dans l’onglet « Textes ».",
+    "noFrameImage": "(aucune image)",
+    "gaugeHelp": "Où commence et où s’arrête le remplissage coloré à l’intérieur de votre image de jauge. Faites glisser les poignées bleues sur la jauge, ou saisissez les valeurs. Les marges sont en % de la jauge, l’arrondi en pixels. Les icônes de niveau et l’icône du joueur suivent les mêmes valeurs.",
+    "fillInsetLeft": "Marge gauche (%)",
+    "fillInsetRight": "Marge droite (%)",
+    "fillInsetY": "Marge haut/bas (%)",
+    "fillRadius": "Arrondi (px)",
+    "gaugeDemo": "Remplissage d’essai : {{percent}} %",
+    "gaugeDemoHint": "Aperçu uniquement — ne change rien au scénario.",
+    "underlayScale": "Taille du fond (% de la case)",
+    "underlayHelp": "La case carrée sur laquelle repose l'image principale de chaque énigme : c'est elle que le sous-cadre coloré remplit et à l'intérieur de laquelle l'image est redimensionnée. Réduisez-la si l'image occupe trop de place sur le plateau.",
+    "underlayNote": "L'aperçu dessine toujours ce fond pour que vous le voyiez ; sur les postes de jeu il reste invisible tant que l'énigme n'a pas de résultat. Laissez vide pour revenir à la taille d'origine (100 %)."
   },
   "mysteryPreview": {
     "title": "Aperçu",
@@ -75,7 +97,13 @@
     "enterFullscreen": "Passer en plein écran",
     "exitFullscreen": "Quitter le plein écran",
     "fullscreen": "Plein écran",
-    "closePreview": "Fermer l'aperçu"
+    "closePreview": "Fermer l'aperçu",
+    "status": "Résultat",
+    "statusNone": "Aucun",
+    "statusCorrect": "Bonne réponse",
+    "statusIncorrect": "Mauvaise réponse",
+    "statusBoth": "Deux réponses bipées",
+    "statusNoAnswer": "Aucune réponse"
   },
   "tagquestPreview": {
     "title": "Aperçu",

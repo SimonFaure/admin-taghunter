@@ -3,11 +3,23 @@
     "title": "Sons des énigmes"
   },
   "frame": {
-    "title": "Cadre et habillage"
+    "title": "Cadre et habillage",
+    "statusFrame": "Sous-cadre de résultat",
+    "statusFrameHint": "Le sous-cadre coloré (vert, rouge, orange, gris) affiché sur chaque image d’énigme selon le résultat. Réduisez sa taille si vos cadres ne sont pas parfaitement rectangulaires et qu’il dépasse. La teinte sur l’image garantit que la couleur reste visible même sur un visuel au fond opaque. Laissez vide pour conserver le réglage d’origine ; visualisez le rendu avec le sélecteur « Résultat » de l’aperçu.",
+    "statusFrameScale": "Taille (% de la case)",
+    "statusFrameRadius": "Arrondi (% de la case)",
+    "statusFrameOver": "Teinte sur l’image (%)"
   },
   "gauge": {
     "title": "Jauge de niveaux",
-    "gaugeFilling": "Remplissage de la jauge"
+    "gaugeFilling": "Remplissage de la jauge",
+    "fillGeometry": "Calage du remplissage",
+    "fillGeometryHint": "Ajuste la position du remplissage coloré à l’intérieur de votre image de jauge. Les marges sont en % de la jauge, l’arrondi en pixels. Laissez vide pour conserver le calage automatique. Les icônes de niveau et l’icône du joueur suivent les mêmes valeurs.",
+    "fillGeometryLayoutHint": "Vous pouvez aussi les régler à la souris, sur la vraie jauge : bouton « In-game layout » en haut, onglet « Jauge ».",
+    "fillInsetLeft": "Marge gauche (%)",
+    "fillInsetRight": "Marge droite (%)",
+    "fillInsetY": "Marge haut/bas (%)",
+    "fillRadius": "Arrondi (px)"
   },
   "instructions": {
     "title": "Bouton d’actualisation"
@@ -15,7 +27,7 @@
   "scoring": {
     "title": "Notation",
     "numberOfEnigmas": "nombre d’énigmes",
-    "scoreFullGame": "score partie complète",
+    "scoreFullGame": "Score à atteindre pour remplir la jauge",
     "malusBothAnswers": "malus si les deux réponses sont bipées",
     "malusNoAnswer": "malus si aucune réponse",
     "pointsUnits": "unités de points",
@@ -30,31 +42,40 @@
     "enigmaLabel": "Énigme {{number}}",
     "removeEnigma": "Supprimer l’énigme",
     "number": "Numéro",
-    "goShortCode": "Code court GO (imprimé sur le panneau)",
+    "goShortCode": "Code court GO (imprimé sur l'énigme)",
     "shortCodePlaceholder": "ex. AXQ",
     "generateUniqueCode": "Générer un code unique",
     "questionText": "Question / texte ({{lang}})",
     "goodAnswerPoints": "Points bonne réponse",
     "wrongAnswerPoints": "Points mauvaise réponse",
+    "wrongAnswerPointsHint": "Négatif = pénalité (ex. -5). Comme les malus.",
     "goodAnswerImage": "Image de la bonne réponse",
     "wrongAnswerImage": "Image de la mauvaise réponse",
     "wrongAnswerImage2": "Image de mauvaise réponse 2 (GO)",
     "wrongAnswerImage3": "Image de mauvaise réponse 3 (GO)",
-    "unknownStation": "Station inconnue"
+    "unknownStation": "Station inconnue",
+    "spotQuestion": "Question Spot ({{lang}})",
+    "spotQuestionPlaceholder": "Question affichée au-dessus des images",
+    "difficulty": "Difficulté (Spot)",
+    "difficultyStar": "{{count}} étoile(s)",
+    "difficultyUnset": "non définie",
+    "addEnigmaTitle": "Ajouter une énigme",
+    "maxEnigmasTitle": "Maximum {{max}} énigmes",
+    "overCapWarning": "Ce scénario comporte {{total}} énigmes, au-delà du maximum de {{max}}. Supprimez-en {{count}} pour revenir dans la limite."
   },
   "goOption": {
     "sectionTitle": "Tag Hunter GO",
     "toggleLabel": "Adaptable à Tag Hunter GO",
-    "description": "Version sans matériel, sur navigateur mobile, de ce Mystère. Les joueurs saisissent un code court sur chaque panneau et touchent une lettre - sans RFID. Les sections grisées ci-dessous ne sont pas utilisées en GO.",
+    "description": "Version sans matériel, sur navigateur mobile, de ce scénario Mystery. Les joueurs saisissent un code court sur chaque énigme et touchent une lettre - sans RFID. Les sections grisées ci-dessous ne sont pas utilisées en GO.",
     "answerOptions": "Nombre d’options de réponse",
     "option2": "2 - A / B",
     "option4": "4 - A / B / C / D",
     "hint": "4 options est réservé au mode GO et ajoute deux images de mauvaise réponse supplémentaires par énigme. Chaque énigme nécessite un code court ; la lettre correcte par énigme provient du modèle GO."
   },
-  "dropOption": {
-    "sectionTitle": "Tag Hunter Drop",
-    "toggleLabel": "Adaptable à Tag Hunter Drop",
-    "description": "Version sans matériel, à l’écran, de ce Mystère. Les images de réponse apparaissent sur l’appareil au lieu d’être scannées via des balises RFID - aucune puce nécessaire. L’activer garde le scénario utilisable aussi en RFID et en GO."
+  "spotOption": {
+    "sectionTitle": "Tag Hunter Spot",
+    "toggleLabel": "Adaptable à Tag Hunter Spot",
+    "description": "Version sans matériel, à l’écran, de ce scénario Mystery. Les images de réponse apparaissent sur l’appareil au lieu d’être scannées via des balises RFID - aucune puce nécessaire. L’activer garde le scénario utilisable aussi en RFID et en GO."
   },
   "gradient": {
     "rawCss": "Dégradé CSS brut",
@@ -69,7 +90,7 @@
   },
   "pattern": {
     "title": "Modèle par défaut",
-    "defaultMysteryPattern": "Modèle mystère par défaut (images de réponse des énigmes → association aux stations)",
+    "defaultMysteryPattern": "Modèle Mystery par défaut (images de réponse des énigmes → association aux stations)",
     "none": "- Aucun -",
     "notFound": "{{value}} (introuvable)",
     "rfidHint": "Associe les images de bonne/mauvaise réponse de chaque énigme aux stations/balises (Playground RFID). L’association est affichée à côté de chaque image ci-dessous. Modifiable au lancement.",
@@ -85,8 +106,8 @@
     "insertFailed": "Échec de l’insertion",
     "createFailed": "Échec de la création du modèle"
   },
-  "goDrop": {
-    "title": "Tag Hunter GO & Drop",
-    "answerHint": "Nombre commun à GO et à Drop : en GO ce sont les lettres proposées (A/B ou A/B/C/D), en Drop le nombre de vignettes affichées. Choisir 4 ajoute deux images de mauvaise réponse supplémentaires par énigme."
+  "goSpot": {
+    "title": "Tag Hunter GO & Spot",
+    "answerHint": "Nombre commun à GO et à Spot : en GO ce sont les lettres proposées (A/B ou A/B/C/D), en Spot le nombre de vignettes affichées. Choisir 4 ajoute deux images de mauvaise réponse supplémentaires par énigme."
   }
 }

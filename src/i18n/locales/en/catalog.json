@@ -1,0 +1,27 @@
+{
+  "title": "Scenario catalog",
+  "subtitle": "The full Tag Hunter scenario line-up. The scenarios already in your account are marked; click one to open it.",
+  "count_one": "{{count}} product scenario",
+  "count_other": "{{count}} product scenarios",
+  "exportXls": "Export as XLS",
+  "print": "Print",
+  "empty": "No product scenarios match these filters",
+  "ownedYes": "In your account",
+  "filters": {
+    "age": "Age",
+    "difficulty": "Difficulty",
+    "apps": "Apps",
+    "univers": "Univers",
+    "ownedOnly": "In my account"
+  },
+  "columns": {
+    "scenario": "Scenario",
+    "difficulty": "Difficulty",
+    "apps": "Apps",
+    "univers": "Univers",
+    "owned": "In my account"
+  },
+  "errors": {
+    "load": "Failed to load catalog"
+  }
+}

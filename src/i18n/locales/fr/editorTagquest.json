@@ -2,19 +2,71 @@
   "malusCombo": {
     "sectionTitle": "Malus & combo",
     "keys": {
-      "malus_points": "points de malus",
-      "late_malus_points": "points de malus tardif",
-      "combo_2_quests": "combo 2 quêtes",
-      "combo_4_quests": "combo 4 quêtes",
-      "combo_6_quests": "combo 6 quêtes"
+      "malus_points": "points de malus (par bip sur la station de malus)",
+      "late_malus_points": "points de retard (par minute de dépassement)",
+      "combo_2_quests": "points par combo de 2 quêtes",
+      "combo_4_quests": "points par combo de 4 quêtes",
+      "combo_6_quests": "points par combo de 6 quêtes"
     }
+  },
+  "typography": {
+    "sectionTitle": "Textes du jeu : taille et couleur",
+    "editButton": "Taille & couleur des textes",
+    "clickHint": "Cliquez un texte sur l'écran pour choisir son rôle, puis réglez sa taille et sa couleur. Tous les textes du même rôle changent ensemble.",
+    "hint": "La taille est un pourcentage de la taille d'origine : à 120 %, tous les textes du rôle grandissent d'autant et gardent leurs proportions entre eux.",
+    "size": "Taille",
+    "color": "Couleur",
+    "customColor": "Couleur personnalisée",
+    "background": "Fond",
+    "backgroundOpacity": "Opacité",
+    "inherited": "hérité",
+    "reset": "Réinitialiser ce rôle",
+    "resetAll": "Tout réinitialiser",
+    "categories": {
+      "timer": "Minuteur",
+      "teamName": "Nom de l'équipe",
+      "scoreTitle": "Titre du score",
+      "scoreData": "Score",
+      "chromeTitles": "Titres malus, retard et combo",
+      "malusData": "Données malus et retard (multiplicateurs et points)",
+      "comboTitles": "Titres des combos (combo 6, combo 4, combo 2)",
+      "comboData": "Données des combos (multiplicateurs et points)",
+      "questTitles": "Titres des quêtes (bandeau de droite)",
+      "questData": "Données des quêtes (multiplicateurs et points)",
+      "activeQuestName": "Nom de la quête en cours (au centre)"
+    }
+  },
+  "malusStation": {
+    "label": "Station de malus",
+    "none": "Choisir une station de malus",
+    "selected": "Station {{name}} (#{{id}})",
+    "hint": "Chaque bip sur cette station retire les « points de malus » ci-dessus. Elle ne peut pas faire partie du modèle sélectionné.",
+    "clear": "Retirer",
+    "cancel": "Annuler",
+    "confirm": "Valider",
+    "pickerTitle": "Choisir la station de malus",
+    "pickerHint": "Une seule station. Les stations utilisées par le modèle sont désactivées.",
+    "pickerSearchPlaceholder": "Rechercher une station…",
+    "pickerLoading": "Chargement des stations…",
+    "pickerError": "Impossible de charger l'inventaire des stations.",
+    "pickerEmpty": "Aucune station dans l'inventaire.",
+    "usedByPattern": "Déjà utilisée par le modèle sélectionné",
+    "usedByPatternShort": "dans le modèle",
+    "unknownSelected": "La station #{{id}} n'est plus dans l'inventaire.",
+    "conflict": "La station de malus #{{id}} est aussi utilisée par le modèle sélectionné. Un même bip ne peut pas à la fois valider une pièce de quête et coûter des points.",
+    "conflictFix": "Retirer la station de malus"
   },
   "pattern": {
     "sectionTitle": "Modèle par défaut",
     "label": "Modèle tagquest par défaut (images de quête → correspondance des stations)",
     "none": "- Aucun -",
     "notFoundOption": "{{value}} (introuvable)",
-    "hint": "Associe les quatre images de pièces de chaque quête aux stations/balises. Créez des modèles tagquest dans la page Modèles. La correspondance est affichée à côté de chaque image ci-dessous. Modifiable au lancement."
+    "hint": "Associe les quatre images de pièces de chaque quête aux stations/balises. Créez des modèles tagquest dans la page Modèles. La correspondance est affichée à côté de chaque image ci-dessous. Modifiable au lancement.",
+    "collidesSuffix": "— utilise la station de malus",
+    "collisionRefused": "« {{pattern}} » utilise la station #{{id}}, définie comme station de malus. Modèle non appliqué.",
+    "collisionCurrent": "Le modèle sélectionné utilise la station #{{id}}, définie comme station de malus.",
+    "collisionFix": "Retirer la station de malus",
+    "collisionFixAndApply": "Retirer la station de malus et appliquer ce modèle"
   },
   "productTemplate": {
     "notice": "<0>Modèle de produit :</0> les options « utiliser les images/textes par défaut » de l'ancien éditeur ne sont pas encore portées. Elles reviendront dans une prochaine mise à jour ; pour l'instant, créez les nouveaux scénarios tagquest à partir de zéro."
@@ -39,8 +91,8 @@
     "soundLabel": "Son de la quête",
     "fourImages": "Quatre images à trouver <1>- chacune forme un quadrant de l'image principale</1>",
     "noQuests": "Aucune quête pour l'instant.",
-    "overCapWarning_one": "Ce scénario comporte {{total}} quêtes, mais Tagquest prend désormais en charge un maximum de {{max}}. {{count}} quête en trop sera supprimée lors de l'enregistrement. Supprimez les quêtes non désirées pour choisir celles à conserver.",
-    "overCapWarning_other": "Ce scénario comporte {{total}} quêtes, mais Tagquest prend désormais en charge un maximum de {{max}}. {{count}} quêtes en trop seront supprimées lors de l'enregistrement. Supprimez les quêtes non désirées pour choisir celles à conserver.",
+    "overCapWarning_one": "Ce scénario comporte {{total}} quêtes, mais Quest prend désormais en charge un maximum de {{max}}. {{count}} quête en trop sera supprimée lors de l'enregistrement. Supprimez les quêtes non désirées pour choisir celles à conserver.",
+    "overCapWarning_other": "Ce scénario comporte {{total}} quêtes, mais Quest prend désormais en charge un maximum de {{max}}. {{count}} quêtes en trop seront supprimées lors de l'enregistrement. Supprimez les quêtes non désirées pour choisir celles à conserver.",
     "pieces": {
       "topLeft": "En haut à gauche",
       "topRight": "En haut à droite",
@@ -49,7 +101,7 @@
     }
   },
   "images": {
-    "sectionTitle": "Images tagquest",
+    "sectionTitle": "Images Quest",
     "useDefaultTemplate": "Utiliser le modèle par défaut",
     "downloadDefault": "Télécharger le modèle par défaut (à utiliser comme gabarit pour un visuel personnalisé)",
     "customTemplateHint": "Le modèle personnalisé doit être un PNG 16:9 avec un fond transparent. Les positions du texte (minuteur, score, malus, combo, liste des quêtes) restent fixes - alignez votre visuel sur le modèle par défaut téléchargeable.",
@@ -61,6 +113,12 @@
     "errOpaque": "Le modèle doit avoir un fond transparent (les quatre coins semblent opaques)."
   },
   "sounds": {
-    "sectionTitle": "Sons tagquest"
+    "sectionTitle": "Sons Quest",
+    "hint": "Un emplacement laissé vide reste silencieux. Le son de quête, lui, se règle quête par quête dans la section Quêtes : il est joué quand l'image complète de la quête apparaît.",
+    "triggers": {
+      "cheating_sound": "Joué quand une puce est refusée pour triche (des poinçons ont disparu ou ont été remplacés depuis la lecture précédente), en même temps que le message à l'écran.",
+      "malus_sound": "Joué quand l'équipe a bipé la station de malus, au moment où le compteur « malus » monte à l'écran.",
+      "late_malus_sound": "Joué quand des points de retard sont décomptés (temps de jeu dépassé), au moment où le compteur « retard » monte à l'écran."
+    }
   }
 }

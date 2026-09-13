@@ -1,9 +1,9 @@
 <?php
 
-// Applies the Tag Hunter Drop foundations migration (app column on
+// Applies the Tag Hunter Spot foundations migration (app column on
 // go_loads/go_scores + go_scores re-key). Idempotent + guarded - safe to re-run.
-// CLI equivalent of pasting database/add_drop_app_columns.sql into phpMyAdmin
-// (run BEFORE deploying go.php). See project_taghunter_drop.
+// CLI equivalent of pasting database/add_spot_app_columns.sql into phpMyAdmin
+// (run BEFORE deploying go.php). See project_taghunter_spot.
 
 require_once __DIR__ . '/database/Database.php';
 
@@ -11,9 +11,9 @@ try {
     $db = Database::getInstance();
     $pdo = $db->getConnection();
 
-    echo "Applying Tag Hunter Drop app-column migration (idempotent)...\n";
+    echo "Applying Tag Hunter Spot app-column migration (idempotent)...\n";
 
-    $sql = file_get_contents(__DIR__ . '/database/add_drop_app_columns.sql');
+    $sql = file_get_contents(__DIR__ . '/database/add_spot_app_columns.sql');
     $pdo->exec($sql);
 
     echo "Migration applied successfully!\n";

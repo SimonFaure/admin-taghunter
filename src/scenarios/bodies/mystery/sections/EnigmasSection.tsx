@@ -8,7 +8,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
-import { Plus, Trash2, MapPin, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, MapPin, RefreshCw, Star, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
@@ -18,6 +18,8 @@ import { getLocalized, setLocalized } from '../../../i18n/getLocalized';
 import type { Lang } from '../../../i18n/types';
 import type { Enigma } from '../../../../types/scenario-data';
 import type { MediaSlot } from '../../../types';
+import { MYSTERY_MAX_ENIGMAS } from '../adapter';
+import { normalizeWrongAnswerPoints } from '../wrongAnswerPoints';
 import { useMysteryPatternStations, type SlotStation } from '../useMysteryPatternStations';
 
 // GO short codes are typed by players on a phone, by hand, in any weather - so
@@ -73,10 +75,10 @@ function emptyEnigma(): Enigma {
 export function EnigmasSection() {
   const { t } = useTranslation();
   const editor = useScenarioEditor();
-  const { adaptableGo, adaptableDrop, answerCount } = useGoEditor();
-  // The answer count is common to GO and Drop, so the extra wrong-answer images
+  const { adaptableGo, adaptableSpot, answerCount } = useGoEditor();
+  // The answer count is common to GO and Spot, so the extra wrong-answer images
   // a 4-option scenario needs must show for either adaptation.
-  const fourAnswers = (adaptableGo || adaptableDrop) && answerCount === 4;
+  const fourAnswers = (adaptableGo || adaptableSpot) && answerCount === 4;
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
   const enigmas = ((editor.gameMeta as Record<string, unknown>).enigmas ?? []) as Enigma[];
@@ -91,7 +93,11 @@ export function EnigmasSection() {
     editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), enigmas: next }) as typeof m);
   }
 
+  const atCap = enigmas.length >= MYSTERY_MAX_ENIGMAS;
+  const overCap = enigmas.length > MYSTERY_MAX_ENIGMAS;
+
   function addEnigma() {
+    if (atCap) return;
     setEnigmas([...enigmas, { ...emptyEnigma(), number: String(enigmas.length + 1) }]);
   }
 
@@ -145,13 +151,31 @@ export function EnigmasSection() {
           )}
           <button
             onClick={addEnigma}
-            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1"
+            disabled={atCap}
+            title={
+              atCap
+                ? t('editorMystery:enigmas.maxEnigmasTitle', { max: MYSTERY_MAX_ENIGMAS })
+                : t('editorMystery:enigmas.addEnigmaTitle')
+            }
+            className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-3 h-3" /> {t('editorMystery:enigmas.addEnigma')}
           </button>
         </div>
       }
     >
+      {overCap && (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            {t('editorMystery:enigmas.overCapWarning', {
+              count: enigmas.length - MYSTERY_MAX_ENIGMAS,
+              total: enigmas.length,
+              max: MYSTERY_MAX_ENIGMAS,
+            })}
+          </span>
+        </div>
+      )}
       {enigmas.length === 0 ? (
         <p className="text-sm text-gray-500">{t('editorMystery:enigmas.empty')}</p>
       ) : (
@@ -243,6 +267,70 @@ export function EnigmasSection() {
                       />
                     </label>
 
+                    {/* Spot: the question shown above the answer tiles. Spot has
+                        no physical panneau to carry it, so without this the
+                        player only sees a generic prompt. */}
+                    {adaptableSpot && (
+                      <label className="block">
+                        <span className="text-xs font-medium text-gray-700 mb-1 block">
+                          {t('editorMystery:enigmas.spotQuestion', { lang })}
+                        </span>
+                        <input
+                          value={getLocalized(e.spot_question as never, lang, defaultLang)}
+                          onChange={(ev) =>
+                            updateEnigma(i, {
+                              spot_question: setLocalized(
+                                e.spot_question as never,
+                                lang,
+                                ev.target.value,
+                                defaultLang,
+                              ),
+                            })
+                          }
+                          placeholder={t('editorMystery:enigmas.spotQuestionPlaceholder')}
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
+                        />
+                      </label>
+                    )}
+
+                    {/* Spot: 1..3 stars, shown to the player under the enigma
+                        title and used to break the final recap down. */}
+                    {adaptableSpot && (
+                      <div>
+                        <span className="text-xs font-medium text-gray-700 mb-1 block">
+                          {t('editorMystery:enigmas.difficulty')}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3].map((star) => {
+                            const current = Number(e.difficulty ?? 0);
+                            return (
+                              <button
+                                key={star}
+                                type="button"
+                                // Tapping the active level clears it back to "not set".
+                                onClick={() =>
+                                  updateEnigma(i, { difficulty: current === star ? undefined : star })
+                                }
+                                title={t('editorMystery:enigmas.difficultyStar', { count: star })}
+                                className="p-0.5"
+                              >
+                                <Star
+                                  className={`w-5 h-5 ${
+                                    star <= current ? 'fill-amber-400 text-amber-400' : 'text-gray-300'
+                                  }`}
+                                />
+                              </button>
+                            );
+                          })}
+                          {!Number(e.difficulty ?? 0) && (
+                            <span className="ml-1 text-xs text-gray-400">
+                              {t('editorMystery:enigmas.difficultyUnset')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <label className="block">
                       <span className="text-xs font-medium text-gray-700 mb-1 block">
                         {t('editorMystery:enigmas.goodAnswerPoints')}
@@ -258,11 +346,23 @@ export function EnigmasSection() {
                       <span className="text-xs font-medium text-gray-700 mb-1 block">
                         {t('editorMystery:enigmas.wrongAnswerPoints')}
                       </span>
+                      {/* Signed like the maluses: the minus is part of what the
+                          author types (and is put back for them when they type a
+                          bare number), so the field reads the way it scores. */}
                       <input
                         value={e.wrong_answer_points}
-                        onChange={(ev) => updateEnigma(i, { wrong_answer_points: ev.target.value })}
+                        inputMode="numeric"
+                        placeholder="0"
+                        onChange={(ev) =>
+                          updateEnigma(i, {
+                            wrong_answer_points: normalizeWrongAnswerPoints(ev.target.value),
+                          })
+                        }
                         className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
                       />
+                      <span className="mt-1 block text-[11px] text-gray-500">
+                        {t('editorMystery:enigmas.wrongAnswerPointsHint')}
+                      </span>
                     </label>
                   </div>
 

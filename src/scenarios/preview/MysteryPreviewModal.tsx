@@ -18,6 +18,7 @@ import {
   type MysteryScreen,
   type PreviewMysteryGameMeta,
 } from './MysteryPreviewRenderer';
+import { MYSTERY_STATUS_COLORS } from './mysteryIngameLayout';
 import { ViewportSelect } from './ViewportSelect';
 import { DEFAULT_VIEWPORT, type ViewportSize } from './viewportTypes';
 import './mystery-preview.css';
@@ -27,6 +28,11 @@ interface MysteryPreviewModalProps {
   onClose: () => void;
 }
 
+/** Verdicts the board tints an enigma with. '' = no result yet (neutral plate).
+ *  Lets the author judge the result sub-frame against their own artwork before
+ *  sizing it in the editor (retours #83 + #85). */
+type StatusChoice = '' | keyof typeof MYSTERY_STATUS_COLORS;
+
 export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps) {
   const { t } = useTranslation();
   const editor = useScenarioEditor();
@@ -34,6 +40,7 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
   const [gaugePercent, setGaugePercent] = useState(60);
   const [overscoreStage, setOverscoreStage] = useState(0);
   const [selectedEnigmaIndex, setSelectedEnigmaIndex] = useState(0);
+  const [status, setStatus] = useState<StatusChoice>('');
   const [viewport, setViewport] = useState<ViewportSize>(DEFAULT_VIEWPORT);
   const [fullscreen, setFullscreen] = useState(false);
   const [screen, setScreen] = useState<MysteryScreen>('ingame');
@@ -50,6 +57,7 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
       setGaugePercent(60);
       setOverscoreStage(0);
       setSelectedEnigmaIndex(0);
+      setStatus('');
       setFullscreen(false);
       setScreen('ingame');
     }
@@ -173,6 +181,23 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
             </select>
           </label>
 
+          {/* Result tint - shows the coloured sub-frame the board draws on each
+              enigma, so its size/rounding can be judged against the artwork. */}
+          <label className="flex items-center gap-1 text-xs text-gray-700">
+            <span>{t('scenarioPreview:mysteryPreview.status')}</span>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as StatusChoice)}
+              className="border border-gray-300 rounded px-2 py-1 text-xs bg-white"
+            >
+              <option value="">{t('scenarioPreview:mysteryPreview.statusNone')}</option>
+              <option value="correct">{t('scenarioPreview:mysteryPreview.statusCorrect')}</option>
+              <option value="incorrect">{t('scenarioPreview:mysteryPreview.statusIncorrect')}</option>
+              <option value="both_answers">{t('scenarioPreview:mysteryPreview.statusBoth')}</option>
+              <option value="no_answer">{t('scenarioPreview:mysteryPreview.statusNoAnswer')}</option>
+            </select>
+          </label>
+
           <div className="ml-auto flex items-center gap-3">
             <ViewportSelect value={viewport} onChange={setViewport} />
             <button
@@ -210,6 +235,7 @@ export function MysteryPreviewModal({ open, onClose }: MysteryPreviewModalProps)
             canonicalHeight={viewport.height}
             lang={lang}
             defaultLang={defaultLang}
+            statusColor={status ? MYSTERY_STATUS_COLORS[status] : undefined}
           />
         </div>
       </div>

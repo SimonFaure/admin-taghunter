@@ -20,16 +20,16 @@ type GoStats = {
 };
 
 /**
- * Admin GO/Drop → Statistics: usage across all operators. Loads are the "which
+ * Admin GO/Spot → Statistics: usage across all operators. Loads are the "which
  * client ran which scenario, how many times" metric; the team count comes from
  * go_scores. Backed by go.php?action=go_stats (admin-token gated), filtered by
- * `app`. Parameterized for the GO and Drop nav groups.
+ * `app`. Parameterized for the GO and Spot nav groups.
  */
-export function GoStatisticsView({ app = 'go' }: { app?: 'go' | 'drop' }) {
+export function GoStatisticsView({ app = 'go' }: { app?: 'go' | 'spot' }) {
   const { t } = useTranslation();
-  const isDrop = app === 'drop';
-  const appName = isDrop ? 'Drop' : 'GO';
-  const tint = isDrop ? 'text-sky-600' : 'text-emerald-600';
+  const isSpot = app === 'spot';
+  const appName = isSpot ? 'Spot' : 'GO';
+  const tint = isSpot ? 'text-sky-600' : 'text-emerald-600';
   const [stats, setStats] = useState<GoStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

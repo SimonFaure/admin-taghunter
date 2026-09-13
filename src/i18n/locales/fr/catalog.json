@@ -1,0 +1,27 @@
+{
+  "title": "Catalogue des scénarios",
+  "subtitle": "Toute la gamme de scénarios Tag Hunter. Les scénarios déjà présents dans votre compte sont signalés ; cliquez dessus pour les ouvrir.",
+  "count_one": "{{count}} scénario du catalogue",
+  "count_other": "{{count}} scénarios du catalogue",
+  "exportXls": "Exporter en XLS",
+  "print": "Imprimer",
+  "empty": "Aucun scénario ne correspond à ces filtres",
+  "ownedYes": "Dans votre compte",
+  "filters": {
+    "age": "Âge",
+    "difficulty": "Difficulté",
+    "apps": "Applis",
+    "univers": "Univers",
+    "ownedOnly": "Dans mon compte"
+  },
+  "columns": {
+    "scenario": "Scénario",
+    "difficulty": "Difficulté",
+    "apps": "Applis",
+    "univers": "Univers",
+    "owned": "Dans mon compte"
+  },
+  "errors": {
+    "load": "Échec du chargement du catalogue"
+  }
+}

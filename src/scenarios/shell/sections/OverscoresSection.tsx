@@ -68,6 +68,31 @@ export function OverscoresSection() {
         </button>
       }
     >
+      {/* The baseline every tier is measured from. It used to sit two sections
+          further down under "Notation", which made the tier figures (10, 20, 30)
+          unreadable - nothing on screen said what they were added to (retour
+          #24). Kept as the very first field here, with the relationship spelled
+          out underneath. */}
+      <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <label className="block max-w-xs">
+          <span className="text-xs font-medium text-gray-700 mb-1 block">
+            {t('overscores.scoreFullGame')}
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={String((editor.gameMeta as Record<string, unknown>).score_full_game ?? '')}
+            onChange={(e) =>
+              editor.setGameMeta(
+                (m) => ({ ...(m as Record<string, unknown>), score_full_game: e.target.value }) as typeof m,
+              )
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white"
+          />
+        </label>
+        <p className="mt-2 text-[11px] text-gray-500">{t('overscores.scoreFullGameHint')}</p>
+      </div>
+
       {overscores.length === 0 ? (
         <p className="text-sm text-gray-500">{t('overscores.empty')}</p>
       ) : (
@@ -114,6 +139,9 @@ export function OverscoresSection() {
                         onChange={(e) => updateOverscore(i, { overscore_score: e.target.value })}
                         className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-white"
                       />
+                      <span className="mt-1 block text-[11px] text-gray-500">
+                        {t('overscores.scoreHint')}
+                      </span>
                     </label>
 
                     <label className="block">

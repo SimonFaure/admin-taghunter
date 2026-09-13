@@ -7,7 +7,7 @@
  * visually in the LayoutEditor and saved back to game_meta.checkpoints[].position.
  */
 
-import { Plus, Trash2, ChevronUp, ChevronDown, MapPin } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, MapPin, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
@@ -17,6 +17,7 @@ import type { Lang } from '../../../i18n/types';
 import type { Checkpoint } from '../../../../types/scenario-data';
 import type { MediaSlot } from '../../../types';
 import { tracksMediaSlots } from '../mediaSlots';
+import { TRACKS_MAX_CHECKPOINTS } from '../limits';
 import { useTracksPatternStations } from '../useTracksPatternStations';
 
 function newCheckpoint(): Checkpoint {
@@ -64,7 +65,22 @@ export function CheckpointsSection() {
     );
   }
 
+  // Hard cap (retours point 48): the course cannot grow past
+  // TRACKS_MAX_CHECKPOINTS. `overCap` only ever fires on a legacy course
+  // imported above the cap - nothing is truncated behind the author's back.
+  const atCap = checkpoints.length >= TRACKS_MAX_CHECKPOINTS;
+  const overCap = checkpoints.length > TRACKS_MAX_CHECKPOINTS;
+
+  // The pattern binds one row per checkpoint, POSITIONALLY (row N ↔ checkpoint
+  // N). A row-count mismatch therefore shifts every checkpoint after the gap
+  // onto the wrong station and the game scores the course as missed - which is
+  // what retours #87/#89 looked like from the field. Surface it here, where the
+  // course is authored, not only in the launch modal.
+  const patternRowMismatch =
+    !!patternUniqid && patternStations.length > 0 && patternStations.length !== checkpoints.length;
+
   function addCheckpoint() {
+    if (atCap) return;
     setCheckpoints([...checkpoints, newCheckpoint()]);
   }
 
@@ -90,12 +106,47 @@ export function CheckpointsSection() {
       headerExtra={
         <button
           onClick={addCheckpoint}
-          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1"
+          disabled={atCap}
+          className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={
+            atCap
+              ? t('editorTracks:checkpoints.maxCheckpointsTitle', { max: TRACKS_MAX_CHECKPOINTS })
+              : t('editorTracks:checkpoints.addCheckpoint')
+          }
         >
           <Plus className="w-3 h-3" /> {t('editorTracks:checkpoints.addCheckpoint')}
         </button>
       }
     >
+      {patternRowMismatch && (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            {t('editorTracks:checkpoints.patternRowMismatch', {
+              rows: patternStations.length,
+              checkpoints: checkpoints.length,
+            })}
+          </span>
+        </div>
+      )}
+      {atCap && !overCap && (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{t('editorTracks:checkpoints.atCapNotice', { max: TRACKS_MAX_CHECKPOINTS })}</span>
+        </div>
+      )}
+      {overCap && (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            {t('editorTracks:checkpoints.overCapWarning', {
+              count: checkpoints.length - TRACKS_MAX_CHECKPOINTS,
+              total: checkpoints.length,
+              max: TRACKS_MAX_CHECKPOINTS,
+            })}
+          </span>
+        </div>
+      )}
       <div className="mb-4 space-y-3 border-b border-gray-200 pb-4">
         <div className="flex items-center gap-4">
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">

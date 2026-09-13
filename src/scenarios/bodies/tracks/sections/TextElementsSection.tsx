@@ -395,6 +395,12 @@ export function TextElementsSection() {
         </button>
       }
     >
+      {/* The whole section is optional - say so plainly before the categories
+          explainer, so an author doesn't read it as a required step
+          (retours point 46). */}
+      <p className="text-xs text-gray-600 mb-2">
+        {t('editorTracks:textElements.optionalHint')}
+      </p>
       <p className="text-xs text-gray-500 mb-3">
         {t('editorTracks:textElements.hint')}
       </p>

@@ -69,18 +69,30 @@ const TRACKS_OMITTED_KEYS = new Set<string>([
 ]);
 const TRACKS_TEXT_KEYS = TEXT_KEYS.filter((k) => !TRACKS_OMITTED_KEYS.has(k));
 
+// Retours #55 - Clash surfaces NONE of these strings. Every player-facing word
+// in a Clash game comes from the app's `ingame_clash` translations (status
+// messages, registration, results) or from the scenario's own event-banner
+// texts (ClashEventTextsSection). The section listed 16 fields that could never
+// fire, which is exactly what the retour reported ("aucun n'est apparu"), so
+// Clash gets no UI-strings section at all.
+const CLASH_TEXT_KEYS: readonly string[] = [];
+
 export function TextStringsSection() {
   const { t } = useTranslation('editorSections3');
   const editor = useScenarioEditor();
   const meta = editor.gameMeta as Record<string, unknown>;
-  const keys =
+  const keys: readonly string[] =
     editor.gameType === 'tagquest'
       ? TAGQUEST_TEXT_KEYS
       : editor.gameType === 'mystery'
         ? MYSTERY_TEXT_KEYS
         : editor.gameType === 'tracks'
           ? TRACKS_TEXT_KEYS
-          : TEXT_KEYS;
+          : editor.gameType === 'clash'
+            ? CLASH_TEXT_KEYS
+            : TEXT_KEYS;
+
+  if (keys.length === 0) return null;
 
   return (
     <CollapsibleSection title={t('textStrings.title')} headerExtra={<HelpDot topic="editor.translations" />}>
@@ -88,18 +100,32 @@ export function TextStringsSection() {
         {t('textStrings.placeholderHint')}
       </p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {keys.map((key) => (
-          <LocalizedField
-            key={key}
-            label={t(`textStrings.labels.${key}`)}
-            value={meta[key] as Localized<string> | string | undefined}
-            onChange={(next) =>
-              editor.setGameMeta(
-                (m) => ({ ...(m as Record<string, unknown>), [key]: next }) as typeof m,
-              )
-            }
-          />
-        ))}
+        {keys.map((key) => {
+          // Retours #5/#6 - the labels alone didn't say WHICH situation fires a
+          // given message ("puce vide": really blank, or not wiped? and "erreur":
+          // which error?). A hint spells out the trigger and gives an example.
+          // Keys with no authored hint render nothing (defaultValue '').
+          const hint = t(`textStrings.hints.${key}`, { defaultValue: '' });
+          return (
+            <div key={key}>
+              <LocalizedField
+                label={t(`textStrings.labels.${key}`)}
+                value={meta[key] as Localized<string> | string | undefined}
+                onChange={(next) =>
+                  editor.setGameMeta(
+                    (m) => ({ ...(m as Record<string, unknown>), [key]: next }) as typeof m,
+                  )
+                }
+              />
+              {hint && (
+                <p className="mt-1 text-xs text-gray-500">
+                  <span className="font-medium text-gray-600">{t('textStrings.hintsTitle')}</span>{' '}
+                  {hint}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </CollapsibleSection>
   );

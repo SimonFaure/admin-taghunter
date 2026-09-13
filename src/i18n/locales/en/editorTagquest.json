@@ -2,19 +2,71 @@
   "malusCombo": {
     "sectionTitle": "Malus & combo",
     "keys": {
-      "malus_points": "malus points",
-      "late_malus_points": "late malus points",
-      "combo_2_quests": "combo 2 quests",
-      "combo_4_quests": "combo 4 quests",
-      "combo_6_quests": "combo 6 quests"
+      "malus_points": "malus points (per punch on the malus station)",
+      "late_malus_points": "overtime points (per minute over)",
+      "combo_2_quests": "points per 2-quest combo",
+      "combo_4_quests": "points per 4-quest combo",
+      "combo_6_quests": "points per 6-quest combo"
     }
+  },
+  "typography": {
+    "sectionTitle": "In-game text: size & colour",
+    "editButton": "Text size & colour",
+    "clickHint": "Click a text on the screen to pick its role, then set its size and colour. Every text in that role changes together.",
+    "hint": "Size is a percentage of the authored size: at 120 % every text in that role grows by the same factor and keeps its proportions.",
+    "size": "Size",
+    "color": "Colour",
+    "customColor": "Custom colour",
+    "background": "Background",
+    "backgroundOpacity": "Opacity",
+    "inherited": "inherited",
+    "reset": "Reset this role",
+    "resetAll": "Reset all",
+    "categories": {
+      "timer": "Timer",
+      "teamName": "Team name",
+      "scoreTitle": "Score title",
+      "scoreData": "Score",
+      "chromeTitles": "Malus, overtime and combo titles",
+      "malusData": "Malus & overtime data (multipliers and points)",
+      "comboTitles": "Combo titles (combo 6, combo 4, combo 2)",
+      "comboData": "Combo data (multipliers and points)",
+      "questTitles": "Quest titles (right-hand strip)",
+      "questData": "Quest data (multipliers and points)",
+      "activeQuestName": "Active quest name (centre)"
+    }
+  },
+  "malusStation": {
+    "label": "Malus station",
+    "none": "Pick a malus station",
+    "selected": "Station {{name}} (#{{id}})",
+    "hint": "Every punch on this station subtracts the \"malus points\" above. It cannot be part of the selected pattern.",
+    "clear": "Remove",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "pickerTitle": "Pick the malus station",
+    "pickerHint": "One station only. Stations used by the pattern are disabled.",
+    "pickerSearchPlaceholder": "Search a station…",
+    "pickerLoading": "Loading stations…",
+    "pickerError": "Could not load the station inventory.",
+    "pickerEmpty": "No station in the inventory.",
+    "usedByPattern": "Already used by the selected pattern",
+    "usedByPatternShort": "in pattern",
+    "unknownSelected": "Station #{{id}} is no longer in the inventory.",
+    "conflict": "Malus station #{{id}} is also used by the selected pattern. One punch cannot both complete a quest piece and cost points.",
+    "conflictFix": "Remove the malus station"
   },
   "pattern": {
     "sectionTitle": "Default pattern",
     "label": "Default tagquest pattern (quest images → station mapping)",
     "none": "- None -",
     "notFoundOption": "{{value}} (not found)",
-    "hint": "Assigns each quest's four piece images to stations/balises. Create tagquest patterns in the Patterns page. The mapping is shown next to each image below. Overridable at launch."
+    "hint": "Assigns each quest's four piece images to stations/balises. Create tagquest patterns in the Patterns page. The mapping is shown next to each image below. Overridable at launch.",
+    "collidesSuffix": "— uses the malus station",
+    "collisionRefused": "\"{{pattern}}\" uses station #{{id}}, which is set as the malus station. Pattern not applied.",
+    "collisionCurrent": "The selected pattern uses station #{{id}}, which is set as the malus station.",
+    "collisionFix": "Remove the malus station",
+    "collisionFixAndApply": "Remove the malus station and apply this pattern"
   },
   "productTemplate": {
     "notice": "<0>Product template:</0> the \"use default images/texts\" toggles from the legacy editor are not yet ported. They will return in a follow-up; for now create new tagquest scenarios from scratch."
@@ -39,8 +91,8 @@
     "soundLabel": "Quest sound",
     "fourImages": "Four images to find <1>- each forms one quadrant of the main image</1>",
     "noQuests": "No quests yet.",
-    "overCapWarning_one": "This scenario has {{total}} quests but Tagquest now supports a maximum of {{max}}. The extra {{count}} quest will be removed when you save. Delete unwanted quests to choose which ones are kept.",
-    "overCapWarning_other": "This scenario has {{total}} quests but Tagquest now supports a maximum of {{max}}. The extra {{count}} quests will be removed when you save. Delete unwanted quests to choose which ones are kept.",
+    "overCapWarning_one": "This scenario has {{total}} quests but Quest now supports a maximum of {{max}}. The extra {{count}} quest will be removed when you save. Delete unwanted quests to choose which ones are kept.",
+    "overCapWarning_other": "This scenario has {{total}} quests but Quest now supports a maximum of {{max}}. The extra {{count}} quests will be removed when you save. Delete unwanted quests to choose which ones are kept.",
     "pieces": {
       "topLeft": "Top-left",
       "topRight": "Top-right",
@@ -49,7 +101,7 @@
     }
   },
   "images": {
-    "sectionTitle": "Tagquest images",
+    "sectionTitle": "Quest images",
     "useDefaultTemplate": "Use default template",
     "downloadDefault": "Download default template (use as a spec for custom artwork)",
     "customTemplateHint": "Custom template must be a 16:9 PNG with a transparent background. Text positions (timer, score, malus, combo, quest list) stay fixed - align your artwork to the downloadable default template.",
@@ -61,6 +113,12 @@
     "errOpaque": "Template must have a transparent background (all four corners look opaque)."
   },
   "sounds": {
-    "sectionTitle": "Tagquest sounds"
+    "sectionTitle": "Quest sounds",
+    "hint": "A slot left empty stays silent. The per-quest sound is set quest by quest in the Quests section; it plays when the quest's complete picture appears.",
+    "triggers": {
+      "cheating_sound": "Plays when a card is rejected for cheating (punches vanished or were replaced since the previous read), together with the on-screen message.",
+      "malus_sound": "Plays when the team punched the malus station, as the \"malus\" counter climbs on screen.",
+      "late_malus_sound": "Plays when overtime points are charged (game time exceeded), as the \"overtime\" counter climbs on screen."
+    }
   }
 }

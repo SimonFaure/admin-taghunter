@@ -1,16 +1,25 @@
 {
   "ingameLayout": {
     "title": {
-      "ingame": "Disposición en juego",
-      "idle": "Disposición de la pantalla de espera"
+      "ingame": "Disposición de los textos",
+      "idle": "Disposición de la pantalla de espera",
+      "frames": "Marcos de los elementos",
+      "gauge": "Ajuste del relleno del medidor",
+      "underlay": "Fondo de la imagen principal"
     },
     "mode": {
-      "ingame": "En juego",
-      "idle": "Espera"
+      "ingame": "Textos",
+      "idle": "Espera",
+      "frames": "Marcos",
+      "gauge": "Medidor",
+      "underlay": "Imagen"
     },
     "hint": {
       "ingame": "Arrastra para colocar los 4 elementos de texto. La fuente se ajusta automáticamente al ancho de la caja: dimensiona cada caja según el espacio máximo que debe ocupar su texto.",
-      "idle": "Pantalla de solo fondo que se muestra entre equipos (cuando «revelar con Intro/clic» está desactivado). Añade un título o un subtítulo."
+      "idle": "Pantalla de solo fondo que se muestra entre equipos (cuando «revelar con Intro/clic» está desactivado). Añade un título o un subtítulo.",
+      "frames": "Coloca y dimensiona las imágenes de marco del cronómetro, la puntuación y el nombre de equipo, y la placa de bonus. Se colocan de forma independiente del texto, así que puedes agrandar la placa sin cambiar el tamaño del texto que contiene.",
+      "gauge": "Arrastra los tiradores azules para ajustar el relleno de color dentro de tu imagen del medidor.",
+      "underlay": "Arrastra el control azul de la esquina de la imagen central para ajustar el tamaño de su fondo."
     },
     "save": "Guardar el escenario",
     "saving": "Guardando…",
@@ -20,7 +29,8 @@
       "enigma_name": "Nombre del enigma",
       "timer": "Temporizador",
       "score": "Puntuación",
-      "team_name": "Nombre del equipo"
+      "team_name": "Nombre del equipo",
+      "bonus": "Placa de bonus"
     },
     "idleRoles": {
       "title": "Título",
@@ -57,7 +67,19 @@
       "enigmaNumber": "Enigma {{number}}",
       "scenarioTitle": "Título del escenario",
       "teamName": "Nombre del equipo"
-    }
+    },
+    "framesHint": "El marco y su texto se colocan por separado. Ajusta primero el marco aquí y luego el texto en la pestaña «Textos».",
+    "noFrameImage": "(sin imagen)",
+    "gaugeHelp": "Dónde empieza y dónde termina el relleno de color dentro de tu imagen del medidor. Arrastra los tiradores azules sobre el medidor o escribe los valores. Los márgenes son % del medidor, el redondeo en píxeles. Los iconos de nivel y el icono del jugador siguen los mismos valores.",
+    "fillInsetLeft": "Margen izquierdo (%)",
+    "fillInsetRight": "Margen derecho (%)",
+    "fillInsetY": "Margen superior/inferior (%)",
+    "fillRadius": "Redondeo (px)",
+    "gaugeDemo": "Relleno de prueba: {{percent}} %",
+    "gaugeDemoHint": "Solo vista previa: no cambia nada del escenario.",
+    "underlayScale": "Tamaño del fondo (% de la casilla)",
+    "underlayHelp": "La casilla cuadrada sobre la que se apoya la imagen principal de cada enigma: es la que rellena el submarco de color y dentro de la cual se ajusta la imagen. Redúcela si la imagen ocupa demasiado espacio en el tablero.",
+    "underlayNote": "La vista previa siempre dibuja esta casilla para que puedas verla; en los puestos de juego permanece invisible hasta que el enigma tiene un resultado. Déjalo vacío para volver al tamaño original (100 %)."
   },
   "mysteryPreview": {
     "title": "Vista previa",
@@ -75,7 +97,13 @@
     "enterFullscreen": "Pantalla completa",
     "exitFullscreen": "Salir de pantalla completa",
     "fullscreen": "Pantalla completa",
-    "closePreview": "Cerrar la vista previa"
+    "closePreview": "Cerrar la vista previa",
+    "status": "Resultado",
+    "statusNone": "Ninguno",
+    "statusCorrect": "Respuesta correcta",
+    "statusIncorrect": "Respuesta incorrecta",
+    "statusBoth": "Dos respuestas fichadas",
+    "statusNoAnswer": "Sin respuesta"
   },
   "tagquestPreview": {
     "title": "Vista previa",

@@ -16,8 +16,9 @@ import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { getLocalized, setLocalized } from '../../../i18n/getLocalized';
 import type { Lang } from '../../../i18n/types';
 import type { ClashTerritory } from '../../../../types/scenario-data';
-import { db } from '../../../../creator-ported/lib/db';
-import { BalisePickerModal, type StationRow } from './BalisePickerModal';
+import { BalisePickerModal } from './BalisePickerModal';
+import { DEFAULT_CLASH_PURGE_STATION } from '../defaults';
+import { useStationInventory } from '../useClashStations';
 
 const MIN_TERRITORIES = 2;
 const MAX_TERRITORIES = 12;
@@ -30,6 +31,8 @@ interface TerritoryCardProps {
   defaultLang: Lang;
   /** Numeric station numbers present in the inventory; null while unloaded. */
   inventoryNumbers: Set<number> | null;
+  /** Reserved purge station - flagged red on a legacy territory that has it. */
+  purgeStation: number;
   onChange: (patch: Partial<ClashTerritory>) => void;
   onOpenPicker: () => void;
   onRemove: () => void;
@@ -42,6 +45,7 @@ function TerritoryCard({
   lang,
   defaultLang,
   inventoryNumbers,
+  purgeStation,
   onChange,
   onOpenPicker,
   onRemove,
@@ -116,12 +120,25 @@ function TerritoryCard({
               ) : (
                 sortedBalises.map((n) => {
                   const unknown = inventoryNumbers !== null && !inventoryNumbers.has(n);
+                  // Retours #50 - a pre-existing scenario can still carry the
+                  // purge station on a territory; flag it so it gets removed.
+                  const reserved = n === purgeStation;
                   return (
                     <span
                       key={n}
-                      title={unknown ? t('editorClash:territories.unknownStation') : undefined}
+                      title={
+                        reserved
+                          ? t('editorClash:territories.reservedForPurge')
+                          : unknown
+                            ? t('editorClash:territories.unknownStation')
+                            : undefined
+                      }
                       className={`inline-flex px-2 py-0.5 rounded-full text-xs font-mono ${
-                        unknown ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'
+                        reserved
+                          ? 'bg-red-50 text-red-700'
+                          : unknown
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-blue-50 text-blue-700'
                       }`}
                     >
                       {n}
@@ -153,32 +170,28 @@ export function TerritoriesSection() {
   const lang = editor.currentLanguage as Lang;
   const defaultLang = editor.defaultLanguage as Lang;
   const territories = ((editor.gameMeta as Record<string, unknown>).territories ?? []) as ClashTerritory[];
+  // The purge station is reserved: it can never be part of a territory, so the
+  // picker greys it out instead of letting the clash surface at launch time
+  // (retours #50). Authored in the Purge section; 25 when never set.
+  const rawPurgeStation = Number(
+    (editor.gameMeta as Record<string, unknown>).purge_station ?? DEFAULT_CLASH_PURGE_STATION,
+  );
+  const purgeStation = Number.isFinite(rawPurgeStation) ? rawPurgeStation : DEFAULT_CLASH_PURGE_STATION;
 
   // Station inventory - fetched lazily on first picker open, then reused for
-  // every territory (and for the unknown-number chip flags).
+  // every territory (and for the unknown-number chip flags). Shared with the
+  // purge-station picker's fetch (useClashStations).
   const [pickerIdx, setPickerIdx] = useState<number | null>(null);
-  const [stations, setStations] = useState<StationRow[] | null>(null);
-  const [stationsError, setStationsError] = useState(false);
+  const [everOpened, setEverOpened] = useState(false);
+  const { stations, loading, error: stationsError, loaded } = useStationInventory(everOpened);
 
-  async function openPicker(idx: number) {
+  function openPicker(idx: number) {
+    setEverOpened(true);
     setPickerIdx(idx);
-    if (stations !== null) return;
-    setStationsError(false); // a previous failure retries on reopen
-    try {
-      const { data, error } = await db
-        .from('si_balises')
-        .select('id, station_name, station_function')
-        .order('id', { ascending: true });
-      if (error) throw error;
-      setStations((data ?? []) as StationRow[]);
-    } catch (err) {
-      console.error('Error loading stations:', err);
-      setStationsError(true);
-    }
   }
 
   const inventoryNumbers = useMemo(() => {
-    if (!stations) return null;
+    if (!loaded) return null;
     const set = new Set<number>();
     for (const s of stations) {
       const name = (s.station_name ?? '').trim();
@@ -186,7 +199,7 @@ export function TerritoriesSection() {
       if (name !== '' && Number.isInteger(num) && num >= 0) set.add(num);
     }
     return set;
-  }, [stations]);
+  }, [stations, loaded]);
 
   function territoryDisplayLabel(terr: ClashTerritory, idx: number): string {
     return (
@@ -264,8 +277,9 @@ export function TerritoriesSection() {
                 lang={lang}
                 defaultLang={defaultLang}
                 inventoryNumbers={inventoryNumbers}
+                purgeStation={purgeStation}
                 onChange={(patch) => updateTerritory(i, patch)}
-                onOpenPicker={() => void openPicker(i)}
+                onOpenPicker={() => openPicker(i)}
                 onRemove={() => removeTerritory(i)}
               />
             ))}
@@ -277,11 +291,12 @@ export function TerritoriesSection() {
         <BalisePickerModal
           key={pickerIdx}
           territoryLabel={territoryDisplayLabel(pickerTerritory, pickerIdx)}
-          stations={stations ?? []}
-          loading={stations === null && !stationsError}
+          stations={stations}
+          loading={loading}
           error={stationsError}
           selected={pickerTerritory.balises ?? []}
           usedBy={usedBy}
+          purgeStation={purgeStation}
           onConfirm={(nums) => updateTerritory(pickerIdx, { balises: nums })}
           onClose={() => setPickerIdx(null)}
         />

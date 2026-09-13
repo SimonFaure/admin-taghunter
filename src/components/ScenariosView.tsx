@@ -8,6 +8,7 @@ import { ScenarioListControls } from './scenarios/ScenarioListControls';
 import { AUDIENCE_BANDS, type AudienceBand, getBandLabel, resolveBands } from '../types/audience';
 import { DIFFICULTY_LEVELS, coerceDifficulty, formatDifficultyStars, getDifficultyBadgeClass } from '../types/difficulty';
 import { normalizeUnivers } from '../types/univers';
+import { formatLangCode, scenarioLanguagesFromData } from '../types/scenarioLanguages';
 import { listRegisteredAdapters } from '../scenarios';
 import { GameTypeIcon } from './icons/GameTypeIcons';
 import { HelpButton } from '../help';
@@ -76,15 +77,20 @@ function getScenarioUnivers(scenario: Scenario): string[] {
   return normalizeUnivers(getScenarioMeta(scenario).univers);
 }
 
+// Languages the scenario is authored in (data.available_languages + default).
+function getScenarioLanguages(scenario: Scenario): string[] {
+  return scenarioLanguagesFromData(scenario.data || scenario.game_data);
+}
+
 // Tag Hunter GO: whether the scenario exists in GO mode.
 function isScenarioGo(scenario: Scenario): boolean {
   return getScenarioMeta(scenario).adaptable_go === true;
 }
 
-// Tag Hunter Drop: the hardware-free on-screen-image variant. Independent of
-// GO - a scenario can be both (project_taghunter_drop).
-function isScenarioDrop(scenario: Scenario): boolean {
-  return getScenarioMeta(scenario).adaptable_drop === true;
+// Tag Hunter Spot: the hardware-free on-screen-image variant. Independent of
+// GO - a scenario can be both (project_taghunter_spot).
+function isScenarioSpot(scenario: Scenario): boolean {
+  return getScenarioMeta(scenario).adaptable_spot === true;
 }
 
 // The base provenance/status filters plus, dynamically, one entry per
@@ -1026,7 +1032,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
     if (filter === 'client-authored') return s.scenario_type === 'custom' || s.client_id !== null;
     if (filter === 'drafts') return (s.status || 'draft') === 'draft';
     if (filter === 'go') return isScenarioGo(s);
-    if (filter === 'drop') return isScenarioDrop(s);
+    if (filter === 'spot') return isScenarioSpot(s);
     // Otherwise `filter` is a game-type kind (e.g. 'mystery' | 'tagquest' | 'tracks').
     return s.game_type === filter;
   };
@@ -1149,6 +1155,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
     const bands = getScenarioBands(scenario);
     const difficulty = getScenarioDifficulty(scenario);
     const univers = getScenarioUnivers(scenario);
+    const languages = getScenarioLanguages(scenario);
 
     return (
       <div
@@ -1176,81 +1183,87 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
             </div>
           </div>
 
-          {/* Scenario data in two columns: identity (left) + version/badges (right). */}
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4">
-            <div className="space-y-2 min-w-0">
-              <div className="flex items-center space-x-2 text-sm text-slate-600">
-                <GameTypeIcon type={scenario.game_type} className="w-4 h-4 flex-shrink-0" />
-                <span className="font-medium capitalize truncate">{labelForGameType(scenario.game_type)}</span>
-              </div>
-              {scenario.creator_name && (
-                <div className="flex items-center space-x-2 text-sm text-slate-600">
-                  <User className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">{scenario.creator_name}</span>
-                </div>
-              )}
-              <div className="flex items-center space-x-2 text-sm text-slate-600">
-                <Calendar className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{new Date(scenario.created_at).toLocaleDateString()}</span>
-              </div>
-              {scenario.client_name && (
-                <div className="flex items-center space-x-2 text-sm text-slate-600">
-                  <User className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">Client: {scenario.client_name}</span>
-                </div>
-              )}
-            </div>
+          {/* Identity line: game type, author, date, client - inline and wrapping,
+              so a narrow card reflows instead of stacking one item per line. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600 mb-3">
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              <GameTypeIcon type={scenario.game_type} className="w-4 h-4 flex-shrink-0" />
+              <span className="font-medium capitalize truncate">{labelForGameType(scenario.game_type)}</span>
+            </span>
+            {scenario.creator_name && (
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <User className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{scenario.creator_name}</span>
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span>{new Date(scenario.created_at).toLocaleDateString()}</span>
+            </span>
+            {scenario.client_name && (
+              <span className="inline-flex items-center gap-1.5 min-w-0">
+                <User className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">Client: {scenario.client_name}</span>
+              </span>
+            )}
+          </div>
 
-            <div className="flex flex-col items-start gap-2 min-w-0">
-              {getGameVersion(scenario) && (
-                <div className="inline-flex items-center space-x-1 text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                  <Tag className="w-3 h-3" />
-                  <span>v{getGameVersion(scenario)}</span>
-                </div>
-              )}
-              {isScenarioGo(scenario) && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-100">
-                  GO
-                </span>
-              )}
-              {isScenarioDrop(scenario) && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-sky-700 bg-sky-100">
-                  DROP
-                </span>
-              )}
-              {bands.length > 0 && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50">
-                  <User className="w-3 h-3" />
-                  {bands.map((b) => getBandLabel(b)).join(' · ')}
-                </span>
-              )}
-              {difficulty !== null && (
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${getDifficultyBadgeClass(difficulty)}`}>
-                  <Gauge className="w-3 h-3" />
-                  {formatDifficultyStars(difficulty)}
-                </span>
-              )}
-              {univers.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {univers.map((tag) => (
-                    <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-violet-700 bg-violet-50">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {scenario.status && (
-                <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
-                  scenario.status === 'published'
-                    ? 'bg-green-100 text-green-700'
-                    : scenario.status === 'archived'
-                    ? 'bg-slate-200 text-slate-600'
-                    : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {scenario.status}
-                </span>
-              )}
-            </div>
+          {/* Catalog badges - ONE wrapping row, never a vertical column. */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-4">
+            {getGameVersion(scenario) && (
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                <Tag className="w-3 h-3" />
+                v{getGameVersion(scenario)}
+              </span>
+            )}
+            {isScenarioGo(scenario) && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-emerald-700 bg-emerald-100">
+                GO
+              </span>
+            )}
+            {isScenarioSpot(scenario) && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-sky-700 bg-sky-100">
+                SPOT
+              </span>
+            )}
+            {bands.length > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-indigo-700 bg-indigo-50">
+                <User className="w-3 h-3" />
+                {bands.map((b) => getBandLabel(b)).join(' · ')}
+              </span>
+            )}
+            {difficulty !== null && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${getDifficultyBadgeClass(difficulty)}`}>
+                <Gauge className="w-3 h-3" />
+                {formatDifficultyStars(difficulty)}
+              </span>
+            )}
+            {/* Authored languages, so the list shows them without opening details. */}
+            {languages.map((code) => (
+              <span
+                key={code}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold text-cyan-700 bg-cyan-50"
+              >
+                <Globe className="w-3 h-3" />
+                {formatLangCode(code)}
+              </span>
+            ))}
+            {univers.map((tag) => (
+              <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-violet-700 bg-violet-50">
+                {tag}
+              </span>
+            ))}
+            {scenario.status && (
+              <span className={`px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+                scenario.status === 'published'
+                  ? 'bg-green-100 text-green-700'
+                  : scenario.status === 'archived'
+                  ? 'bg-slate-200 text-slate-600'
+                  : 'bg-amber-100 text-amber-700'
+              }`}>
+                {scenario.status}
+              </span>
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -1492,18 +1505,18 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
           </button>
         )}
 
-        {/* Tag Hunter Drop filter - scenarios marked "Adaptable à Drop". */}
-        {scenarios.some((s) => isScenarioDrop(s)) && (
+        {/* Tag Hunter Spot filter - scenarios marked "Adaptable à Spot". */}
+        {scenarios.some((s) => isScenarioSpot(s)) && (
           <button
             type="button"
-            onClick={() => setFilter('drop')}
+            onClick={() => setFilter('spot')}
             className={`px-3 py-1.5 text-sm rounded-full border transition-colors ${
-              filter === 'drop'
+              filter === 'spot'
                 ? 'bg-sky-600 text-white border-sky-600'
                 : 'bg-white text-sky-700 border-sky-200 hover:border-sky-300'
             }`}
           >
-            DROP
+            SPOT
           </button>
         )}
 

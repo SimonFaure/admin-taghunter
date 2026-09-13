@@ -734,9 +734,18 @@ function handleGetMedia($pdo) {
     $version = (int)($_GET['version'] ?? 0);
     $filename = $_GET['filename'] ?? '';
     $subtitleLang = $_GET['subtitle_lang'] ?? '';
+    // Attachment mode: the client "download tutorial videos" page links straight
+    // at this endpoint, so the browser must be told to save rather than play.
+    $asAttachment = !empty($_GET['download']);
 
     if (!$code || !$version || (!$filename && !$subtitleLang)) {
         http_response_code(400); echo json_encode(['error' => 'Missing params']); return;
+    }
+    // $code is interpolated into the media path below - keep it to the same
+    // charset the game_types.code column uses so it can never walk out of
+    // media/game_types/ (the filename guard further down only covers $filename).
+    if (!preg_match('/^[a-z0-9_-]+$/', $code)) {
+        http_response_code(400); echo json_encode(['error' => 'Invalid code']); return;
     }
 
     if ($variant === 'admin') {
@@ -777,6 +786,15 @@ function handleGetMedia($pdo) {
 
     header('Content-Type: ' . $mime);
     header('Accept-Ranges: bytes');
+
+    // Friendly, predictable save-as name ("tutoriel-mystery.mp4") built from the
+    // validated code - never from the on-disk name, which is always "tutorial.*".
+    if ($asAttachment) {
+        $downloadName = $subtitleLang
+            ? "tutoriel-$code-$subtitleLang.vtt"
+            : "tutoriel-$code." . (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) ?: 'mp4');
+        header('Content-Disposition: attachment; filename="' . $downloadName . '"');
+    }
 
     // Honour HTTP Range requests so the player can seek without re-downloading.
     if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=(\d*)-(\d*)/', $_SERVER['HTTP_RANGE'], $m)) {

@@ -9,6 +9,7 @@ import { RecoveryCodesPanel } from './RecoveryCodesPanel';
 import { ClientHotspotPanel } from './ClientHotspotPanel';
 import { ClientGameTypesPanel } from './ClientGameTypesPanel';
 import { GameTypeIcon } from './icons/GameTypeIcons';
+import { DurationCatalogCard, ScenarioDurationPicker, useDurationCatalog } from './go/durations';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -97,6 +98,14 @@ function CollapsibleSection({
 }
 
 export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
+  // The client's challenge catalog (minutes), shared by its GO and Spot grants.
+  // One instance for the whole page so both tabs edit the same list
+  // (project_go_spot_durations).
+  const {
+    catalog: durationCatalog,
+    loading: durationCatalogLoading,
+    save: saveDurationCatalog,
+  } = useDurationCatalog(clientId);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -121,10 +130,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [devices, setDevices] = useState<ClientDevice[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [detailsCollapsed, setDetailsCollapsed] = useState(true);
-  // Per-app tabs (Playground / Go / Drop). Each tab stacks that app's cards:
+  // Per-app tabs (Playground / Go / Spot). Each tab stacks that app's cards:
   // provisioning+billing first, then its data sections. All three tabs always
   // render (the enable toggle lives inside each tab); default is Playground.
-  const [activeAppTab, setActiveAppTab] = useState<'playground' | 'go' | 'drop'>('playground');
+  const [activeAppTab, setActiveAppTab] = useState<'playground' | 'go' | 'spot'>('playground');
 
   // Tag Hunter GO grants (mode='go' rows in client_scenarios). Managed
   // separately from the RFID/Playground grants above.
@@ -132,6 +141,8 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     scenario_id: string;
     title: string;
     uniqid: string;
+    /** Challenges offered for this scenario in this app (project_go_spot_durations). */
+    durations?: number[];
   }
   const [goGrants, setGoGrants] = useState<GoGrant[]>([]);
   const [showAddGoModal, setShowAddGoModal] = useState(false);
@@ -139,14 +150,14 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [goSelScenario, setGoSelScenario] = useState('');
   const [goBusy, setGoBusy] = useState(false);
 
-  // Tag Hunter Drop grants (mode='drop' rows in client_scenarios). Same shape as
-  // GO grants but no bound pattern - Drop shows answer images on-screen and
-  // shuffles them (project_taghunter_drop).
-  const [dropGrants, setDropGrants] = useState<GoGrant[]>([]);
-  const [showAddDropModal, setShowAddDropModal] = useState(false);
-  const [dropAvailableScenarios, setDropAvailableScenarios] = useState<ScenarioData[]>([]);
-  const [dropSelScenario, setDropSelScenario] = useState('');
-  const [dropBusy, setDropBusy] = useState(false);
+  // Tag Hunter Spot grants (mode='spot' rows in client_scenarios). Same shape as
+  // GO grants but no bound pattern - Spot shows answer images on-screen and
+  // shuffles them (project_taghunter_spot).
+  const [spotGrants, setSpotGrants] = useState<GoGrant[]>([]);
+  const [showAddSpotModal, setShowAddSpotModal] = useState(false);
+  const [spotAvailableScenarios, setSpotAvailableScenarios] = useState<ScenarioData[]>([]);
+  const [spotSelScenario, setSpotSelScenario] = useState('');
+  const [spotBusy, setSpotBusy] = useState(false);
 
   // Admin-side cards CRUD: same shared editor used by CardsListView's drill-in.
   const clientIdNum = Number(clientId);
@@ -187,10 +198,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     go_enabled: false,
     go_subscription_active: false,
     go_billing_grace_days: 30,
-    // Drop (future app) flags.
-    drop_enabled: false,
-    drop_billing_ok: true,
-    drop_billing_grace_days: 30,
+    // Spot (future app) flags.
+    spot_enabled: false,
+    spot_billing_ok: true,
+    spot_billing_grace_days: 30,
     // Emergency device-disable + billing auto-lock (Playground). project_client_device_lock.
     devices_disabled: false,
     billing_grace_days: 30,
@@ -202,7 +213,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     loadScenarios();
     loadDevices();
     loadGoGrants();
-    loadDropGrants();
+    loadSpotGrants();
   }, [clientId]);
 
   const loadDevices = async () => {
@@ -356,7 +367,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadGoGrants = async () => {
     try {
       const response = await authFetch(
-        `${API_BASE_URL}/client_scenarios.php?action=list_go&client_id=${clientId}`,
+        // grants_only: this section manages grant ROWS. Without it a premium
+        // client also lists every eligible product scenario (what it actually
+        // holds — see appScenariosForClient), which has no row to remove.
+        `${API_BASE_URL}/client_scenarios.php?action=list_go&grants_only=1&client_id=${clientId}`,
         { credentials: 'include' },
       );
       if (response.ok) {
@@ -379,12 +393,12 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
   };
 
-  const parseAdaptableDrop = (s: ScenarioData): boolean => {
+  const parseAdaptableSpot = (s: ScenarioData): boolean => {
     try {
       const raw = (s as unknown as { data?: unknown }).data;
       const d = typeof raw === 'string' ? JSON.parse(raw) : raw;
       const gm = d?.game_meta ?? d?.data?.game_meta ?? null;
-      return gm?.adaptable_drop === true;
+      return gm?.adaptable_spot === true;
     } catch {
       return false;
     }
@@ -419,7 +433,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   // app's fields so editing one app never clobbers another app's pending edits.
   const [savingPlayground, setSavingPlayground] = useState(false);
   const [savingGo, setSavingGo] = useState(false);
-  const [savingDrop, setSavingDrop] = useState(false);
+  const [savingSpot, setSavingSpot] = useState(false);
 
   const saveAppFields = async (
     fields: Partial<UpdateClientData>,
@@ -466,15 +480,15 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       setSavingGo,
     );
 
-  const saveDropApp = () =>
+  const saveSpotApp = () =>
     saveAppFields(
       {
-        drop_enabled: formData.drop_enabled,
-        drop_billing_ok: formData.drop_billing_ok,
-        drop_billing_grace_days: formData.drop_billing_grace_days,
+        spot_enabled: formData.spot_enabled,
+        spot_billing_ok: formData.spot_billing_ok,
+        spot_billing_grace_days: formData.spot_billing_grace_days,
       },
-      'Drop settings saved',
-      setSavingDrop,
+      'Spot settings saved',
+      setSavingSpot,
     );
 
   const handleAddGoGrant = async () => {
@@ -528,53 +542,54 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
   };
 
-  // ---- Tag Hunter Drop grants (mode='drop') -------------------------------
-  // Mirrors the GO grant flow. Drop reuses the same GO-capable content
+  // ---- Tag Hunter Spot grants (mode='spot') -------------------------------
+  // Mirrors the GO grant flow. Spot reuses the same GO-capable content
   // (adaptable_go) but is a distinct grant + has no answer-key pattern
-  // (project_taghunter_drop).
-  const loadDropGrants = async () => {
+  // (project_taghunter_spot).
+  const loadSpotGrants = async () => {
     try {
       const response = await authFetch(
-        `${API_BASE_URL}/client_scenarios.php?action=list_drop&client_id=${clientId}`,
+        // grants_only: see loadGoGrants — the admin manages rows, not access.
+        `${API_BASE_URL}/client_scenarios.php?action=list_spot&grants_only=1&client_id=${clientId}`,
         { credentials: 'include' },
       );
       if (response.ok) {
         const result = await response.json();
-        setDropGrants(result.data || []);
+        setSpotGrants(result.data || []);
       }
     } catch (err) {
-      console.error('Error loading Drop grants:', err);
+      console.error('Error loading Spot grants:', err);
     }
   };
 
-  const openAddDropModal = async () => {
-    setDropSelScenario('');
-    setShowAddDropModal(true);
+  const openAddSpotModal = async () => {
+    setSpotSelScenario('');
+    setShowAddSpotModal(true);
     try {
-      // Drop-capable product scenarios not already granted. Eligibility is the
-      // scenario's own "Adaptable à Drop" flag (adaptable_drop), set in the
+      // Spot-capable product scenarios not already granted. Eligibility is the
+      // scenario's own "Adaptable à Spot" flag (adaptable_spot), set in the
       // Mystery scenario editor - distinct from the GO flag.
       const scenRes = await authFetch(`${API_BASE_URL}/scenarios.php?action=list`, { credentials: 'include' });
       if (scenRes.ok) {
         const r = await scenRes.json();
-        const grantedIds = dropGrants.map((g) => String(g.scenario_id));
-        const dropScenarios = (r.scenarios || []).filter(
+        const grantedIds = spotGrants.map((g) => String(g.scenario_id));
+        const spotScenarios = (r.scenarios || []).filter(
           (s: ScenarioData) =>
             s.scenario_type === 'product' &&
             s.game_type === 'mystery' &&
-            parseAdaptableDrop(s) &&
+            parseAdaptableSpot(s) &&
             !grantedIds.includes(String(s.id)),
         );
-        setDropAvailableScenarios(dropScenarios);
+        setSpotAvailableScenarios(spotScenarios);
       }
     } catch (err) {
-      console.error('Error loading Drop add data:', err);
+      console.error('Error loading Spot add data:', err);
     }
   };
 
-  const handleAddDropGrant = async () => {
-    if (!dropSelScenario) return;
-    setDropBusy(true);
+  const handleAddSpotGrant = async () => {
+    if (!spotSelScenario) return;
+    setSpotBusy(true);
     try {
       const response = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=add`, {
         method: 'POST',
@@ -582,44 +597,44 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         credentials: 'include',
         body: JSON.stringify({
           client_id: clientId,
-          scenario_id: dropSelScenario,
-          mode: 'drop',
+          scenario_id: spotSelScenario,
+          mode: 'spot',
         }),
       });
       const result = await response.json();
       if (response.ok) {
-        setSuccess('Drop scenario granted');
+        setSuccess('Spot scenario granted');
         setTimeout(() => setSuccess(''), 3000);
-        setShowAddDropModal(false);
-        await loadDropGrants();
+        setShowAddSpotModal(false);
+        await loadSpotGrants();
       } else {
-        setError(result.error || 'Failed to grant Drop scenario');
+        setError(result.error || 'Failed to grant Spot scenario');
       }
     } catch (err) {
-      setError(`Failed to grant Drop scenario: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setError(`Failed to grant Spot scenario: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
-      setDropBusy(false);
+      setSpotBusy(false);
     }
   };
 
-  const handleRemoveDropGrant = async (scenarioId: string) => {
-    setDropBusy(true);
+  const handleRemoveSpotGrant = async (scenarioId: string) => {
+    setSpotBusy(true);
     try {
       const response = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ client_id: clientId, scenario_id: scenarioId, mode: 'drop' }),
+        body: JSON.stringify({ client_id: clientId, scenario_id: scenarioId, mode: 'spot' }),
       });
       if (response.ok) {
-        setSuccess('Drop grant removed');
+        setSuccess('Spot grant removed');
         setTimeout(() => setSuccess(''), 3000);
-        await loadDropGrants();
+        await loadSpotGrants();
       }
     } catch (err) {
-      console.error('Failed to remove Drop grant:', err);
+      console.error('Failed to remove Spot grant:', err);
     } finally {
-      setDropBusy(false);
+      setSpotBusy(false);
     }
   };
 
@@ -669,10 +684,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         go_enabled: Number(data.go_enabled) === 1,
         go_subscription_active: Number(data.go_subscription_active) === 1,
         go_billing_grace_days: Number(data.go_billing_grace_days ?? 30),
-        drop_enabled: Number(data.drop_enabled) === 1,
-        // drop_billing_ok defaults to true (current) when absent.
-        drop_billing_ok: data.drop_billing_ok === undefined ? true : Number(data.drop_billing_ok) === 1,
-        drop_billing_grace_days: Number(data.drop_billing_grace_days ?? 30),
+        spot_enabled: Number(data.spot_enabled) === 1,
+        // spot_billing_ok defaults to true (current) when absent.
+        spot_billing_ok: data.spot_billing_ok === undefined ? true : Number(data.spot_billing_ok) === 1,
+        spot_billing_grace_days: Number(data.spot_billing_grace_days ?? 30),
         // Same TINYINT coercion caveat as the GO flags above.
         devices_disabled: Number(data.devices_disabled) === 1,
         billing_grace_days: Number(data.billing_grace_days ?? 30),
@@ -966,13 +981,13 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     }),
                   },
                   {
-                    key: 'drop',
-                    label: 'Drop',
-                    enabled: formData.drop_enabled,
+                    key: 'spot',
+                    label: 'Spot',
+                    enabled: formData.spot_enabled,
                     badge: appBillingBadge({
-                      billingOk: formData.drop_billing_ok,
-                      overdueSince: client.drop_billing_overdue_since,
-                      graceDays: formData.drop_billing_grace_days,
+                      billingOk: formData.spot_billing_ok,
+                      overdueSince: client.spot_billing_overdue_since,
+                      graceDays: formData.spot_billing_grace_days,
                     }),
                   },
                 ]
@@ -1201,13 +1216,13 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         </div>
       </div>
 
-      {/* ── Per-app tabs (Playground / Go / Drop). All three always render; the
+      {/* ── Per-app tabs (Playground / Go / Spot). All three always render; the
           enable toggle lives inside each tab. Disabled apps show an "Off" pill. ── */}
       <div className="mt-6 flex gap-2 border-b border-slate-200">
         {([
           { key: 'playground', label: 'Playground', enabled: formData.playground_enabled },
           { key: 'go', label: 'Go', enabled: formData.go_enabled },
-          { key: 'drop', label: 'Drop', enabled: formData.drop_enabled },
+          { key: 'spot', label: 'Spot', enabled: formData.spot_enabled },
         ] as const).map((tab) => (
           <button
             key={tab.key}
@@ -1873,6 +1888,12 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
           Manage GO enablement and billing in the <span className="font-medium text-slate-700">Provisioning &amp; billing</span> card above.
         </p>
 
+        <DurationCatalogCard
+          catalog={durationCatalog}
+          onSave={saveDurationCatalog}
+          loading={durationCatalogLoading}
+        />
+
         {goGrants.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-lg">
             <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
@@ -1888,14 +1909,25 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 key={g.scenario_id}
                 className="flex items-center justify-between border border-emerald-200 bg-emerald-50/30 rounded-lg p-4"
               >
-                <div>
+                <div className="min-w-0 flex-1 pr-4">
                   <h4 className="font-semibold text-slate-900">{g.title}</h4>
                   <p className="text-sm text-slate-500">Uses the scenario’s default GO pattern.</p>
+                  {/* Same control the client has on its QR page — support can set
+                      the challenges up on the client's behalf. */}
+                  <div className="mt-3">
+                    <ScenarioDurationPicker
+                      clientId={clientId}
+                      scenarioId={g.scenario_id}
+                      app="go"
+                      catalog={durationCatalog}
+                      initial={g.durations ?? []}
+                    />
+                  </div>
                 </div>
                 <button
                   onClick={() => handleRemoveGoGrant(g.scenario_id)}
                   disabled={goBusy}
-                  className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                  className="shrink-0 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
                 >
                   Remove
                 </button>
@@ -1908,15 +1940,15 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         </>
       )}
 
-      {/* ═══════════════ Drop tab ═══════════════ */}
-      {activeAppTab === 'drop' && (
+      {/* ═══════════════ Spot tab ═══════════════ */}
+      {activeAppTab === 'spot' && (
         <>
           {/* Provisioning & billing (project_client_app_section) */}
           {(() => {
             const badge = appBillingBadge({
-              billingOk: formData.drop_billing_ok,
-              overdueSince: client?.drop_billing_overdue_since,
-              graceDays: formData.drop_billing_grace_days,
+              billingOk: formData.spot_billing_ok,
+              overdueSince: client?.spot_billing_overdue_since,
+              graceDays: formData.spot_billing_grace_days,
             });
             return (
               <CollapsibleSection
@@ -1927,7 +1959,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full font-medium">
                       Coming soon
                     </span>
-                    {formData.drop_enabled && (
+                    {formData.spot_enabled && (
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${badge.cls}`}>
                         {badge.label}
                       </span>
@@ -1937,18 +1969,18 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               >
                 <div className="space-y-4">
                   <p className="text-xs text-slate-500">
-                    Drop has no app yet - these controls persist for forward-compatibility but don't gate anything until Drop ships.
+                    Spot has no app yet - these controls persist for forward-compatibility but don't gate anything until Spot ships.
                   </p>
 
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={formData.drop_enabled}
-                      onChange={(e) => setFormData({ ...formData, drop_enabled: e.target.checked })}
+                      checked={formData.spot_enabled}
+                      onChange={(e) => setFormData({ ...formData, spot_enabled: e.target.checked })}
                       className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                     />
                     <span className="text-slate-700">
-                      App enabled <span className="text-slate-400">(client owns the Drop product)</span>
+                      App enabled <span className="text-slate-400">(client owns the Spot product)</span>
                     </span>
                   </label>
 
@@ -1958,9 +1990,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       <label className="flex items-center space-x-3 cursor-pointer">
                         <input
                           type="radio"
-                          name="drop_billing"
-                          checked={formData.drop_billing_ok === true}
-                          onChange={() => setFormData({ ...formData, drop_billing_ok: true })}
+                          name="spot_billing"
+                          checked={formData.spot_billing_ok === true}
+                          onChange={() => setFormData({ ...formData, spot_billing_ok: true })}
                           className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                         />
                         <span className="text-slate-700">Up to Date</span>
@@ -1968,9 +2000,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       <label className="flex items-center space-x-3 cursor-pointer">
                         <input
                           type="radio"
-                          name="drop_billing"
-                          checked={formData.drop_billing_ok === false}
-                          onChange={() => setFormData({ ...formData, drop_billing_ok: false })}
+                          name="spot_billing"
+                          checked={formData.spot_billing_ok === false}
+                          onChange={() => setFormData({ ...formData, spot_billing_ok: false })}
                           className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                         />
                         <span className="text-slate-700">Overdue</span>
@@ -1983,22 +2015,22 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     <input
                       type="number"
                       min={0}
-                      value={formData.drop_billing_grace_days}
-                      onChange={(e) => setFormData({ ...formData, drop_billing_grace_days: Math.max(0, Number(e.target.value) || 0) })}
+                      value={formData.spot_billing_grace_days}
+                      onChange={(e) => setFormData({ ...formData, spot_billing_grace_days: Math.max(0, Number(e.target.value) || 0) })}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                     <p className="mt-1 text-xs text-slate-500">
-                      Days after billing goes Overdue before Drop locks. No recovery reprieve (Playground only).
+                      Days after billing goes Overdue before Spot locks. No recovery reprieve (Playground only).
                     </p>
                   </div>
 
                   <div className="flex justify-end">
                     <button
-                      onClick={saveDropApp}
-                      disabled={savingDrop}
+                      onClick={saveSpotApp}
+                      disabled={savingSpot}
                       className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
                     >
-                      {savingDrop ? 'Saving…' : 'Save Drop'}
+                      {savingSpot ? 'Saving…' : 'Save Spot'}
                     </button>
                   </div>
                 </div>
@@ -2008,54 +2040,70 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
       <CollapsibleSection
         icon={<FileText className="w-6 h-6 text-sky-600" />}
-        title="Drop Scenarios"
+        title="Spot Scenarios"
         defaultCollapsed
         headerRight={
           <>
-            {formData.drop_enabled ? (
+            {formData.spot_enabled ? (
               <button
-                onClick={openAddDropModal}
+                onClick={openAddSpotModal}
                 className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-all"
               >
                 <Plus className="w-4 h-4" />
-                Grant Drop Scenario
+                Grant Spot Scenario
               </button>
             ) : (
-              <span className="text-xs text-amber-600">Enable Drop in the Client App section to grant scenarios</span>
+              <span className="text-xs text-amber-600">Enable Spot in the Client App section to grant scenarios</span>
             )}
-            <span className="text-sm text-slate-600">{dropGrants.length} total</span>
+            <span className="text-sm text-slate-600">{spotGrants.length} total</span>
           </>
         }
       >
-        {/* Drop capability + billing flags live in the Client App section
+        {/* Spot capability + billing flags live in the Client App section
             (project_client_app_section). This section keeps only the grants. */}
         <p className="mb-5 text-sm text-slate-500">
-          Manage Drop enablement and billing in the <span className="font-medium text-slate-700">Provisioning &amp; billing</span> card above.
+          Manage Spot enablement and billing in the <span className="font-medium text-slate-700">Provisioning &amp; billing</span> card above.
         </p>
 
-        {dropGrants.length === 0 ? (
+        {/* Same catalog as the GO tab — the list of minutes is client-level. */}
+        <DurationCatalogCard
+          catalog={durationCatalog}
+          onSave={saveDurationCatalog}
+          loading={durationCatalogLoading}
+        />
+
+        {spotGrants.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 rounded-lg">
             <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-            <p className="text-slate-600">No Drop scenarios granted</p>
+            <p className="text-slate-600">No Spot scenarios granted</p>
             <p className="text-sm text-slate-500 mt-1">
-              Grant a GO-capable Mystery scenario; Drop shows its answer images on-screen.
+              Grant a GO-capable Mystery scenario; Spot shows its answer images on-screen.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {dropGrants.map((g) => (
+            {spotGrants.map((g) => (
               <div
                 key={g.scenario_id}
                 className="flex items-center justify-between border border-sky-200 bg-sky-50/30 rounded-lg p-4"
               >
-                <div>
+                <div className="min-w-0 flex-1 pr-4">
                   <h4 className="font-semibold text-slate-900">{g.title}</h4>
                   <p className="text-sm text-slate-500">On-screen answer images, shuffled each play.</p>
+                  <div className="mt-3">
+                    <ScenarioDurationPicker
+                      clientId={clientId}
+                      scenarioId={g.scenario_id}
+                      app="spot"
+                      catalog={durationCatalog}
+                      initial={g.durations ?? []}
+                    />
+                  </div>
                 </div>
                 <button
-                  onClick={() => handleRemoveDropGrant(g.scenario_id)}
-                  disabled={dropBusy}
-                  className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                  onClick={() => handleRemoveSpotGrant(g.scenario_id)}
+                  disabled={spotBusy}
+                  className="shrink-0 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
                 >
                   Remove
                 </button>
@@ -2117,49 +2165,49 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         </div>
       )}
 
-      {showAddDropModal && (
+      {showAddSpotModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-slate-900">Grant Drop Scenario</h3>
-                <button onClick={() => setShowAddDropModal(false)} className="text-slate-400 hover:text-slate-600">
+                <h3 className="text-xl font-bold text-slate-900">Grant Spot Scenario</h3>
+                <button onClick={() => setShowAddSpotModal(false)} className="text-slate-400 hover:text-slate-600">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Scenario (GO-capable Mystery)</label>
                 <select
-                  value={dropSelScenario}
-                  onChange={(e) => setDropSelScenario(e.target.value)}
+                  value={spotSelScenario}
+                  onChange={(e) => setSpotSelScenario(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                 >
                   <option value="">Select a scenario…</option>
-                  {dropAvailableScenarios.map((s) => (
+                  {spotAvailableScenarios.map((s) => (
                     <option key={s.id} value={s.id}>{s.title || s.uniqid}</option>
                   ))}
                 </select>
-                {dropAvailableScenarios.length === 0 && (
+                {spotAvailableScenarios.length === 0 && (
                   <p className="mt-1 text-xs text-amber-600">No GO-capable scenarios available to grant.</p>
                 )}
                 <p className="mt-2 text-xs text-slate-500">
-                  Drop shows the scenario’s answer images on-screen and shuffles them - no pattern needed.
+                  Spot shows the scenario’s answer images on-screen and shuffles them - no pattern needed.
                 </p>
               </div>
               <div className="flex gap-3 justify-end pt-2">
                 <button
-                  onClick={() => setShowAddDropModal(false)}
-                  disabled={dropBusy}
+                  onClick={() => setShowAddSpotModal(false)}
+                  disabled={spotBusy}
                   className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleAddDropGrant}
-                  disabled={dropBusy || !dropSelScenario}
+                  onClick={handleAddSpotGrant}
+                  disabled={spotBusy || !spotSelScenario}
                   className="px-5 py-2.5 bg-sky-600 text-white rounded-lg hover:bg-sky-700 text-sm font-medium disabled:opacity-50"
                 >
-                  {dropBusy ? 'Granting…' : 'Grant'}
+                  {spotBusy ? 'Granting…' : 'Grant'}
                 </button>
               </div>
             </div>

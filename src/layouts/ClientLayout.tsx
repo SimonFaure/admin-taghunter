@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, Settings, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, ChevronDown } from 'lucide-react';
+import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, Settings, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, LayoutGrid, ChevronDown, FileVideo } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
@@ -29,16 +29,19 @@ const isGroup = (e: NavEntry): e is NavGroup => 'group' in e;
 // `show(access)` returns true when at least one enabling app is on. Home / Account
 // / Help are universal chrome (always shown). The Playground-management surfaces
 // (patterns, cards, team names, devices, downloads, tutorial videos) are grouped
-// under one collapsible "Playground" section. Leaderboards (GO + Drop) are merged
-// into one "Rankings" entry; GO/Drop usage stats are merged into the Statistics
+// under one collapsible "Playground" section. Leaderboards (GO + Spot) are merged
+// into one "Rankings" entry; GO/Spot usage stats are merged into the Statistics
 // page. Scenarios shows for either group; its content mode is handled inside
 // MyScenariosView via getAppAccess().scenariosGoOnly.
 const NAV_ITEMS: NavEntry[] = [
   { to: '/my/home', labelKey: 'nav.home', icon: Home, end: true, show: () => true },
-  { to: '/my/scenarios', labelKey: 'nav.scenarios', icon: Film, end: false, show: (a) => a.playground || a.go || a.drop },
-  { to: '/my/qr-codes', labelKey: 'nav.qrCodes', icon: QrCode, end: false, show: (a) => a.go || a.drop },
-  // One merged leaderboards page; RankingsView shows a GO/Drop tab when both are on.
-  { to: '/my/rankings', labelKey: 'nav.rankings', icon: Trophy, end: false, show: (a) => a.go || a.drop },
+  { to: '/my/scenarios', labelKey: 'nav.scenarios', icon: Film, end: false, show: (a) => a.playground || a.go || a.spot },
+  // The full product catalog (read-only browse of the whole scenario line-up,
+  // owned rows marked). Same surfaces as Scenarios.
+  { to: '/my/catalog', labelKey: 'nav.catalog', icon: LayoutGrid, end: false, show: (a) => a.playground || a.go || a.spot },
+  { to: '/my/qr-codes', labelKey: 'nav.qrCodes', icon: QrCode, end: false, show: (a) => a.go || a.spot },
+  // One merged leaderboards page; RankingsView shows a GO/Spot tab when both are on.
+  { to: '/my/rankings', labelKey: 'nav.rankings', icon: Trophy, end: false, show: (a) => a.go || a.spot },
   {
     group: true,
     labelKey: 'nav.playground',
@@ -51,11 +54,13 @@ const NAV_ITEMS: NavEntry[] = [
       { to: '/my/devices', labelKey: 'nav.devices', icon: Smartphone, end: false, show: (a) => a.playground },
       { to: '/my/releases', labelKey: 'nav.releases', icon: Rocket, end: false, show: (a) => a.playground },
       { to: '/my/game-types', labelKey: 'nav.gameTypes', icon: Video, end: false, show: (a) => a.playground },
+      // Download-only surface for the Tag Hunter default tutorial videos (mp4 + .vtt).
+      { to: '/my/tutorial-downloads', labelKey: 'nav.tutorialDownloads', icon: FileVideo, end: false, show: (a) => a.playground },
     ],
   },
   { to: '/my/report-layouts', labelKey: 'nav.reportLayouts', icon: Printer, end: false, show: (a) => a.playground },
-  // Merged: Playground game stats + GO/Drop usage sections in one page.
-  { to: '/my/statistics', labelKey: 'nav.statistics', icon: BarChart3, end: false, show: (a) => a.playground || a.go || a.drop },
+  // Merged: Playground game stats + GO/Spot usage sections in one page.
+  { to: '/my/statistics', labelKey: 'nav.statistics', icon: BarChart3, end: false, show: (a) => a.playground || a.go || a.spot },
   { to: '/my/settings', labelKey: 'nav.settings', icon: Settings, end: false, show: (a) => a.playground },
   { to: '/my/account', labelKey: 'nav.account', icon: User, end: false, show: () => true },
   { to: '/my/help', labelKey: 'nav.help', icon: HelpCircle, end: false, show: () => true },

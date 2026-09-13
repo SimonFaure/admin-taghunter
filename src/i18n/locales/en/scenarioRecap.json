@@ -1,0 +1,39 @@
+{
+  "sectionTitle": "Scenario recap",
+  "sectionSubtitle": "The scenario's images and the balise each one is mapped to, for the pattern you pick.",
+  "show": "Show",
+  "hide": "Hide",
+  "openPrintable": "Open the printable version",
+  "backToScenario": "Back to the scenario",
+  "subtitle": "Scenario recap — version {{version}}",
+  "print": "Print",
+  "choosePattern": "Pattern:",
+  "noPattern": "No pattern",
+  "defaultSuffix": "(default)",
+  "noPatternsAvailable": "No pattern available for this game type.",
+  "patternPrinted": "Pattern: {{name}}",
+  "noItems": "This scenario has no items yet.",
+  "noImages": "No image for this item.",
+  "noStation": "Pick a pattern",
+  "unassigned": "No balise assigned",
+  "unknownStation": "Unknown balise",
+  "notAvailableForType": "The recap is not available for this game type.",
+  "failedToLoad": "Could not load the recap.",
+  "pointsValue": "{{points}} pts",
+  "goodWrongPoints": "Correct answer: {{good}} pts · Wrong answer: {{wrong}} pts",
+  "itemHeading": {
+    "mystery": "Enigma {{number}}",
+    "tagquest": "Quest {{number}}",
+    "tracks": "Checkpoint {{number}}"
+  },
+  "imageLabel": {
+    "good_answer": "Correct answer",
+    "wrong_answer": "Wrong answer",
+    "main_image": "Complete image",
+    "image_1": "Piece 1",
+    "image_2": "Piece 2",
+    "image_3": "Piece 3",
+    "image_4": "Piece 4",
+    "checkpoint": "Checkpoint image"
+  }
+}

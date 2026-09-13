@@ -5,21 +5,21 @@ import { clientApi } from '../../lib/clientApi';
 import type { Client } from '../../types/client';
 
 /**
- * Admin GO/Drop → Clients: the operators who have the app enabled, with their
+ * Admin GO/Spot → Clients: the operators who have the app enabled, with their
  * billing state. Click through to the full client page to manage flags + scenario
- * grants. Part of the admin "GO" / "Drop" nav groups (parameterized by `app`).
+ * grants. Part of the admin "GO" / "Spot" nav groups (parameterized by `app`).
  */
 export function GoClientsView({
   onViewClient,
   app = 'go',
 }: {
   onViewClient: (id: string) => void;
-  app?: 'go' | 'drop';
+  app?: 'go' | 'spot';
 }) {
   const { t } = useTranslation();
-  const isDrop = app === 'drop';
-  const tint = isDrop ? 'text-sky-600' : 'text-emerald-600';
-  const appName = isDrop ? 'Drop' : 'GO';
+  const isSpot = app === 'spot';
+  const tint = isSpot ? 'text-sky-600' : 'text-emerald-600';
+  const appName = isSpot ? 'Spot' : 'GO';
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,19 +34,19 @@ export function GoClientsView({
   const goClients = useMemo(
     () =>
       clients.filter((c) => {
-        const flag = (c as unknown as Record<string, unknown>)[isDrop ? 'drop_enabled' : 'go_enabled'];
+        const flag = (c as unknown as Record<string, unknown>)[isSpot ? 'spot_enabled' : 'go_enabled'];
         return Number(flag) === 1 || flag === true;
       }),
-    [clients, isDrop],
+    [clients, isSpot],
   );
 
   // Billing-ok flag + grace differ per app.
   const billingOk = (c: Client) =>
-    isDrop
-      ? Number((c as unknown as Record<string, unknown>).drop_billing_ok) === 1 || (c as unknown as Record<string, unknown>).drop_billing_ok === true
+    isSpot
+      ? Number((c as unknown as Record<string, unknown>).spot_billing_ok) === 1 || (c as unknown as Record<string, unknown>).spot_billing_ok === true
       : !!c.go_subscription_active;
   const graceDays = (c: Client): string => {
-    const v = isDrop ? (c as unknown as Record<string, unknown>).drop_billing_grace_days : c.go_billing_grace_days;
+    const v = isSpot ? (c as unknown as Record<string, unknown>).spot_billing_grace_days : c.go_billing_grace_days;
     return v == null ? '-' : String(v);
   };
 

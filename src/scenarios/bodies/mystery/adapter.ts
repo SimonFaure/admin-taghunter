@@ -20,6 +20,18 @@ import {
   mysterySoundFields,
 } from './mediaSlots';
 import { defaultMysteryGameMeta } from './defaults';
+import { normalizeWrongAnswerPoints } from './wrongAnswerPoints';
+
+/**
+ * Hard ceiling on authored enigmas. The in-game recap is a fixed 3-column grid
+ * sized for 12 tiles, and Quest already refuses a 7th quest the same way - there
+ * was no equivalent stop here, so nothing prevented a 13th enigma that the board
+ * cannot show (retour #33).
+ *
+ * The cap is enforced in the editor only: scenarios that already carry more are
+ * left intact (and warned about) rather than being silently truncated on save.
+ */
+export const MYSTERY_MAX_ENIGMAS = 12;
 
 const ALL_IMAGE_FIELDS: readonly string[] = mysteryImageFields;
 const ALL_LEVEL_IMAGE_FIELDS: readonly string[] = mysteryLevelImageFields;
@@ -77,10 +89,18 @@ function cleanGameMetaForData(gameMeta: MysteryGameMeta): Record<string, unknown
       number: e.number,
       text: e.text,
       good_answer_points: e.good_answer_points,
-      wrong_answer_points: e.wrong_answer_points,
+      // Signed on the way out: whatever the author left in the field (including
+      // a legacy positive magnitude loaded from an old scenario) is written as
+      // the negative the runtimes add to the score.
+      wrong_answer_points: normalizeWrongAnswerPoints(e.wrong_answer_points),
       // GO: the per-panneau short code is plain data (not media), so it stays in
       // game_meta. Only keep the key when set, to avoid noise on RFID scenarios.
       ...(e.short_code ? { short_code: e.short_code } : {}),
+      // Spot: the on-screen question + the 1..3 star difficulty. Plain data too -
+      // and they MUST be listed here, since this function whitelists what
+      // survives a save (an omitted field is silently lost).
+      ...(e.spot_question ? { spot_question: e.spot_question } : {}),
+      ...(e.difficulty ? { difficulty: e.difficulty } : {}),
     }));
   }
   if (Array.isArray(copy.overscores)) {
@@ -179,7 +199,7 @@ function buildZipPayload(
       text: flattenToDefault((e as Record<string, unknown>).text, dl),
       number: e.number,
       good_answer_points: e.good_answer_points,
-      wrong_answer_points: e.wrong_answer_points,
+      wrong_answer_points: normalizeWrongAnswerPoints(e.wrong_answer_points),
     })),
     font_color: gm.font_color,
     overscores: (gm.overscores ?? []).map((o: Overscore) => ({

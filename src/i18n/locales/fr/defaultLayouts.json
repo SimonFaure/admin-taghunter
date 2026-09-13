@@ -1,0 +1,38 @@
+{
+  "title": "Mises en page par défaut",
+  "intro": "Ces réglages sont le point de départ de TOUS les scénarios du type choisi. Un scénario qui définit sa propre valeur garde la sienne ; les autres suivent cette page. Les positions sont enregistrées élément par élément : seuls ceux que vous déplacez sont stockés, le reste continue de suivre la mise en page livrée avec l'application.",
+  "loading": "Chargement…",
+  "loadFailed": "Échec du chargement des valeurs par défaut.",
+  "save": "Enregistrer",
+  "saved": "Valeurs par défaut enregistrées. Les postes de jeu les recevront à la prochaine synchronisation.",
+  "saveFailed": "Échec de l'enregistrement.",
+  "saveFailedOne": "Échec de l'enregistrement de « {{meta}} » ({{status}}).",
+  "mustBeAdmin": "Vous devez être connecté en administrateur pour enregistrer.",
+  "notAvailableYet": "Pas encore disponible pour ce type de jeu.",
+  "summary": "{{moved}} élément(s) déplacé(s) · {{styled}} rôle(s) de texte personnalisé(s)",
+  "moved": "déplacé",
+  "resetElement": "Remettre cet élément à sa position d'origine",
+  "positionsHint": "Faites glisser un élément sur l'écran pour le déplacer ; sélectionnez-le pour obtenir sa poignée de redimensionnement et ses valeurs exactes. Tout est exprimé en pourcentage de l'écran 16:9.",
+  "selectedHint": "Sélectionné : {{name}}",
+  "typographyTitle": "Taille et couleur des textes par défaut",
+  "typographySubtitle": "Cliquez un texte sur l'écran pour choisir son rôle. Ces valeurs s'appliquent à tous les scénarios Quest qui ne définissent pas les leurs.",
+  "typographyFooter": "La taille est un pourcentage de la taille d'origine. Un scénario peut redéfinir chaque réglage séparément depuis son Aperçu.",
+  "mainImageMargin": "Marge intérieure",
+  "mainImageMarginHint": "Marge autour de l'image complète (en % du plus petit côté de la case). Le halo vert ou rouge de résultat suit le contour de l'image : sans marge, il débord sur le cadre du gabarit. Le quadrillage des quatre morceaux n'est pas concerné.",
+  "types": {
+    "tagquest": "Quest",
+    "mystery": "Mystery",
+    "tracks": "Tracks",
+    "clash": "Clash"
+  },
+  "tabs": {
+    "positions": "Positions",
+    "typography": "Textes"
+  },
+  "fields": {
+    "x": "X",
+    "y": "Y",
+    "width": "Largeur",
+    "height": "Hauteur"
+  }
+}

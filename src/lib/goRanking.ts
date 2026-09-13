@@ -1,4 +1,4 @@
-// Shared GO/Drop ranking helpers, used by both the operator's leaderboard
+// Shared GO/Spot ranking helpers, used by both the operator's leaderboard
 // (components/client/GoSessionsView) and the public player board
 // (components/public/PublicRankingView).
 //
@@ -7,9 +7,9 @@
 // through its URL, so both surfaces resolve it with the code below and agree.
 
 export const GO_BASE_URL = import.meta.env.VITE_GO_BASE_URL || 'https://go.taghunter.fr';
-export const DROP_BASE_URL = import.meta.env.VITE_DROP_BASE_URL || 'https://drop.taghunter.fr';
+export const SPOT_BASE_URL = import.meta.env.VITE_SPOT_BASE_URL || 'https://spot.taghunter.fr';
 
-export type GoApp = 'go' | 'drop';
+export type GoApp = 'go' | 'spot';
 
 // The time windows a board can be filtered by. Named ranges are resolved
 // against the VIEWER's clock; `custom` carries explicit from/to.
@@ -86,4 +86,41 @@ export interface ScoreRow {
   finished: number;
   elapsed_seconds: number;
   updated_at: string;
+  /** The challenge played, in minutes. null = a run recorded before durations. */
+  duration_minutes?: number | null;
+}
+
+// ---- challenges (durations) ------------------------------------------------
+// A board is ranked WITHIN a duration: a 30-min run and a 1 h 30 run are not
+// comparable. The chips come from the rows actually returned, not from the
+// client's current configuration, so un-ticking a duration tomorrow can never
+// hide the teams who played it today. (project_go_spot_durations)
+
+/** 0 stands for "no duration recorded" - it doubles as the `d=0` query value. */
+export function durationKey(row: ScoreRow): number {
+  const d = Number(row.duration_minutes ?? 0);
+  return Number.isFinite(d) && d > 0 ? d : 0;
+}
+
+/** The distinct challenges present in a result set, ascending; 0 (unspecified) last. */
+export function distinctDurations(rows: ScoreRow[]): number[] {
+  const set = new Set(rows.map(durationKey));
+  return [...set].sort((a, b) => (a === 0 ? 1 : b === 0 ? -1 : a - b));
+}
+
+/** Split rows into one ranked section per challenge, in chip order. */
+export function groupByDuration(rows: ScoreRow[]): Array<{ duration: number; rows: ScoreRow[] }> {
+  return distinctDurations(rows).map((duration) => ({
+    duration,
+    rows: rows.filter((r) => durationKey(r) === duration),
+  }));
+}
+
+/** "45 min" / "1 h" / "1 h 30" - compact and readable in fr/en/es alike. */
+export function formatDuration(minutes: number): string {
+  const m = Math.max(0, Math.round(minutes));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rest = m % 60;
+  return rest ? `${h} h ${rest}` : `${h} h`;
 }

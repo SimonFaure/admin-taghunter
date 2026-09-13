@@ -11,7 +11,7 @@
       "text_all_team_ended": "todos los equipos finalizados",
       "text_scenario_ended": "escenario finalizado",
       "text_team_reached_new_level": "equipo alcanzó nuevo nivel",
-      "text_card_empty": "tarjeta vacía",
+      "text_card_empty": "tarjeta sin ninguna picada",
       "text_late_malus": "penalización por retraso",
       "text_team_enters_top_ranking": "equipo entra en la clasificación",
       "text_team_enters_podium": "equipo entra en el podio",
@@ -20,6 +20,15 @@
       "text_if_error": "si error",
       "text_is_card_empty": "tarjeta está vacía",
       "text_team_cheating": "equipo hace trampa"
+    },
+    "hintsTitle": "¿Cuándo se muestra este mensaje?",
+    "hints": {
+      "text_card_empty": "La tarjeta presentada no lleva NINGUNA picada: está en blanco o se acaba de borrar. No es el caso de una tarjeta «mal borrada» — ese es «equipo hace trampa». Ejemplo: un jugador pica en el puesto antes de pasar por ninguna baliza.",
+      "text_team_cheating": "La tarjeta presentada no prolonga la lectura anterior: han desaparecido o se han sustituido picadas desde el último paso. Ejemplo: el jugador vuelve a pasar una tarjeta ya leída y luego borrada, o presenta la de otro.",
+      "text_team_ended": "El equipo ya ha terminado su partida (hora de fin registrada) y vuelve a picar. Ejemplo: un jugador regresa al puesto tras la picada de llegada.",
+      "text_if_error": "El procesamiento de la picada falló técnicamente: datos del juego ilegibles, escritura imposible, puesto madre inaccesible. Nunca es un error del jugador. La causa exacta se añade detrás de tu texto en pantalla para que el operador sepa qué hacer.",
+      "text_all_team_ended": "El ÚLTIMO equipo que seguía jugando acaba de terminar. El mensaje se muestra una sola vez y luego la partida se cierra automáticamente. Es el equivalente en Mystery de «escenario finalizado» (usado por Tracks): ambos se activan en el mismo momento y cada tipo de juego usa solo uno.",
+      "text_scenario_ended": "Todos los equipos han terminado su recorrido: el mensaje aparece justo después del «equipo finalizado» del último equipo. Es el equivalente en Tracks de «todos los equipos finalizados» (usado por Mystery): ambos se activan en el mismo momento y cada tipo de juego usa solo uno."
     }
   },
   "typography": {
