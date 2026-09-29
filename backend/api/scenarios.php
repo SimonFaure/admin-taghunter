@@ -42,11 +42,15 @@ function requireAuth() {
             // Overwrite any stale session with the authoritative token values.
             $_SESSION['user_id'] = $tokenData['user_id'];
             $_SESSION['user_type'] = $tokenData['user_type'];
+            // Nothing below writes the session: release its lock so the
+            // browser's other requests are not queued behind this one (#42).
+            session_write_close();
             return;
         }
     }
 
     if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
+        session_write_close();
         return;
     }
 
@@ -479,6 +483,11 @@ try {
             }
 
             $client_id = $_GET['client_id'] ?? null;
+            // A licensee only ever lists its own scenarios. Without this a
+            // client token got every client's scenarios, data blobs included.
+            if (($_SESSION['user_type'] ?? '') !== 'admin') {
+                $client_id = (int)($_SESSION['user_id'] ?? 0);
+            }
 
             if ($client_id) {
                 $scenarios = $db->fetchAll(
@@ -503,6 +512,37 @@ try {
             jsonResponse(['scenarios' => $scenarios]);
             break;
 
+        // Univers-tag autocomplete for the scenario editor: only the raw
+        // `game_meta.univers` of the scenarios the caller can see (all for an
+        // admin, its own for a licensee). The editor used to pull the whole
+        // `list` (every scenario with its data/medias) just for this - huge on
+        // production, and it held the session while the page changed (#42).
+        case 'univers_pool':
+            requireAuth();
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            if (($_SESSION['user_type'] ?? '') === 'admin') {
+                $rows = $db->fetchAll('SELECT data FROM scenarios');
+            } else {
+                $rows = $db->fetchAll('SELECT data FROM scenarios WHERE client_id = ?', [(int)($_SESSION['user_id'] ?? 0)]);
+            }
+            $univers = [];
+            foreach ($rows as $row) {
+                $d = !empty($row['data']) ? json_decode($row['data'], true) : null;
+                if (!is_array($d)) continue;
+                $u = $d['game_meta']['univers'] ?? ($d['data']['game_meta']['univers'] ?? null);
+                if (is_string($u) && trim($u) !== '') {
+                    $univers[] = $u;
+                } elseif (is_array($u)) {
+                    foreach ($u as $tag) {
+                        if (is_string($tag) && trim($tag) !== '') $univers[] = $tag;
+                    }
+                }
+            }
+            jsonResponse(['univers' => array_values(array_unique($univers))]);
+            break;
+
         // The product catalog ("Scenarios TH" sheet), served to BOTH admins and
         // licensees. Unlike `list` it never exposes another client's custom
         // scenarios: only product rows, trimmed to the catalog columns, with the
@@ -523,15 +563,15 @@ try {
             $viewerId = (int)($_SESSION['user_id'] ?? 0);
 
             $rows = $db->fetchAll(
-                'SELECT s.id, s.uniqid, s.title, s.game_type, s.scenario_type, s.status, s.data
+                'SELECT s.id, s.uniqid, s.title, s.game_type, s.scenario_type, s.status, s.data, s.client_id, s.validated_languages
                  FROM scenarios s
                  WHERE s.scenario_type = "product" OR s.client_id IS NULL
                  ORDER BY s.title ASC'
             );
 
-            // Ownership, client side only. A premium licence holds every product
-            // with NO client_scenarios row at all (project_premium_client_grant_blind_spot),
-            // so premium => everything is owned.
+            // Ownership, client side only. A premium licence (the only one sold)
+            // holds every PUBLISHED product with NO client_scenarios row at all
+            // (project_premium_client_grant_blind_spot); a draft is not yet released.
             $ownedIds = [];
             $ownsEverything = $isAdminViewer;
             if (!$isAdminViewer) {
@@ -555,9 +595,21 @@ try {
                 $disabledTypes = GameTypes::disabledForClient($db->getConnection(), $viewerId);
             }
 
+            // A client only sees the products released (authored AND validated,
+            // see ScenarioLanguages) in their language.
+            $clientLang = null;
+            if (!$isAdminViewer) {
+                require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+                $clientLang = ScenarioLanguages::clientLanguage($db, $viewerId);
+            }
+
             $catalog = [];
             foreach ($rows as $r) {
                 if ($disabledTypes && in_array($r['game_type'] ?? '', $disabledTypes, true)) {
+                    continue;
+                }
+                if ($clientLang !== null && !isset($ownedIds[(int)$r['id']])
+                    && !ScenarioLanguages::hasVisibleLanguage($db, $r, $viewerId, $clientLang)) {
                     continue;
                 }
                 // Both the flat (`game_meta.…`) and wrapped (`data.game_meta.…`)
@@ -578,7 +630,9 @@ try {
                     'univers' => is_array($gm['univers'] ?? null) ? array_values(array_filter($gm['univers'], 'is_string')) : [],
                     'adaptable_go' => !empty($gm['adaptable_go']),
                     'adaptable_spot' => !empty($gm['adaptable_spot']),
-                    'owned' => $ownsEverything || isset($ownedIds[(int)$r['id']]),
+                    'owned' => $isAdminViewer
+                        || ($ownsEverything && ($r['status'] ?? '') === 'published')
+                        || isset($ownedIds[(int)$r['id']]),
                 ];
             }
 
@@ -612,6 +666,14 @@ try {
             if (!$scenario) {
                 Logger::log('scenarios', $method, 'get', $_SESSION['user_id'], ['id' => $id], ['error' => 'Not found'], 404);
                 jsonResponse(['error' => 'Scenario not found'], 404);
+            }
+
+            // A client reading a scenario it does not own (a product) gets only
+            // the languages an admin has validated.
+            if (($_SESSION['user_type'] ?? '') !== 'admin') {
+                require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+                $scenario = ScenarioLanguages::narrowRow($db, $scenario, (int)($_SESSION['user_id'] ?? 0));
+                unset($scenario['validated_languages']);
             }
 
             Logger::log('scenarios', $method, 'get', $_SESSION['user_id'], ['id' => $id], ['success' => true], 200);

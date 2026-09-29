@@ -8,6 +8,7 @@ require_once __DIR__ . '/../utils/LocalizedCompat.php';
 require_once __DIR__ . '/../utils/AudienceCompat.php';
 require_once __DIR__ . '/../utils/ScenarioHashes.php';
 require_once __DIR__ . '/../utils/GameTypes.php';
+require_once __DIR__ . '/../utils/ScenarioLanguages.php';
 
 SecurityHeaders::setHeaders();
 setCorsHeaders();
@@ -53,6 +54,62 @@ function teamNamesOwnOnlyPref($db, int $clientId): bool {
     } catch (Exception $e) {
         return false;
     }
+}
+
+// Stream a media file with HTTP Range support (single range only) so the
+// playground can RESUME a large video after a cut connection instead of
+// restarting it from byte 0. No Range header = the historic full 200 response,
+// so older playground builds are unaffected. Terminates the request.
+function streamFileWithRange(string $path, string $mime, string $filename): void {
+    $size = filesize($path);
+    $start = 0;
+    $end = $size - 1;
+    $partial = false;
+
+    $range = $_SERVER['HTTP_RANGE'] ?? '';
+    // A malformed or multi-range header is ignored (full 200), as HTTP allows.
+    if ($range !== '' && $size > 0
+        && preg_match('/^bytes=(\d*)-(\d*)$/', trim($range), $m) && ($m[1] !== '' || $m[2] !== '')) {
+        if ($m[1] === '') {
+            // Suffix range: last N bytes.
+            $start = max(0, $size - (int)$m[2]);
+        } else {
+            $start = (int)$m[1];
+            if ($m[2] !== '') $end = min((int)$m[2], $size - 1);
+        }
+        if ($start > $end || $start >= $size) {
+            header('Content-Range: bytes */' . $size, true, 416);
+            exit;
+        }
+        $partial = true;
+    }
+
+    $length = $size === 0 ? 0 : $end - $start + 1;
+    if ($partial) {
+        http_response_code(206);
+        header("Content-Range: bytes $start-$end/$size");
+    }
+    header('Accept-Ranges: bytes');
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . $length);
+    header('Content-Disposition: inline; filename="' . basename($filename) . '"');
+
+    @set_time_limit(0);
+    while (ob_get_level() > 0) ob_end_clean();
+
+    $fh = fopen($path, 'rb');
+    if ($fh === false) exit;
+    if ($start > 0) fseek($fh, $start);
+    $left = $length;
+    while ($left > 0 && !feof($fh) && !connection_aborted()) {
+        $chunk = fread($fh, (int)min(65536, $left));
+        if ($chunk === false || $chunk === '') break;
+        echo $chunk;
+        flush();
+        $left -= strlen($chunk);
+    }
+    fclose($fh);
+    exit;
 }
 
 // Build the team-name pools payload the playground downloads. Returns:
@@ -182,9 +239,16 @@ try {
         if ($licenseType === 'premium') {
             $scenarios = $db->fetchAll(
                 'SELECT s.* FROM scenarios s
-                 WHERE s.client_id = ? OR s.scenario_type = "product"
+                 WHERE s.client_id = ? OR (s.scenario_type = "product" AND s.status = "published")
                  ORDER BY s.created_at DESC',
                 [$userId]
+            );
+            // Premium products only in the client's language (own scenarios kept).
+            $scenarios = ScenarioLanguages::filterProducts(
+                $scenarios,
+                ScenarioLanguages::clientLanguage($db, $userId),
+                $db,
+                $userId
             );
         } else {
             $scenarios = $db->fetchAll(
@@ -198,6 +262,11 @@ try {
 
         // Cascade: never serve scenarios of a game type disabled for this client.
         $scenarios = playgroundFilterDisabledTypes($db, $client, $scenarios);
+
+        // Unvalidated languages never leave the server.
+        $scenarios = array_map(function ($s) use ($db, $userId) {
+            return ScenarioLanguages::narrowRow($db, $s, $userId);
+        }, $scenarios);
 
         foreach ($scenarios as &$scenario) {
             $fileCount = 0;
@@ -261,6 +330,9 @@ try {
         );
 
         $availableScenarios = playgroundFilterDisabledTypes($db, $client, $availableScenarios);
+        $availableScenarios = array_map(function ($s) use ($db, $userId) {
+            return ScenarioLanguages::narrowRow($db, $s, $userId);
+        }, $availableScenarios);
 
         Logger::log('playground', $method, 'get_available_scenarios', $userId, [], ['count' => count($availableScenarios)], 200, 'playground');
         jsonResponseWithAuthState($db, $userId, ['scenarios' => $availableScenarios]);
@@ -292,6 +364,14 @@ try {
         }
 
         $gameData = !empty($scenario['data']) ? json_decode($scenario['data'], true) : null;
+
+        // Unvalidated languages are stripped BEFORE the legacy envelope is
+        // built, so neither `translations[lang]` nor the raw text_* maps carry
+        // them. The served hashes are salted to match (see below).
+        $visibleLangs = ScenarioLanguages::visibleLanguages($db, $scenario, $userId);
+        if (is_array($gameData)) {
+            $gameData = ScenarioLanguages::strip($gameData, $visibleLangs);
+        }
 
         // Stage 3 (D5) compat layer: studio writes the new shape (per-field
         // `Localized<string>` maps inline in `game_meta`); the Tauri 2
@@ -601,6 +681,15 @@ try {
             $dataHash = $refreshed['data_hash'] ?? null;
             $files = ScenarioHashes::fileManifest($db->getConnection(), $uniqid);
         }
+        // Same salt as the manifest's content_hash: the game-data blob key must
+        // change when the set of served languages does.
+        $dataHash = ScenarioLanguages::servedHash($dataHash, $scenario, $visibleLangs);
+        foreach ($files as &$f) {
+            if (($f['rel_path'] ?? '') === 'game-data.json') {
+                $f['hash'] = ScenarioLanguages::servedHash($f['hash'], $scenario, $visibleLangs);
+            }
+        }
+        unset($f);
 
         Logger::log('playground', $method, 'get_scenario_game_data', $userId, ['uniqid' => $uniqid], ['success' => true, 'media_count' => count($medias), 'file_count' => count($files)], 200, 'playground');
         jsonResponseWithAuthState($db, $userId, [
@@ -649,15 +738,10 @@ try {
         }
 
         // Binary streaming response - no auth_state wrapper here, this is a file download.
-        $mimeType = mime_content_type($mediaPath);
-        header('Content-Type: ' . $mimeType);
-        header('Content-Length: ' . filesize($mediaPath));
-        header('Content-Disposition: inline; filename="' . basename($filename) . '"');
+        // Range-aware so an interrupted video resumes where it stopped.
+        Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid, 'filename' => $filename, 'range' => $_SERVER['HTTP_RANGE'] ?? null], ['success' => true], 200, 'playground');
 
-        Logger::log('playground', $method, 'get_media', $userId, ['uniqid' => $uniqid, 'filename' => $filename], ['success' => true], 200, 'playground');
-
-        readfile($mediaPath);
-        exit;
+        streamFileWithRange($mediaPath, mime_content_type($mediaPath) ?: 'application/octet-stream', $filename);
 
     case 'get_game_type_media':
         if ($method !== 'GET') {
@@ -709,12 +793,8 @@ try {
             jsonResponse(['error' => 'File not found'], 404);
         }
 
-        header('Content-Type: ' . $mime);
-        header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="' . basename($path) . '"');
         Logger::log('playground', $method, 'get_game_type_media', $userId, ['code' => $code, 'variant' => $variant, 'version' => $version], ['success' => true], 200, 'playground');
-        readfile($path);
-        exit;
+        streamFileWithRange($path, $mime, basename($path));
 
     case 'get_available_scenario_data':
         if ($method !== 'GET') {
@@ -874,13 +954,21 @@ try {
         // the playground as a permanent "1 failed".
         if (($client['license_type'] ?? '') === 'premium') {
             $productScenarios = $db->fetchAll(
-                'SELECT title, uniqid, version, game_type, content_hash FROM scenarios
+                'SELECT title, uniqid, version, game_type, content_hash, scenario_type, data, client_id, validated_languages FROM scenarios
                  WHERE scenario_type = "product" AND status = "published"
                  ORDER BY created_at DESC'
             );
+            // Only the products released in the client's language; the rest drop
+            // out of the manifest (and the playground tombstones local copies).
+            $productScenarios = ScenarioLanguages::filterProducts(
+                $productScenarios,
+                ScenarioLanguages::clientLanguage($db, $userId),
+                $db,
+                $userId
+            );
         } else {
             $productScenarios = $db->fetchAll(
-                'SELECT s.title, s.uniqid, s.version, s.game_type, s.content_hash FROM scenarios s
+                'SELECT s.title, s.uniqid, s.version, s.game_type, s.content_hash, s.data, s.client_id, s.validated_languages FROM scenarios s
                  JOIN client_scenarios cs ON cs.scenario_id = s.id AND cs.client_id = ?
                  WHERE s.scenario_type = "product" AND s.status = "published"
                  ORDER BY s.created_at DESC',
@@ -902,6 +990,15 @@ try {
         };
         $fillContentHash($customScenarios);
         $fillContentHash($productScenarios);
+
+        // Salt each product's hash with the languages this client is served, so
+        // validating a language re-syncs the device; then drop the helper columns.
+        $productScenarios = array_map(function ($s) use ($db, $userId) {
+            $visible = ScenarioLanguages::visibleLanguages($db, $s, $userId);
+            $s['content_hash'] = ScenarioLanguages::servedHash($s['content_hash'], $s, $visible);
+            unset($s['scenario_type'], $s['data'], $s['client_id'], $s['validated_languages']);
+            return $s;
+        }, $productScenarios);
 
         // Cascade: drop scenarios of game types disabled for this client. They vanish
         // from the manifest, so the playground's tombstoneMissing prunes any local copy
@@ -1400,8 +1497,11 @@ try {
                 'version' => (int)$r['version'],
             ];
         }
+        // Same MAX(version) as the manifest's lan_networks_version, so the
+        // device can store exactly the cursor it will be compared against.
+        $verRow = $db->fetch('SELECT COALESCE(MAX(version),0) AS v FROM lan_networks WHERE client_id = ?', [$userId]);
         Logger::log('playground', $method, 'get_lan_networks', $userId, [], ['count' => count($networks)], 200, 'playground');
-        jsonResponseWithAuthState($db, $userId, ['networks' => $networks]);
+        jsonResponseWithAuthState($db, $userId, ['networks' => $networks, 'version' => (int)($verRow['v'] ?? 0)]);
         break;
 
     case 'announce_lan_network':
@@ -1484,7 +1584,9 @@ function playgroundClientCanAccessScenario($db, array $client, array $scenario):
         return true;
     }
 
-    if (($client['license_type'] ?? '') === 'premium' && ($scenario['scenario_type'] ?? '') === 'product') {
+    // Premium holds the published products released in the client's language.
+    if (($client['license_type'] ?? '') === 'premium' && ($scenario['scenario_type'] ?? '') === 'product'
+        && ScenarioLanguages::hasVisibleLanguage($db, $scenario, $userId, ScenarioLanguages::clientLanguage($db, $userId))) {
         return true;
     }
 

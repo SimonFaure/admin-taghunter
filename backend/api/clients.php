@@ -89,6 +89,12 @@ function formatClientData($client) {
     if (array_key_exists('report_use_brand_logo', $client)) {
         $client['report_use_brand_logo'] = (bool)$client['report_use_brand_logo'];
     }
+    // Per-client statistics flags (add_client_stats_flags.sql).
+    foreach (['stats_excluded_global', 'stats_disabled', 'sees_draft_languages'] as $flag) {
+        if (array_key_exists($flag, $client)) {
+            $client[$flag] = (bool)$client[$flag];
+        }
+    }
 
     return $client;
 }
@@ -205,7 +211,9 @@ try {
                 'phone' => $data['phone'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'avatar_url' => $data['avatar_url'] ?? null,
-                'license_type' => $data['license_type'] ?? 'access',
+                // Single licence type: every client is premium (whole published
+                // product catalogue). GO / Spot are granted separately.
+                'license_type' => 'premium',
                 'billing_up_to_date' => (isset($data['billing_up_to_date']) ? $data['billing_up_to_date'] : true) ? 1 : 0,
                 'language' => sanitizeLanguage($data['language'] ?? 'fr'),
                 'update_channel' => sanitizeChannel($data['update_channel'] ?? 'stable'),
@@ -299,7 +307,7 @@ try {
             // apps, so the explicit expiry date is no longer read or written.
             // playground_enabled / spot_* are the per-app provisioning + billing
             // columns added by add_client_app_columns.sql.
-            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'license_type', 'billing_up_to_date', 'language', 'update_channel', 'playground_version', 'creator_version', 'playground_enabled', 'max_devices', 'go_enabled', 'go_subscription_active', 'go_billing_grace_days', 'spot_enabled', 'spot_billing_ok', 'spot_billing_grace_days', 'devices_disabled', 'billing_grace_days', 'billing_reprieve_days', 'report_use_brand_logo'];
+            $allowedFields = ['email', 'name', 'company', 'phone', 'notes', 'avatar_url', 'billing_up_to_date', 'language', 'update_channel', 'playground_version', 'creator_version', 'playground_enabled', 'max_devices', 'go_enabled', 'go_subscription_active', 'go_billing_grace_days', 'spot_enabled', 'spot_billing_ok', 'spot_billing_grace_days', 'devices_disabled', 'billing_grace_days', 'billing_reprieve_days', 'report_use_brand_logo'];
             foreach ($allowedFields as $field) {
                 if (array_key_exists($field, $data)) {
                     $updates[] = "$field = ?";
@@ -326,6 +334,20 @@ try {
                         $value = max(1, (int)$value);
                     }
                     $values[] = $value;
+                }
+            }
+
+            // Statistics flags are admin-only: a client must not be able to opt
+            // itself out of recording / the global stats. Silently ignored for
+            // a client token (same payload shape, no error).
+            if (($_SESSION['user_type'] ?? '') === 'admin') {
+                // sees_draft_languages: tester flag - this client also gets the
+                // scenario languages an admin has not validated yet.
+                foreach (['stats_excluded_global', 'stats_disabled', 'sees_draft_languages'] as $flag) {
+                    if (array_key_exists($flag, $data)) {
+                        $updates[] = "$flag = ?";
+                        $values[] = $data[$flag] ? 1 : 0;
+                    }
                 }
             }
 
@@ -372,6 +394,72 @@ try {
 
             $response = ['data' => $client];
             Logger::log('clients', 'PUT', 'update', $userId, $data, $response, 200);
+            jsonResponse($response);
+            break;
+
+        // Admin: wipe every recorded game statistic of one client (the
+        // game_summaries rows behind the Statistics pages + the raw
+        // game_launches telemetry). Irreversible. Games the playground has not
+        // pushed yet will still arrive afterwards unless stats_disabled is set.
+        case 'reset_stats':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $userId = requireAuth();
+            if (($_SESSION['user_type'] ?? '') !== 'admin') {
+                $response = ['error' => 'Admin access required'];
+                Logger::log('clients', 'POST', 'reset_stats', $userId, [], $response, 403);
+                jsonResponse($response, 403);
+            }
+
+            $data = getRequestData();
+            $clientId = (int)($data['client_id'] ?? 0);
+            if ($clientId <= 0 || !$db->fetch('SELECT id FROM clients WHERE id = ?', [$clientId])) {
+                $response = ['error' => 'Client not found'];
+                Logger::log('clients', 'POST', 'reset_stats', $userId, $data, $response, 404);
+                jsonResponse($response, 404);
+            }
+
+            $deletedSummaries = $db->query('DELETE FROM game_summaries WHERE client_id = ?', [$clientId])->rowCount();
+            $deletedLaunches = $db->query('DELETE FROM game_launches WHERE client_id = ?', [$clientId])->rowCount();
+
+            $response = [
+                'success' => true,
+                'deleted_games' => $deletedSummaries,
+                'deleted_launches' => $deletedLaunches,
+            ];
+            Logger::log('clients', 'POST', 'reset_stats', $userId, $data, $response, 200);
+            jsonResponse($response);
+            break;
+
+        // Admin one-click: flip every client to the single (premium) licence.
+        // Same effect as database/set_clients_license_premium.sql, without
+        // waiting for a migration run. Design: project_premium_client_grant_blind_spot.
+        case 'set_all_premium':
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+
+            $userId = requireAuth();
+            if (($_SESSION['user_type'] ?? '') !== 'admin') {
+                $response = ['error' => 'Admin access required'];
+                Logger::log('clients', 'POST', 'set_all_premium', $userId, [], $response, 403);
+                jsonResponse($response, 403);
+            }
+
+            $updated = $db->query(
+                "UPDATE clients SET license_type = 'premium'
+                  WHERE license_type IS NULL OR license_type <> 'premium'"
+            )->rowCount();
+            $total = (int)($db->fetch('SELECT COUNT(*) AS n FROM clients')['n'] ?? 0);
+
+            $response = [
+                'success' => true,
+                'updated' => $updated,
+                'total' => $total,
+            ];
+            Logger::log('clients', 'POST', 'set_all_premium', $userId, [], $response, 200);
             jsonResponse($response);
             break;
 

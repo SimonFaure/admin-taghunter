@@ -166,7 +166,7 @@ export const defaultTagquestLayout: DefaultLayout = {
     {
       id: 'tagquest_template',
       type: 'image',
-      name: 'Tagquest Template (overlay)',
+      name: 'Quest Template (overlay)',
       filename: '@template',
       x: 0,
       y: 0,

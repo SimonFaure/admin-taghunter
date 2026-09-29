@@ -23,5 +23,7 @@ CREATE TABLE IF NOT EXISTS devices (
     FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Drop old table if exists
-DROP TABLE IF EXISTS client_cards;
+-- An unconditional "drop client_cards" statement used to live here: since
+-- apply_all_migrations.php replays every file on each deploy, it wiped every
+-- client's cards each time. Removed 2026-09-16 - cards_rows_migration.sql
+-- replaces the legacy table non-destructively.

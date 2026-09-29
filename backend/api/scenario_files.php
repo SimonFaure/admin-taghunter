@@ -4,9 +4,18 @@ require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
 require_once __DIR__ . '/../utils/ScenarioHashes.php';
+require_once __DIR__ . '/../utils/LocalizedCompat.php';
+require_once __DIR__ . '/../utils/ScenarioLanguages.php';
 
 setCorsHeaders();
 session_start();
+// This endpoint only READS the session. Release its lock straight away so the
+// browser's parallel requests do not queue behind one another (a slow save or
+// hash recompute used to hold every other call - retours sept. 2026 #42).
+session_write_close();
+
+/** The 12 player-facing language codes a file may be tagged with. */
+const SCENARIO_FILE_LANGS = ['en','fr','es','de','it','pt','nl','pl','ru','ja','zh','ar'];
 
 $action = $_GET['action'] ?? '';
 
@@ -25,6 +34,86 @@ function resolveEmailFromRequest() {
 }
 
 /**
+ * The language to serve a viewer in: their `clients.language` when they are a
+ * client, else the scenario's own default. Admins browsing the client view get
+ * the scenario default, which is what the document was authored in.
+ */
+function clientLanguageFor($pdo, $email, $scenarioDefaultLang, $scenarioRow = null) {
+    if (!$email) return $scenarioDefaultLang;
+    $stmt = $pdo->prepare("SELECT id, language FROM clients WHERE email = ?");
+    $stmt->execute([$email]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    $lang = $row['language'] ?? '';
+    if (!in_array($lang, SCENARIO_FILE_LANGS, true)) return $scenarioDefaultLang;
+    // A language an admin has not validated yet is not served: the client gets
+    // the primary documents, as if that edition did not exist.
+    if ($row && is_array($scenarioRow)
+        && !in_array($lang, ScenarioLanguages::visibleLanguages($pdo, $scenarioRow, (int)$row['id']), true)) {
+        return $scenarioDefaultLang;
+    }
+    return $lang;
+}
+
+/**
+ * The languages of this scenario the caller may see: everything for an admin
+ * (any email that is not a client's), the validated set for a client.
+ * `$scenarioRow` needs data, client_id and validated_languages.
+ */
+function visibleLanguagesFor($pdo, $email, array $scenarioRow) {
+    $stmt = $pdo->prepare("SELECT id FROM clients WHERE email = ?");
+    $stmt->execute([$email]);
+    $clientId = $stmt->fetchColumn();
+    if ($clientId === false) return ScenarioLanguages::fromData($scenarioRow['data'] ?? null);
+    return ScenarioLanguages::visibleLanguages($pdo, $scenarioRow, (int)$clientId);
+}
+
+/**
+ * Collapse language variants to ONE row per document, resolved for `$lang`.
+ *
+ * Files are grouped by `COALESCE(parent_file_id, id)`. Within a group the row
+ * whose `language` matches wins; otherwise the primary is served, so a document
+ * that only exists in French is still downloadable (and is honestly labelled
+ * with its own `language`, which the client UI shows as a chip). The display
+ * name is resolved from `name_i18n`, falling back to the stored `name`.
+ */
+function resolveFilesForLanguage(array $files, $lang, $defaultLang) {
+    $groups = [];
+    foreach ($files as $f) {
+        $key = $f['parent_file_id'] !== null ? (int)$f['parent_file_id'] : (int)$f['id'];
+        $groups[$key][] = $f;
+    }
+
+    $out = [];
+    foreach ($groups as $key => $members) {
+        $primary = null;
+        $match = null;
+        foreach ($members as $m) {
+            if ($m['parent_file_id'] === null) $primary = $m;
+            if ($match === null && $m['language'] === $lang) $match = $m;
+        }
+        // A group whose primary was deleted still has variants; fall back to
+        // the first member rather than dropping the document entirely.
+        $chosen = $match ?? $primary ?? $members[0];
+
+        $nameI18n = !empty($chosen['name_i18n']) ? json_decode($chosen['name_i18n'], true) : null;
+        if (!is_array($nameI18n) || !$nameI18n) {
+            // Variants inherit the primary's localized title.
+            $parentI18n = $primary && !empty($primary['name_i18n'])
+                ? json_decode($primary['name_i18n'], true)
+                : null;
+            $nameI18n = is_array($parentI18n) ? $parentI18n : null;
+        }
+        if ($nameI18n) {
+            $localized = LocalizedCompat::getLocalized($nameI18n, $lang, $defaultLang);
+            if ($localized !== '') $chosen['name'] = $localized;
+        }
+
+        $out[] = $chosen;
+    }
+    return $out;
+}
+
+/**
  * May this caller read a scenario's attached files?
  *
  * The three historical checks were: owns it, is an admin, or holds an explicit
@@ -40,7 +129,7 @@ function resolveEmailFromRequest() {
  */
 function clientMayReadScenarioFiles($pdo, $scenarioId, $email) {
     $stmt = $pdo->prepare("
-        SELECT s.scenario_type, c.email AS client_email, a.email AS admin_email
+        SELECT s.scenario_type, s.data, s.client_id, s.validated_languages, c.email AS client_email, a.email AS admin_email
         FROM scenarios s
         LEFT JOIN clients c ON s.client_id = c.id
         LEFT JOIN admin_users a ON s.created_by = a.id
@@ -67,11 +156,16 @@ function clientMayReadScenarioFiles($pdo, $scenarioId, $email) {
     $stmt->execute([$scenarioId, $email]);
     if ($stmt->fetch(PDO::FETCH_ASSOC)) return true;
 
-    // Premium client + product scenario = implicit access.
+    // Premium client + product released in the client's language = implicit access.
     if ($row['scenario_type'] === 'product') {
         $stmt = $pdo->prepare("SELECT id FROM clients WHERE email = ? AND license_type = 'premium'");
         $stmt->execute([$email]);
-        if ($stmt->fetch(PDO::FETCH_ASSOC)) return true;
+        $premium = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($premium) {
+            if (ScenarioLanguages::hasVisibleLanguage($pdo, $row, (int)$premium['id'], ScenarioLanguages::clientLanguage($pdo, $premium['id']))) {
+                return true;
+            }
+        }
     }
 
     return false;
@@ -144,7 +238,7 @@ function handleGetScenario($pdo) {
     $stmt = $pdo->prepare("
         SELECT s.id, s.title, s.description, s.uniqid, s.medias, s.data,
                s.game_type, s.scenario_type, IFNULL(s.version, '1.0') as version, s.client_id,
-               c.email as client_email
+               s.validated_languages, c.email as client_email
         FROM scenarios s
         LEFT JOIN clients c ON s.client_id = c.id
         WHERE s.uniqid = ?
@@ -196,26 +290,58 @@ function handleGetScenario($pdo) {
         $videoUrl = $medias['video'];
     }
 
-    $stmt4 = $pdo->prepare("
-        SELECT id, name, file_path, file_size, mime_type, created_at
-        FROM scenario_files WHERE scenario_id = ? ORDER BY created_at DESC
-    ");
-    $stmt4->execute([$scenario['id']]);
-    $files = $stmt4->fetchAll(PDO::FETCH_ASSOC);
-
-    $hasZipFiles = !empty($files);
-
     // Difficulty / audience live in the scenario's game_meta. Tolerate both the
     // flat (`game_meta.…`) and wrapped (`data.game_meta.…`) shapes, mirroring
     // the admin ScenariosView readers.
-    $dataArr = $scenario['data'] ? json_decode($scenario['data'], true) : [];
+    $dataArr = $scenario['data']
+        ? ScenarioLanguages::strip(json_decode($scenario['data'], true), visibleLanguagesFor($pdo, $email, $scenario))
+        : [];
     $gameMeta = $dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? []);
     $difficulty = is_array($gameMeta) ? ($gameMeta['difficulty'] ?? null) : null;
     $audience = is_array($gameMeta) ? ($gameMeta['game_public'] ?? null) : null;
+    $scenarioDefaultLang = $dataArr['default_language'] ?? 'fr';
+
+    // One row per DOCUMENT, resolved to the caller's own language: a client
+    // whose account language is `en` gets the EN edition (and its EN title)
+    // where the admin uploaded one, and the primary otherwise.
+    $viewerLang = clientLanguageFor($pdo, $email, $scenarioDefaultLang, $scenario);
+    $stmt4 = $pdo->prepare("
+        SELECT id, name, name_i18n, language, parent_file_id, file_path, file_size, mime_type, created_at
+        FROM scenario_files WHERE scenario_id = ? ORDER BY created_at DESC
+    ");
+    $stmt4->execute([$scenario['id']]);
+    $files = resolveFilesForLanguage($stmt4->fetchAll(PDO::FETCH_ASSOC), $viewerLang, $scenarioDefaultLang);
+
+    // « Informations » (game_meta.story): licensee-facing notes typed in the
+    // editor, never shown to players. Localized ({lang: text}) or a legacy
+    // plain string; resolved to the viewer's language, then the scenario's
+    // default, then the first non-empty edition.
+    $storyRaw = is_array($gameMeta) ? ($gameMeta['story'] ?? null) : null;
+    $information = null;
+    if (is_string($storyRaw)) {
+        $information = trim($storyRaw) !== '' ? $storyRaw : null;
+    } elseif (is_array($storyRaw)) {
+        foreach ([$viewerLang, $scenarioDefaultLang] as $lang) {
+            if (isset($storyRaw[$lang]) && is_string($storyRaw[$lang]) && trim($storyRaw[$lang]) !== '') {
+                $information = $storyRaw[$lang];
+                break;
+            }
+        }
+        if ($information === null) {
+            foreach ($storyRaw as $text) {
+                if (is_string($text) && trim($text) !== '') { $information = $text; break; }
+            }
+        }
+    }
+
+    $hasZipFiles = !empty($files);
 
     // Per-file list so the client can download files one by one. file_path is
     // intentionally omitted; downloads go through the access-checked
     // `download_file` action keyed on the file id.
+    // `name` is already the language-resolved label and `id` the resolved
+    // file's id, so the unchanged download_file($id) fetches the right edition.
+    // name_i18n / parent_file_id / texts_count are admin-only and never leave.
     $fileList = array_map(function ($f) {
         return [
             'id' => (int)$f['id'],
@@ -223,6 +349,7 @@ function handleGetScenario($pdo) {
             'file_size' => (int)$f['file_size'],
             'mime_type' => $f['mime_type'],
             'filename' => basename($f['file_path']),
+            'language' => $f['language'],
             'created_at' => $f['created_at'],
         ];
     }, $files);
@@ -239,6 +366,7 @@ function handleGetScenario($pdo) {
             'version' => $scenario['version'],
             'difficulty' => $difficulty,
             'audience' => $audience,
+            'information' => $information,
             'game_visual' => $gameVisual,
             'images' => $images,
             'video_url' => $videoUrl,
@@ -660,11 +788,40 @@ function handleUpload($pdo) {
     $fileSize = filesize($fullPath);
     $mimeType = mime_content_type($fullPath);
 
+    // Optional: which language edition this file is, and - for "add a language
+    // version" - which primary document it is a variant of.
+    $language = isset($_POST['language']) && $_POST['language'] !== ''
+        ? $_POST['language']
+        : null;
+    if ($language !== null && !in_array($language, SCENARIO_FILE_LANGS, true)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Unsupported language']);
+        return;
+    }
+
+    $parentFileId = isset($_POST['parent_file_id']) && $_POST['parent_file_id'] !== ''
+        ? (int)$_POST['parent_file_id']
+        : null;
+    if ($parentFileId !== null) {
+        // The parent must belong to the SAME scenario and be a primary itself:
+        // exactly one level of nesting, no variant-of-a-variant.
+        $pstmt = $pdo->prepare(
+            "SELECT id FROM scenario_files
+              WHERE id = ? AND scenario_id = ? AND parent_file_id IS NULL"
+        );
+        $pstmt->execute([$parentFileId, $scenarioId]);
+        if (!$pstmt->fetch(PDO::FETCH_ASSOC)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Invalid parent_file_id for this scenario']);
+            return;
+        }
+    }
+
     $stmt3 = $pdo->prepare("
-        INSERT INTO scenario_files (scenario_id, name, file_path, file_size, mime_type)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO scenario_files (scenario_id, name, file_path, file_size, mime_type, language, parent_file_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
-    $stmt3->execute([$scenarioId, $name, $filePath, $fileSize, $mimeType]);
+    $stmt3->execute([$scenarioId, $name, $filePath, $fileSize, $mimeType, $language, $parentFileId]);
     $fileId = $pdo->lastInsertId();
 
     echo json_encode([
@@ -676,6 +833,8 @@ function handleUpload($pdo) {
             'file_path' => $filePath,
             'file_size' => $fileSize,
             'mime_type' => $mimeType,
+            'language' => $language,
+            'parent_file_id' => $parentFileId,
             'created_at' => date('Y-m-d H:i:s')
         ],
         'message' => 'File uploaded successfully'
@@ -691,16 +850,70 @@ function handleList($pdo) {
 
     $scenarioId = $_GET['scenario_id'];
 
+    // SECURITY: this action used to run with NO authorization at all - any
+    // caller could enumerate any scenario's files by id. It now carries
+    // translation state (name_i18n, texts_count) that is ADMIN ONLY, so it is
+    // gated like every other read here, and the admin-only columns are stripped
+    // for everyone else.
+    $email = resolveEmailFromRequest();
+    if (!$email) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+    if (!clientMayReadScenarioFiles($pdo, $scenarioId, $email)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden']);
+        return;
+    }
+
+    $adminStmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
+    $adminStmt->execute([$email]);
+    $isAdmin = ($adminStmt->fetch(PDO::FETCH_ASSOC) !== false);
+
     $stmt = $pdo->prepare("
-        SELECT id, scenario_id, name, file_path, file_size, mime_type, created_at
-        FROM scenario_files
-        WHERE scenario_id = ?
-        ORDER BY created_at DESC
+        SELECT sf.id, sf.scenario_id, sf.name, sf.name_i18n, sf.language,
+               sf.parent_file_id, sf.file_path, sf.file_size, sf.mime_type, sf.created_at,
+               (SELECT COUNT(*) FROM scenario_file_texts t WHERE t.file_id = sf.id) AS texts_count
+        FROM scenario_files sf
+        WHERE sf.scenario_id = ?
+        ORDER BY COALESCE(sf.parent_file_id, sf.id) ASC, sf.parent_file_id IS NOT NULL, sf.created_at DESC
     ");
     $stmt->execute([$scenarioId]);
     $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    echo json_encode(['success' => true, 'data' => $files]);
+    // A client never sees a variant in a language not validated yet.
+    if (!$isAdmin) {
+        $sStmt = $pdo->prepare("SELECT data, client_id, validated_languages FROM scenarios WHERE id = ?");
+        $sStmt->execute([$scenarioId]);
+        $sRow = $sStmt->fetch(PDO::FETCH_ASSOC);
+        $visible = $sRow ? visibleLanguagesFor($pdo, $email, $sRow) : [];
+        $files = array_values(array_filter($files, function ($f) use ($visible) {
+            return $f['parent_file_id'] === null || in_array($f['language'], $visible, true);
+        }));
+    }
+
+    $out = array_map(function ($f) use ($isAdmin) {
+        $row = [
+            'id'             => (int)$f['id'],
+            'scenario_id'    => (int)$f['scenario_id'],
+            'name'           => $f['name'],
+            'file_path'      => $f['file_path'],
+            'file_size'      => (int)$f['file_size'],
+            'mime_type'      => $f['mime_type'],
+            'language'       => $f['language'],
+            'parent_file_id' => $f['parent_file_id'] !== null ? (int)$f['parent_file_id'] : null,
+            'created_at'     => $f['created_at'],
+        ];
+        if ($isAdmin) {
+            $decoded = $f['name_i18n'] ? json_decode($f['name_i18n'], true) : null;
+            $row['name_i18n']   = is_array($decoded) ? $decoded : [];
+            $row['texts_count'] = (int)$f['texts_count'];
+        }
+        return $row;
+    }, $files);
+
+    echo json_encode(['success' => true, 'data' => $out]);
 }
 
 function handleDelete($pdo) {
@@ -775,6 +988,10 @@ function handleDownloadZip($pdo) {
 
     $email = resolveEmailFromRequest();
     if (!$email) {
+        // SECURITY: unauthenticated identity fallback - passing ?email=<an
+        // admin> satisfies the whole ACL below. It exists because emailed
+        // download links carry no token. Tightening it is a separate, visible
+        // change (it breaks those links), so it is left as-is deliberately.
         $email = $_GET['email'] ?? null;
     }
 
@@ -785,7 +1002,7 @@ function handleDownloadZip($pdo) {
     }
 
     $stmt = $pdo->prepare("
-        SELECT s.id, s.title, s.uniqid, s.client_id, s.created_by,
+        SELECT s.id, s.title, s.uniqid, s.client_id, s.created_by, s.data, s.validated_languages,
                c.email as client_email,
                a.email as admin_email
         FROM scenarios s
@@ -812,9 +1029,20 @@ function handleDownloadZip($pdo) {
         return;
     }
 
-    $stmt4 = $pdo->prepare("SELECT name, file_path FROM scenario_files WHERE scenario_id = ?");
+    // The ZIP must contain exactly what the file list offered, so it runs the
+    // same language resolution: one entry per document, in the caller's
+    // language where that edition exists, named with the localized title.
+    $zipData = $scenario['data'] ?? null;
+    $zipDataArr = $zipData ? json_decode($zipData, true) : [];
+    $zipDefaultLang = is_array($zipDataArr) ? ($zipDataArr['default_language'] ?? 'fr') : 'fr';
+    $zipLang = clientLanguageFor($pdo, $email, $zipDefaultLang, $scenario);
+
+    $stmt4 = $pdo->prepare("
+        SELECT id, name, name_i18n, language, parent_file_id, file_path
+        FROM scenario_files WHERE scenario_id = ?
+    ");
     $stmt4->execute([$scenario['id']]);
-    $files = $stmt4->fetchAll(PDO::FETCH_ASSOC);
+    $files = resolveFilesForLanguage($stmt4->fetchAll(PDO::FETCH_ASSOC), $zipLang, $zipDefaultLang);
 
     if (empty($files)) {
         http_response_code(404);
@@ -835,7 +1063,11 @@ function handleDownloadZip($pdo) {
     foreach ($files as $file) {
         $fullPath = __DIR__ . '/../../media/' . $file['file_path'];
         if (file_exists($fullPath)) {
-            $zip->addFile($fullPath, $file['name'] . '_' . basename($file['file_path']));
+            // `name` is free text and now also translator-supplied, so strip
+            // path separators before it becomes a ZIP entry name - otherwise a
+            // title containing "/" writes into a subdirectory on extract.
+            $entryName = str_replace(['/', '\\'], '-', (string)$file['name']);
+            $zip->addFile($fullPath, $entryName . '_' . basename($file['file_path']));
         }
     }
 
@@ -861,6 +1093,10 @@ function handleDownloadFile($pdo) {
 
     $email = resolveEmailFromRequest();
     if (!$email) {
+        // SECURITY: unauthenticated identity fallback - passing ?email=<an
+        // admin> satisfies the whole ACL below. It exists because emailed
+        // download links carry no token. Tightening it is a separate, visible
+        // change (it breaks those links), so it is left as-is deliberately.
         $email = $_GET['email'] ?? null;
     }
     if (!$email) {
@@ -870,8 +1106,8 @@ function handleDownloadFile($pdo) {
     }
 
     $stmt = $pdo->prepare("
-        SELECT sf.name, sf.file_path, sf.mime_type,
-               s.id as scenario_id, s.client_id, s.created_by,
+        SELECT sf.name, sf.name_i18n, sf.language, sf.parent_file_id, sf.file_path, sf.mime_type,
+               s.id as scenario_id, s.client_id, s.created_by, s.data, s.validated_languages,
                c.email as client_email,
                a.email as admin_email
         FROM scenario_files sf
@@ -897,6 +1133,14 @@ function handleDownloadFile($pdo) {
         return;
     }
 
+    // A variant in a language not validated yet is not released to clients.
+    if ($file['parent_file_id'] !== null
+        && !in_array($file['language'], visibleLanguagesFor($pdo, $email, $file), true)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
     $fullPath = __DIR__ . '/../../media/' . $file['file_path'];
     if (!file_exists($fullPath)) {
         http_response_code(404);
@@ -904,9 +1148,31 @@ function handleDownloadFile($pdo) {
         return;
     }
 
-    // Build a friendly download name: the stored label keeps the original extension.
+    // Build a friendly download name: the stored label keeps the original
+    // extension. The label is localized for the caller so the saved filename
+    // matches the title they clicked in the list. A variant with no title of
+    // its own inherits its primary's.
+    $dlDataArr = $file['data'] ? json_decode($file['data'], true) : [];
+    $dlDefaultLang = is_array($dlDataArr) ? ($dlDataArr['default_language'] ?? 'fr') : 'fr';
+    $dlLang = clientLanguageFor($pdo, $email, $dlDefaultLang, $file);
+
+    $dlI18n = !empty($file['name_i18n']) ? json_decode($file['name_i18n'], true) : null;
+    if ((!is_array($dlI18n) || !$dlI18n) && $file['parent_file_id'] !== null) {
+        $pstmt = $pdo->prepare("SELECT name_i18n FROM scenario_files WHERE id = ?");
+        $pstmt->execute([(int)$file['parent_file_id']]);
+        $parentI18n = $pstmt->fetchColumn();
+        $decoded = $parentI18n ? json_decode($parentI18n, true) : null;
+        $dlI18n = is_array($decoded) ? $decoded : null;
+    }
+
+    $localizedName = is_array($dlI18n) && $dlI18n
+        ? LocalizedCompat::getLocalized($dlI18n, $dlLang, $dlDefaultLang)
+        : '';
+
     $ext = pathinfo($file['file_path'], PATHINFO_EXTENSION);
-    $base = $file['name'] !== '' ? $file['name'] : pathinfo($file['file_path'], PATHINFO_FILENAME);
+    $base = $localizedName !== ''
+        ? $localizedName
+        : ($file['name'] !== '' ? $file['name'] : pathinfo($file['file_path'], PATHINFO_FILENAME));
     $downloadName = preg_replace('/[\r\n"]/', '', $base);
     if ($ext && strtolower(pathinfo($downloadName, PATHINFO_EXTENSION)) !== strtolower($ext)) {
         $downloadName .= '.' . $ext;

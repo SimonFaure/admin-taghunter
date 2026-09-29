@@ -92,9 +92,10 @@ function QrSection({
       setLoading(true);
       try {
         // Both apps read their real grants (mode='go' / mode='spot') — exactly
-        // the pairs go.php will serve. The generic `list` action returns every
-        // product scenario for PREMIUM clients regardless of grants, so building
-        // the GO grid from it produced QR codes that refused when scanned.
+        // the pairs go.php will serve. The generic `list` action returns the whole
+        // playground catalogue for PREMIUM clients regardless of GO/Spot grants,
+        // so a grid built from it would show QR codes for scenarios this client
+        // was never granted in GO/Spot.
         const action = app === 'spot' ? 'list_spot' : 'list_go';
         const res = await authFetch(
           `${API_BASE_URL}/client_scenarios.php?action=${action}&client_id=${clientId}`,

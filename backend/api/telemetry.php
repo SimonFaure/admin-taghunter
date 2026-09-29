@@ -444,6 +444,17 @@ try {
         jsonResponse(['error' => 'Too many events; max ' . MAX_EVENTS_PER_BATCH], 400);
     }
 
+    // "No stats at all" client flag (add_client_stats_flags.sql): game stats
+    // events are acked `ok` (so the playground outbox drops them) but never
+    // stored. Guarded - an un-migrated studio simply records as before.
+    $statsDisabled = false;
+    try {
+        $row = $db->fetch('SELECT stats_disabled FROM clients WHERE id = ?', [$clientId]);
+        $statsDisabled = $row && (int)$row['stats_disabled'] === 1;
+    } catch (Exception $e) {
+        error_log('[telemetry.ingest] stats_disabled lookup: ' . $e->getMessage());
+    }
+
     $results = [];
 
     foreach ($events as $event) {
@@ -467,10 +478,10 @@ try {
                     $ok = ingestError($db, $clientId, $authDeviceId, $uuid, $occurredAt, $payload);
                     break;
                 case 'launch':
-                    $ok = ingestLaunch($db, $clientId, $authDeviceId, $uuid, $payload);
+                    $ok = $statsDisabled || ingestLaunch($db, $clientId, $authDeviceId, $uuid, $payload);
                     break;
                 case 'game_summary':
-                    $ok = ingestGameSummary($db, $clientId, $authDeviceId, $payload);
+                    $ok = $statsDisabled || ingestGameSummary($db, $clientId, $authDeviceId, $payload);
                     break;
                 case 'recovery_code_used':
                     $ok = ingestRecoveryCodeUsed($db, $clientId, $occurredAt, $payload);

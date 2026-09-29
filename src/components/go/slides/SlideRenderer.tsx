@@ -60,7 +60,8 @@ interface Props {
   imageUrl: string | null;
   /**
    * 'card'  — fixed 4:5, the inline carousel under the scenario description.
-   * 'fill'  — fills its parent, for the full-screen briefing.
+   * 'fill'  — fills its parent (which must be a flex column), for the
+   *           full-screen briefing.
    */
   variant?: 'card' | 'fill';
   /** Passed through so each app can add its own rounding / ring / spacing. */
@@ -83,7 +84,13 @@ export function SlideRenderer({ slide, text, imageUrl, variant = 'card', classNa
         // Sizes below are expressed in `cqw` (percent of THIS box's width), so
         // the text keeps its proportion whatever the slide is rendered at.
         containerType: 'inline-size',
-        ...(variant === 'card' ? { aspectRatio: SLIDE_ASPECT } : { height: '100%' }),
+        // 'fill' GROWS as a flex item rather than asking for `height: 100%`:
+        // every child here is absolutely positioned, so when the parent's height
+        // is not definite (the briefing sits under a `min-h-full` shell) a
+        // percentage height resolved to auto -> 0px, and the whole slide - image
+        // and text - vanished, leaving only the scenario background showing
+        // through (retours sept #54). The parent must be a flex column.
+        ...(variant === 'card' ? { aspectRatio: SLIDE_ASPECT } : { flex: '1 1 0%', minHeight: 0 }),
       }}
       className={className}
     >

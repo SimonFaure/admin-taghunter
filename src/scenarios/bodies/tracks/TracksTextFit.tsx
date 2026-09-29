@@ -139,6 +139,7 @@ export function TracksTextFit({
       }}
     >
       <span
+        className={background ? "vcenter-text vcenter-text--plate" : "vcenter-text"}
         style={{
           fontFamily: fontFamily || undefined,
           fontWeight,

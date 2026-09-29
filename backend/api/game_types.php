@@ -6,6 +6,10 @@ require_once __DIR__ . '/../utils/TokenManager.php';
 
 setCorsHeaders();
 session_start();
+// This endpoint only READS the session. Release its lock straight away so the
+// browser's parallel requests do not queue behind one another (a slow save or
+// hash recompute used to hold every other call - retours sept. 2026 #42).
+session_write_close();
 
 // Tutorial videos are large (100s of MB). Neither the upload handlers nor the
 // Range-streaming reader in get_media must be capped by the default PHP

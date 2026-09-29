@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, Save, Plus, Trash2, X, ChevronDown, Search, Upload } from 'lucide-react';
 import { db } from '../lib/db';
@@ -185,6 +186,7 @@ function StationSelector({ stations, value, usedStationKeys, onChange }: Station
 }
 
 export function PatternEditor({ patternId, gameType, patternName, onBack }: PatternEditorProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState(patternName);
   const [slug, setSlug] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -871,14 +873,14 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
                   onClick={() => { setPublishAsClient(false); setClientEmail(''); setClientEmailError(''); }}
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${!publishAsClient ? 'bg-green-600/20 border-green-500 text-green-300' : 'bg-slate-700 border-slate-600 text-slate-400 hover:border-slate-500'}`}
                 >
-                  Publish (self)
+                  {t('creatorComponents:publish.publishSelf')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setPublishAsClient(true)}
                   className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${publishAsClient ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-slate-700 border-slate-600 text-slate-400 hover:border-slate-500'}`}
                 >
-                  Publish as Client
+                  {t('creatorComponents:publish.publishForLicensee')}
                 </button>
               </div>
             )}

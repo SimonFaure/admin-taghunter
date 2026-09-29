@@ -6,14 +6,20 @@
   "fields": {
     "name": "Nom",
     "email": "E-mail",
-    "clientId": "Identifiant client",
+    "clientId": "Identifiant licencié",
     "licenseType": "Type de licence",
     "paymentStatus": "Statut de paiement",
     "memberSince": "Membre depuis",
     "notSet": "Non défini"
   },
-  "license": { "premium": "Premium", "access": "Access" },
-  "payment": { "upToDate": "À jour", "required": "Paiement requis" },
+  "license": {
+    "premium": "Premium",
+    "access": "Access"
+  },
+  "payment": {
+    "upToDate": "À jour",
+    "required": "Paiement requis"
+  },
   "brand": {
     "title": "Identité de marque",
     "desc": "Cette image est envoyée à l'application playground pour personnaliser vos sessions.",
@@ -26,10 +32,10 @@
     "constraints": "Max 2 Mo. JPEG, PNG, GIF ou WebP."
   },
   "reportLogo": {
-    "label": "Utiliser mon logo sur les rapports imprimés",
-    "desc": "Les rapports de mission imprimés afficheront votre image de marque au lieu du logo Tag Hunter.",
+    "label": "Utiliser mon logo sur les comptes rendus imprimés",
+    "desc": "Les comptes rendus de mission imprimés afficheront votre image de marque au lieu du logo Tag Hunter.",
     "noImage": "Ajoutez un avatar ou un logo d'entreprise ci-dessus pour activer cette option.",
-    "saved": "Préférence du logo des rapports mise à jour"
+    "saved": "Préférence du logo des comptes rendus mise à jour"
   },
   "language": {
     "title": "Langue",

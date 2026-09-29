@@ -136,6 +136,11 @@ export interface TagquestPreviewRendererProps {
   onMainImageMargin?: (percent: number) => void;
 }
 
+// Same halo the playground puts on the centre malus artwork (TagQuestGamePage
+// `artHalo('missed')`): a white inner glow plus a red outer ring.
+const MALUS_ART_HALO =
+  'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 10px rgba(248,113,113,0.9))';
+
 function parseInt0(v: unknown): number {
   if (v == null) return 0;
   if (typeof v === 'number') return v;
@@ -348,8 +353,9 @@ export function TagquestPreviewRenderer({
   function imageVisibleForElement(el: LayoutElementInput): boolean {
     const id = el.id;
     if (id === 'tagquest_template') return true;
-    if (id === 'malus_icon') return parseInt0(MOCK_TEAM_STRIP.malusTimes) > 0 || showMalusOverlay;
-    if (id === 'late_malus_icon') return parseInt0(MOCK_TEAM_STRIP.lateMalusTimes) > 0 || showLateMalusOverlay;
+    // In game the side icons show whenever their artwork is set; the mock strip
+    // always carries maluses, so they always show here too.
+    if (id === 'malus_icon' || id === 'late_malus_icon') return true;
     const qi = id.match(/^quest_(\d+)_icon$/);
     if (qi) {
       // Preview shows every quest icon that has a defined main_image, so the
@@ -523,9 +529,79 @@ export function TagquestPreviewRenderer({
 
             if (el.type === 'image') {
               if (el.id === 'animation_quest_image') {
+                // The "Superposition malus" / "malus de retard" toggles: what
+                // the playground draws in this zone when a read charges a malus
+                // (TagQuestGamePage `renderCenterMalus`). With the quest revealed
+                // it is a corner badge over the artwork; otherwise it stands
+                // alone and fills the zone, like a malus-only read. Retours
+                // sept. #36 - the preview never drew it, so the toggles did nothing.
+                const malusHits = [
+                  { key: 'station', on: showMalusOverlay, image: gameMeta.malus_image,
+                    delta: Math.abs(parseInt0(gameMeta.malus_points)) || parseInt0(MOCK_TEAM_STRIP.malusPoints) },
+                  { key: 'late', on: showLateMalusOverlay, image: gameMeta.late_malus_image,
+                    delta: Math.abs(parseInt0(gameMeta.late_malus_points)) || parseInt0(MOCK_TEAM_STRIP.lateMalusPoints) },
+                ].filter((h) => h.on);
+                const malusWithQuest = questView === 'revealed' && !!activeQuest;
+                const malusCenter = malusHits.length > 0 && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: malusWithQuest ? 'flex-end' : 'center',
+                      justifyContent: malusWithQuest ? 'flex-end' : 'center',
+                      gap: '4%',
+                      zIndex: 5,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    {malusHits.map((h) => (
+                      <div
+                        key={h.key}
+                        style={{
+                          position: 'relative',
+                          width: malusWithQuest ? '30%' : `${Math.floor(80 / malusHits.length)}%`,
+                          aspectRatio: '1 / 1',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {h.image && (
+                          <img
+                            src={resolveMediaUrl(String(h.image))}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'contain', filter: MALUS_ART_HALO }}
+                          />
+                        )}
+                        <div
+                          style={{
+                            position: h.image ? 'absolute' : 'static',
+                            bottom: h.image ? '-4%' : undefined,
+                            right: h.image ? '-4%' : undefined,
+                            padding: '0.1em 0.4em',
+                            borderRadius: '0.3em',
+                            background: 'rgba(185,28,28,0.92)',
+                            color: '#fff',
+                            fontWeight: 800,
+                            fontSize: `${(malusWithQuest ? 36 : 64) * (stage.width / 1920)}px`,
+                            lineHeight: 1.1,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                          }}
+                        >
+                          -{h.delta}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
                 // Preview: render the active quest's 2x2 pieces grid or the
                 // revealed main image.
-                if (!imageVisibleForElement(el)) return null;
+                if (!imageVisibleForElement(el)) {
+                  return malusCenter ? (
+                    <div key={`${el.id}-${idx}`} style={styleBase}>{malusCenter}</div>
+                  ) : null;
+                }
                 // Inner margin of the COMPLETED image (admin "Default layouts"):
                 // room for the status glow, which hugs the artwork's alpha and
                 // otherwise bleeds past the box. Resolved through the shared
@@ -539,7 +615,8 @@ export function TagquestPreviewRenderer({
                 );
                 return (
                   <div key={`${el.id}-${idx}`} style={{ ...styleBase, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {questView === 'pieces' && activeQuest && (
+                    {malusCenter}
+                    {questView === 'pieces' && activeQuest && !malusCenter && (
                       <div style={{ width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
                         {(['image_1', 'image_2', 'image_3', 'image_4'] as const).map((k, i) => {
                           const f = activeQuest[k];
@@ -672,7 +749,6 @@ export function TagquestPreviewRenderer({
                   textShadow: '0 1px 4px rgba(0,0,0,0.7)',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                   cursor: catId ? 'pointer' : undefined,
                   outline: picked
                     ? '2px solid #3b82f6'
@@ -688,7 +764,7 @@ export function TagquestPreviewRenderer({
                       : styled.background,
                 }}
               >
-                {text}
+                <span className="vcenter-text">{text}</span>
               </div>
             );
           })}

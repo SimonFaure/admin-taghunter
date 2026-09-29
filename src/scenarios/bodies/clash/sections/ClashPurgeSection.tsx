@@ -26,15 +26,30 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListChecks } from 'lucide-react';
 import { AssetUploadField } from '../../../shell/components/AssetUploadField';
+import { LocalizedField } from '../../../shell/components/LocalizedField';
 import { CollapsibleSection } from '../../../shell/components/CollapsibleSection';
 import { useScenarioEditor } from '../../../shell/useScenarioEditor';
 import { getLocalized } from '../../../i18n/getLocalized';
-import type { Lang } from '../../../i18n/types';
+import type { Lang, Localized } from '../../../i18n/types';
 import { clashPurgeSlots } from '../mediaSlots';
 import { DEFAULT_CLASH_PURGE_STATION } from '../defaults';
 import { useStationInventory } from '../useClashStations';
 import { PurgeStationPickerModal } from './PurgeStationPickerModal';
 import type { ClashTerritory } from '../../../../types/scenario-data';
+
+/**
+ * The purge's own wording (retours sept. #68). The announcement sentence is the
+ * existing `event_text_purge` (also used by the bottom banner, so the two can
+ * never disagree); the three refusal messages are new. Blank ⇒ the app default
+ * in the launch language. Authors need them to handle singular/plural clan
+ * names, or to re-theme the purge entirely.
+ */
+const PURGE_TEXT_KEYS = [
+  'event_text_purge',
+  'purge_text_already_used',
+  'purge_text_own_territory',
+  'purge_text_no_target',
+] as const;
 
 export function ClashPurgeSection() {
   const { t } = useTranslation();
@@ -147,6 +162,26 @@ export function ClashPurgeSection() {
         <p className="text-xs text-amber-600 mt-3">
           {t('editorClash:purge.warning')}
         </p>
+
+        <div className="mt-4">
+          <span className="block text-xs font-medium text-gray-700 mb-1">
+            {t('editorClash:purge.textsTitle')}
+          </span>
+          <p className="text-xs text-gray-500 mb-2">{t('editorClash:purge.textsHint')}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {PURGE_TEXT_KEYS.map((key) => (
+              <div key={key}>
+                <LocalizedField
+                  label={t(`editorClash:purge.texts.${key}.label`)}
+                  value={meta[key] as Localized<string> | string | undefined}
+                  onChange={(next) => setField(key, next)}
+                  placeholder={t(`editorClash:purge.texts.${key}.placeholder`)}
+                />
+                <p className="mt-1 text-xs text-gray-500">{t(`editorClash:purge.texts.${key}.when`)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </CollapsibleSection>
 
       {pickerOpen && (

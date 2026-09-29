@@ -19,7 +19,7 @@
       "idle": "Background-only screen shown between teams (when \"reveal on Enter/click\" is off). Add a title and/or subtitle.",
       "frames": "Place and size the timer, score and team-name frame images, and the bonus plate. They are placed independently of the text, so you can enlarge a plate without changing the size of the text inside it.",
       "gauge": "Drag the blue handles to align the coloured fill inside your own gauge artwork.",
-      "underlay": "Drag the blue handle at the corner of the centre image to set the size of its underlay."
+      "underlay": "Drag the blue handle (bottom-right) to size the coloured sub-frame, and the amber handle (top-left) to size the image itself. The round handles (sub-frame bottom-left, image top-right) move them. The two are independent."
     },
     "save": "Save scenario",
     "saving": "Saving…",
@@ -77,9 +77,17 @@
     "fillRadius": "Corner radius (px)",
     "gaugeDemo": "Test fill: {{percent}}%",
     "gaugeDemoHint": "Preview only - it changes nothing in the scenario.",
-    "underlayScale": "Underlay size (% of the cell)",
-    "underlayHelp": "The square tile each enigma's main image sits on - what the coloured sub-frame fills and what the artwork is fitted inside. Shrink it when the image takes up too much of the board.",
-    "underlayNote": "The preview always draws this tile so you can see it; on the postes de jeu it stays invisible until the enigma has a result. Leave blank to go back to the original size (100 %)."
+    "underlayScale": "Sub-frame size (% of the cell)",
+    "imageScale": "Image size (% of the cell)",
+    "underlayHandle": "Sub-frame",
+    "imageHandle": "Image",
+    "underlayOffset_x": "Sub-frame X position (%)",
+    "underlayOffset_y": "Sub-frame Y position (%)",
+    "imageOffset_x": "Image X position (%)",
+    "imageOffset_y": "Image Y position (%)",
+    "moveHandle": "Move: {{name}}",
+    "underlayHelp": "The centre enigma image and the coloured sub-frame behind it are sized separately, each as a % of the square available to them: make the frame bigger than the image to surround it, or smaller to sit inside it. Each frame's round handle moves it; X and Y shift it from the centre (negative = left / up).",
+    "underlayNote": "The preview always draws the sub-frame so you can see it; on the postes de jeu it stays invisible until the enigma has a result. Leave blank to go back to the original size (100 %) - a blank image size follows the sub-frame."
   },
   "mysteryPreview": {
     "title": "Preview",

@@ -33,7 +33,31 @@
     "stationUnknown": "La baliza {{station}} no está en tu inventario de balizas. Elige una de la lista.",
     "chooseStation": "Elegir la baliza",
     "pickerTitle": "Baliza de purga",
-    "pickerHint": "Una sola baliza. Las ya asignadas a un territorio no se pueden seleccionar."
+    "pickerHint": "Una sola baliza. Las ya asignadas a un territorio no se pueden seleccionar.",
+    "textsTitle": "Textos de la purga",
+    "textsHint": "Deja un campo vacío para mantener la redacción por defecto en el idioma de lanzamiento. %CLAN% y %TERRITORY% se sustituyen como en la banda de eventos. Reformula aquí para gestionar nombres de clan en singular y en plural.",
+    "texts": {
+      "event_text_purge": {
+        "label": "Anuncio de la purga",
+        "placeholder": "¡%CLAN% ha purgado %TERRITORY%!",
+        "when": "Se muestra a pantalla completa en todos los equipos y en la banda de eventos cuando una purga tiene éxito (mismo campo que en «Textos de la banda de eventos»)."
+      },
+      "purge_text_already_used": {
+        "label": "Purga ya usada",
+        "placeholder": "Tu clan ya ha usado su purga",
+        "when": "El clan que bipea ya ha usado su purga."
+      },
+      "purge_text_own_territory": {
+        "label": "Territorio propio",
+        "placeholder": "No puedes purgar tu propio territorio",
+        "when": "El objetivo actual es un territorio que controla este clan."
+      },
+      "purge_text_no_target": {
+        "label": "Sin objetivo",
+        "placeholder": "Aún no hay territorio que purgar",
+        "when": "Todavía no hay clan en cabeza, o el clan en cabeza no ha validado ningún territorio."
+      }
+    }
   },
   "territories": {
     "title": "Territorios",

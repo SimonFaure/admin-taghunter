@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, FileText, Loader2, AlertCircle, CheckCircle, Pencil, Maximize2, X, Smartphone, BookOpen, Printer } from 'lucide-react';
+import { ArrowLeft, Download, Upload, Play, ChevronLeft, ChevronRight, Film, FileArchive, FileText, Loader2, AlertCircle, CheckCircle, Pencil, Maximize2, X, Smartphone, BookOpen, Printer, Info } from 'lucide-react';
 import { secureAuth } from '../../lib/secureAuth';
 import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
@@ -26,10 +26,13 @@ interface GoPreviewData {
 
 interface ScenarioFile {
   id: number;
+  /** Already resolved to the viewer's language by the server. */
   name: string;
   file_size: number;
   mime_type: string;
   filename: string;
+  /** Which language edition this file actually is (may not be the viewer's). */
+  language?: string | null;
   created_at?: string;
 }
 
@@ -94,7 +97,7 @@ function getBackgroundImageUrl(
 }
 
 export function ScenarioDetailView() {
-  const { t } = useTranslation('scenarioDetail');
+  const { t, i18n } = useTranslation('scenarioDetail');
   const { t: tRecap } = useTranslation('scenarioRecap');
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
@@ -111,6 +114,9 @@ export function ScenarioDetailView() {
   // single-row get_scenario endpoint, which reads game_meta + scenario_files.
   const [difficulty, setDifficulty] = useState<string | null>(null);
   const [audience, setAudience] = useState<string | null>(null);
+  // « Informations » typed by the author (game_meta.story), already resolved
+  // to the viewer's language by get_scenario.
+  const [information, setInformation] = useState<string | null>(null);
   const [files, setFiles] = useState<ScenarioFile[]>([]);
   const [downloadingFileId, setDownloadingFileId] = useState<number | null>(null);
 
@@ -154,6 +160,7 @@ export function ScenarioDetailView() {
         if (cancelled || !res.ok || !body?.data) return;
         setDifficulty(body.data.difficulty || null);
         setAudience(body.data.audience || null);
+        setInformation(typeof body.data.information === 'string' ? body.data.information : null);
         setFiles(Array.isArray(body.data.files) ? body.data.files : []);
       } catch {
         // Non-fatal: the core scenario view still renders without these extras.
@@ -518,6 +525,19 @@ export function ScenarioDetailView() {
             <p className="text-slate-600 leading-relaxed">{scenario.description}</p>
           </div>
 
+          {information && (
+            <>
+              <div className="h-px bg-slate-100" />
+              <div>
+                <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  {t('informationSection')}
+                </h3>
+                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{information}</p>
+              </div>
+            </>
+          )}
+
           {goPreview && (
             <>
               <div className="h-px bg-slate-100" />
@@ -669,7 +689,20 @@ export function ScenarioDetailView() {
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
-                          <p className="text-xs text-slate-400">{formatFileSize(file.file_size)}</p>
+                          <p className="text-xs text-slate-400 flex items-center gap-2">
+                            {formatFileSize(file.file_size)}
+                            {/* Only shown when this document is NOT in the
+                                viewer's language, so a French-only asset is
+                                labelled honestly instead of looking translated. */}
+                            {file.language && file.language !== i18n.language && (
+                              <span
+                                className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold uppercase"
+                                title={t('fileLanguageNotice', { lang: file.language.toUpperCase() })}
+                              >
+                                {file.language}
+                              </span>
+                            )}
+                          </p>
                         </div>
                       </div>
                       <button

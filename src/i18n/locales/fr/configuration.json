@@ -12,6 +12,6 @@
   "testConnection": "Tester la Connexion",
   "connectionSuccess": "Connexion réussie",
   "connectionFailed": "Échec de la connexion",
-  "saveConfig": "Enregistrer la Configuration",
+  "saveConfig": "Enregistrer la configuration",
   "configSaved": "Configuration enregistrée avec succès"
 }

@@ -13,7 +13,7 @@ import { useSecureAuth } from '../../contexts/SecureAuthContext';
 
 const GAME_TYPE_LABELS: Record<string, string> = {
   mystery: 'Mystery',
-  tagquest: 'Tagquest',
+  tagquest: 'Quest',
   tracks: 'Track',
   clash: 'Clash',
 };

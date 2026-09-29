@@ -36,6 +36,7 @@ header('Pragma: no-cache');
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
+require_once __DIR__ . '/../utils/ScenarioLanguages.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -411,33 +412,17 @@ function mergeEnigmaMedia($gm, $medias) {
     return $gm;
 }
 
-// Whether a client implicitly holds every product scenario, with no per-scenario
-// grant row. PREMIUM clients do: `client_scenarios.php?action=list` serves them
-// the whole product catalogue directly. Everything gated on an explicit grant has
-// to honour the same rule or the two disagree - which is what left premium
-// clients with an empty QR grid and a `not_granted` refusal when they scanned one
-// anyway (retour Ludiom #65), and an empty downloadable-files tab (#59).
-function goClientIsPremium($db, $clientId) {
-    $row = $db->fetch('SELECT license_type FROM clients WHERE id = ?', [$clientId]);
-    return $row && ($row['license_type'] ?? '') === 'premium';
-}
-
-// Does this client hold this scenario in this app? Either an explicit
-// mode='<app>' grant (returned, so callers can read pattern_id / durations off
-// it), or - for a premium client - any product scenario, which yields a synthetic
-// grant carrying no bound pattern and no per-scenario challenge list.
+// Does this client hold this scenario in this app? Only an explicit
+// mode='<app>' grant row counts (returned, so callers can read pattern_id /
+// durations off it). GO and Spot are sold separately and granted by hand from
+// the admin client page - the premium licence (whole playground catalogue)
+// never implies them.
 function goResolveGrant($db, $clientId, $scenarioId, $app) {
     $grant = $db->fetch(
         'SELECT pattern_id, durations FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
         [$clientId, $scenarioId, $app]
     );
-    if ($grant) return $grant;
-    if (!goClientIsPremium($db, $clientId)) return null;
-    $product = $db->fetch(
-        'SELECT id FROM scenarios WHERE id = ? AND scenario_type = "product"',
-        [$scenarioId]
-    );
-    return $product ? ['pattern_id' => null, 'durations' => null] : null;
+    return $grant ?: null;
 }
 
 // Which enigma image field backs each pattern slot.
@@ -756,10 +741,9 @@ try {
         }
 
         // (2) Grant for this (client, scenario) in the requested app's mode +
-        // (GO only) bound pattern. Spot uses a distinct mode='spot' grant. A
-        // premium client holds the whole product catalogue without grant rows, so
-        // this resolves that case too (#65) - the app capability + billing gate
-        // above is what actually decides whether GO/Spot is sold to them.
+        // (GO only) bound pattern. Spot uses a distinct mode='spot' grant. Only
+        // an explicit grant row counts - GO/Spot are granted by hand, never
+        // implied by the licence.
         $grant = goResolveGrant($db, $clientId, $scenarioId, $app);
         if (!$grant) {
             jsonResponse(['error' => 'refused', 'reason' => 'not_granted'], 403);
@@ -772,12 +756,17 @@ try {
         // "Adaptable à GO" must not. Checking adaptable_go for both apps (as this
         // did until the Drop->Spot rename) refused the former with `not_go`.
         $scenario = $db->fetch(
-            'SELECT id, uniqid, title, data, medias, IFNULL(version, "1.0") AS version FROM scenarios WHERE id = ?',
+            'SELECT id, uniqid, title, data, medias, client_id, validated_languages, IFNULL(version, "1.0") AS version FROM scenarios WHERE id = ?',
             [$scenarioId]
         );
         if (!$scenario) {
             jsonResponse(['error' => 'refused', 'reason' => 'unknown_scenario'], 403);
         }
+        // Languages an admin has not validated yet never reach a phone.
+        $scenario['data'] = ScenarioLanguages::strip(
+            $scenario['data'],
+            ScenarioLanguages::visibleLanguages($db, $scenario, (int)$clientId)
+        );
         $data = !empty($scenario['data']) ? json_decode($scenario['data'], true) : null;
         $gm = is_array($data) ? ($data['game_meta'] ?? ($data['data']['game_meta'] ?? [])) : [];
         if ($app === 'spot') {
@@ -1107,25 +1096,9 @@ try {
             'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
             [$clientId, $scenarioId, $app]
         );
-        // A premium client holds every product scenario without a grant row (#65),
-        // but the challenge list is STORED on that row - so materialize it the
-        // first time such a client configures one. goResolveGrant() is the access
-        // decision; this only gives the setting somewhere to live.
+        // The challenge list lives ON the grant row: no row, no GO/Spot access.
         if (!$grant) {
-            if (!goResolveGrant($db, $clientId, $scenarioId, $app)) {
-                jsonResponse(['error' => 'refused', 'reason' => 'not_granted'], 403);
-            }
-            $db->execute(
-                'INSERT INTO client_scenarios (client_id, scenario_id, mode) VALUES (?, ?, ?)',
-                [$clientId, $scenarioId, $app]
-            );
-            $grant = $db->fetch(
-                'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
-                [$clientId, $scenarioId, $app]
-            );
-            if (!$grant) {
-                jsonResponse(['error' => 'refused', 'reason' => 'not_granted'], 403);
-            }
+            jsonResponse(['error' => 'refused', 'reason' => 'not_granted'], 403);
         }
         $durations = normalizeDurations($d['durations'] ?? []);
         $db->execute(
@@ -1459,19 +1432,26 @@ try {
         // `medias` is required: the answer images the preview is FOR live there,
         // not in `data`. Leaving it out is what made every tile blank (#58).
         if ($uniqidParam) {
-            $scenario = $db->fetch('SELECT id, uniqid, title, data, medias FROM scenarios WHERE uniqid = ?', [$uniqidParam]);
+            $scenario = $db->fetch('SELECT id, uniqid, title, data, medias, client_id, validated_languages FROM scenarios WHERE uniqid = ?', [$uniqidParam]);
         } elseif ($scenarioIdParam) {
-            $scenario = $db->fetch('SELECT id, uniqid, title, data, medias FROM scenarios WHERE id = ?', [$scenarioIdParam]);
+            $scenario = $db->fetch('SELECT id, uniqid, title, data, medias, client_id, validated_languages FROM scenarios WHERE id = ?', [$scenarioIdParam]);
         } else {
             jsonResponse(['error' => 'missing_params', 'reason' => 'uniqid or scenario_id required'], 400);
         }
         if (!$scenario) {
             jsonResponse(['error' => 'refused', 'reason' => 'unknown_scenario'], 403);
         }
-        // The client must hold this scenario in GO (grant row, or the whole
-        // product catalogue for a premium client - same rule as `load`).
+        // The client must hold an explicit GO grant for this scenario (same
+        // rule as `load`).
         if (!goResolveGrant($db, $clientId, $scenario['id'], 'go')) {
             jsonResponse(['error' => 'refused', 'reason' => 'not_granted'], 403);
+        }
+        // A client previews what its phones get; an admin sees every language.
+        if (($auth['user_type'] ?? '') === 'client') {
+            $scenario['data'] = ScenarioLanguages::strip(
+                $scenario['data'],
+                ScenarioLanguages::visibleLanguages($db, $scenario, (int)$clientId)
+            );
         }
         $data = !empty($scenario['data']) ? json_decode($scenario['data'], true) : null;
         $gm = is_array($data) ? ($data['game_meta'] ?? ($data['data']['game_meta'] ?? [])) : [];

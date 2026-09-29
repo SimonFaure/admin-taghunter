@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, X, Eye, User } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, CreateClientData } from '../types/client';
+import { LANGUAGES, isLang } from '../i18n/languages';
 
 interface ClientsViewProps {
   onViewClient?: (clientId: string) => void;
@@ -180,7 +181,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                   Company
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  License Type
+                  Language
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Billing Status
@@ -228,14 +229,11 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                     <td className="px-6 py-4 text-sm text-slate-900">
                       {client.company || 'N/A'}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                        client.license_type === 'premium'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-slate-100 text-slate-800'
-                      }`}>
-                        {client.license_type === 'premium' ? 'Premium' : 'Access'}
-                      </span>
+                    <td className="px-6 py-4 text-sm text-slate-900">
+                      {(() => {
+                        const code = client.language || 'fr';
+                        return isLang(code) ? LANGUAGES[code].englishName : code.toUpperCase();
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${

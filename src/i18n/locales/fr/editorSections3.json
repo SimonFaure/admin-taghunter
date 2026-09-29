@@ -23,7 +23,7 @@
     },
     "hintsTitle": "Quand ce message s'affiche-t-il ?",
     "hints": {
-      "text_card_empty": "La puce présentée ne contient AUCUN poinçon : elle est vierge ou vient d'être effacée. Il ne s'agit donc pas d'une puce « mal effacée » — ce cas-là, c'est « équipe triche ». Exemple : un joueur bipe sur le poste avant d'être passé sur la moindre balise.",
+      "text_card_empty": "La puce présentée ne contient AUCUN poinçon : elle est vierge ou vient d'être effacée. Il ne s'agit donc pas d'une puce « mal effacée » (ce cas-là, c'est « équipe triche »). Exemple : un joueur bipe sur le poste avant d'être passé sur la moindre balise.",
       "text_team_cheating": "La puce présentée ne prolonge pas la lecture précédente : des poinçons ont disparu ou ont été remplacés depuis le dernier passage. Exemple : le joueur repasse une puce déjà lue puis effacée, ou présente la puce d'un autre.",
       "text_team_ended": "L'équipe a déjà terminé sa partie (heure de fin enregistrée) et bipe à nouveau. Exemple : un joueur revient au poste après le poinçon d'arrivée.",
       "text_if_error": "Le traitement du bip a échoué techniquement : données du jeu illisibles, écriture impossible, poste mère injoignable. Ce n'est jamais une erreur du joueur. La cause exacte est ajoutée derrière votre texte, à l'écran, pour que l'opérateur sache quoi faire.",
@@ -50,10 +50,10 @@
     "fontPreviewText": "Texte d'aperçu de la police"
   },
   "reportLayout": {
-    "title": "Mise en page du rapport",
+    "title": "Mise en page du compte rendu",
     "pdfTitle": "Titre du PDF",
     "pdfTitlePlaceholder": "ex. COMPTE RENDU DE MISSION",
-    "pdfTitleHint": "L'en-tête du rapport.",
+    "pdfTitleHint": "L'en-tête du compte rendu.",
     "teamTitle": "Titre de l'équipe",
     "teamTitlePlaceholder": "ex. NOM DE CODE",
     "teamTitleHint": "Libellé affiché au-dessus du nom de l'équipe.",

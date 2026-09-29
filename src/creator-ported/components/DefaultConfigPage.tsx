@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Save, Upload, ChevronDown, ChevronUp, Send, Trash2 } from 'lucide-react';
 import { db } from '../lib/db';
 import { Alert } from './Alert';
@@ -46,6 +47,7 @@ interface DefaultConfigPageProps {
 }
 
 export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConfigPageProps) {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<DefaultConfig>({
     team_title: 'Équipe',
     pdf_title: 'Quest',
@@ -580,7 +582,7 @@ export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConf
               className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50"
             >
               <Send size={20} />
-              {publishing ? 'Publishing...' : 'Publish as Client'}
+              {publishing ? t('creatorComponents:publish.publishing') : t('creatorComponents:publish.publishForLicensee')}
             </button>
           )}
         </div>

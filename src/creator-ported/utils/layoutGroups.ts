@@ -34,7 +34,7 @@ const STATIC_GROUPS: GroupDef[] = [
     mainImageId: 'tagquest_template',
     items: [
       { id: 'background_image', name: 'Background', type: 'image' },
-      { id: 'tagquest_template', name: 'Tagquest Template (overlay)', type: 'image' },
+      { id: 'tagquest_template', name: 'Quest Template (overlay)', type: 'image' },
     ],
   },
   {

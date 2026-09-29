@@ -1,6 +1,6 @@
 {
-  "portal": "Espace client",
-  "role": "Client",
+  "portal": "Espace licencié",
+  "role": "Licencié",
   "signOut": "Déconnexion",
   "nav": {
     "home": "Accueil",
@@ -27,7 +27,7 @@
   },
   "reportLayouts": {
     "title": "Rapports PDF",
-    "subtitle": "Composez le rapport de mission PDF imprimé pour vos équipes. Chaque type de jeu démarre sur le modèle TagHunter - enregistrez pour utiliser votre propre version sur vos appareils.",
+    "subtitle": "Composez le compte rendu de mission PDF imprimé pour vos équipes. Chaque type de jeu démarre sur le modèle Tag Hunter - enregistrez pour utiliser votre propre version sur vos postes.",
     "loading": "Chargement…",
     "save": "Enregistrer",
     "revert": "Revenir au modèle par défaut",
@@ -45,7 +45,7 @@
     "orientationLandscape": "Paysage",
     "printFormatReset": "Revenir au format TagHunter",
     "printFormatInherited": "Format TagHunter par défaut - modifiez-le pour utiliser le vôtre.",
-    "logoTitle": "Logo des rapports",
+    "logoTitle": "Logo des comptes rendus",
     "logo_taghunter": "TagHunter",
     "logo_company": "Logo de l'entreprise",
     "logo_avatar": "Avatar",
@@ -131,6 +131,6 @@
     "unavailable": "Ce classement n’est pas disponible.",
     "pinHint": "Touchez votre équipe pour la surligner",
     "truncated": "Affichage des {{shown}} premières équipes sur {{total}}.",
-    "stale": "Hors ligne — derniers scores connus."
+    "stale": "Hors ligne : derniers scores connus."
   }
 }

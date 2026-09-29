@@ -28,8 +28,9 @@
     "title": "Scoring",
     "numberOfEnigmas": "number of enigmas",
     "scoreFullGame": "Score needed to fill the gauge",
-    "malusBothAnswers": "malus if both answers are biped",
-    "malusNoAnswer": "malus if no answer",
+    "malusBothAnswers": "malus if both answers are biped (enter a negative value)",
+    "malusNoAnswer": "malus if no answer (enter a negative value)",
+    "malusHint": "Negative = penalty (e.g. -5).",
     "pointsUnits": "points units",
     "unitPts": "pts",
     "unitPercent": "%"

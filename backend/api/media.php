@@ -18,7 +18,9 @@ function jsonResponse($data, $statusCode = 200) {
 
 function requireAuth() {
     // Session-based auth (legacy admin web UI)
-    if (isset($_SESSION['user_id'])) return;
+    // Nothing below writes the session: release its lock once authenticated so
+    // the browser's other requests are not queued behind this one (#42).
+    if (isset($_SESSION['user_id'])) { session_write_close(); return; }
 
     // Token-based auth (Creator web app)
     $header = $_SERVER['HTTP_X_AUTH_TOKEN'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
@@ -26,6 +28,7 @@ function requireAuth() {
         $tokenData = TokenManager::validateToken(Database::getInstance(), $header);
         if ($tokenData) {
             $_SESSION['user_id'] = $tokenData['user_id'];
+            session_write_close();
             return;
         }
     }

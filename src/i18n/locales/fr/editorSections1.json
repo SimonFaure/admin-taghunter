@@ -31,8 +31,8 @@
     "audienceEmptyWarning": "Aucun public sélectionné - les noms d'équipe seront tirés du pool Ados/Adultes par défaut.",
     "namePoolHint": "Noms d'équipe tirés de : {{tier}}",
     "audienceGroups": {
-      "enfants": "Enfants",
-      "ados_adultes": "Ados/Adultes"
+      "enfants": "Kids",
+      "ados_adultes": "Ados-Adultes"
     }
   }
 }

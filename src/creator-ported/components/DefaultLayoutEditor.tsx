@@ -1419,7 +1419,7 @@ export function DefaultLayoutEditor({ scenarioType, layoutType, scenarioId, onBa
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    {element.previewText}
+                    <span className="vcenter-text">{element.previewText}</span>
                   </div>
                 )}
 

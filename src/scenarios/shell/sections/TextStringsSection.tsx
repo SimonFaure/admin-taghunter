@@ -13,69 +13,16 @@ import { CollapsibleSection } from '../components/CollapsibleSection';
 import type { Localized } from '../../i18n/types';
 import { HelpDot } from '../../../help';
 
-const TEXT_KEYS = [
-  'text_player_starts',
-  'text_card_not_empty',
-  'text_team_starts_card_not_empty',
-  'text_card_not_corresponding',
-  'text_team_ended',
-  'text_all_team_ended',
-  'text_scenario_ended',
-  'text_team_reached_new_level',
-  'text_card_empty',
-  'text_late_malus',
-  'text_team_enters_top_ranking',
-  'text_team_enters_podium',
-  'text_team_first_place',
-  'text_following_top_podium',
-  'text_if_error',
-  'text_is_card_empty',
-] as const;
-
-// TagQuest only surfaces this focused subset of UI strings.
-const TAGQUEST_TEXT_KEYS = [
-  'text_card_empty',
-  'text_team_cheating',
-  'text_team_ended',
-  'text_if_error',
-] as const;
-
-// Mystery doesn't surface ranking/podium/level UI strings.
-const MYSTERY_OMITTED_KEYS = new Set<string>([
-  'text_scenario_ended',
-  'text_team_enters_top_ranking',
-  'text_team_first_place',
-  'text_card_not_empty',
-  'text_team_reached_new_level',
-  'text_team_enters_podium',
-  'text_following_top_podium',
-  'text_is_card_empty',
-]);
-const MYSTERY_TEXT_KEYS = TEXT_KEYS.filter((k) => !MYSTERY_OMITTED_KEYS.has(k));
-
-// Tracks shows ranking/podium via images and has no levels/late-malus text, so
-// it omits those UI strings; what remains are the operational run messages the
-// tracks runtime actually surfaces (start, card states, end, error).
-const TRACKS_OMITTED_KEYS = new Set<string>([
-  'text_card_not_empty',
-  'text_all_team_ended',
-  'text_team_reached_new_level',
-  'text_late_malus',
-  'text_team_enters_top_ranking',
-  'text_team_enters_podium',
-  'text_team_first_place',
-  'text_following_top_podium',
-  'text_is_card_empty',
-]);
-const TRACKS_TEXT_KEYS = TEXT_KEYS.filter((k) => !TRACKS_OMITTED_KEYS.has(k));
-
-// Retours #55 - Clash surfaces NONE of these strings. Every player-facing word
-// in a Clash game comes from the app's `ingame_clash` translations (status
-// messages, registration, results) or from the scenario's own event-banner
-// texts (ClashEventTextsSection). The section listed 16 fields that could never
-// fire, which is exactly what the retour reported ("aucun n'est apparu"), so
-// Clash gets no UI-strings section at all.
-const CLASH_TEXT_KEYS: readonly string[] = [];
+// The key lists moved to the translatable-path registry, which is now the
+// single source of truth for "what is translatable" - the Translations page
+// builds its scenario grid from the same data, so the two cannot drift.
+import {
+  TEXT_KEYS,
+  TAGQUEST_TEXT_KEYS,
+  MYSTERY_TEXT_KEYS,
+  TRACKS_TEXT_KEYS,
+  CLASH_TEXT_KEYS,
+} from '../../i18n/translatablePaths';
 
 export function TextStringsSection() {
   const { t } = useTranslation('editorSections3');

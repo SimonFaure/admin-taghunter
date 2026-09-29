@@ -5,7 +5,6 @@ import {
   Film,
   Play,
   Download,
-  Star,
   Plus,
   Pencil,
   User,
@@ -294,12 +293,6 @@ export function MyScenariosView() {
             <p className="text-slate-600">{t('subtitle')}</p>
             <HelpButton chapter="scenarios" className="text-slate-400 hover:text-slate-700" />
           </div>
-          {user?.license_type === 'premium' && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full text-sm font-medium">
-              <Star className="w-3.5 h-3.5 fill-amber-400 stroke-amber-400" />
-              {t('premiumBadge')}
-            </span>
-          )}
         </div>
       )}
 

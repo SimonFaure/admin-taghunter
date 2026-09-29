@@ -2,8 +2,8 @@
   "malusCombo": {
     "sectionTitle": "Penalización y combo",
     "keys": {
-      "malus_points": "puntos de penalización (por picada en la estación de penalización)",
-      "late_malus_points": "puntos de retraso (por minuto de exceso)",
+      "malus_points": "puntos de penalización (por picada en la estación de penalización) (introducir un valor negativo)",
+      "late_malus_points": "puntos de retraso (por minuto de exceso) (introducir un valor negativo)",
       "combo_2_quests": "puntos por combo de 2 misiones",
       "combo_4_quests": "puntos por combo de 4 misiones",
       "combo_6_quests": "puntos por combo de 6 misiones"
@@ -58,10 +58,10 @@
   },
   "pattern": {
     "sectionTitle": "Patrón por defecto",
-    "label": "Patrón tagquest por defecto (imágenes de misión → correspondencia de estaciones)",
+    "label": "Patrón Quest por defecto (imágenes de misión → correspondencia de estaciones)",
     "none": "- Ninguno -",
     "notFoundOption": "{{value}} (no encontrado)",
-    "hint": "Asigna las cuatro imágenes de pieza de cada misión a estaciones/balizas. Crea patrones tagquest en la página Patrones. La correspondencia se muestra junto a cada imagen debajo. Modificable al lanzar.",
+    "hint": "Asigna las cuatro imágenes de pieza de cada misión a estaciones/balizas. Crea patrones Quest en la página Patrones. La correspondencia se muestra junto a cada imagen debajo. Modificable al lanzar.",
     "collidesSuffix": "— usa la estación de penalización",
     "collisionRefused": "«{{pattern}}» usa la estación #{{id}}, definida como estación de penalización. Patrón no aplicado.",
     "collisionCurrent": "El patrón seleccionado usa la estación #{{id}}, definida como estación de penalización.",
@@ -69,7 +69,7 @@
     "collisionFixAndApply": "Quitar la estación de penalización y aplicar este patrón"
   },
   "productTemplate": {
-    "notice": "<0>Plantilla de producto:</0> las opciones «usar imágenes/textos por defecto» del editor anterior aún no están portadas. Volverán en una próxima actualización; por ahora, crea los nuevos escenarios tagquest desde cero."
+    "notice": "<0>Plantilla de producto:</0> las opciones «usar imágenes/textos por defecto» del editor anterior aún no están portadas. Volverán en una próxima actualización; por ahora, crea los nuevos escenarios Quest desde cero."
   },
   "quests": {
     "sectionTitle": "Misiones",

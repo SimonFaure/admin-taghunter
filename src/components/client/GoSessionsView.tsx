@@ -69,8 +69,8 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'spot' } = {}) {
 
   // The client's scenarios for this app - the pool whose leaderboards the
   // operator views. Both apps read the same per-app list the QR grid uses
-  // (list_go / list_spot), which is exactly what go.php will serve: grants, plus
-  // the whole eligible product catalogue for a premium client. GO used to read
+  // (list_go / list_spot), which is exactly what go.php will serve: the client's
+  // explicit GO/Spot grant rows, nothing implied by the licence. GO used to read
   // the generic `list` filtered on adaptable_go, which also surfaced scenarios
   // granted for the Playground only.
   const loadGoScenarios = useCallback(async () => {

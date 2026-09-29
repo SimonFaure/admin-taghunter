@@ -24,7 +24,9 @@
   "noFilesAvailable": "Aún no hay archivos disponibles",
   "preparing": "Preparando…",
   "downloadAllZip": "Descargar todo (ZIP)",
+  "informationSection": "Información",
   "goSection": "Tag Hunter GO",
   "goPreviewOpen": "Vista previa GO - códigos y respuestas",
-  "goPreviewHint": "Ver el código de cada enigma y las imágenes de respuesta detrás de A / B (imprimible)."
+  "goPreviewHint": "Ver el código de cada enigma y las imágenes de respuesta detrás de A / B (imprimible).",
+  "fileLanguageNotice": "Este documento está en {{lang}} - todavía no hay una versión en su idioma."
 }

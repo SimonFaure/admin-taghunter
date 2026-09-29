@@ -21,7 +21,7 @@ class ReportLayouts {
     const STAT_FIELDS = [
         'mystery'  => ['rate', 'success', 'fail', 'absent'],
         'tracks'   => ['rate', 'correct', 'wrong', 'missing'],
-        'tagquest' => ['quests', 'points', 'level', 'combos'],
+        'tagquest' => ['quests', 'points', 'level', 'combos', 'players'],
         'clash'    => ['territories', 'combos'],
     ];
 

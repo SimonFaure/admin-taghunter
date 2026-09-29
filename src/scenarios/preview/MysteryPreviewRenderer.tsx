@@ -28,6 +28,10 @@ import {
   resolveMysteryGaugeGeometry,
   resolveMysteryStatusFrame,
   resolveMysteryUnderlayScale,
+  resolveMysteryEnigmaImageScale,
+  resolveMysteryUnderlayOffset,
+  resolveMysteryEnigmaImageOffset,
+  mysteryCenteredBox,
   type IdleLayout,
   type IngameFrames,
   type IngameLayout,
@@ -66,6 +70,13 @@ export interface PreviewMysteryGameMeta {
   status_frame_over_image?: string;
   /** Size of the main-image underlay (see resolveMysteryUnderlayScale). */
   enigma_underlay_scale?: string;
+  /** Size of the main image itself (see resolveMysteryEnigmaImageScale). */
+  enigma_image_scale?: string;
+  /** Positions of the underlay / image (see resolveMysteryUnderlayOffset). */
+  enigma_underlay_offset_x?: string;
+  enigma_underlay_offset_y?: string;
+  enigma_image_offset_x?: string;
+  enigma_image_offset_y?: string;
   game_refresh_button_image?: string;
   game_refresh_button_hover_image?: string;
   font?: string;
@@ -114,11 +125,13 @@ export interface MysteryPreviewRendererProps {
    *  plate, i.e. an enigma no one has answered yet. */
   statusColor?: string;
   /**
-   * Reports where the centre enigma tile lands, as percentages of the stage.
+   * Reports where the centre enigma SQUARE lands, as percentages of the stage -
+   * the full space available to the main image, inside which the underlay and
+   * the image are two centred boxes of their own scale.
    *
-   * The in-game layout editor needs that rectangle to hang a drag handle on the
-   * main-image underlay, and the tile is positioned by this file's flex layout -
-   * not by a stored box. Measuring and reporting it beats mirroring the layout
+   * The in-game layout editor needs that rectangle to hang drag handles on the
+   * underlay and the image, and the square is positioned by this file's flex
+   * layout - not by a stored box. Measuring and reporting it beats mirroring the layout
    * in constants on the editor side (which is what the gauge handles had to do,
    * and which their own comment flags as a sync hazard).
    *
@@ -127,7 +140,7 @@ export interface MysteryPreviewRendererProps {
   onEnigmaTileRect?: (rect: EnigmaTileRect | null) => void;
 }
 
-/** Rectangle of the centre enigma tile, in % of the stage box. */
+/** Rectangle of the centre enigma square, in % of the stage box. */
 export interface EnigmaTileRect {
   left: number;
   top: number;
@@ -225,10 +238,14 @@ export function MysteryPreviewRenderer({
   // postes de jeu draw - except that the board never PAINTS the neutral
   // underlay, while the preview does so the author can see what they size.
   const underlayScale = resolveMysteryUnderlayScale(gameMeta);
+  // The main image's own size, independent of the underlay (retour 2026-09-16).
+  const imageScale = resolveMysteryEnigmaImageScale(gameMeta);
+  const underlayOffset = resolveMysteryUnderlayOffset(gameMeta);
+  const imageOffset = resolveMysteryEnigmaImageOffset(gameMeta);
 
-  // Measure the centre tile for the layout editor's underlay handle. Observing
-  // both the stage and the tile covers every way the rectangle can move: the
-  // modal resizing, and the author changing the scale.
+  // Measure the centre square for the layout editor's underlay/image handles.
+  // Observing both the stage and the square covers every way the rectangle can
+  // move (the modal resizing); the scales no longer move it at all.
   useEffect(() => {
     if (!onEnigmaTileRect) return;
     const report = () => {
@@ -256,7 +273,7 @@ export function MysteryPreviewRenderer({
     if (stageBoxRef.current) ro.observe(stageBoxRef.current);
     if (enigmaTileRef.current) ro.observe(enigmaTileRef.current);
     return () => ro.disconnect();
-  }, [onEnigmaTileRect, stage.width, stage.height, underlayScale, screen, selectedEnigmaIndex]);
+  }, [onEnigmaTileRect, stage.width, stage.height, screen, selectedEnigmaIndex]);
 
   return (
     <div
@@ -370,52 +387,60 @@ export function MysteryPreviewRenderer({
                         justifyContent: 'center',
                       }}
                     >
+                      {/* The full square available to the main image. The
+                          underlay (sub-frame) and the image are two SEPARATE
+                          centred boxes inside it, each with its own scale, so
+                          resizing the frame no longer resizes the picture. */}
                       <div
                         ref={enigmaTileRef}
                         style={{
                           position: 'relative',
-                          height: `${underlayScale}%`,
+                          height: '100%',
                           aspectRatio: '1 / 1',
-                          maxWidth: `${underlayScale}%`,
+                          maxWidth: '100%',
                           overflow: 'hidden',
-                          // Authoring aid: the neutral plate alone is a 6 % white
-                          // wash, too faint to judge a size against. Outline the
-                          // underlay while it has no verdict colour of its own.
-                          outline: statusColor ? undefined : '1px dashed rgba(255,255,255,0.35)',
-                          outlineOffset: '-1px',
                         }}
                       >
                         {/* The underlay. In-game the neutral (no-verdict) layer
                             is not painted at all - no white slab behind the
-                            artwork - but the preview always paints it so the
-                            author can see the box `enigma_underlay_scale`
+                            artwork - but the preview always paints it (with a
+                            dashed outline while it has no verdict colour: a 6 %
+                            white wash alone is too faint to size against) so
+                            the author can see the box `enigma_underlay_scale`
                             sizes. */}
-                        <MysteryStatusPlate
-                          color={statusColor || MYSTERY_STATUS_NEUTRAL}
-                          frame={statusFrame}
-                          legacyRadius={12}
-                        />
+                        <div
+                          style={{
+                            ...mysteryCenteredBox(underlayScale, underlayOffset),
+                            outline: statusColor ? undefined : '1px dashed rgba(255,255,255,0.35)',
+                            outlineOffset: '-1px',
+                          }}
+                        >
+                          <MysteryStatusPlate
+                            color={statusColor || MYSTERY_STATUS_NEUTRAL}
+                            frame={statusFrame}
+                            legacyRadius={12}
+                          />
+                        </div>
                         {imgSrc && (
                           <img
                             src={imgSrc}
                             alt={text}
                             className={enigmaView === 'locked' ? 'mystery-preview-blur' : ''}
                             style={{
-                              position: 'absolute',
-                              inset: 0,
-                              width: '100%',
-                              height: '100%',
+                              ...mysteryCenteredBox(imageScale, imageOffset),
                               objectFit: 'contain',
                             }}
                           />
                         )}
                         {statusColor && (
-                          <MysteryStatusPlate
-                            color={statusColor}
-                            frame={statusFrame}
-                            legacyRadius={12}
-                            over
-                          />
+                          <div style={mysteryCenteredBox(underlayScale, underlayOffset)}>
+                            <MysteryStatusPlate
+                              color={statusColor}
+                              frame={statusFrame}
+                              legacyRadius={12}
+                              over
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
@@ -493,9 +518,10 @@ export function MysteryPreviewRenderer({
           </div>
 
           {/* The bonus plate, placed by the author (ingame_frames.bonus,
-              default = the board's left cell). The empty-bonus image is on
-              screen permanently; each overscore tier REPLACES what is showing
-              rather than stacking next to it (legacy
+              default = the board's left cell). The empty-bonus image shows
+              until a tier is reached; each overscore tier then takes its PLACE,
+              at the plate's full size, rather than sitting inside it or
+              stacking next to it (legacy
               `.team_bonus_container_empty` + absolutely-stacked
               `.team_bonus_container`). The modal's stage selector picks which
               tier is on top. Absolutely positioned over the stage, so moving or
@@ -514,7 +540,7 @@ export function MysteryPreviewRenderer({
                 pointerEvents: 'none',
               }}
             >
-              {emptyBonusUrl && (
+              {emptyBonusUrl && !overscoreImageUrl && (
                 <img
                   src={emptyBonusUrl}
                   alt=""
@@ -525,17 +551,11 @@ export function MysteryPreviewRenderer({
                 <img
                   src={overscoreImageUrl}
                   alt=""
-                  style={{
-                    // Same share of the plate the playground gives a tier image
-                    // (37 %), centred - the preview used to stretch it over the
-                    // whole cell, which is not what a poste de jeu draws.
-                    position: 'relative',
-                    maxWidth: '100%',
-                    maxHeight: '37%',
-                    width: 'auto',
-                    height: 'auto',
-                    objectFit: 'contain',
-                  }}
+                  // Same box as the empty plate it replaces (legacy
+                  // `.team_bonus_container img { width: 100% }` over
+                  // `.team_bonus_container_empty`), exactly as a poste de jeu
+                  // draws it (retour 2026-09-16).
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }}
                 />
               )}
             </div>

@@ -29,6 +29,8 @@ try {
     setCorsHeaders();
 
     session_start();
+    // Read-only use of the session: release its lock at once (#42).
+    session_write_close();
     error_log('default_config.php: Session started');
 
     header('Content-Type: application/json');

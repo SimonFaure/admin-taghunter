@@ -12,12 +12,14 @@
  *     inside the author's own gauge artwork. The same four values the Gauge
  *     section holds (`gauge_fill_inset_*` / `gauge_fill_radius`), but dragged on
  *     the real gauge instead of typed blind.
- *   • Image - "fond de l'image principale": how big the square underlay the
- *     centre enigma image sits on is, dragged by a corner handle on the tile
- *     itself. Stored at `gameMeta.enigma_underlay_scale`. It started life as a
- *     text field in the editor's "Cadre et habillage" section and was moved here
- *     for the same reason the gauge calibration was: a geometry value typed
- *     blind against artwork you cannot see is a guess.
+ *   • Image - "fond de l'image principale": how big the square underlay (the
+ *     coloured sub-frame) behind the centre enigma image is, and - separately -
+ *     how big the image itself is, each dragged by its own corner handle.
+ *     Stored at `gameMeta.enigma_underlay_scale` / `gameMeta.enigma_image_scale`.
+ *     The underlay started life as a text field in the editor's "Cadre et
+ *     habillage" section and was moved here for the same reason the gauge
+ *     calibration was: a geometry value typed blind against artwork you cannot
+ *     see is a guess.
  *   • Idle - place up to two fully styled text elements (scenario title +
  *     subtitle) over the background. This is the screen the playground shows
  *     between teams when "reveal results on Enter/click" is off. Each element
@@ -57,6 +59,11 @@ import {
   resolveIdleLayout,
   resolveIngameFrames,
   resolveMysteryUnderlayScale,
+  resolveMysteryEnigmaImageScale,
+  resolveMysteryUnderlayOffset,
+  resolveMysteryEnigmaImageOffset,
+  mysteryCenteredBox,
+  type MysteryBoxOffset,
   type IngameAlign,
   type IngameBox,
   type IngameFrameKey,
@@ -82,9 +89,12 @@ const DEFAULT_TEAM_SAMPLE = 'Les Aventuriers du Temps Perdu';
 
 type EditorMode = 'ingame' | 'frames' | 'gauge' | 'underlay' | 'idle';
 
-/** Bounds on the main-image underlay: below a tenth of the cell there is
- *  nothing left to look at, and 100 % is the historical full-height tile. */
+/** Bounds on the main-image underlay and on the image itself: below a tenth of
+ *  the cell there is nothing left to look at, and 100 % is the historical
+ *  full-height tile. */
 const UNDERLAY_MIN_PCT = 10;
+// Furthest a box can be moved from the centre, % of the square (either way).
+const OFFSET_MAX_PCT = 50;
 const UNDERLAY_MAX_PCT = 100;
 
 /** Frame plates the author can place: the three text plates + the bonus plate
@@ -160,8 +170,8 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
   // become unenterable. Dropped on blur, so the stored value wins again.
   const [gaugeDraft, setGaugeDraft] = useState<Record<string, string>>({});
 
-  // Where the centre enigma tile currently sits, measured and reported by the
-  // backdrop renderer (the underlay mode hangs its handle on it).
+  // Where the centre enigma square currently sits, measured and reported by the
+  // backdrop renderer (the underlay mode hangs its two handles on it).
   const [enigmaTileRect, setEnigmaTileRect] = useState<EnigmaTileRect | null>(null);
 
   // Idle layout state.
@@ -406,13 +416,21 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
     window.addEventListener('pointerup', onUp);
   }
 
-  /* ── Main-image underlay ("fond de l'image principale") ────────────────────
-   * One number, `enigma_underlay_scale`: the square the centre enigma image
-   * sits on, as a % of the cell available to it. The tile is positioned by the
-   * board's flex layout, so instead of mirroring that layout here the renderer
-   * MEASURES the tile and reports its rectangle - `onEnigmaTileRect`.
+  /* ── Main-image underlay ("fond de l'image principale") + image size ───────
+   * Two numbers, each a % of the square available to the centre enigma image:
+   * `enigma_underlay_scale` (the coloured sub-frame) and `enigma_image_scale`
+   * (the picture). They used to be one - the image filled the underlay - so
+   * resizing the frame resized the image and the frame always hugged it
+   * (retour 2026-09-16). The square is positioned by the board's flex layout,
+   * so instead of mirroring that layout here the renderer MEASURES it and
+   * reports its rectangle - `onEnigmaTileRect`.
    * ───────────────────────────────────────────────────────────────────────── */
   const underlayScale = resolveMysteryUnderlayScale(meta);
+  const imageScale = resolveMysteryEnigmaImageScale(meta);
+  // Positions (retours sept. 2026 #38): each box can also be moved off-centre,
+  // by % of the same square. Blank = centred.
+  const underlayOffset = resolveMysteryUnderlayOffset(meta);
+  const imageOffset = resolveMysteryEnigmaImageOffset(meta);
   const reportEnigmaTileRect = useCallback((rect: EnigmaTileRect | null) => {
     setEnigmaTileRect((prev) => {
       if (prev === rect) return prev;
@@ -432,38 +450,97 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
   }, []);
 
   function setUnderlayScale(value: number | '') {
+    editor.setGameMeta((m) => {
+      const cur = m as Record<string, unknown>;
+      const next: Record<string, unknown> = {
+        ...cur,
+        enigma_underlay_scale: value === '' ? '' : String(value),
+      };
+      // A blank image size means "same as the underlay" (how scenarios drew
+      // before the split). Pin it to what is on screen before the underlay
+      // moves, otherwise the picture would follow the frame again.
+      if (value !== '' && String(cur.enigma_image_scale ?? '').trim() === '') {
+        next.enigma_image_scale = String(resolveMysteryEnigmaImageScale(cur));
+      }
+      return next as typeof m;
+    });
+  }
+
+  function setImageScale(value: number | '') {
     editor.setGameMeta(
       (m) =>
         ({
           ...(m as Record<string, unknown>),
-          enigma_underlay_scale: value === '' ? '' : String(value),
+          enigma_image_scale: value === '' ? '' : String(value),
+        }) as typeof m,
+    );
+  }
+
+  /** Write one box's position (% of the square). 0 is stored blank = centred. */
+  function setOffset(target: 'underlay' | 'image', axis: 'x' | 'y', value: number | '') {
+    const key = `enigma_${target}_offset_${axis}`;
+    editor.setGameMeta(
+      (m) =>
+        ({
+          ...(m as Record<string, unknown>),
+          [key]: value === '' || value === 0 ? '' : String(value),
         }) as typeof m,
     );
   }
 
   /**
-   * Drag the tile's bottom-right corner. The tile is CENTRED in its cell, so
-   * moving the corner out by d grows the side by 2d - hence the halved delta.
-   * The full-size side is recovered from the current one and the current scale,
-   * which keeps the maths independent of how the board lays the cell out.
+   * Drag a box's move handle: the box follows the pointer, stored as % of the
+   * measured square (the unit the renderers position it in).
    */
-  function startUnderlayDrag(e: React.PointerEvent) {
+  function startMoveDrag(e: React.PointerEvent, target: 'underlay' | 'image') {
     e.preventDefault();
     e.stopPropagation();
     if (!enigmaTileRect || stage.height <= 0) return;
-    const startSidePx = (enigmaTileRect.height / 100) * stage.height;
-    if (startSidePx <= 0) return;
-    const fullSidePx = startSidePx / (underlayScale / 100);
+    const fullSidePx = (enigmaTileRect.height / 100) * stage.height;
+    if (fullSidePx <= 0) return;
+    const base: MysteryBoxOffset = target === 'underlay' ? underlayOffset : imageOffset;
     const startX = e.clientX;
     const startY = e.clientY;
     (e.target as Element).setPointerCapture?.(e.pointerId);
 
     function onMove(ev: PointerEvent) {
-      const d = (ev.clientX - startX + (ev.clientY - startY)) / 2;
+      const x = round1(clamp(base.x + ((ev.clientX - startX) / fullSidePx) * 100, -OFFSET_MAX_PCT, OFFSET_MAX_PCT));
+      const y = round1(clamp(base.y + ((ev.clientY - startY) / fullSidePx) * 100, -OFFSET_MAX_PCT, OFFSET_MAX_PCT));
+      setOffset(target, 'x', x);
+      setOffset(target, 'y', y);
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }
+
+  /**
+   * Drag a corner of the underlay (bottom-right handle) or of the image
+   * (top-left handle - the two boxes can be the same size, and their handles
+   * must not land on the same spot). Both boxes are CENTRED in the measured
+   * square, so moving a corner outwards by d grows the side by 2d - hence the
+   * halved delta; "outwards" is down-right for one handle, up-left for the other.
+   */
+  function startScaleDrag(e: React.PointerEvent, target: 'underlay' | 'image') {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!enigmaTileRect || stage.height <= 0) return;
+    const fullSidePx = (enigmaTileRect.height / 100) * stage.height;
+    if (fullSidePx <= 0) return;
+    const startSidePx = fullSidePx * ((target === 'underlay' ? underlayScale : imageScale) / 100);
+    const apply = target === 'underlay' ? setUnderlayScale : setImageScale;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+
+    function onMove(ev: PointerEvent) {
+      const outward = target === 'underlay' ? 1 : -1;
+      const d = (outward * (ev.clientX - startX + (ev.clientY - startY))) / 2;
       const side = startSidePx + 2 * d;
-      setUnderlayScale(
-        round1(clamp((side / fullSidePx) * 100, UNDERLAY_MIN_PCT, UNDERLAY_MAX_PCT)),
-      );
+      apply(round1(clamp((side / fullSidePx) * 100, UNDERLAY_MIN_PCT, UNDERLAY_MAX_PCT)));
     }
     function onUp() {
       window.removeEventListener('pointermove', onMove);
@@ -720,9 +797,99 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                         return rest;
                       })
                     }
-                    className="mt-0.5 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                    className="mt-0.5 w-full px-2 py-1 border border-blue-300 rounded text-sm"
                   />
                 </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {(['x', 'y'] as const).map((axis) => {
+                    const draftKey = `enigma_underlay_offset_${axis}`;
+                    const current = underlayOffset[axis];
+                    return (
+                      <label key={axis} className="block text-xs text-gray-600">
+                        <span>{t(`scenarioPreview:ingameLayout.underlayOffset_${axis}`)}</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={gaugeDraft[draftKey] ?? String(current)}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setGaugeDraft((d) => ({ ...d, [draftKey]: raw }));
+                            const n = parseFloat(raw);
+                            if (raw.trim() === '') { setOffset('underlay', axis, ''); return; }
+                            if (!isFinite(n)) return;
+                            setOffset('underlay', axis, round1(clamp(n, -OFFSET_MAX_PCT, OFFSET_MAX_PCT)));
+                          }}
+                          onBlur={() =>
+                            setGaugeDraft((d) => {
+                              const rest = { ...d };
+                              delete rest[draftKey];
+                              return rest;
+                            })
+                          }
+                          className="mt-0.5 w-full px-2 py-1 border border-blue-300 rounded text-sm"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <label className="block text-xs text-gray-600">
+                  <span>{t('scenarioPreview:ingameLayout.imageScale')}</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={gaugeDraft.enigma_image_scale ?? String(imageScale)}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setGaugeDraft((d) => ({ ...d, enigma_image_scale: raw }));
+                      const n = parseFloat(raw);
+                      if (!isFinite(n)) return;
+                      setImageScale(round1(clamp(n, UNDERLAY_MIN_PCT, UNDERLAY_MAX_PCT)));
+                    }}
+                    onBlur={() =>
+                      setGaugeDraft((d) => {
+                        const rest = { ...d };
+                        delete rest.enigma_image_scale;
+                        return rest;
+                      })
+                    }
+                    className="mt-0.5 w-full px-2 py-1 border border-amber-300 rounded text-sm"
+                  />
+                </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {(['x', 'y'] as const).map((axis) => {
+                    const draftKey = `enigma_image_offset_${axis}`;
+                    const current = imageOffset[axis];
+                    return (
+                      <label key={axis} className="block text-xs text-gray-600">
+                        <span>{t(`scenarioPreview:ingameLayout.imageOffset_${axis}`)}</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={gaugeDraft[draftKey] ?? String(current)}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            setGaugeDraft((d) => ({ ...d, [draftKey]: raw }));
+                            const n = parseFloat(raw);
+                            if (raw.trim() === '') { setOffset('image', axis, ''); return; }
+                            if (!isFinite(n)) return;
+                            setOffset('image', axis, round1(clamp(n, -OFFSET_MAX_PCT, OFFSET_MAX_PCT)));
+                          }}
+                          onBlur={() =>
+                            setGaugeDraft((d) => {
+                              const rest = { ...d };
+                              delete rest[draftKey];
+                              return rest;
+                            })
+                          }
+                          className="mt-0.5 w-full px-2 py-1 border border-amber-300 rounded text-sm"
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
 
                 <p className="text-[11px] text-gray-400 leading-snug">
                   {t('scenarioPreview:ingameLayout.underlayNote')}
@@ -732,6 +899,11 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                   type="button"
                   onClick={() => {
                     setUnderlayScale('');
+                    setImageScale('');
+                    setOffset('underlay', 'x', '');
+                    setOffset('underlay', 'y', '');
+                    setOffset('image', 'x', '');
+                    setOffset('image', 'y', '');
                     setGaugeDraft({});
                   }}
                   className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-700 border border-gray-200 rounded hover:bg-gray-50"
@@ -1165,11 +1337,90 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                     })()
                   : mode === 'underlay'
                   ? (() => {
-                      // One handle, on the corner of the centre tile. The tile's
-                      // rectangle is MEASURED by the backdrop renderer rather
-                      // than recomputed here, so this layer cannot drift from the
-                      // board's flex layout the way the gauge constants above can.
+                      // Two handles, one per centred box inside the centre
+                      // square: blue = the underlay (coloured sub-frame), amber
+                      // = the image. The square's rectangle is MEASURED by the
+                      // backdrop renderer rather than recomputed here, so this
+                      // layer cannot drift from the board's flex layout the way
+                      // the gauge constants above can.
                       if (!enigmaTileRect) return null;
+                      const scaleBox = (
+                        target: 'underlay' | 'image',
+                        scale: number,
+                        offset: MysteryBoxOffset,
+                        color: string,
+                        title: string,
+                      ) => (
+                        <div
+                          style={{
+                            ...mysteryCenteredBox(scale, offset),
+                            outline: `2px ${target === 'image' ? 'dashed' : 'solid'} ${color}`,
+                            outlineOffset: '-1px',
+                            boxSizing: 'border-box',
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          <div
+                            onPointerDown={(e) => startScaleDrag(e, target)}
+                            title={title}
+                            style={{
+                              position: 'absolute',
+                              ...(target === 'image'
+                                ? { left: -6, top: -6 }
+                                : { right: -6, bottom: -6 }),
+                              width: 12,
+                              height: 12,
+                              background: color,
+                              border: '2px solid #ffffff',
+                              cursor: 'nwse-resize',
+                              pointerEvents: 'auto',
+                              touchAction: 'none',
+                            }}
+                          />
+                          {/* Move handle, on the corner the resize handle and
+                              the label leave free (image: top-right, sub-frame:
+                              bottom-left), so the two boxes stay grabbable even
+                              when they are the same size. */}
+                          <div
+                            onPointerDown={(e) => startMoveDrag(e, target)}
+                            title={t('scenarioPreview:ingameLayout.moveHandle', { name: title })}
+                            style={{
+                              position: 'absolute',
+                              ...(target === 'image'
+                                ? { right: -8, top: -8 }
+                                : { left: -8, bottom: -8 }),
+                              width: 16,
+                              height: 16,
+                              borderRadius: '50%',
+                              background: color,
+                              border: '2px solid #ffffff',
+                              cursor: 'move',
+                              pointerEvents: 'auto',
+                              touchAction: 'none',
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              // Image label above the box (next to its handle),
+                              // underlay label below it, so they never overlap.
+                              ...(target === 'image'
+                                ? { left: 10, bottom: 'calc(100% + 2px)' }
+                                : { right: 0, top: 'calc(100% + 2px)' }),
+                              fontSize: 11,
+                              lineHeight: '16px',
+                              padding: '0 4px',
+                              color: '#fff',
+                              background: color,
+                              borderRadius: 3,
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                            }}
+                          >
+                            {title} · {scale} %
+                          </div>
+                        </div>
+                      );
                       return (
                         <div
                           style={{
@@ -1178,45 +1429,23 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                             top: `${enigmaTileRect.top}%`,
                             width: `${enigmaTileRect.width}%`,
                             height: `${enigmaTileRect.height}%`,
-                            outline: '2px solid #3b82f6',
-                            outlineOffset: '-1px',
-                            boxSizing: 'border-box',
                             pointerEvents: 'none',
                           }}
                         >
-                          <div
-                            onPointerDown={startUnderlayDrag}
-                            title={t('scenarioPreview:ingameLayout.underlayScale')}
-                            style={{
-                              position: 'absolute',
-                              right: -6,
-                              bottom: -6,
-                              width: 12,
-                              height: 12,
-                              background: '#3b82f6',
-                              border: '2px solid #ffffff',
-                              cursor: 'nwse-resize',
-                              pointerEvents: 'auto',
-                              touchAction: 'none',
-                            }}
-                          />
-                          <div
-                            style={{
-                              position: 'absolute',
-                              left: 0,
-                              top: 'calc(100% + 2px)',
-                              fontSize: 11,
-                              lineHeight: '16px',
-                              padding: '0 4px',
-                              color: '#fff',
-                              background: '#3b82f6',
-                              borderRadius: 3,
-                              whiteSpace: 'nowrap',
-                              pointerEvents: 'none',
-                            }}
-                          >
-                            {underlayScale} %
-                          </div>
+                          {scaleBox(
+                            'underlay',
+                            underlayScale,
+                            underlayOffset,
+                            '#3b82f6',
+                            t('scenarioPreview:ingameLayout.underlayHandle'),
+                          )}
+                          {scaleBox(
+                            'image',
+                            imageScale,
+                            imageOffset,
+                            '#f59e0b',
+                            t('scenarioPreview:ingameLayout.imageHandle'),
+                          )}
                         </div>
                       );
                     })()

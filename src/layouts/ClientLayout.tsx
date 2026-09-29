@@ -133,8 +133,8 @@ export function ClientLayout() {
 
   return (
     <HelpProvider audience="client" lang={i18n.language} navigateToDocs={() => navigate('/my/help')} openPdfFile={studioOpenPdf}>
-    <div className="min-h-screen bg-slate-50">
-      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col">
+    <div className="min-h-screen bg-slate-50 print:bg-white">
+      <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col print:hidden">
         <div className="p-6 border-b border-slate-800 flex-shrink-0">
           <div className="flex flex-col space-y-4">
             <img
@@ -180,7 +180,7 @@ export function ClientLayout() {
         </div>
       </aside>
 
-      <main className="ml-64 p-8">
+      <main className="ml-64 p-8 print:ml-0 print:p-0">
         <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>

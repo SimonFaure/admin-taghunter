@@ -28,8 +28,9 @@
     "title": "Puntuación",
     "numberOfEnigmas": "número de enigmas",
     "scoreFullGame": "Puntuación necesaria para llenar el medidor",
-    "malusBothAnswers": "penalización si ambas respuestas están bipeadas",
-    "malusNoAnswer": "penalización si no hay respuesta",
+    "malusBothAnswers": "penalización si ambas respuestas están bipeadas (introducir un valor negativo)",
+    "malusNoAnswer": "penalización si no hay respuesta (introducir un valor negativo)",
+    "malusHint": "Negativo = penalización (p. ej. -5).",
     "pointsUnits": "unidades de puntos",
     "unitPts": "pts",
     "unitPercent": "%"

@@ -64,21 +64,14 @@ export function AdminSection() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await authFetch(`${API_BASE_URL}/scenarios.php?action=list`, { credentials: 'include' });
+        // Light endpoint: only the univers tags, not every scenario's data blob
+        // (retours sept. #42 - that list was heavy enough on production to
+        // stall the return to the Scenarios page).
+        const res = await authFetch(`${API_BASE_URL}/scenarios.php?action=univers_pool`, { credentials: 'include' });
         if (!res.ok) return;
         const json = await res.json();
         const pool = new Set<string>();
-        for (const s of json.scenarios || []) {
-          const raw = s.data ?? s.game_data;
-          if (!raw) continue;
-          try {
-            const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
-            const u = obj?.game_meta?.univers ?? obj?.data?.game_meta?.univers;
-            for (const tag of normalizeUnivers(u)) pool.add(tag);
-          } catch {
-            /* skip malformed */
-          }
-        }
+        for (const tag of normalizeUnivers(Array.isArray(json.univers) ? json.univers.join(',') : '')) pool.add(tag);
         if (!cancelled) setUniversPool(Array.from(pool).sort((a, b) => a.localeCompare(b)));
       } catch {
         /* autocomplete is best-effort */

@@ -15,12 +15,20 @@
 //
 // Filters (query params): from, to (dates), game_type, scenario_uniqid,
 // and client_id (admin only).
+//
+// Clients flagged stats_excluded_global / stats_disabled (add_client_stats_flags.sql)
+// are left out of the admin's fleet-wide view; filtering on that client_id
+// still shows their games, and the client's own view is unaffected.
 
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
 
 header('Content-Type: application/json');
 session_start();
+// This endpoint only READS the session. Release its lock straight away so the
+// browser's parallel requests do not queue behind one another (a slow save or
+// hash recompute used to hold every other call - retours sept. 2026 #42).
+session_write_close();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
@@ -52,7 +60,7 @@ function requireStatsAuth($db): array {
 // Build WHERE conditions (alias gs) from the caller's scope + query filters.
 // $scopeOnly limits to the client/admin scope (used by the `filters` action so
 // the option lists aren't narrowed by the very filters they populate).
-function summaryConditions(array $auth, bool $scopeOnly = false): array {
+function summaryConditions(array $auth, bool $scopeOnly = false, bool $excludeFlagged = true): array {
     $conds = [];
     $args = [];
 
@@ -62,6 +70,8 @@ function summaryConditions(array $auth, bool $scopeOnly = false): array {
     } elseif (!empty($_GET['client_id'])) {
         $conds[] = 'gs.client_id = ?';
         $args[] = (int)$_GET['client_id'];
+    } elseif ($excludeFlagged && statsFlagsMigrated()) {
+        $conds[] = 'gs.client_id NOT IN (SELECT id FROM clients WHERE stats_excluded_global = 1 OR stats_disabled = 1)';
     }
 
     if ($scopeOnly) {
@@ -86,6 +96,21 @@ function summaryConditions(array $auth, bool $scopeOnly = false): array {
     }
 
     return [$conds, $args];
+}
+
+// Guard for a studio whose DB predates add_client_stats_flags.sql: without the
+// columns every client counts in the global stats, as before.
+function statsFlagsMigrated(): bool {
+    static $migrated = null;
+    if ($migrated === null) {
+        try {
+            Database::getInstance()->fetch('SELECT stats_excluded_global, stats_disabled FROM clients LIMIT 1');
+            $migrated = true;
+        } catch (Exception $e) {
+            $migrated = false;
+        }
+    }
+    return $migrated;
 }
 
 function whereOf(array $conds): string {
@@ -252,12 +277,15 @@ try {
             ];
 
             if ($isAdmin) {
+                // Unfiltered by the global-stats exclusion so an excluded
+                // client can still be picked to see their own games.
+                [$clientConds, $clientArgs] = summaryConditions($auth, true, false);
                 $response['clients'] = $db->fetchAll(
                     'SELECT DISTINCT gs.client_id, c.name, c.email
                      FROM game_summaries gs
-                     LEFT JOIN clients c ON c.id = gs.client_id' . $scopeWhere .
+                     LEFT JOIN clients c ON c.id = gs.client_id' . whereOf($clientConds) .
                     ' ORDER BY c.name',
-                    $args
+                    $clientArgs
                 );
             }
 

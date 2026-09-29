@@ -49,6 +49,13 @@ export interface Client {
   billing_overdue_since?: string | null;
   billing_grace_days?: number;
   billing_reprieve_days?: number;
+  // Statistics flags (admin-only, add_client_stats_flags.sql).
+  // stats_excluded_global: recorded, but left out of the fleet-wide admin stats.
+  // stats_disabled: game stats not recorded at all (telemetry drops them).
+  stats_excluded_global?: boolean;
+  stats_disabled?: boolean;
+  // Tester: also receives scenario languages an admin has not validated yet.
+  sees_draft_languages?: boolean;
   created_at?: string;
   created_by?: string;
   updated_at?: string;
@@ -79,6 +86,10 @@ export interface CreateClientData {
   devices_disabled?: boolean;
   billing_grace_days?: number;
   billing_reprieve_days?: number;
+  stats_excluded_global?: boolean;
+  stats_disabled?: boolean;
+  // Tester: also receives scenario languages an admin has not validated yet.
+  sees_draft_languages?: boolean;
 }
 
 export interface UpdateClientData extends Partial<CreateClientData> {

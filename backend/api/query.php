@@ -25,10 +25,15 @@ setCorsHeaders();
 
 header('Content-Type: application/json');
 session_start();
+// This endpoint only READS the session. Release its lock straight away so the
+// browser's parallel requests do not queue behind one another (a slow save or
+// hash recompute used to hold every other call - retours sept. 2026 #42).
+session_write_close();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
 require_once __DIR__ . '/../utils/ScenarioHashes.php';
+require_once __DIR__ . '/../utils/ScenarioLanguages.php';
 
 function respond($payload, int $status = 200): void {
     http_response_code($status);
@@ -268,6 +273,13 @@ try {
     switch ($op) {
         case 'select': {
             $select = buildSelect($body['select'] ?? '*');
+            // A client token reads scenario rows it does not own (products)
+            // through here too, so the language-validation gate applies: pull
+            // the two gate columns alongside and strip draft languages below.
+            $gateLangs = $table === 'scenarios' && ($tokenData['user_type'] ?? '') !== 'admin';
+            if ($gateLangs && $select !== '*') {
+                $select .= ', client_id AS __gate_cid, validated_languages AS __gate_vl';
+            }
             $params = [];
             $whereSql = buildWhere($body['where'] ?? [], $params);
             $orderSql = buildOrder($body['order'] ?? []);
@@ -279,6 +291,25 @@ try {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if ($gateLangs) {
+                $viewerId = (int)($tokenData['user_id'] ?? 0);
+                foreach ($rows as &$r) {
+                    if (array_key_exists('data', $r)) {
+                        $gateRow = [
+                            'data' => $r['data'],
+                            'client_id' => array_key_exists('__gate_cid', $r) ? $r['__gate_cid'] : ($r['client_id'] ?? null),
+                            'validated_languages' => array_key_exists('__gate_vl', $r) ? $r['__gate_vl'] : ($r['validated_languages'] ?? null),
+                        ];
+                        $visible = ScenarioLanguages::visibleLanguages($pdo, $gateRow, $viewerId);
+                        if (ScenarioLanguages::isNarrowed($gateRow, $visible)) {
+                            $r['data'] = ScenarioLanguages::strip($r['data'], $visible);
+                        }
+                    }
+                    unset($r['__gate_cid'], $r['__gate_vl'], $r['validated_languages']);
+                }
+                unset($r);
+            }
 
             if (!empty($body['single'])) {
                 if (count($rows) === 0) {

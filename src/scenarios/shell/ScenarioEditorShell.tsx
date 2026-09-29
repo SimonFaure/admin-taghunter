@@ -10,7 +10,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 + 3 sections)
  */
 
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { db } from '../../creator-ported/lib/db';
 import { getMediaUrl as getMediaUrlUtil, extractFileName } from '../../creator-ported/utils/mediaUrl';
@@ -62,6 +62,11 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     initialState(id, adapter.defaultConfig()),
   );
 
+  // Languages an admin has released to clients (Admin > Translations). null =
+  // not gated: a client-owned scenario, or a client viewer. Drives the
+  // read-only "draft" badge on the language chips.
+  const [validatedLanguages, setValidatedLanguages] = useState<string[] | null>(null);
+
   // Load scenario row + hydrate state
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +74,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
       try {
         const { data, error } = await db
           .from('scenarios')
-          .select('title, description, uniqid, data, medias, status, scenario_type, scenario_layout, version')
+          .select('title, description, uniqid, data, medias, status, scenario_type, scenario_layout, version, client_id, validated_languages')
           .eq('id', scenarioId)
           .maybeSingle();
         if (cancelled || error || !data) return;
@@ -110,7 +115,18 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
           status?: string;
           scenario_type?: string;
           version?: unknown;
+          client_id?: number | string | null;
         };
+
+        // Only admin-owned scenarios are gated; query.php only returns the
+        // column to admin tokens. NULL on a gated row = default language only.
+        const rawValidated = (data as { validated_languages?: unknown }).validated_languages;
+        if (isAdmin && (row.client_id === null || row.client_id === undefined || row.client_id === '')) {
+          const parsed = parseCol(rawValidated);
+          setValidatedLanguages(Array.isArray(parsed) ? parsed.filter((l): l is string => typeof l === 'string') : []);
+        } else {
+          setValidatedLanguages(null);
+        }
 
         // Validate against adapter schema (warn-only). Doesn't gate hydration.
         if (parsedData) {
@@ -289,7 +305,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
     return () => {
       cancelled = true;
     };
-  }, [scenarioId, adapter, t]);
+  }, [scenarioId, adapter, t, isAdmin]);
 
   // Bare filenames the user has cleared/replaced this session. Physically
   // unlinked from media/<uniqid>/ only after a successful save (see
@@ -519,7 +535,7 @@ export function ScenarioEditorShell({ scenarioId, adapter, onBack, onOpenLayoutE
           )}
           <SectionsTOC />
           <main className="flex-1 px-6 py-4 space-y-4">
-            <LanguageBar />
+            <LanguageBar validatedLanguages={validatedLanguages} />
             {TopSection && <TopSection />}
             <MetaSection />
             <CoverSection />

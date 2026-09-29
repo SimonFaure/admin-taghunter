@@ -397,9 +397,9 @@ export function ScenarioCatalogView({ audience = 'admin' }: { audience?: Catalog
       ) : (
         <div className="space-y-8">
           {sections.map((section) => (
-            <div key={section.gameType} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div key={section.gameType} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:break-inside-auto">
               <div className="bg-red-600 text-white px-4 py-2 font-bold tracking-wide">{section.label}</div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto print:overflow-visible">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">

@@ -6,7 +6,9 @@
     "empty": "Aucune langue configurée. Ajoutez une langue pour commencer.",
     "modalTitle": "Ajouter une langue",
     "allAdded": "Toutes les langues disponibles ont été ajoutées.",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "draft": "Brouillon",
+    "draftHint": "Pas encore diffusée aux clients. À valider dans Admin › Traductions › Scénarios."
   },
   "creator": {
     "back": "Retour",
@@ -24,5 +26,10 @@
     "cancel": "Annuler",
     "validationTitle": "Veuillez fournir un titre",
     "saveError": "Échec de l'enregistrement du scénario"
+  },
+  "publish": {
+    "publishSelf": "Publier (moi)",
+    "publishForLicensee": "Publier pour un licencié",
+    "publishing": "Publication…"
   }
 }

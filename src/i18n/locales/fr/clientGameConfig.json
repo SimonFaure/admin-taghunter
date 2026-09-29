@@ -20,10 +20,10 @@
     "saveConfiguration": "Enregistrer la configuration"
   },
   "stationSelect": {
-    "placeholder": "Sélectionner une station…",
+    "placeholder": "Sélectionner une balise…",
     "clear": "Effacer",
-    "searchPlaceholder": "Rechercher des stations…",
-    "noStationsFound": "Aucune station trouvée",
+    "searchPlaceholder": "Rechercher des balises…",
+    "noStationsFound": "Aucune balise trouvée",
     "used": "(utilisée)"
   },
   "qrCodes": {

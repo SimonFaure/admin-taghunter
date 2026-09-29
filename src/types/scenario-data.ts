@@ -216,6 +216,16 @@ export const MysteryGameMetaSchema = BaseGameMetaSchema.extend({
   // space available for it. Blank → 100 (the historical full-height tile).
   // See resolveMysteryUnderlayScale.
   enigma_underlay_scale: z.string().optional(),
+  // Size of the main image itself, % of the same space - independent of the
+  // underlay. Blank → the underlay's size. See resolveMysteryEnigmaImageScale.
+  enigma_image_scale: z.string().optional(),
+  // Position of the underlay (sub-frame) and of the main image, each shifted
+  // from the centre by % of the same space (+x right, +y down). Blank → 0,
+  // centred. See resolveMysteryUnderlayOffset / resolveMysteryEnigmaImageOffset.
+  enigma_underlay_offset_x: z.string().optional(),
+  enigma_underlay_offset_y: z.string().optional(),
+  enigma_image_offset_x: z.string().optional(),
+  enigma_image_offset_y: z.string().optional(),
   game_instructions_image: z.string().optional(),
   game_instructions_button_image: z.string().optional(),
   game_instructions_button_hover_image: z.string().optional(),
@@ -624,6 +634,10 @@ export const ClashGameMetaSchema = BaseGameMetaSchema.extend({
   event_text_attack: LocalizedStringSchema.optional(),
   event_text_neutralized: LocalizedStringSchema.optional(),
   event_text_purge: LocalizedStringSchema.optional(),
+  /* -- Purge refusal messages (retours sept. #68). Blank ⇒ the app default. -- */
+  purge_text_already_used: LocalizedStringSchema.optional(),
+  purge_text_own_territory: LocalizedStringSchema.optional(),
+  purge_text_no_target: LocalizedStringSchema.optional(),
   /** Heading of the clan-ranking panel. Blank ⇒ the app default. */
   ranking_title: LocalizedStringSchema.optional(),
   /** Optional dashboard chrome frames (fall back to default styling if unset) (V2). */

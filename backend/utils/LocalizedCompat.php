@@ -17,6 +17,17 @@
 
 class LocalizedCompat
 {
+    /**
+     * The 12 player-facing language codes. Mirrors SUPPORTED_LANGS in
+     * src/scenarios/i18n/types.ts and LANGUAGES in src/i18n/languages.ts.
+     */
+    private const LANGS = ['en','fr','es','de','it','pt','nl','pl','ru','ja','zh','ar'];
+
+    /**
+     * The scenario's authored "UI text strings". `text_team_cheating` is the
+     * 17th: it is in the Zod schema and in TAGQUEST_TEXT_KEYS but was missing
+     * here, so `toNewShape` never lifted a legacy plain string for it.
+     */
     private const TEXT_KEYS = [
         'text_player_starts',
         'text_card_not_empty',
@@ -34,6 +45,7 @@ class LocalizedCompat
         'text_following_top_podium',
         'text_if_error',
         'text_is_card_empty',
+        'text_team_cheating',
     ];
 
     /**
@@ -45,9 +57,8 @@ class LocalizedCompat
     {
         if (!is_array($value)) return false;
         if (array_is_list($value)) return false;
-        $supportedLangs = ['en','fr','es','de','it','pt','nl','pl','ru','ja','zh','ar'];
         foreach (array_keys($value) as $k) {
-            if (in_array($k, $supportedLangs, true)) return true;
+            if (in_array($k, self::LANGS, true)) return true;
         }
         return false;
     }
@@ -69,8 +80,7 @@ class LocalizedCompat
         if (array_key_exists($defaultLang, $loc) && is_string($loc[$defaultLang])) {
             return $loc[$defaultLang];
         }
-        $supportedLangs = ['en','fr','es','de','it','pt','nl','pl','ru','ja','zh','ar'];
-        foreach ($supportedLangs as $candidate) {
+        foreach (self::LANGS as $candidate) {
             if (array_key_exists($candidate, $loc) && is_string($loc[$candidate]) && $loc[$candidate] !== '') {
                 return $loc[$candidate];
             }
@@ -110,11 +120,23 @@ class LocalizedCompat
                 $flatGameMeta[$field] = self::getLocalized($gameMetaIn[$field], $defaultLang, $defaultLang);
             }
         }
-        foreach (self::TEXT_KEYS as $field) {
-            if (isset($gameMetaIn[$field])) {
-                $flatGameMeta[$field] = self::getLocalized($gameMetaIn[$field], $defaultLang, $defaultLang);
-            }
-        }
+        // text_*: deliberately NOT flattened - they pass through as raw
+        // Localized maps.
+        //
+        // Every consumer of these keys resolves them per TEAM language through a
+        // map-or-string reader: playground `pickLocalized` (MysteryGamePage
+        // resolveMetaText), `resolveTracksText` (TracksGamePage), and go.php,
+        // which already forwards `text_*` maps untouched (go.php:890) so the GO
+        // PWA can do the same. Flattening them here to the scenario default
+        // handed those readers a plain string, which they return unchanged - so
+        // an English team was shown the French text_team_ended. Leaving the map
+        // intact is what makes per-team language work, and costs nothing: all
+        // three readers accept a plain string too, for legacy rows.
+        //
+        // title/description/story below ARE still flattened: they are displayed
+        // per-scenario (GameList cards, ScenarioDetailsModal), not per team, and
+        // their per-language values remain available in the translations
+        // envelope built further down.
 
         // levels: { [k]: { name (Localized), description (Localized), points } }
         if (isset($gameMetaIn['levels']) && is_array($gameMetaIn['levels'])) {

@@ -1,5 +1,5 @@
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
-import { Mail, User, Building, Calendar, Crown, CheckCircle, XCircle, Upload, Image as ImageIcon } from 'lucide-react';
+import { Mail, User, Building, Calendar, CheckCircle, XCircle, Upload, Image as ImageIcon } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -340,18 +340,6 @@ export function MyAccountView() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-600">{t('fields.clientId')}</p>
               <p className="text-base text-slate-900 font-mono truncate">{user?.client_id}</p>
-            </div>
-          </div>
-
-          <div className="flex items-start space-x-4">
-            <div className={`p-3 rounded-lg ${user?.license_type === 'premium' ? 'bg-purple-100' : 'bg-sky-100'}`}>
-              <Crown className={`w-5 h-5 ${user?.license_type === 'premium' ? 'text-purple-600' : 'text-sky-600'}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-600">{t('fields.licenseType')}</p>
-              <p className={`text-base font-semibold ${user?.license_type === 'premium' ? 'text-purple-600' : 'text-sky-600'}`}>
-                {user?.license_type === 'premium' ? t('license.premium') : t('license.access')}
-              </p>
             </div>
           </div>
 

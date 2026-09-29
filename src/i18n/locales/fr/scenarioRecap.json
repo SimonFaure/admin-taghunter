@@ -5,7 +5,7 @@
   "hide": "Masquer",
   "openPrintable": "Ouvrir la version imprimable",
   "backToScenario": "Retour au scénario",
-  "subtitle": "Récapitulatif du scénario — version {{version}}",
+  "subtitle": "Récapitulatif du scénario, version {{version}}",
   "print": "Imprimer",
   "choosePattern": "Modèle :",
   "noPattern": "Aucun modèle",

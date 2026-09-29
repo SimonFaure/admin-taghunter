@@ -20,7 +20,7 @@
     "score": "Points supplémentaires",
     "name": "Nom ({{lang}})",
     "scoreFullGame": "Score à atteindre pour remplir la jauge",
-    "scoreFullGameHint": "C’est le score d’une partie complète : la jauge est pleine à 100 % quand l’équipe l’atteint. Les surscores ci-dessous sont des points qui s’AJOUTENT à ce score — une équipe qui dépasse la partie complète les débloque.",
+    "scoreFullGameHint": "C’est le score d’une partie complète : la jauge est pleine à 100 % quand l’équipe l’atteint. Les surscores ci-dessous sont des points qui s’AJOUTENT à ce score : une équipe qui dépasse la partie complète les débloque.",
     "scoreHint": "Points au-delà du score de partie complète, pas un score absolu. Ex. : partie complète = 30 et surscore = 10 ⇒ ce palier se débloque à 40."
   }
 }

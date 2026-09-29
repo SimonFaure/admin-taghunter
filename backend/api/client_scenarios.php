@@ -5,6 +5,10 @@ setCorsHeaders();
 
 header('Content-Type: application/json');
 session_start();
+// This endpoint only READS the session. Release its lock straight away so the
+// browser's parallel requests do not queue behind one another (a slow save or
+// hash recompute used to hold every other call - retours sept. 2026 #42).
+session_write_close();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
@@ -41,69 +45,28 @@ function requireAuth() {
 }
 
 /**
- * The scenarios a client holds in one player app ('go' | 'spot').
- *
- * Normally that is its mode='<app>' grant rows. A PREMIUM client has none: the
- * `list` action above serves it the whole product catalogue directly, without
- * grants. Reading only grants therefore left premium clients with an empty QR
- * grid - "aucun QR code n'a été généré" (retour Ludiom #65) - even though they
- * could see the GO/Spot scenarios in their catalogue. So for premium we return
- * every product scenario carrying the app's own eligibility flag
- * (`adaptable_go` / `adaptable_spot`), LEFT JOINing whatever grant row happens to
- * exist so a configured challenge list still comes through.
- *
+ * The scenarios a client holds in one player app ('go' | 'spot'): exactly its
+ * mode='<app>' grant rows. GO and Spot are granted by hand from the admin client
+ * page - the premium licence (which serves the whole playground catalogue in the
+ * `list` action) never implies them, so there is no premium widening here.
  * go.php applies the same rule (goResolveGrant), so a QR built from this list
- * always loads instead of refusing `not_granted`.
- *
- * `$grantsOnly` opts out of the premium widening: the admin client page manages
- * grant ROWS (add / remove), so it must see exactly the rows that exist.
+ * always loads and nothing else does.
  */
-function appScenariosForClient($db, $clientId, $app, $grantsOnly = false) {
-    $isPremium = false;
-    if (!$grantsOnly) {
-        $client = $db->fetch('SELECT license_type FROM clients WHERE id = ?', [$clientId]);
-        if ($client && ($client['license_type'] ?? '') === 'premium') $isPremium = true;
-    }
-
+function appScenariosForClient($db, $clientId, $app) {
     $patternCols = $app === 'go'
         ? ', p.name AS pattern_name, p.answer_count AS pattern_answer_count'
         : '';
     $patternJoin = $app === 'go' ? ' LEFT JOIN patterns p ON cs.pattern_id = p.id' : '';
 
-    if (!$isPremium) {
-        return decodeGrantDurations($db->fetchAll(
-            'SELECT cs.scenario_id, cs.pattern_id, cs.granted_at, cs.durations,
-                    s.title, s.uniqid, s.status, s.medias' . $patternCols . '
-             FROM client_scenarios cs
-             JOIN scenarios s ON cs.scenario_id = s.id' . $patternJoin . '
-             WHERE cs.client_id = ? AND cs.mode = ?
-             ORDER BY cs.granted_at DESC',
-            [$clientId, $app]
-        ));
-    }
-
-    $rows = $db->fetchAll(
-        'SELECT s.id AS scenario_id, cs.pattern_id, s.created_at AS granted_at, cs.durations,
-                s.title, s.uniqid, s.status, s.medias, s.data' . $patternCols . '
-         FROM scenarios s
-         LEFT JOIN client_scenarios cs
-                ON cs.scenario_id = s.id AND cs.client_id = ? AND cs.mode = ?' . $patternJoin . '
-         WHERE s.scenario_type = "product"
-         ORDER BY s.created_at DESC',
+    return decodeGrantDurations($db->fetchAll(
+        'SELECT cs.scenario_id, cs.pattern_id, cs.granted_at, cs.durations,
+                s.title, s.uniqid, s.status, s.medias' . $patternCols . '
+         FROM client_scenarios cs
+         JOIN scenarios s ON cs.scenario_id = s.id' . $patternJoin . '
+         WHERE cs.client_id = ? AND cs.mode = ?
+         ORDER BY cs.granted_at DESC',
         [$clientId, $app]
-    );
-    // The eligibility flag lives in game_meta, so filter in PHP (both the flat
-    // and wrapped shapes exist on disk, as everywhere else that reads it).
-    $flag = $app === 'spot' ? 'adaptable_spot' : 'adaptable_go';
-    $out = [];
-    foreach ($rows as $r) {
-        $dataArr = !empty($r['data']) ? json_decode($r['data'], true) : null;
-        $gm = is_array($dataArr) ? ($dataArr['game_meta'] ?? ($dataArr['data']['game_meta'] ?? null)) : null;
-        if (!is_array($gm) || empty($gm[$flag])) continue;
-        unset($r['data']);
-        $out[] = $r;
-    }
-    return decodeGrantDurations($out);
+    ));
 }
 
 function requireClientOrAdminAuth($db) {
@@ -266,14 +229,24 @@ try {
         $isPremium = $client && $client['license_type'] === 'premium';
 
         if ($isPremium) {
+            // Premium (the only licence sold now): every PUBLISHED product -
+            // publishing a product is what releases it to all clients.
             $scenarios = $db->fetchAll(
                 'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.validated_languages, s.created_at, s.updated_at,
                         s.created_at as granted_at, NULL as granted_by, NULL as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM scenarios s
-                 WHERE s.scenario_type = "product"
+                 WHERE s.scenario_type = "product" AND s.status = "published"
                  ORDER BY s.created_at DESC'
+            );
+            // ...but only the ones authored in the client's language.
+            require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+            $scenarios = ScenarioLanguages::filterProducts(
+                $scenarios,
+                ScenarioLanguages::clientLanguage($db, $clientId),
+                $db,
+                $clientId
             );
         } else {
             $scenarios = $db->fetchAll(
@@ -282,7 +255,7 @@ try {
                 // client_scenarios rows. Collapse them to one row per scenario so
                 // the client sees it once (one card, one QR), not once per mode.
                 'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.validated_languages, s.created_at, s.updated_at,
                         cs.granted_at, cs.granted_by, a.email as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM (
@@ -294,7 +267,7 @@ try {
                  LEFT JOIN admin_users a ON cs.granted_by = a.id
                  UNION ALL
                  SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
-                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.created_at, s.updated_at,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.validated_languages, s.created_at, s.updated_at,
                         s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email,
                         (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
                  FROM scenarios s
@@ -320,7 +293,13 @@ try {
             }
         }
 
-        $scenarios = array_map(function($s) {
+        // Only the languages released to this client (an admin inspecting the
+        // list sees what the client sees - the client's chips). Admin views of
+        // drafts live in Admin > Translations.
+        require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+        $scenarios = array_map(function($s) use ($db, $clientId) {
+            $s = ScenarioLanguages::narrowRow($db, $s, (int)$clientId);
+            unset($s['validated_languages']);
             $s['has_zip_files'] = (int)($s['files_count'] ?? 0) > 0;
             $s['files_count'] = (int)($s['files_count'] ?? 0);
             // Surface difficulty / audience (game_meta) for the list cards, then
@@ -363,7 +342,9 @@ try {
         }, $scenarios);
 
         $response = ['data' => $scenarios];
-        Logger::log('client_scenarios', 'GET', 'list', $auth['id'], ['client_id' => $clientId], $response, 200);
+        // Log the count, not the payload: every row (medias included) was being
+        // written to api_logs on each list call - slow on a large account (#42).
+        Logger::log('client_scenarios', 'GET', 'list', $auth['id'], ['client_id' => $clientId], ['count' => count($scenarios)], 200);
         jsonResponse($response);
         break;
 
@@ -372,8 +353,8 @@ try {
         // GO pattern + the scenario's challenge offer (cs.durations). This is
         // exactly the set go.php will serve in GO, which is why the client QR
         // grid reads it rather than the generic `list` action - that one returns
-        // every product scenario for PREMIUM clients regardless of grants, so its
-        // QR codes could refuse with `not_granted` when scanned.
+        // the whole playground catalogue for PREMIUM clients regardless of GO
+        // grants, so its QR codes would refuse with `not_granted` when scanned.
         if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
@@ -385,7 +366,7 @@ try {
         if ($auth['type'] === 'client' && (string)$clientId !== (string)$auth['id']) {
             jsonResponse(['error' => 'Unauthorized'], 403);
         }
-        $grants = appScenariosForClient($db, $clientId, 'go', !empty($_GET['grants_only']));
+        $grants = appScenariosForClient($db, $clientId, 'go');
         $response = ['data' => $grants];
         Logger::log('client_scenarios', 'GET', 'list_go', $auth['id'], ['client_id' => $clientId], ['count' => count($grants)], 200);
         jsonResponse($response);
@@ -407,7 +388,7 @@ try {
         if ($auth['type'] === 'client' && (string)$clientId !== (string)$auth['id']) {
             jsonResponse(['error' => 'Unauthorized'], 403);
         }
-        $grants = appScenariosForClient($db, $clientId, 'spot', !empty($_GET['grants_only']));
+        $grants = appScenariosForClient($db, $clientId, 'spot');
         $response = ['data' => $grants];
         Logger::log('client_scenarios', 'GET', 'list_spot', $auth['id'], ['client_id' => $clientId], ['count' => count($grants)], 200);
         jsonResponse($response);

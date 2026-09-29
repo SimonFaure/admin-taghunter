@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, AlertTriangle, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Search, Server, KeyRound, Lock, Power, Wifi } from 'lucide-react';
+import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Server, KeyRound, Lock, Power, Wifi, BarChart3, RotateCcw } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
-import { Client, LicenseType, UpdateClientData } from '../types/client';
+import { Client, UpdateClientData } from '../types/client';
 import { ScenarioData, adminCardsApi } from '../lib/api';
 import { authFetch } from '../lib/authFetch';
 import { CardsRegistryEditor, CardsEditorApi } from './CardsRegistryEditor';
@@ -17,7 +17,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 // the raw code, so unknown/legacy types still render.
 const GAME_TYPE_LABELS: Record<string, string> = {
   mystery: 'Mystery',
-  tagquest: 'Tagquest',
+  tagquest: 'Quest',
   tracks: 'Track',
   clash: 'Clash',
 };
@@ -114,19 +114,11 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const [success, setSuccess] = useState('');
   const [boughtScenarios, setBoughtScenarios] = useState<ScenarioData[]>([]);
   const [loadingScenarios, setLoadingScenarios] = useState(true);
-  const [showAddScenarioModal, setShowAddScenarioModal] = useState(false);
-  const [availableScenarios, setAvailableScenarios] = useState<ScenarioData[]>([]);
-  const [loadingAvailable, setLoadingAvailable] = useState(false);
-  const [scenarioSearch, setScenarioSearch] = useState('');
-  const [scenarioGameType, setScenarioGameType] = useState<string>('all');
-  const [addingScenario, setAddingScenario] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [removeConfirm, setRemoveConfirm] = useState<{ scenarioId: string; scenarioTitle: string } | null>(null);
-  const [removing, setRemoving] = useState(false);
   const [devices, setDevices] = useState<ClientDevice[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [detailsCollapsed, setDetailsCollapsed] = useState(true);
@@ -184,7 +176,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     company: '',
     phone: '',
     notes: '',
-    license_type: 'access' as LicenseType,
     billing_up_to_date: true,
     language: 'fr',
     update_channel: 'stable',
@@ -206,7 +197,13 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     devices_disabled: false,
     billing_grace_days: 30,
     billing_reprieve_days: 7,
+    // Statistics flags (admin-only; saved with the Client Details form).
+    stats_excluded_global: false,
+    stats_disabled: false,
+    // Tester: sees unvalidated scenario languages (admin-only).
+    sees_draft_languages: false,
   });
+  const [resettingStats, setResettingStats] = useState(false);
 
   useEffect(() => {
     loadClient();
@@ -271,106 +268,11 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
   };
 
-  const loadAvailableScenarios = async () => {
-    setLoadingAvailable(true);
-    try {
-      const response = await authFetch(`${API_BASE_URL}/scenarios.php?action=list`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const result = await response.json();
-        const productScenarios = result.scenarios.filter((s: ScenarioData) => s.scenario_type === 'product');
-        const boughtIds = boughtScenarios.map(s => s.id);
-        setAvailableScenarios(productScenarios.filter((s: ScenarioData) => !boughtIds.includes(s.id)));
-      }
-    } catch (err) {
-      console.error('Error loading available scenarios:', err);
-    } finally {
-      setLoadingAvailable(false);
-    }
-  };
-
-  const handleAddScenario = async (scenarioId: string) => {
-    setAddingScenario(true);
-    try {
-      console.log('Adding scenario:', { client_id: clientId, scenario_id: scenarioId });
-      const response = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=add`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ client_id: clientId, scenario_id: scenarioId }),
-      });
-
-      console.log('Response status:', response.status, response.statusText);
-      const result = await response.json();
-      console.log('Response data:', result);
-
-      if (response.ok) {
-        setSuccess('Scenario added successfully');
-        setTimeout(() => setSuccess(''), 3000);
-        await loadScenarios();
-        setShowAddScenarioModal(false);
-      } else {
-        console.error('Server error:', result.error);
-        setError(result.error || 'Failed to add scenario');
-      }
-    } catch (err) {
-      console.error('Failed to add scenario:', err);
-      setError(`Failed to add scenario: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setAddingScenario(false);
-    }
-  };
-
-  const handleRemoveScenario = (scenarioId: string, scenarioTitle: string) => {
-    setRemoveConfirm({ scenarioId, scenarioTitle });
-  };
-
-  const confirmRemoveScenario = async () => {
-    if (!removeConfirm) return;
-    setRemoving(true);
-    try {
-      const response = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=remove`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ client_id: clientId, scenario_id: removeConfirm.scenarioId }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setRemoveConfirm(null);
-        setSuccess('Scenario removed successfully');
-        setTimeout(() => setSuccess(''), 3000);
-        await loadScenarios();
-      } else {
-        setError(result.error || 'Failed to remove scenario');
-        setRemoveConfirm(null);
-      }
-    } catch (err) {
-      setError('Failed to remove scenario');
-      setRemoveConfirm(null);
-    } finally {
-      setRemoving(false);
-    }
-  };
-
-  const openAddScenarioModal = () => {
-    setShowAddScenarioModal(true);
-    setScenarioSearch('');
-    setScenarioGameType('all');
-    loadAvailableScenarios();
-  };
-
   // ---- Tag Hunter GO grants ----------------------------------------------
   const loadGoGrants = async () => {
     try {
       const response = await authFetch(
-        // grants_only: this section manages grant ROWS. Without it a premium
-        // client also lists every eligible product scenario (what it actually
-        // holds — see appScenariosForClient), which has no row to remove.
-        `${API_BASE_URL}/client_scenarios.php?action=list_go&grants_only=1&client_id=${clientId}`,
+        `${API_BASE_URL}/client_scenarios.php?action=list_go&client_id=${clientId}`,
         { credentials: 'include' },
       );
       if (response.ok) {
@@ -458,7 +360,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       {
         playground_enabled: formData.playground_enabled,
         max_devices: formData.max_devices,
-        license_type: formData.license_type,
         update_channel: formData.update_channel,
         billing_up_to_date: formData.billing_up_to_date,
         billing_grace_days: formData.billing_grace_days,
@@ -549,8 +450,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   const loadSpotGrants = async () => {
     try {
       const response = await authFetch(
-        // grants_only: see loadGoGrants — the admin manages rows, not access.
-        `${API_BASE_URL}/client_scenarios.php?action=list_spot&grants_only=1&client_id=${clientId}`,
+        `${API_BASE_URL}/client_scenarios.php?action=list_spot&client_id=${clientId}`,
         { credentials: 'include' },
       );
       if (response.ok) {
@@ -638,23 +538,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
   };
 
-  const availableGameTypes = useMemo(
-    () =>
-      Array.from(
-        new Set(availableScenarios.map((s) => s.game_type).filter((t): t is string => !!t))
-      ).sort(),
-    [availableScenarios]
-  );
-
-  const filteredAvailableScenarios = useMemo(() => {
-    const q = scenarioSearch.trim().toLowerCase();
-    return availableScenarios.filter((s) => {
-      if (scenarioGameType !== 'all' && s.game_type !== scenarioGameType) return false;
-      if (q && !(s.title || '').toLowerCase().includes(q)) return false;
-      return true;
-    });
-  }, [availableScenarios, scenarioSearch, scenarioGameType]);
-
   const loadClient = async () => {
     setLoading(true);
     const { data, error } = await clientApi.getClient(clientId);
@@ -668,7 +551,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         company: data.company || '',
         phone: data.phone || '',
         notes: data.notes || '',
-        license_type: (data.license_type as LicenseType) || 'access',
         billing_up_to_date: data.billing_up_to_date ?? true,
         language: data.language || 'fr',
         update_channel: data.update_channel || 'stable',
@@ -692,6 +574,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         devices_disabled: Number(data.devices_disabled) === 1,
         billing_grace_days: Number(data.billing_grace_days ?? 30),
         billing_reprieve_days: Number(data.billing_reprieve_days ?? 7),
+        stats_excluded_global: Number(data.stats_excluded_global) === 1,
+        stats_disabled: Number(data.stats_disabled) === 1,
+        sees_draft_languages: Number(data.sees_draft_languages) === 1,
       });
     }
     setLoading(false);
@@ -759,6 +644,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       phone: formData.phone,
       notes: formData.notes,
       language: formData.language,
+      stats_excluded_global: formData.stats_excluded_global,
+      stats_disabled: formData.stats_disabled,
+      sees_draft_languages: formData.sees_draft_languages,
     });
 
     if (error) {
@@ -770,6 +658,22 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     }
 
     setSaving(false);
+  };
+
+  const handleResetStats = async () => {
+    const who = client?.name || client?.company || client?.email || `#${clientId}`;
+    if (!window.confirm(`Delete ALL recorded game statistics of ${who}? This cannot be undone.`)) return;
+    setResettingStats(true);
+    setError('');
+    setSuccess('');
+    const result = await clientApi.resetStats(clientId);
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setSuccess(`Statistics reset (${result.deleted_games ?? 0} game(s) deleted)`);
+      setTimeout(() => setSuccess(''), 3000);
+    }
+    setResettingStats(false);
   };
 
   // ── Device-lock status readout (project_client_device_lock) ───────────────
@@ -949,13 +853,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               </h2>
               <p className="text-slate-600 mb-4">{client.email}</p>
               <div className="flex flex-wrap gap-3">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  client.license_type === 'premium'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-slate-100 text-slate-800'
-                }`}>
-                  {client.license_type === 'premium' ? 'Premium' : 'Access'} License
-                </span>
                 {/* Per-app billing mini-badges (project_client_app_section);
                     hidden for apps the client doesn't have enabled. */}
                 {[
@@ -1119,6 +1016,70 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
                 placeholder="Additional information about the client..."
               />
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-slate-700" />
+                <h4 className="text-lg font-bold text-slate-900">Statistics</h4>
+              </div>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.stats_excluded_global || formData.stats_disabled}
+                  disabled={formData.stats_disabled}
+                  onChange={(e) => setFormData({ ...formData, stats_excluded_global: e.target.checked })}
+                  className="mt-1 w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 disabled:opacity-50"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-700">No global stats for this account</span>
+                  <span className="block text-xs text-slate-500">
+                    Games are still recorded and visible to the client, but left out of the global statistics.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.stats_disabled}
+                  onChange={(e) => setFormData({ ...formData, stats_disabled: e.target.checked })}
+                  className="mt-1 w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-700">No stats at all</span>
+                  <span className="block text-xs text-slate-500">
+                    New games played by this client are not recorded. Existing stats are kept until reset.
+                  </span>
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={handleResetStats}
+                disabled={resettingStats}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className="w-4 h-4" />
+                {resettingStats ? 'Resetting...' : 'Reset stats'}
+              </button>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 space-y-3">
+              <h4 className="text-lg font-bold text-slate-900">Translations</h4>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.sees_draft_languages}
+                  onChange={(e) => setFormData({ ...formData, sees_draft_languages: e.target.checked })}
+                  className="mt-1 w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-slate-700">Sees draft languages (tester)</span>
+                  <span className="block text-xs text-slate-500">
+                    This client&apos;s studio and playgrounds also get the scenario languages still in draft in
+                    Admin › Translations, to test a translation on real hardware before validating it.
+                  </span>
+                </span>
+              </label>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
@@ -1337,33 +1298,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                   <p className="mt-1 text-xs text-slate-500">
                     Days after billing goes Overdue before this client's devices stop launching/joining games.
                   </p>
-                </div>
-
-                {/* License type (Playground-only) */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">License type</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="pg_license"
-                        checked={formData.license_type === 'access'}
-                        onChange={() => setFormData({ ...formData, license_type: 'access' as LicenseType })}
-                        className="w-4 h-4 text-slate-900 focus:ring-slate-900"
-                      />
-                      <span className="text-slate-700">Access</span>
-                    </label>
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="pg_license"
-                        checked={formData.license_type === 'premium'}
-                        onChange={() => setFormData({ ...formData, license_type: 'premium' as LicenseType })}
-                        className="w-4 h-4 text-slate-900 focus:ring-slate-900"
-                      />
-                      <span className="text-slate-700">Premium</span>
-                    </label>
-                  </div>
                 </div>
 
                 {/* App update channel (Playground-only) */}
@@ -1604,15 +1538,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         defaultCollapsed
         headerRight={
           <>
-            {client?.license_type === 'access' && (
-              <button
-                onClick={openAddScenarioModal}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Add Product Scenario
-              </button>
-            )}
             <span className="text-sm text-slate-600">
               {boughtScenarios.filter(s => s.scenario_type === 'product').length} total
             </span>
@@ -1628,7 +1553,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               <ShoppingCart className="w-12 h-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-600">No product scenarios assigned</p>
               <p className="text-sm text-slate-500 mt-1">
-                Use the button above to grant product scenarios to this client
+                Published product scenarios appear here automatically
               </p>
             </div>
           ) : (
@@ -1665,26 +1590,16 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       </span>
                     )}
                     <div className="flex-1" />
-                    {client?.license_type === 'access' && (
-                      <button
-                        onClick={() => handleRemoveScenario(scenario.id, scenario.title)}
-                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
-                        title="Remove scenario"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
 
-              {client?.license_type === 'premium' && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-sm text-amber-800">
-                    <span className="font-semibold">Premium License:</span> This client has access to all product scenarios automatically.
-                  </p>
-                </div>
-              )}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  Every published product scenario authored in this client's language is available to them
+                  automatically. Tag Hunter GO / Spot scenarios are granted by hand in their own sections.
+                </p>
+              </div>
             </div>
           )}
       </CollapsibleSection>
@@ -2215,153 +2130,6 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         </div>
       )}
 
-      {removeConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
-            <div className="p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">Remove Product Scenario</h3>
-                  <p className="text-sm text-slate-500">This action cannot be undone</p>
-                </div>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-slate-600 mb-1">You are about to remove:</p>
-                <p className="font-semibold text-slate-900">"{removeConfirm.scenarioTitle}"</p>
-                <p className="text-sm text-slate-500 mt-2">
-                  from <span className="font-medium text-slate-700">{client?.name || client?.email}</span>
-                </p>
-              </div>
-
-              <p className="text-sm text-slate-600 mb-6">
-                The client will immediately lose access to this product scenario and all its associated content.
-              </p>
-
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={() => setRemoveConfirm(null)}
-                  disabled={removing}
-                  className="px-5 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all font-medium text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={confirmRemoveScenario}
-                  disabled={removing}
-                  className="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {removing ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Removing...
-                    </>
-                  ) : (
-                    <>
-                      <X className="w-4 h-4" />
-                      Remove Scenario
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAddScenarioModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-slate-900">Add Product Scenarios</h3>
-              <button
-                onClick={() => setShowAddScenarioModal(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {!loadingAvailable && availableScenarios.length > 0 && (
-              <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={scenarioSearch}
-                    onChange={(e) => setScenarioSearch(e.target.value)}
-                    placeholder="Search scenarios..."
-                    className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm"
-                  />
-                </div>
-                <select
-                  value={scenarioGameType}
-                  onChange={(e) => setScenarioGameType(e.target.value)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 text-sm capitalize"
-                >
-                  <option value="all">All game types</option>
-                  {availableGameTypes.map((t) => (
-                    <option key={t} value={t} className="capitalize">
-                      {gameTypeLabel(t)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="p-6 overflow-y-auto max-h-[calc(80vh-200px)]">
-              {loadingAvailable ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
-                </div>
-              ) : availableScenarios.length === 0 ? (
-                <div className="text-center py-12">
-                  <ShoppingCart className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                  <p className="text-slate-600">No product scenarios available</p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    All product scenarios have been added to this client
-                  </p>
-                </div>
-              ) : filteredAvailableScenarios.length === 0 ? (
-                <div className="text-center py-12">
-                  <Search className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                  <p className="text-slate-600">No scenarios match your filters</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredAvailableScenarios.map((scenario) => (
-                    <div
-                      key={scenario.id}
-                      className="border border-slate-200 rounded-lg px-4 py-3 hover:border-slate-300 transition-colors flex items-center gap-3"
-                    >
-                      {scenario.game_type && (
-                        <GameTypeIcon type={scenario.game_type} className="w-5 h-5 text-slate-400 flex-shrink-0" />
-                      )}
-                      <h4 className="font-semibold text-slate-900 truncate">{scenario.title}</h4>
-                      {scenario.game_type && (
-                        <span className="text-xs text-slate-500 capitalize hidden sm:inline flex-shrink-0">
-                          {gameTypeLabel(scenario.game_type)}
-                        </span>
-                      )}
-                      <div className="flex-1" />
-                      <button
-                        onClick={() => handleAddScenario(scenario.id)}
-                        disabled={addingScenario}
-                        className="px-4 py-2 bg-slate-900 text-white text-sm rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
-                      >
-                        {addingScenario ? 'Adding...' : 'Add'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

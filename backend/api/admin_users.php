@@ -5,6 +5,10 @@ setCorsHeaders();
 
 header('Content-Type: application/json');
 session_start();
+// This endpoint only READS the session. Release its lock straight away so the
+// browser's parallel requests do not queue behind one another (a slow save or
+// hash recompute used to hold every other call - retours sept. 2026 #42).
+session_write_close();
 
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';

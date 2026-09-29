@@ -2,8 +2,8 @@
   "malusCombo": {
     "sectionTitle": "Malus & combo",
     "keys": {
-      "malus_points": "points de malus (par bip sur la station de malus)",
-      "late_malus_points": "points de retard (par minute de dépassement)",
+      "malus_points": "points de malus (par bip sur la balise malus) (entrer une valeur négative)",
+      "late_malus_points": "points de retard (par minute de dépassement) (entrer une valeur négative)",
       "combo_2_quests": "points par combo de 2 quêtes",
       "combo_4_quests": "points par combo de 4 quêtes",
       "combo_6_quests": "points par combo de 6 quêtes"
@@ -37,39 +37,39 @@
     }
   },
   "malusStation": {
-    "label": "Station de malus",
-    "none": "Choisir une station de malus",
-    "selected": "Station {{name}} (#{{id}})",
-    "hint": "Chaque bip sur cette station retire les « points de malus » ci-dessus. Elle ne peut pas faire partie du modèle sélectionné.",
+    "label": "Balise malus",
+    "none": "Choisir une balise malus",
+    "selected": "Balise {{name}} (#{{id}})",
+    "hint": "Chaque bip sur cette balise retire les « points de malus » ci-dessus. Elle ne peut pas faire partie du modèle sélectionné.",
     "clear": "Retirer",
     "cancel": "Annuler",
     "confirm": "Valider",
-    "pickerTitle": "Choisir la station de malus",
-    "pickerHint": "Une seule station. Les stations utilisées par le modèle sont désactivées.",
-    "pickerSearchPlaceholder": "Rechercher une station…",
-    "pickerLoading": "Chargement des stations…",
-    "pickerError": "Impossible de charger l'inventaire des stations.",
-    "pickerEmpty": "Aucune station dans l'inventaire.",
+    "pickerTitle": "Choisir la balise malus",
+    "pickerHint": "Une seule balise. Les balises utilisées par le modèle sont désactivées.",
+    "pickerSearchPlaceholder": "Rechercher une balise…",
+    "pickerLoading": "Chargement des balises…",
+    "pickerError": "Impossible de charger l'inventaire des balises.",
+    "pickerEmpty": "Aucune balise dans l'inventaire.",
     "usedByPattern": "Déjà utilisée par le modèle sélectionné",
     "usedByPatternShort": "dans le modèle",
-    "unknownSelected": "La station #{{id}} n'est plus dans l'inventaire.",
-    "conflict": "La station de malus #{{id}} est aussi utilisée par le modèle sélectionné. Un même bip ne peut pas à la fois valider une pièce de quête et coûter des points.",
-    "conflictFix": "Retirer la station de malus"
+    "unknownSelected": "La balise #{{id}} n'est plus dans l'inventaire.",
+    "conflict": "La balise malus #{{id}} est aussi utilisée par le modèle sélectionné. Un même bip ne peut pas à la fois valider une pièce de quête et coûter des points.",
+    "conflictFix": "Retirer la balise malus"
   },
   "pattern": {
     "sectionTitle": "Modèle par défaut",
-    "label": "Modèle tagquest par défaut (images de quête → correspondance des stations)",
+    "label": "Modèle Quest par défaut (images de quête → correspondance des balises)",
     "none": "- Aucun -",
     "notFoundOption": "{{value}} (introuvable)",
-    "hint": "Associe les quatre images de pièces de chaque quête aux stations/balises. Créez des modèles tagquest dans la page Modèles. La correspondance est affichée à côté de chaque image ci-dessous. Modifiable au lancement.",
-    "collidesSuffix": "— utilise la station de malus",
-    "collisionRefused": "« {{pattern}} » utilise la station #{{id}}, définie comme station de malus. Modèle non appliqué.",
-    "collisionCurrent": "Le modèle sélectionné utilise la station #{{id}}, définie comme station de malus.",
-    "collisionFix": "Retirer la station de malus",
-    "collisionFixAndApply": "Retirer la station de malus et appliquer ce modèle"
+    "hint": "Associe les quatre images de pièces de chaque quête aux balises. Créez des modèles Quest dans la page Modèles. La correspondance est affichée à côté de chaque image ci-dessous. Modifiable au lancement.",
+    "collidesSuffix": "(utilise la balise malus)",
+    "collisionRefused": "« {{pattern}} » utilise la balise #{{id}}, définie comme balise malus. Modèle non appliqué.",
+    "collisionCurrent": "Le modèle sélectionné utilise la balise #{{id}}, définie comme balise malus.",
+    "collisionFix": "Retirer la balise malus",
+    "collisionFixAndApply": "Retirer la balise malus et appliquer ce modèle"
   },
   "productTemplate": {
-    "notice": "<0>Modèle de produit :</0> les options « utiliser les images/textes par défaut » de l'ancien éditeur ne sont pas encore portées. Elles reviendront dans une prochaine mise à jour ; pour l'instant, créez les nouveaux scénarios tagquest à partir de zéro."
+    "notice": "<0>Modèle de produit :</0> les options « utiliser les images/textes par défaut » de l'ancien éditeur ne sont pas encore portées. Elles reviendront dans une prochaine mise à jour ; pour l'instant, créez les nouveaux scénarios Quest à partir de zéro."
   },
   "quests": {
     "sectionTitle": "Quêtes",
@@ -80,7 +80,7 @@
     "expandQuest": "Développer la quête",
     "removeQuest": "Supprimer la quête",
     "unnamedQuest": "Quête sans nom",
-    "unknownStation": "Station inconnue",
+    "unknownStation": "Balise inconnue",
     "piecesProgress": "{{n}}/4 pièces",
     "pts": "{{points}} pts",
     "questName": "Nom de la quête",
@@ -117,7 +117,7 @@
     "hint": "Un emplacement laissé vide reste silencieux. Le son de quête, lui, se règle quête par quête dans la section Quêtes : il est joué quand l'image complète de la quête apparaît.",
     "triggers": {
       "cheating_sound": "Joué quand une puce est refusée pour triche (des poinçons ont disparu ou ont été remplacés depuis la lecture précédente), en même temps que le message à l'écran.",
-      "malus_sound": "Joué quand l'équipe a bipé la station de malus, au moment où le compteur « malus » monte à l'écran.",
+      "malus_sound": "Joué quand l'équipe a bipé la balise malus, au moment où le compteur « malus » monte à l'écran.",
       "late_malus_sound": "Joué quand des points de retard sont décomptés (temps de jeu dépassé), au moment où le compteur « retard » monte à l'écran."
     }
   }

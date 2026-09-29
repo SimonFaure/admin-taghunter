@@ -8,7 +8,7 @@ import type { ReportLayout, ReportBlock } from './api';
 export const STAT_FIELDS_BY_TYPE: Record<string, string[]> = {
   mystery: ['rate', 'success', 'fail', 'absent'],
   tracks: ['rate', 'correct', 'wrong', 'missing'],
-  tagquest: ['quests', 'points', 'level', 'combos'],
+  tagquest: ['quests', 'points', 'level', 'combos', 'players'],
   clash: ['territories', 'combos'],
 };
 

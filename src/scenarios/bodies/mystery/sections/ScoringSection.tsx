@@ -82,6 +82,7 @@ export function ScoringSection() {
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
             />
+            <span className="mt-1 block text-[11px] text-gray-500">{t('editorMystery:scoring.malusHint')}</span>
           </label>
         ))}
 

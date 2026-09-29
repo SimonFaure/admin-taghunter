@@ -24,7 +24,7 @@
     "framesLabel": "Cadres du tableau de bord (facultatif - le style par défaut est utilisé si non défini)"
   },
   "purge": {
-    "title": "The Purge",
+    "title": "Purge",
     "hint": "Une fois par partie, un clan peut poinçonner la station de purge pour réinitialiser à neutre le territoire le plus fort du clan en tête. L'image marque la cible actuelle sur la carte (positionnez-la par territoire dans l'éditeur de mise en page) et le son est joué sur tous les appareils lorsqu'une purge se déclenche.",
     "warning": "Sans image, la Purge est désactivée au lancement dans le playground (aucune image par défaut n'est fournie).",
     "stationLabel": "Balise de purge",
@@ -33,7 +33,31 @@
     "stationUnknown": "La balise {{station}} ne fait pas partie de votre parc de balises. Choisissez-en une dans la liste.",
     "chooseStation": "Choisir la balise",
     "pickerTitle": "Balise de purge",
-    "pickerHint": "Une seule balise. Celles déjà attribuées à un territoire ne sont pas sélectionnables."
+    "pickerHint": "Une seule balise. Celles déjà attribuées à un territoire ne sont pas sélectionnables.",
+    "textsTitle": "Textes de la purge",
+    "textsHint": "Laissez un champ vide pour garder la formulation par défaut dans la langue de lancement. %CLAN% et %TERRITORY% sont remplacés comme dans le bandeau d'événements. Reformulez ici pour gérer les noms de clans au singulier comme au pluriel.",
+    "texts": {
+      "event_text_purge": {
+        "label": "Annonce de la purge",
+        "placeholder": "%CLAN% a purgé %TERRITORY% !",
+        "when": "Affichée en grand sur tous les écrans et dans le bandeau d'événements quand une purge réussit (même champ que dans « Textes du bandeau d'événements »)."
+      },
+      "purge_text_already_used": {
+        "label": "Purge déjà utilisée",
+        "placeholder": "Purge déjà utilisée par votre clan",
+        "when": "Le clan qui bipe a déjà utilisé sa purge."
+      },
+      "purge_text_own_territory": {
+        "label": "Propre territoire",
+        "placeholder": "Impossible de purger votre propre territoire",
+        "when": "La cible actuelle est un territoire que ce clan contrôle."
+      },
+      "purge_text_no_target": {
+        "label": "Aucune cible",
+        "placeholder": "Aucun territoire à purger pour le moment",
+        "when": "Pas encore de clan en tête, ou le clan en tête n'a validé aucun territoire."
+      }
+    }
   },
   "territories": {
     "title": "Territoires",
@@ -54,7 +78,7 @@
     "minTooltip": "Au moins {{count}} territoires requis",
     "name": "Nom du territoire",
     "pointsPerMinute": "Points / minute",
-    "balisesLabel": "Balises (numéros de station)",
+    "balisesLabel": "Balises (numéros de balise)",
     "balisesHint": "Une puce doit biper toutes ces balises puis s'enregistrer au lecteur central pour valider le territoire. Chaque balise ne peut appartenir qu'à un seul territoire. Modifiables par site au lancement.",
     "chooseBalises": "Choisir les balises",
     "noBalises": "Aucune balise sélectionnée",
@@ -66,7 +90,7 @@
     "pickerError": "Impossible de charger l'inventaire des balises. Fermez et réessayez.",
     "pickerEmpty": "Aucune balise dans votre inventaire. Ajoutez d'abord des balises dans le gestionnaire de balises.",
     "usedByTerritory": "Utilisée par {{territory}}",
-    "notNumeric": "Pas de numéro de station",
+    "notNumeric": "Pas de numéro de balise",
     "unknownStation": "Absente de l'inventaire",
     "cancel": "Annuler",
     "confirm": "Confirmer",

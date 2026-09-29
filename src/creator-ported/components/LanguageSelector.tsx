@@ -7,6 +7,8 @@ interface LanguageSelectorProps {
   onLanguageChange: (language: string) => void;
   onAddLanguage: () => void;
   onRemoveLanguage: (language: string) => void;
+  /** Languages not yet released to clients - badged "draft" (admin only). */
+  draftLanguages?: string[];
 }
 
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -31,7 +33,8 @@ export function LanguageSelector({
   currentLanguage,
   onLanguageChange,
   onAddLanguage,
-  onRemoveLanguage
+  onRemoveLanguage,
+  draftLanguages = []
 }: LanguageSelectorProps) {
   const { t } = useTranslation('creatorComponents');
   return (
@@ -74,6 +77,16 @@ export function LanguageSelector({
             <span className="text-sm opacity-90">
               {LANGUAGE_NAMES[lang] || lang}
             </span>
+            {draftLanguages.includes(lang) && (
+              <span
+                title={t('languages.draftHint')}
+                className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                  currentLanguage === lang ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {t('languages.draft')}
+              </span>
+            )}
             {availableLanguages.length > 1 && (
               <button
                 type="button"

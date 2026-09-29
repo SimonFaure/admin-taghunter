@@ -34,7 +34,7 @@ export function validateTagquestConfig(config: any, scenarioTitle: string, scena
 
   const questCount = config.quests?.length ?? 0;
   check(issues, questCount > 0, 'quests', 'At least one quest is required', 'error');
-  check(issues, questCount <= 6, 'quests', 'Tagquest supports at most 6 quests', 'error');
+  check(issues, questCount <= 6, 'quests', 'Quest supports at most 6 quests', 'error');
 
   if (questCount > 0) {
     config.quests.forEach((q: any, i: number) => {
@@ -56,7 +56,8 @@ export function validateTagquestConfig(config: any, scenarioTitle: string, scena
   // - the feature is inert either way. The "not also a pattern station" rule
   // needs pattern_items, which this sync validator has no access to; it is
   // enforced at selection time by both pickers in the tagquest editor.
-  const malusPoints = parseInt(String(config.malus_points ?? '0'), 10) || 0;
+  // Signed or not: the editor asks for a negative value, older scenarios are positive.
+  const malusPoints = Math.abs(parseInt(String(config.malus_points ?? '0'), 10) || 0);
   const malusStation = config.malus_station ?? null;
   check(issues, !(malusPoints > 0 && malusStation == null), 'malus_station', 'Malus points are set but no malus station is selected - no punch will ever trigger the malus', 'warning');
   check(issues, !(malusStation != null && malusPoints <= 0), 'malus_points', 'A malus station is selected but malus points are 0 - punching it will cost nothing', 'warning');

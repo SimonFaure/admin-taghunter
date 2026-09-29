@@ -10,7 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const ALL_GAME_TYPES = ['mystery', 'tagquest', 'tracks', 'clash'] as const;
 const GAME_TYPE_LABELS: Record<string, string> = {
   mystery: 'Mystery',
-  tagquest: 'Tagquest',
+  tagquest: 'Quest',
   tracks: 'Track',
   clash: 'Clash',
 };

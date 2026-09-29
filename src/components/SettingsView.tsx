@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Database, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Database, CheckCircle, AlertCircle, Loader2, Crown } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { HelpButton } from '../help';
 
@@ -22,6 +22,8 @@ export function SettingsView() {
   } | null>(null);
   const [dbInfo, setDbInfo] = useState<DbInfo | null>(null);
   const [dbInfoError, setDbInfoError] = useState<string | null>(null);
+  const [isSettingPremium, setIsSettingPremium] = useState(false);
+  const [premiumStatus, setPremiumStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/db_info.php`, { credentials: 'include' })
@@ -67,6 +69,33 @@ export function SettingsView() {
       });
     } finally {
       setIsMigrating(false);
+    }
+  };
+
+  // Single licence type: flip every client to premium in one go
+  // (project_premium_client_grant_blind_spot).
+  const setAllClientsPremium = async () => {
+    if (!window.confirm('Set the licence of ALL clients to Premium?')) return;
+    setIsSettingPremium(true);
+    setPremiumStatus(null);
+    try {
+      const response = await authFetch(`${API_BASE_URL}/clients.php?action=set_all_premium`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setPremiumStatus({
+          success: true,
+          message: `${data.updated} client(s) switched to Premium (${data.total} clients in total).`,
+        });
+      } else {
+        setPremiumStatus({ success: false, message: data.error || `HTTP ${response.status}` });
+      }
+    } catch {
+      setPremiumStatus({ success: false, message: 'Failed to connect to the server. Please try again.' });
+    } finally {
+      setIsSettingPremium(false);
     }
   };
 
@@ -168,6 +197,61 @@ export function SettingsView() {
         <p className="text-xs text-slate-500 mt-3">
           Note: This will safely apply all pending migrations. Existing data will not be affected.
         </p>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="p-3 bg-amber-100 rounded-lg">
+            <Crown className="w-6 h-6 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Client licences</h3>
+            <p className="text-sm text-slate-600">
+              There is a single licence type: switch every client to Premium
+            </p>
+          </div>
+        </div>
+
+        {premiumStatus && (
+          <div
+            className={`mb-4 p-4 rounded-lg flex items-start space-x-3 ${
+              premiumStatus.success
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}
+          >
+            {premiumStatus.success ? (
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            )}
+            <p className={`text-sm font-medium ${premiumStatus.success ? 'text-green-900' : 'text-red-900'}`}>
+              {premiumStatus.message}
+            </p>
+          </div>
+        )}
+
+        <button
+          onClick={setAllClientsPremium}
+          disabled={isSettingPremium}
+          className={`flex items-center justify-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
+            isSettingPremium
+              ? 'bg-slate-300 cursor-not-allowed'
+              : 'bg-amber-600 hover:bg-amber-700 text-white'
+          }`}
+        >
+          {isSettingPremium ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Updating clients...</span>
+            </>
+          ) : (
+            <>
+              <Crown className="w-5 h-5" />
+              <span>Set all clients to Premium</span>
+            </>
+          )}
+        </button>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">

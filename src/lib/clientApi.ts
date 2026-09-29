@@ -65,6 +65,14 @@ export const clientApi = {
     );
   },
 
+  // Admin: irreversibly delete every recorded game statistic of one client.
+  async resetStats(clientId: string): Promise<ApiResponse<void> & { deleted_games?: number }> {
+    return phpFetch<void>('/clients.php?action=reset_stats', {
+      method: 'POST',
+      body: JSON.stringify({ client_id: clientId }),
+    });
+  },
+
   async changePassword(clientId: string, newPassword: string): Promise<ApiResponse<void>> {
     return phpFetch<void>('/clients.php?action=change_password', {
       method: 'POST',

@@ -4,27 +4,19 @@ import { authFetch } from '../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
-interface Client {
-  id: number;
-  email: string;
-  name?: string | null;
-  company?: string | null;
-  license_type?: 'access' | 'premium';
-}
-
 interface ScenarioAdminControlsProps {
   scenarioId: string;
 }
 
-// Admin-only section mounted inside MysteryConfig / TagquestConfig. Exposes:
-//   - Product-template toggle (scenario_type: 'custom' ↔ 'product')
-//   - Client access grants (only meaningful when scenario is a product)
+// Admin-only section mounted inside MysteryConfig / TagquestConfig. Exposes the
+// product-template toggle (scenario_type: 'custom' ↔ 'product'). There is a
+// single licence (premium): a PUBLISHED product reaches every client, so there
+// is no per-client playground grant to manage here. GO / Spot access is granted
+// by hand on the admin client page.
 export function ScenarioAdminControls({ scenarioId }: ScenarioAdminControlsProps) {
   const [scenarioType, setScenarioType] = useState<'custom' | 'product' | null>(null);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [grantedIds, setGrantedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<'type' | 'grants' | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
 
@@ -34,44 +26,22 @@ export function ScenarioAdminControls({ scenarioId }: ScenarioAdminControlsProps
       setLoading(true);
       setError(null);
       try {
-        const [scRes, clRes, grantsRes] = await Promise.all([
-          authFetch(`${API_BASE_URL}/query.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              table: 'scenarios',
-              op: 'select',
-              select: 'id, scenario_type, client_id',
-              where: [['id', 'eq', Number(scenarioId)]],
-              maybeSingle: true,
-            }),
+        const scRes = await authFetch(`${API_BASE_URL}/query.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: 'scenarios',
+            op: 'select',
+            select: 'id, scenario_type, client_id',
+            where: [['id', 'eq', Number(scenarioId)]],
+            maybeSingle: true,
           }),
-          authFetch(`${API_BASE_URL}/clients.php?action=list`),
-          authFetch(`${API_BASE_URL}/query.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              table: 'client_scenarios',
-              op: 'select',
-              select: 'client_id',
-              where: [['scenario_id', 'eq', Number(scenarioId)]],
-            }),
-          }),
-        ]);
-
+        });
         const scBody = await scRes.json();
-        const clBody = await clRes.json();
-        const grBody = await grantsRes.json();
         if (cancelled) return;
 
         const currentType = (scBody?.data?.scenario_type ?? null) as 'custom' | 'product' | null;
         setScenarioType(currentType || 'custom');
-
-        const fetched: Client[] = (clBody?.data as Client[]) || [];
-        setClients(fetched);
-
-        const grants: { client_id: number }[] = (grBody?.data as any[]) || [];
-        setGrantedIds(new Set(grants.map((g) => Number(g.client_id))));
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load admin controls');
       } finally {
@@ -85,12 +55,9 @@ export function ScenarioAdminControls({ scenarioId }: ScenarioAdminControlsProps
 
   const toggleProduct = async (asProduct: boolean) => {
     const next: 'custom' | 'product' = asProduct ? 'product' : 'custom';
-    setSaving('type');
+    setSaving(true);
     setError(null);
     try {
-      const form = new FormData();
-      form.append('id', scenarioId);
-      form.append('scenario_type', next);
       // When flipping to product, clear client_id; to custom, leave as-is (admin decides elsewhere).
       const res = await authFetch(`${API_BASE_URL}/query.php`, {
         method: 'POST',
@@ -110,34 +77,7 @@ export function ScenarioAdminControls({ scenarioId }: ScenarioAdminControlsProps
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Update failed');
     } finally {
-      setSaving(null);
-    }
-  };
-
-  const toggleGrant = async (clientId: number, grant: boolean) => {
-    setSaving('grants');
-    setError(null);
-    try {
-      const action = grant ? 'add' : 'remove';
-      const res = await authFetch(`${API_BASE_URL}/client_scenarios.php?action=${action}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: clientId, scenario_id: Number(scenarioId) }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body?.error || `Failed to ${action} grant`);
-      }
-      setGrantedIds((prev) => {
-        const next = new Set(prev);
-        if (grant) next.add(clientId);
-        else next.delete(clientId);
-        return next;
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Grant update failed');
-    } finally {
-      setSaving(null);
+      setSaving(false);
     }
   };
 
@@ -172,55 +112,24 @@ export function ScenarioAdminControls({ scenarioId }: ScenarioAdminControlsProps
               <input
                 type="checkbox"
                 checked={scenarioType === 'product'}
-                disabled={saving === 'type'}
+                disabled={saving}
                 onChange={(e) => toggleProduct(e.target.checked)}
                 className="h-4 w-4"
               />
               <span className="text-sm text-slate-900 font-medium">Publish as Taghunter product template</span>
             </label>
             <p className="ml-6 mt-1 text-xs text-slate-600">
-              Products have <code>client_id = NULL</code>. Premium clients see all products; access clients need explicit grants below.
+              Products have <code>client_id = NULL</code>. Once published, a product is available to every Taghunter client.
             </p>
           </div>
 
           {scenarioType === 'product' && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                <Users className="w-4 h-4" />
-                Which clients have access?
-              </div>
-              {clients.length === 0 ? (
-                <p className="text-sm text-slate-500">No clients on file.</p>
-              ) : (
-                <ul className="max-h-64 overflow-auto divide-y divide-slate-200 rounded border border-slate-200 bg-white">
-                  {clients.map((c) => {
-                    const granted = grantedIds.has(c.id);
-                    const premium = c.license_type === 'premium';
-                    return (
-                      <li key={c.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={granted || premium}
-                          disabled={premium || saving === 'grants'}
-                          onChange={(e) => toggleGrant(c.id, e.target.checked)}
-                          className="h-4 w-4"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-900 truncate">
-                            {c.name || c.email}
-                          </div>
-                          <div className="text-xs text-slate-500 truncate">{c.email}</div>
-                        </div>
-                        {premium && (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs">
-                            premium (auto)
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+            <div className="flex items-start gap-2 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
+              <Users className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <p>
+                All clients get this scenario in the Playground as soon as it is published. Tag Hunter GO / Spot
+                access is never automatic: grant it per client from the admin client page.
+              </p>
             </div>
           )}
         </>

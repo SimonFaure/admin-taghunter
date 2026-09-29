@@ -1,10 +1,10 @@
 {
   "pattern": {
     "sectionTitle": "Modèle par défaut",
-    "label": "Modèle de parcours par défaut (correspondance point de contrôle → station)",
+    "label": "Modèle de parcours par défaut (correspondance point de contrôle → balise)",
     "none": "- Aucun -",
     "notFound": "{{value}} (introuvable)",
-    "hint": "Attribue chaque point de contrôle à une station/balise. Créez les modèles de parcours dans la page Modèles. La correspondance est affichée sous chaque point de contrôle ci-dessous. Modifiable au lancement."
+    "hint": "Attribue chaque point de contrôle à une balise. Créez les modèles de parcours dans la page Modèles. La correspondance est affichée sous chaque point de contrôle ci-dessous. Modifiable au lancement."
   },
   "checkpoints": {
     "sectionTitle": "Points de contrôle ({{count}})",
@@ -19,8 +19,8 @@
     "none": "Aucun point de contrôle pour le moment.",
     "checkpointImage": "Image du point de contrôle",
     "checkpointN": "Point de contrôle {{number}}",
-    "unknownStation": "Station inconnue",
-    "noStationAssigned": "Aucune station attribuée",
+    "unknownStation": "Balise inconnue",
+    "noStationAssigned": "Aucune balise attribuée",
     "moveUp": "Monter",
     "moveDown": "Descendre",
     "removeCheckpoint": "Supprimer le point de contrôle",
@@ -119,7 +119,7 @@
     "sectionTitle": "Cadres HUD"
   },
   "textElements": {
-    "sectionTitle": "Éléments de texte — optionnel ({{count}})",
+    "sectionTitle": "Éléments de texte, optionnel ({{count}})",
     "optionalHint": "Cette section est facultative. Ce sont des textes libres que vous pouvez ajouter sur la carte si vous le souhaitez (nom de lieu, consigne, légende…), placés ensuite dans l'éditeur de mise en page. Si vous n'en ajoutez aucun, le scénario fonctionne normalement.",
     "addCategory": "Ajouter une catégorie",
     "addElement": "Ajouter un élément",
@@ -154,7 +154,7 @@
     "sectionTitle": "Sons"
   },
   "rankRewards": {
-    "sectionTitle": "Récompenses de classement — optionnel",
+    "sectionTitle": "Récompenses de classement (optionnel)",
     "hint": "Image plein écran et son joués à la fin d'un parcours quand l'équipe entre dans le top 1, le top 3 ou le top 10. Laissez un champ vide pour ne rien jouer. Les scénarios importés depuis l'ancien logiciel arrivent souvent avec un son déjà chargé ici."
   },
   "typography": {

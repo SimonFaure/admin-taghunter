@@ -6,7 +6,9 @@
     "empty": "No languages configured. Add a language to get started.",
     "modalTitle": "Add Language",
     "allAdded": "All available languages have been added.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "draft": "Draft",
+    "draftHint": "Not released to clients yet. Validate it in Admin › Translations › Scenarios."
   },
   "creator": {
     "back": "Back",
@@ -24,5 +26,10 @@
     "cancel": "Cancel",
     "validationTitle": "Please provide a title",
     "saveError": "Failed to save scenario"
+  },
+  "publish": {
+    "publishSelf": "Publish (self)",
+    "publishForLicensee": "Publish for a licensee",
+    "publishing": "Publishing..."
   }
 }

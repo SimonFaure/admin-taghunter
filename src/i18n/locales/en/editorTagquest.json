@@ -2,8 +2,8 @@
   "malusCombo": {
     "sectionTitle": "Malus & combo",
     "keys": {
-      "malus_points": "malus points (per punch on the malus station)",
-      "late_malus_points": "overtime points (per minute over)",
+      "malus_points": "malus points (per punch on the malus station) (enter a negative value)",
+      "late_malus_points": "overtime points (per minute over) (enter a negative value)",
       "combo_2_quests": "points per 2-quest combo",
       "combo_4_quests": "points per 4-quest combo",
       "combo_6_quests": "points per 6-quest combo"
@@ -58,10 +58,10 @@
   },
   "pattern": {
     "sectionTitle": "Default pattern",
-    "label": "Default tagquest pattern (quest images → station mapping)",
+    "label": "Default Quest pattern (quest images → station mapping)",
     "none": "- None -",
     "notFoundOption": "{{value}} (not found)",
-    "hint": "Assigns each quest's four piece images to stations/balises. Create tagquest patterns in the Patterns page. The mapping is shown next to each image below. Overridable at launch.",
+    "hint": "Assigns each quest's four piece images to stations/balises. Create Quest patterns in the Patterns page. The mapping is shown next to each image below. Overridable at launch.",
     "collidesSuffix": "— uses the malus station",
     "collisionRefused": "\"{{pattern}}\" uses station #{{id}}, which is set as the malus station. Pattern not applied.",
     "collisionCurrent": "The selected pattern uses station #{{id}}, which is set as the malus station.",
@@ -69,7 +69,7 @@
     "collisionFixAndApply": "Remove the malus station and apply this pattern"
   },
   "productTemplate": {
-    "notice": "<0>Product template:</0> the \"use default images/texts\" toggles from the legacy editor are not yet ported. They will return in a follow-up; for now create new tagquest scenarios from scratch."
+    "notice": "<0>Product template:</0> the \"use default images/texts\" toggles from the legacy editor are not yet ported. They will return in a follow-up; for now create new Quest scenarios from scratch."
   },
   "quests": {
     "sectionTitle": "Quests",

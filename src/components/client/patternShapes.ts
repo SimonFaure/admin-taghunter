@@ -30,7 +30,7 @@ export const PATTERN_SHAPES: Record<string, PatternShape> = {
 
 export const PATTERN_GAME_TYPES: Array<{ value: string; label: string }> = [
   { value: 'mystery', label: 'Mystery' },
-  { value: 'tagquest', label: 'Tagquest' },
+  { value: 'tagquest', label: 'Quest' },
   { value: 'tracks', label: 'Track' },
 ];
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download, Gauge } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download, Gauge, Languages, CornerDownRight } from 'lucide-react';
+import { SUPPORTED_LANGS, LANGUAGES } from '../i18n/languages';
 import { authFetch } from '../lib/authFetch';
 import { ImportLegacyZipModal } from './ImportLegacyZipModal';
 import { ManageGameTypesModal } from './ManageGameTypesModal';
@@ -127,6 +128,10 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
   const [parsedGameData, setParsedGameData] = useState<any>(null);
   const [scenarioFiles, setScenarioFiles] = useState<any[]>([]);
   const [uploadFileName, setUploadFileName] = useState('');
+  /** Language of the file being uploaded ('' = the scenario's default). */
+  const [uploadLanguage, setUploadLanguage] = useState('');
+  /** Non-null while uploading a language version OF an existing document. */
+  const [variantParent, setVariantParent] = useState<any | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -482,6 +487,8 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
       formData.append('file', uploadFile);
       formData.append('name', uploadFileName);
       formData.append('scenario_id', selectedScenario.id.toString());
+      if (uploadLanguage) formData.append('language', uploadLanguage);
+      if (variantParent) formData.append('parent_file_id', String(variantParent.id));
 
       const response = await authFetch(`${API_BASE_URL}/scenario_files.php?action=upload`, {
         method: 'POST',
@@ -494,13 +501,13 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
         throw new Error(errorData.error || 'Failed to upload file');
       }
 
-      const data = await response.json();
-      const newFile = data.data || data.file;
-      if (newFile) {
-        setScenarioFiles([newFile, ...scenarioFiles]);
-      }
+      // Re-fetch rather than prepending: the list is ordered by variant group,
+      // so a new language version has to land under its primary.
+      await fetchScenarioFiles(selectedScenario.id);
       setUploadFileName('');
       setUploadFile(null);
+      setUploadLanguage('');
+      setVariantParent(null);
 
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) {
@@ -510,6 +517,32 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
       alert(err instanceof Error ? err.message : 'Failed to upload file');
     } finally {
       setUploadLoading(false);
+    }
+  };
+
+  /** Set which language edition a file is. Optimistic; reverts on failure. */
+  const handleSetFileLanguage = async (fileId: number, language: string) => {
+    const previous = scenarioFiles;
+    setScenarioFiles(
+      scenarioFiles.map((f) => (f.id === fileId ? { ...f, language: language || null } : f)),
+    );
+    try {
+      const response = await authFetch(
+        `${API_BASE_URL}/scenario_translations.php?action=set_file_meta`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_id: fileId, language: language || null }),
+        },
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to set language');
+      }
+    } catch (err) {
+      setScenarioFiles(previous);
+      alert(err instanceof Error ? err.message : 'Failed to set language');
     }
   };
 
@@ -876,12 +909,25 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                     const kind = getFileKind(file);
                     const typeLabel = getFileTypeLabel(file);
                     const thumb = kind === 'image' ? fileThumbnailUrl(file) : null;
+                    const isVariant = file.parent_file_id != null;
+                    // Admin-only: how many languages this document has been
+                    // translated into, and how many in-document strings exist.
+                    const translatedLangs = Object.keys(file.name_i18n ?? {}).filter(
+                      (l) => (file.name_i18n?.[l] ?? '') !== '',
+                    );
+                    const textsCount = Number(file.texts_count ?? 0);
+                    const hasTranslations = translatedLangs.length > 1 || textsCount > 0;
                     return (
                       <div
                         key={file.id}
-                        className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:shadow-sm transition-all"
+                        className={`flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:shadow-sm transition-all ${
+                          isVariant ? 'ml-8' : ''
+                        }`}
                       >
                         <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          {isVariant && (
+                            <CornerDownRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                          )}
                           <div className="w-12 h-12 flex-shrink-0 rounded-md bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
                             {thumb ? (
                               <img
@@ -900,16 +946,65 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
-                            <p className="text-xs text-slate-500">
-                              <span className="inline-block px-1.5 py-0.5 mr-2 rounded bg-slate-100 text-slate-600 font-semibold tracking-wide">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 truncate">{file.name}</p>
+                              {hasTranslations && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[11px] font-medium flex-shrink-0"
+                                  title={
+                                    `${textsCount} in-document string(s)` +
+                                    (translatedLangs.length > 1
+                                      ? `, title translated to ${translatedLangs
+                                          .filter((l) => l !== file.language)
+                                          .join(', ')
+                                          .toUpperCase()}`
+                                      : '')
+                                  }
+                                >
+                                  <Languages className="w-3 h-3" />
+                                  {textsCount > 0 ? `${textsCount} strings` : 'translated'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
+                              <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold tracking-wide">
                                 {typeLabel}
                               </span>
-                              {formatFileSize(file.file_size)} • {new Date(file.created_at).toLocaleDateString()}
+                              <select
+                                value={file.language ?? ''}
+                                onChange={(e) => handleSetFileLanguage(file.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                title="Which language this file is written in"
+                                className="px-1 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-600 text-[11px] font-semibold uppercase"
+                              >
+                                <option value="">—</option>
+                                {SUPPORTED_LANGS.map((l) => (
+                                  <option key={l} value={l}>
+                                    {l.toUpperCase()}
+                                  </option>
+                                ))}
+                              </select>
+                              <span>
+                                {formatFileSize(file.file_size)} •{' '}
+                                {new Date(file.created_at).toLocaleDateString()}
+                              </span>
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
+                          {!isVariant && (
+                            <button
+                              onClick={() => {
+                                setVariantParent(file);
+                                setUploadFileName(file.name);
+                                setUploadLanguage('');
+                              }}
+                              className="p-2 text-slate-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all"
+                              title="Add a language version of this file"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDownloadFile(file)}
                             className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
@@ -934,6 +1029,25 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
               )}
 
               <form onSubmit={handleFileUpload} className="mt-6 bg-slate-50 p-4 rounded-lg">
+                {variantParent && (
+                  <div className="mb-4 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-900 flex items-center justify-between gap-3">
+                    <span>
+                      Adding a language version of{' '}
+                      <span className="font-medium">{variantParent.name}</span>. It inherits the
+                      original&apos;s title, so clients see it under the translated name.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVariantParent(null);
+                        setUploadFileName('');
+                      }}
+                      className="text-blue-700 hover:underline shrink-0"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
                 <div
                   className={`border-2 border-dashed rounded-lg p-6 mb-4 transition-all ${
                     isDragging
@@ -971,27 +1085,56 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                   </div>
                 </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    File Display Name
-                  </label>
-                  <input
-                    type="text"
-                    value={uploadFileName}
-                    onChange={(e) => setUploadFileName(e.target.value)}
-                    placeholder="Enter a name for this file"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
+                <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      File Display Name
+                    </label>
+                    <input
+                      type="text"
+                      value={uploadFileName}
+                      onChange={(e) => setUploadFileName(e.target.value)}
+                      placeholder="Enter a name for this file"
+                      disabled={!!variantParent}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Language {variantParent && <span className="text-red-600">*</span>}
+                    </label>
+                    <select
+                      value={uploadLanguage}
+                      onChange={(e) => setUploadLanguage(e.target.value)}
+                      required={!!variantParent}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">
+                        {variantParent ? 'Choose a language…' : 'Scenario default'}
+                      </option>
+                      {SUPPORTED_LANGS.map((l) => (
+                        <option key={l} value={l}>
+                          {LANGUAGES[l].nativeName} ({l.toUpperCase()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={uploadLoading || !uploadFile}
+                  disabled={uploadLoading || !uploadFile || (!!variantParent && !uploadLanguage)}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all inline-flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Upload className="w-4 h-4" />
-                  <span>{uploadLoading ? 'Uploading...' : 'Upload File'}</span>
+                  <span>
+                    {uploadLoading
+                      ? 'Uploading...'
+                      : variantParent
+                        ? 'Upload language version'
+                        : 'Upload File'}
+                  </span>
                 </button>
               </form>
             </div>

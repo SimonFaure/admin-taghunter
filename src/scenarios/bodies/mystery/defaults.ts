@@ -57,6 +57,13 @@ export function defaultMysteryGameMeta(): MysteryGameMeta {
     status_frame_over_image: '',
     // Blank = the main-image underlay fills its cell (resolveMysteryUnderlayScale).
     enigma_underlay_scale: '',
+    // Blank = the main image follows the underlay (resolveMysteryEnigmaImageScale).
+    enigma_image_scale: '',
+    // Blank = centred (resolveMysteryUnderlayOffset / resolveMysteryEnigmaImageOffset).
+    enigma_underlay_offset_x: '',
+    enigma_underlay_offset_y: '',
+    enigma_image_offset_x: '',
+    enigma_image_offset_y: '',
     level_font_color: '#000000',
     scenario_version: '1.0',
     default_time_malus: '1',

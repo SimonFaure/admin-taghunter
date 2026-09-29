@@ -19,7 +19,7 @@
       "idle": "Pantalla de solo fondo que se muestra entre equipos (cuando «revelar con Intro/clic» está desactivado). Añade un título o un subtítulo.",
       "frames": "Coloca y dimensiona las imágenes de marco del cronómetro, la puntuación y el nombre de equipo, y la placa de bonus. Se colocan de forma independiente del texto, así que puedes agrandar la placa sin cambiar el tamaño del texto que contiene.",
       "gauge": "Arrastra los tiradores azules para ajustar el relleno de color dentro de tu imagen del medidor.",
-      "underlay": "Arrastra el control azul de la esquina de la imagen central para ajustar el tamaño de su fondo."
+      "underlay": "Arrastra el control azul (abajo a la derecha) para ajustar el submarco de color, y el control naranja (arriba a la izquierda) para ajustar la propia imagen. Los círculos de color (submarco abajo a la izquierda, imagen arriba a la derecha) los desplazan. Son independientes."
     },
     "save": "Guardar el escenario",
     "saving": "Guardando…",
@@ -77,9 +77,17 @@
     "fillRadius": "Redondeo (px)",
     "gaugeDemo": "Relleno de prueba: {{percent}} %",
     "gaugeDemoHint": "Solo vista previa: no cambia nada del escenario.",
-    "underlayScale": "Tamaño del fondo (% de la casilla)",
-    "underlayHelp": "La casilla cuadrada sobre la que se apoya la imagen principal de cada enigma: es la que rellena el submarco de color y dentro de la cual se ajusta la imagen. Redúcela si la imagen ocupa demasiado espacio en el tablero.",
-    "underlayNote": "La vista previa siempre dibuja esta casilla para que puedas verla; en los puestos de juego permanece invisible hasta que el enigma tiene un resultado. Déjalo vacío para volver al tamaño original (100 %)."
+    "underlayScale": "Tamaño del submarco (% de la casilla)",
+    "imageScale": "Tamaño de la imagen (% de la casilla)",
+    "underlayHandle": "Submarco",
+    "imageHandle": "Imagen",
+    "underlayOffset_x": "Posición X del submarco (%)",
+    "underlayOffset_y": "Posición Y del submarco (%)",
+    "imageOffset_x": "Posición X de la imagen (%)",
+    "imageOffset_y": "Posición Y de la imagen (%)",
+    "moveHandle": "Mover: {{name}}",
+    "underlayHelp": "La imagen central del enigma y el submarco de color que tiene detrás se ajustan por separado, cada uno en % de la casilla cuadrada que tienen reservada: agranda el marco para que rodee la imagen, o redúcelo para que quepa dentro. El círculo de cada marco lo desplaza; X e Y lo mueven desde el centro (negativo = izquierda / arriba).",
+    "underlayNote": "La vista previa siempre dibuja el submarco para que puedas verlo; en los puestos de juego permanece invisible hasta que el enigma tiene un resultado. Déjalo vacío para volver al tamaño original (100 %); un tamaño de imagen vacío sigue al del submarco."
   },
   "mysteryPreview": {
     "title": "Vista previa",

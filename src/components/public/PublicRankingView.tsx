@@ -330,7 +330,7 @@ export function PublicRankingView() {
         {stale && !error && (
           <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-amber-400/80">
             <WifiOff className="h-3.5 w-3.5" />
-            {t('publicBoard.stale', { defaultValue: 'Hors ligne — derniers scores connus.' })}
+            {t('publicBoard.stale', { defaultValue: 'Hors ligne : derniers scores connus.' })}
           </p>
         )}
       </div>

@@ -2672,7 +2672,8 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                             />
                           )}
                         </div>
-                        <div className="leading-tight" style={{ maxWidth: px(150) }}>
+                        {/* Mirrors the runtime's 300px text box (retours sept. #67). */}
+                        <div className="leading-tight" style={{ maxWidth: px(300) }}>
                           <div className="font-semibold" style={{ fontSize: px(12), color: clashStyle.eventColor }}>
                             {ev.runs.map((run, ri) => (
                               <span key={ri} style={run.clan ? { color: ev.clan?.color } : undefined}>
@@ -2795,7 +2796,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                           textShadow: '0 1px 3px rgba(0,0,0,0.85)',
                         }}
                       >
-                        15:00
+                        <span className="vcenter-text">15:00</span>
                       </div>
                     </div>
                   ) : isClashGame && element.id === 'clash_ranking' ? (
@@ -2992,16 +2993,19 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {hudMock.label && (
-                          <div
-                            className="uppercase tracking-wider opacity-70 leading-none"
-                            style={{ fontSize: `${Math.max(6, valueFontSize * TRACKS_HUD_LABEL_RATIO)}px` }}
-                          >
-                            {hudMock.label}
+                        {/* One trimmed block, as in the playground PositionedHudBox. */}
+                        <div className="vcenter-text">
+                          {hudMock.label && (
+                            <div
+                              className="uppercase tracking-wider opacity-70 leading-none"
+                              style={{ fontSize: `${Math.max(6, valueFontSize * TRACKS_HUD_LABEL_RATIO)}px` }}
+                            >
+                              {hudMock.label}
+                            </div>
+                          )}
+                          <div className="font-bold leading-tight" style={{ fontSize: `${valueFontSize}px` }}>
+                            {hudMock.value}
                           </div>
-                        )}
-                        <div className="font-bold leading-tight" style={{ fontSize: `${valueFontSize}px` }}>
-                          {hudMock.value}
                         </div>
                       </div>
                     );
@@ -3101,7 +3105,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    {element.previewText}
+                    <span className="vcenter-text">{element.previewText}</span>
                   </div>
                 )}
 

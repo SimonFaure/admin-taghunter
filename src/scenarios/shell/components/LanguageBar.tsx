@@ -9,9 +9,25 @@ import { useState } from 'react';
 import { LanguageSelector, AddLanguageModal } from '../../../creator-ported/components/LanguageSelector';
 import { useScenarioEditor } from '../useScenarioEditor';
 
-export function LanguageBar() {
+interface LanguageBarProps {
+  /**
+   * Languages released to clients (admin view of an admin-owned scenario), or
+   * null when the scenario is not gated. Any other language is shown as a
+   * draft: stored, but stripped from every client and playground payload
+   * until validated in Admin > Translations > Scenarios.
+   */
+  validatedLanguages?: string[] | null;
+}
+
+export function LanguageBar({ validatedLanguages = null }: LanguageBarProps) {
   const editor = useScenarioEditor();
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const draftLanguages = validatedLanguages
+    ? editor.availableLanguages.filter(
+        (l) => l !== editor.defaultLanguage && !validatedLanguages.includes(l),
+      )
+    : [];
 
   return (
     <>
@@ -21,6 +37,7 @@ export function LanguageBar() {
         onLanguageChange={editor.switchLanguage}
         onAddLanguage={() => setShowAddModal(true)}
         onRemoveLanguage={editor.removeLanguage}
+        draftLanguages={draftLanguages}
       />
       {showAddModal && (
         <AddLanguageModal

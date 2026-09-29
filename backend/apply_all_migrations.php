@@ -134,6 +134,40 @@ if ($runDrops) {
 
 $db = Database::getInstance();
 
+// --- client_cards safety net ------------------------------------------------
+// Studio cards (client_cards) are live customer data that no migration may ever
+// remove. A DROP TABLE replayed by this runner wiped every client's cards on
+// 2026-09-16. So, independently of what the .sql files do, we snapshot the table
+// before the run and put back any row that went missing after it.
+$CARDS_BACKUP = 'client_cards_premigration_backup';
+$CARDS_COLS   = 'client_id, id, key_number, key_name, color, created_at, updated_at';
+
+function tableExists($db, string $table): bool {
+    return (int)$db->query(
+        'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+        [$table]
+    )->fetchColumn() > 0;
+}
+function rowCount($db, string $table): int {
+    return tableExists($db, $table) ? (int)$db->query("SELECT COUNT(*) FROM `{$table}`")->fetchColumn() : 0;
+}
+
+$cardsBefore = rowCount($db, 'client_cards');
+if (tableExists($db, $CARDS_BACKUP)) {
+    // The snapshot is dropped at the end of every clean run, so a leftover means
+    // the previous run crashed or failed to restore. Never overwrite what may be
+    // the only good copy of the cards.
+    echo "ABORT: {$CARDS_BACKUP} is left over from a previous run that did not finish cleanly\n"
+       . "(it holds " . rowCount($db, $CARDS_BACKUP) . " cards, client_cards holds {$cardsBefore}).\n"
+       . "Check the cards / restore from it, then DROP TABLE {$CARDS_BACKUP} and re-run.\n";
+    exit(1);
+}
+if ($cardsBefore > 0) {
+    $db->query("DROP TABLE IF EXISTS `{$CARDS_BACKUP}`");
+    $db->query("CREATE TABLE `{$CARDS_BACKUP}` AS SELECT {$CARDS_COLS} FROM client_cards");
+    echo "client_cards: {$cardsBefore} cards backed up to {$CARDS_BACKUP}\n\n";
+}
+
 $okStmts = 0;
 $errStmts = 0;
 $fileCount = 0;
@@ -188,6 +222,32 @@ foreach ($ordered as $file) {
 }
 
 echo "\n--- migrations done: {$fileCount} files, {$okStmts} statements ok, {$errStmts} errors (errors are usually 'already applied') ---\n";
+
+if ($cardsBefore > 0) {
+    $cardsAfter = rowCount($db, 'client_cards');
+    if ($cardsAfter < $cardsBefore) {
+        echo "\n!!! client_cards lost rows during the migrations ({$cardsBefore} -> {$cardsAfter}). Restoring from {$CARDS_BACKUP}...\n";
+        try {
+            $db->query(
+                "INSERT IGNORE INTO client_cards ({$CARDS_COLS})
+                 SELECT {$CARDS_COLS} FROM `{$CARDS_BACKUP}` b
+                 WHERE b.client_id IN (SELECT id FROM clients)"
+            );
+            $cardsAfter = rowCount($db, 'client_cards');
+            echo "    restored: client_cards now holds {$cardsAfter} cards.\n";
+            echo "    FIX THE MIGRATION that deleted them - it will do it again on the next run.\n";
+        } catch (Exception $e) {
+            echo "    ! restore FAILED: " . $e->getMessage() . "\n";
+        }
+    } else {
+        echo "\nclient_cards intact: {$cardsAfter} cards (was {$cardsBefore}).\n";
+    }
+    if ($cardsAfter >= $cardsBefore) {
+        $db->query("DROP TABLE IF EXISTS `{$CARDS_BACKUP}`");
+    } else {
+        echo "    Cards still missing - kept {$CARDS_BACKUP}; restore them by hand.\n";
+    }
+}
 
 if ($runSeeds) {
     echo "\n=== seeds ===\n";

@@ -6,7 +6,9 @@
     "empty": "No hay idiomas configurados. Añade un idioma para empezar.",
     "modalTitle": "Añadir idioma",
     "allAdded": "Se han añadido todos los idiomas disponibles.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "draft": "Borrador",
+    "draftHint": "Aún no publicado para los clientes. Valídalo en Admin › Traducciones › Escenarios."
   },
   "creator": {
     "back": "Atrás",
@@ -24,5 +26,10 @@
     "cancel": "Cancelar",
     "validationTitle": "Proporciona un título",
     "saveError": "No se pudo guardar el escenario"
+  },
+  "publish": {
+    "publishSelf": "Publicar (yo)",
+    "publishForLicensee": "Publicar para un licenciatario",
+    "publishing": "Publicando…"
   }
 }

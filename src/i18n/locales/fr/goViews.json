@@ -44,7 +44,7 @@
     "appLabel": "Application",
     "targetLabel": "Carrousel à modifier",
     "targetGlobal": "Consignes joueurs {{app}} (communes à tous les scénarios)",
-    "targetScenario": "Briefing — {{title}} ({{count}} page(s))",
+    "targetScenario": "Briefing : {{title}} ({{count}} page(s))",
     "targetGlobalHint": "Affiché sur l'écran d'inscription du joueur, sous la description du scénario.",
     "targetScenarioHint": "Affiché en plein écran après « Commencer » et avant la première question : consignes et scénario.",
     "headingLabel": "Titre affiché au-dessus du carrousel ({{app}})",

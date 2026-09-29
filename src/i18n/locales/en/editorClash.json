@@ -33,7 +33,31 @@
     "stationUnknown": "Balise {{station}} is not in your balise inventory. Pick one from the list.",
     "chooseStation": "Choose balise",
     "pickerTitle": "Purge balise",
-    "pickerHint": "One balise only. Those already assigned to a territory can't be selected."
+    "pickerHint": "One balise only. Those already assigned to a territory can't be selected.",
+    "textsTitle": "Purge texts",
+    "textsHint": "Leave a field blank to keep the default wording in the launch language. %CLAN% and %TERRITORY% are substituted as in the event banner. Reword here to handle singular and plural clan names.",
+    "texts": {
+      "event_text_purge": {
+        "label": "Purge announcement",
+        "placeholder": "%CLAN% purged %TERRITORY%!",
+        "when": "Shown full-screen on every device and in the event banner when a purge succeeds (same field as in \"Event banner texts\")."
+      },
+      "purge_text_already_used": {
+        "label": "Purge already used",
+        "placeholder": "Your clan has already used its purge",
+        "when": "The bipping clan has already used its purge."
+      },
+      "purge_text_own_territory": {
+        "label": "Own territory",
+        "placeholder": "You cannot purge your own territory",
+        "when": "The current target is a territory this clan controls."
+      },
+      "purge_text_no_target": {
+        "label": "No target",
+        "placeholder": "No territory to purge yet",
+        "when": "No clan leads yet, or the leading clan has not validated any territory."
+      }
+    }
   },
   "territories": {
     "title": "Territories",

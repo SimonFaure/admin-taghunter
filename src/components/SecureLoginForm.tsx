@@ -17,7 +17,6 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -76,7 +75,7 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
     setLoading(true);
 
     try {
-      const result = await login(email, code, rememberMe);
+      const result = await login(email, code, false);
 
       if (!result.success) {
         setError(result.error || t('verifyError'));
@@ -201,19 +200,6 @@ export function SecureLoginForm({ onSwitchToAdmin }: SecureLoginFormProps) {
                 <p className="mt-2 text-sm text-slate-400">
                   {t('codeSentTo')} <span className="text-white font-medium">{email}</span>
                 </p>
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  id="rememberMe"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 bg-slate-700 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500"
-                />
-                <label htmlFor="rememberMe" className="ml-2 text-sm text-slate-300">
-                  {t('rememberMe')}
-                </label>
               </div>
 
               {successMessage && (

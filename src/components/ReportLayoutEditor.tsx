@@ -5,20 +5,21 @@
 // stored (report_layouts.php for defaults, game_meta for overrides).
 
 import { useEffect, useMemo, useRef } from 'react';
+import i18next from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { ArrowUp, ArrowDown, Trash2 } from 'lucide-react';
 import { type ReportLayout, type ReportBlock, type ReportBlockType } from '../lib/api';
 import { FONT_CATALOG } from '../fonts/catalog';
 import { catalogFontFaceCss } from '../fonts/registerCatalogFonts';
 
-// Editor-only English labels (the real labels print in each team's language
-// from the playground's i18n `report` namespace).
-export const STAT_LABEL: Record<string, string> = {
-  rate: 'SUCCESS RATE', success: 'SUCCESSES', fail: 'FAILURES', absent: 'MISSED',
-  correct: 'CORRECT', wrong: 'WRONG', missing: 'MISSING',
-  quests: 'QUESTS', points: 'POINTS', level: 'RANK', combos: 'COMBOS',
-  territories: 'TERRITORIES',
-};
+// Report labels come from the `report` namespace, a copy of the playground's
+// `report.json` (the one the printed report uses, per team language). The
+// preview shows them in the studio UI language, so a French operator sees the
+// French labels that will print - not English placeholders (retours sept. #46).
+// Keep src/i18n/locales/*/report.json in step with the playground's.
+export function statLabel(field: string): string {
+  return i18next.t(`report:stat_${field}`, { defaultValue: field.toUpperCase() });
+}
 
 export const BLOCK_LABEL: Record<ReportBlockType, string> = {
   logo: 'Logo', game_title: 'Game title', pdf_title: 'PDF title', team_name: 'Team name',
@@ -100,13 +101,12 @@ function addChildAt(blocks: ReportBlock[], path: Path, child: ReportBlock): Repo
   });
 }
 
-// Built-in English default for each standalone label (mirrors the playground's
-// `report` i18n namespace). Used as the editor placeholder and the preview text
-// when no override is typed - at print time a blank override resolves to the
-// team's language instead.
-export const DEFAULT_LABEL: Record<string, string> = {
-  date: 'DATE', duration: 'DURATION', score: 'SCORE', rank: 'RANK',
-};
+// Built-in label for each standalone field (date/duration/score/rank). Used as
+// the editor placeholder and the preview text when no override is typed - at
+// print time a blank override resolves to the team's language.
+export function defaultLabel(key: string): string {
+  return i18next.t(`report:${key}`, { defaultValue: key.toUpperCase() });
+}
 
 // The Taghunter logo bundled with the studio (public/). Shown in the preview so
 // the operator sees the real header that prints.
@@ -120,8 +120,8 @@ function blockLabelKey(type: ReportBlockType): string | null {
 const SAMPLE = {
   gameTitle: 'LE PORTAIL DES OMBRES', pdfTitle: 'COMPTE RENDU DE MISSION',
   teamLabel: 'NOM DE CODE', teamName: 'BLIZZARD', date: '03/06/2026',
-  duration: '00 MINUTES AND 20 SECONDS', score: '120', rank: '1 / 4',
-  stats: { rate: '10%', success: '1', fail: '0', absent: '11', correct: '8', wrong: '1', missing: '3', quests: '6', points: '120', level: 'GOLD', combos: '2', territories: '3' } as Record<string, string>,
+  score: '120', rank: '1 / 4',
+  stats: { rate: '10%', success: '1', fail: '0', absent: '11', correct: '8', wrong: '1', missing: '3', quests: '6', points: '120', level: 'GOLD', combos: '2', players: '4', territories: '3' } as Record<string, string>,
 };
 
 export function fontStack(family: string): string {
@@ -175,12 +175,12 @@ export function buildPreviewHtml(layout: ReportLayout, logoUrl?: string | null):
       case 'game_title': return `<div style="${style};margin:4px 0">${SAMPLE.gameTitle}</div>`;
       case 'pdf_title': return `<div style="${style};margin:2px 0">${layout.pdfTitle || SAMPLE.pdfTitle}</div>`;
       case 'team_name': return `<div style="${style};margin:8px 0"><div style="font-weight:bold;font-size:0.7em">${layout.teamTitle || SAMPLE.teamLabel}</div><div>${SAMPLE.teamName}</div></div>`;
-      case 'date': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.75em">${lbl('date', DEFAULT_LABEL.date)}</div><div>${SAMPLE.date}</div></div>`;
-      case 'duration': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('duration', DEFAULT_LABEL.duration)}</div><div>${SAMPLE.duration}</div></div>`;
-      case 'score': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('score', DEFAULT_LABEL.score)}</div><div>${SAMPLE.score}</div></div>`;
-      case 'rank': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('rank', DEFAULT_LABEL.rank)}</div><div>${SAMPLE.rank}</div></div>`;
+      case 'date': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.75em">${lbl('date', defaultLabel('date'))}</div><div>${SAMPLE.date}</div></div>`;
+      case 'duration': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('duration', defaultLabel('duration'))}</div><div>${i18next.t('report:durationFormat', { m: '00', s: '20' })}</div></div>`;
+      case 'score': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('score', defaultLabel('score'))}</div><div>${SAMPLE.score}</div></div>`;
+      case 'rank': return `<div style="${style};margin:6px 0"><div style="font-weight:bold;font-size:0.8em">${lbl('rank', defaultLabel('rank'))}</div><div>${SAMPLE.rank}</div></div>`;
       case 'stat_grid': {
-        const cells = (b.fields ?? []).map((f) => `<td style="padding:0 10px;text-align:center;vertical-align:top"><div style="font-weight:bold">${lbl(`stat_${f}`, STAT_LABEL[f] ?? f)}</div><div>${SAMPLE.stats[f] ?? '-'}</div></td>`).join('');
+        const cells = (b.fields ?? []).map((f) => `<td style="padding:0 10px;text-align:center;vertical-align:top"><div style="font-weight:bold">${lbl(`stat_${f}`, statLabel(f))}</div><div>${SAMPLE.stats[f] ?? '-'}</div></td>`).join('');
         return cells ? `<div style="text-align:${b.align ?? 'center'};margin:8px 0"><table style="${style};display:inline-table;border-collapse:collapse"><tr>${cells}</tr></table></div>` : '';
       }
       case 'text': return b.text ? `<div style="${style};margin:6px 0">${b.text}</div>` : '';
@@ -230,9 +230,14 @@ interface Props {
 }
 
 export function ReportLayoutEditor({ layout, availableFields, onChange, previewHeight = 560, showTitleFields = false, logoUrl }: Props) {
-  const { t } = useTranslation('reportLayoutEditor');
+  const { t, i18n } = useTranslation('reportLayoutEditor');
   const blockLabel = (type: ReportBlockType): string => t(`blockLabel.${type}`);
-  const previewHtml = useMemo(() => buildPreviewHtml(layout, logoUrl), [layout, logoUrl]);
+  // i18n.language is a dependency: the preview labels follow the UI language.
+  const previewHtml = useMemo(
+    () => buildPreviewHtml(layout, logoUrl),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layout, logoUrl, i18n.language],
+  );
 
   // Drive the preview imperatively: assign the `srcdoc` *property* on every
   // change. React diffing the srcDoc *attribute* alone does not reliably make
@@ -394,7 +399,7 @@ export function ReportLayoutEditor({ layout, availableFields, onChange, previewH
           <div className="pt-1">
             <span className="text-xs text-slate-400 mb-1 block">{t('label')}</span>
             <input type="text" value={layout.labels?.[labelKey] ?? ''}
-              placeholder={t('labelAutoTranslated', { label: DEFAULT_LABEL[labelKey] })}
+              placeholder={t('labelAutoTranslated', { label: defaultLabel(labelKey) })}
               onChange={(e) => setLabel(labelKey, e.target.value)} className={labelInputClass} />
             <span className="text-[11px] text-slate-500 mt-1 block">{t('labelHint')}</span>
           </div>
@@ -407,7 +412,7 @@ export function ReportLayoutEditor({ layout, availableFields, onChange, previewH
               return (
                 <button key={f} onClick={() => patchBlock(path, { fields: on ? (b.fields ?? []).filter((x) => x !== f) : [...(b.fields ?? []), f] })}
                   className={`px-2 py-0.5 rounded text-xs border ${on ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-600 text-slate-400'}`}>
-                  {STAT_LABEL[f] ?? f}
+                  {statLabel(f)}
                 </button>
               );
             })}
@@ -420,8 +425,8 @@ export function ReportLayoutEditor({ layout, availableFields, onChange, previewH
             <span className="text-xs text-slate-400 block">{t('columnLabels')}</span>
             {(b.fields ?? []).map((f) => (
               <div key={f} className="flex items-center gap-2">
-                <span className="text-[11px] text-slate-500 w-20 shrink-0 truncate" title={STAT_LABEL[f] ?? f}>{STAT_LABEL[f] ?? f}</span>
-                <input type="text" value={layout.labels?.[`stat_${f}`] ?? ''} placeholder={t('labelAutoTranslated', { label: STAT_LABEL[f] ?? f })}
+                <span className="text-[11px] text-slate-500 w-20 shrink-0 truncate" title={statLabel(f)}>{statLabel(f)}</span>
+                <input type="text" value={layout.labels?.[`stat_${f}`] ?? ''} placeholder={t('labelAutoTranslated', { label: statLabel(f) })}
                   onChange={(e) => setLabel(`stat_${f}`, e.target.value)}
                   className="flex-1 px-2 py-1 bg-slate-900 border border-slate-600 rounded text-slate-100 text-xs" />
               </div>
