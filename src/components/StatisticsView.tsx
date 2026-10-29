@@ -4,6 +4,8 @@ import { Users, TrendingUp, Gamepad2, UserCircle } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { HelpButton } from '../help';
 import { StatsActivityChart, type TimeseriesRow } from './StatsActivityChart';
+import { customersApi } from '../lib/customersApi';
+import { CustomerInlinePicker, type PickerCustomer } from './client/customers/CustomerInlinePicker';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -50,11 +52,15 @@ interface GameRow {
   client_id: number;
   client_name: string | null;
   client_email: string | null;
+  // Licensee customer (project_licensee_customers) - only within one licensee's scope.
+  customer_id?: string | null;
+  customer_name?: string | null;
 }
 interface FiltersResp {
   game_types: string[];
   scenarios: Array<{ scenario_uniqid: string; title: string }>;
   clients?: Array<{ client_id: number; name: string | null; email: string | null }>;
+  customers?: PickerCustomer[];
 }
 
 interface FilterState {
@@ -63,9 +69,10 @@ interface FilterState {
   game_type: string;
   scenario_uniqid: string;
   client_id: string;
+  customer_id: string;
 }
 
-const EMPTY_FILTERS: FilterState = { from: '', to: '', game_type: '', scenario_uniqid: '', client_id: '' };
+const EMPTY_FILTERS: FilterState = { from: '', to: '', game_type: '', scenario_uniqid: '', client_id: '', customer_id: '' };
 
 export function StatisticsView() {
   const { t, i18n } = useTranslation('statistics');
@@ -77,6 +84,7 @@ export function StatisticsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'games'>('overview');
+  const [customersEnabled, setCustomersEnabled] = useState(false);
 
   const queryString = useCallback(() => {
     const p = new URLSearchParams();
@@ -85,6 +93,7 @@ export function StatisticsView() {
     if (filters.game_type) p.set('game_type', filters.game_type);
     if (filters.scenario_uniqid) p.set('scenario_uniqid', filters.scenario_uniqid);
     if (filters.client_id) p.set('client_id', filters.client_id);
+    if (filters.customer_id) p.set('customer_id', filters.customer_id);
     return p.toString();
   }, [filters]);
 
@@ -104,7 +113,9 @@ export function StatisticsView() {
         throw new Error(t('errors.fetchFailed'));
       }
       setStats(await overviewRes.json());
-      setGames((await listRes.json()).games ?? []);
+      const list = await listRes.json();
+      setGames(list.games ?? []);
+      setCustomersEnabled(list.customers_enabled === true);
       setOptions(await filtersRes.json());
       setSeries((await seriesRes.json()).rows ?? []);
     } catch (err) {
@@ -120,7 +131,23 @@ export function StatisticsView() {
 
   const isAdmin = stats?.is_admin ?? false;
 
-  const setFilter = (k: keyof FilterState, v: string) => setFilters((prev) => ({ ...prev, [k]: v }));
+  const setFilter = (k: keyof FilterState, v: string) => setFilters((prev) => ({
+    ...prev,
+    [k]: v,
+    // Customers belong to one licensee: switching licensee drops the customer filter.
+    ...(k === 'client_id' ? { customer_id: '' } : {}),
+  }));
+
+  // Re-tag one game from the table (studio side of the customer assignment).
+  const assignCustomer = async (g: GameRow, customerId: string | null) => {
+    try {
+      await customersApi.assign([g.summary_uuid], customerId, filters.client_id ? Number(filters.client_id) : undefined);
+      const name = options?.customers?.find((c) => c.id === customerId)?.name ?? null;
+      setGames((prev) => prev.map((x) => (x.summary_uuid === g.summary_uuid ? { ...x, customer_id: customerId, customer_name: name } : x)));
+    } catch {
+      setError(t('errors.assignFailed'));
+    }
+  };
 
   const fmtDate = (s: string | null) => (s ? new Date(s.replace(' ', 'T') + 'Z').toLocaleString(i18n.language) : t('empty'));
 
@@ -167,7 +194,18 @@ export function StatisticsView() {
             </select>
           </div>
         )}
-        {(filters.from || filters.to || filters.game_type || filters.scenario_uniqid || filters.client_id) && (
+        {customersEnabled && options?.customers && (
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{t('filters.customer')}</label>
+            <select value={filters.customer_id} onChange={(e) => setFilter('customer_id', e.target.value)}
+              className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm min-w-[10rem]">
+              <option value="">{t('filters.all')}</option>
+              <option value="none">{t('filters.customerNone')}</option>
+              {options.customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        )}
+        {(filters.from || filters.to || filters.game_type || filters.scenario_uniqid || filters.client_id || filters.customer_id) && (
           <button onClick={() => setFilters(EMPTY_FILTERS)}
             className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 underline">{t('filters.clear')}</button>
         )}
@@ -259,13 +297,14 @@ export function StatisticsView() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.type')}</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.scenario')}</th>
                   {isAdmin && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.client')}</th>}
+                  {customersEnabled && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.customer')}</th>}
                   <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.teams')}</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">{t('table.players')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {games.length === 0 ? (
-                  <tr><td colSpan={isAdmin ? 7 : 6} className="px-6 py-12 text-center text-slate-600">{t('table.empty')}</td></tr>
+                  <tr><td colSpan={6 + (isAdmin ? 1 : 0) + (customersEnabled ? 1 : 0)} className="px-6 py-12 text-center text-slate-600">{t('table.empty')}</td></tr>
                 ) : games.map((g) => (
                   <tr key={g.summary_uuid} className="hover:bg-slate-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-900">{fmtDate(g.played_at)}</td>
@@ -276,6 +315,12 @@ export function StatisticsView() {
                       <td className="px-4 py-3 text-sm">
                         <div className="text-slate-900">{g.client_name || t('empty')}</div>
                         <div className="text-xs text-slate-500">{g.client_email}</div>
+                      </td>
+                    )}
+                    {customersEnabled && (
+                      <td className="px-4 py-3 text-sm">
+                        <CustomerInlinePicker customers={options?.customers ?? []} value={g.customer_id ?? null}
+                          onChange={(id) => void assignCustomer(g, id)} />
                       </td>
                     )}
                     <td className="px-4 py-3 text-right text-sm text-slate-900">

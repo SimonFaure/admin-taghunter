@@ -65,7 +65,10 @@ try {
         'add_source_to_api_logs.sql',
         'game_types_migration.sql',
         'playground_releases_migration.sql',
-        'add_scenario_translations_migration.sql'
+        'add_scenario_translations_migration.sql',
+        'add_scenario_file_no_translation.sql',
+        'add_scenario_finished.sql',
+        'add_scenario_checklist_columns.sql'
     ];
 
     $results = [];

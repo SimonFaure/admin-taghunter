@@ -27,6 +27,7 @@ export function ImportLegacyZipModal({ open, onClose, onSuccess }: ImportLegacyZ
   const [clientId, setClientId] = useState<number | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
+  const [clientsLoaded, setClientsLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,24 +38,28 @@ export function ImportLegacyZipModal({ open, onClose, onSuccess }: ImportLegacyZ
     setFile(null);
     setOwnership('product');
     setClientId(null);
+    setClientsLoaded(false);
     setSubmitting(false);
     setResult(null);
     setError(null);
   }, [open]);
 
+  // clientsLoading must NOT be a dependency: setting it re-ran the effect, whose
+  // cleanup cancelled the in-flight fetch and left the select on "Loading…" forever.
   useEffect(() => {
-    if (!open || ownership !== 'client' || clients.length > 0 || clientsLoading) return;
+    if (!open || ownership !== 'client' || clientsLoaded) return;
     let cancelled = false;
+    setClientsLoading(true);
     (async () => {
-      setClientsLoading(true);
       try {
         const r = await authFetch(`${API_BASE_URL}/clients.php?action=list`);
         const body = await r.json();
         if (cancelled) return;
-        const fetched: Client[] = (body?.data as Client[]) || [];
-        setClients(fetched);
+        if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
+        setClients((body?.data as Client[]) || []);
+        setClientsLoaded(true);
       } catch {
-        if (!cancelled) setError('Failed to load clients');
+        if (!cancelled) setError('Failed to load licensees');
       } finally {
         if (!cancelled) setClientsLoading(false);
       }
@@ -62,7 +67,7 @@ export function ImportLegacyZipModal({ open, onClose, onSuccess }: ImportLegacyZ
     return () => {
       cancelled = true;
     };
-  }, [open, ownership, clients.length, clientsLoading]);
+  }, [open, ownership, clientsLoaded]);
 
   const validateAndSetFile = (f: File) => {
     setError(null);
@@ -220,7 +225,7 @@ export function ImportLegacyZipModal({ open, onClose, onSuccess }: ImportLegacyZ
                     />
                     <div>
                       <p className="text-sm font-medium text-slate-900">Import as product library</p>
-                      <p className="text-xs text-slate-500">All games become Taghunter product templates with no client owner.</p>
+                      <p className="text-xs text-slate-500">All games become Taghunter product templates with no licensee owner.</p>
                     </div>
                   </label>
                   <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
@@ -233,8 +238,8 @@ export function ImportLegacyZipModal({ open, onClose, onSuccess }: ImportLegacyZ
                       className="mt-0.5"
                     />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">Assign to client</p>
-                      <p className="text-xs text-slate-500 mb-2">All games are stored as that client's custom scenarios.</p>
+                      <p className="text-sm font-medium text-slate-900">Assign to licensee</p>
+                      <p className="text-xs text-slate-500 mb-2">All games are stored as that licensee's custom scenarios.</p>
                       {ownership === 'client' && (
                         <select
                           value={clientId ?? ''}
@@ -242,7 +247,7 @@ export function ImportLegacyZipModal({ open, onClose, onSuccess }: ImportLegacyZ
                           disabled={clientsLoading}
                           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
                         >
-                          <option value="">{clientsLoading ? 'Loading clients…' : 'Select a client…'}</option>
+                          <option value="">{clientsLoading ? 'Loading licensees…' : 'Select a licensee…'}</option>
                           {clients.map((c) => (
                             <option key={c.id} value={c.id}>
                               {c.name || c.email} ({c.email})

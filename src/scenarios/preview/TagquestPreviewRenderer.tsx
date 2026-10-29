@@ -48,6 +48,7 @@ import type { Lang } from '../i18n/types';
 import { resolveFontFamily } from '../../fonts/resolveFontFamily';
 import { registerStudioCustomFonts } from '../../fonts/registerStudioCustomFonts';
 import type { CustomFont } from '../../types/scenario-data';
+import { readMinFontSize, TeamNameFit } from './teamNameFit';
 
 type Localized = Record<string, string>;
 
@@ -764,7 +765,17 @@ export function TagquestPreviewRenderer({
                       : styled.background,
                 }}
               >
-                <span className="vcenter-text">{text}</span>
+                {el.id === 'team_name_text' ? (
+                  // Shrinks to fit the box; under the author's min size the
+                  // name goes on two lines (same component as the playground).
+                  <TeamNameFit
+                    text={text}
+                    maxPx={fontSizePx}
+                    minPx={readMinFontSize(styled.minFontSize) * (stage.width / 1920)}
+                  />
+                ) : (
+                  <span className="vcenter-text">{text}</span>
+                )}
               </div>
             );
           })}

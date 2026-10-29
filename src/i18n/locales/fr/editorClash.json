@@ -49,13 +49,13 @@
       },
       "purge_text_own_territory": {
         "label": "Propre territoire",
-        "placeholder": "Impossible de purger votre propre territoire",
-        "when": "La cible actuelle est un territoire que ce clan contrôle."
+        "placeholder": "Purge en attente : la cible est votre propre territoire. Elle se déclenchera à un prochain passage au lecteur.",
+        "when": "La cible actuelle est un territoire que ce clan contrôle. Le pointage de la balise de purge reste en attente et se déclenche à un prochain passage au lecteur."
       },
       "purge_text_no_target": {
         "label": "Aucune cible",
-        "placeholder": "Aucun territoire à purger pour le moment",
-        "when": "Pas encore de clan en tête, ou le clan en tête n'a validé aucun territoire."
+        "placeholder": "Purge en attente : aucun clan ne mène encore. Elle se déclenchera à un prochain passage au lecteur.",
+        "when": "Pas encore de clan en tête, ou le clan en tête n'a validé aucun territoire. Le pointage de la balise de purge reste en attente et se déclenche à un prochain passage au lecteur."
       }
     }
   },

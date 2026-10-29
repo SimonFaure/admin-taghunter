@@ -111,6 +111,15 @@ function gtRenameVersionDir($oldDir, $newDir) {
     }
 }
 
+// Subtitle tracks are versioned on their own (tutorial_subtitles_version): a
+// .vtt is a few KB, and bumping tutorial_video_version for it made every device
+// re-download the whole video. The files stay in the video's version dir, which
+// is NOT renamed by a subtitle change. Only version 0 (nothing uploaded yet -
+// no dir, and get_media rejects it) is promoted to 1 so the track has a home.
+function gtSubtitleHostVersion($videoVersion) {
+    return max(1, (int)$videoVersion);
+}
+
 function gtLoadRow($pdo, $code) {
     $stmt = $pdo->prepare('SELECT * FROM game_types WHERE code = ?');
     $stmt->execute([$code]);
@@ -128,6 +137,7 @@ function gtJsonRow($row) {
     $row['supports_tutorial_video'] = (bool)$row['supports_tutorial_video'];
     $row['supports_intro_video'] = (bool)$row['supports_intro_video'];
     $row['tutorial_video_version'] = (int)$row['tutorial_video_version'];
+    $row['tutorial_subtitles_version'] = (int)($row['tutorial_subtitles_version'] ?? 0);
     $row['tutorial_subtitles'] = $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass();
     // Global availability flag (enable/disable game type). Defensive default for
     // installs where the migration hasn't run yet (column absent → treat as enabled).
@@ -138,6 +148,7 @@ function gtJsonRow($row) {
 function gtJsonOverride($row) {
     if (!$row) return null;
     $row['tutorial_video_version'] = (int)$row['tutorial_video_version'];
+    $row['tutorial_subtitles_version'] = (int)($row['tutorial_subtitles_version'] ?? 0);
     $row['tutorial_subtitles'] = $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass();
     // Per-client availability flag: NULL = inherit (allowed), 0 = disabled for this client.
     $row['enabled'] = array_key_exists('enabled', $row) && $row['enabled'] !== null ? (bool)$row['enabled'] : null;
@@ -537,14 +548,10 @@ function handleAdminUploadSubtitle($pdo) {
     $file = $_FILES['subtitle'] ?? null;
     gtValidateUploadedFile($file, ['text/vtt', 'text/plain', 'application/octet-stream'], GT_SUBTITLE_MAX_BYTES);
 
-    $oldVersion = (int)$row['tutorial_video_version'];
-    $newVersion = $oldVersion + 1;
-    $oldDir = gtAdminVersionDir($code, $oldVersion);
-    $newDir = gtAdminVersionDir($code, $newVersion);
+    $version = gtSubtitleHostVersion($row['tutorial_video_version']);
+    $subtitlesVersion = (int)($row['tutorial_subtitles_version'] ?? 0) + 1;
 
-    gtRenameVersionDir($oldDir, $newDir);
-
-    $subtitleDir = "$newDir/subtitles";
+    $subtitleDir = gtAdminVersionDir($code, $version) . '/subtitles';
     if (!is_dir($subtitleDir)) mkdir($subtitleDir, 0755, true);
     $target = "$subtitleDir/$lang.vtt";
     @unlink($target);
@@ -555,10 +562,10 @@ function handleAdminUploadSubtitle($pdo) {
     $subtitles = $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : [];
     $subtitles[$lang] = "$lang.vtt";
 
-    $stmt = $pdo->prepare('UPDATE game_types SET tutorial_subtitles = ?, tutorial_video_version = ? WHERE code = ?');
-    $stmt->execute([json_encode($subtitles), $newVersion, $code]);
+    $stmt = $pdo->prepare('UPDATE game_types SET tutorial_subtitles = ?, tutorial_video_version = ?, tutorial_subtitles_version = ? WHERE code = ?');
+    $stmt->execute([json_encode($subtitles), $version, $subtitlesVersion, $code]);
 
-    echo json_encode(['success' => true, 'version' => $newVersion, 'lang' => $lang]);
+    echo json_encode(['success' => true, 'version' => $version, 'subtitles_version' => $subtitlesVersion, 'lang' => $lang]);
 }
 
 function handleAdminRemoveSubtitle($pdo) {
@@ -572,21 +579,18 @@ function handleAdminRemoveSubtitle($pdo) {
     $row = gtLoadRow($pdo, $code);
     if (!$row) { http_response_code(404); echo json_encode(['error' => 'Game type not found']); return; }
 
-    $oldVersion = (int)$row['tutorial_video_version'];
-    $newVersion = $oldVersion + 1;
-    $oldDir = gtAdminVersionDir($code, $oldVersion);
-    $newDir = gtAdminVersionDir($code, $newVersion);
-    gtRenameVersionDir($oldDir, $newDir);
+    $version = (int)$row['tutorial_video_version'];
+    $subtitlesVersion = (int)($row['tutorial_subtitles_version'] ?? 0) + 1;
 
-    @unlink("$newDir/subtitles/$lang.vtt");
+    @unlink(gtAdminVersionDir($code, $version) . "/subtitles/$lang.vtt");
 
     $subtitles = $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : [];
     unset($subtitles[$lang]);
 
-    $stmt = $pdo->prepare('UPDATE game_types SET tutorial_subtitles = ?, tutorial_video_version = ? WHERE code = ?');
-    $stmt->execute([json_encode((object)$subtitles), $newVersion, $code]);
+    $stmt = $pdo->prepare('UPDATE game_types SET tutorial_subtitles = ?, tutorial_subtitles_version = ? WHERE code = ?');
+    $stmt->execute([json_encode((object)$subtitles), $subtitlesVersion, $code]);
 
-    echo json_encode(['success' => true, 'version' => $newVersion]);
+    echo json_encode(['success' => true, 'version' => $version, 'subtitles_version' => $subtitlesVersion]);
 }
 
 function handleClientUploadVideo($pdo) {
@@ -668,14 +672,10 @@ function handleClientUploadSubtitle($pdo) {
     gtValidateUploadedFile($file, ['text/vtt', 'text/plain', 'application/octet-stream'], GT_SUBTITLE_MAX_BYTES);
 
     $override = gtLoadOverride($pdo, $auth['user_id'], $code);
-    $oldVersion = $override ? (int)$override['tutorial_video_version'] : 0;
-    $newVersion = $oldVersion + 1;
-    $oldDir = gtClientVersionDir($code, $auth['user_id'], $oldVersion);
-    $newDir = gtClientVersionDir($code, $auth['user_id'], $newVersion);
+    $version = gtSubtitleHostVersion($override ? $override['tutorial_video_version'] : 0);
+    $subtitlesVersion = ($override ? (int)($override['tutorial_subtitles_version'] ?? 0) : 0) + 1;
 
-    gtRenameVersionDir($oldDir, $newDir);
-
-    $subtitleDir = "$newDir/subtitles";
+    $subtitleDir = gtClientVersionDir($code, $auth['user_id'], $version) . '/subtitles';
     if (!is_dir($subtitleDir)) mkdir($subtitleDir, 0755, true);
     $target = "$subtitleDir/$lang.vtt";
     @unlink($target);
@@ -690,14 +690,15 @@ function handleClientUploadSubtitle($pdo) {
     $existingVideoPath = $override ? $override['tutorial_video_path'] : null;
 
     $stmt = $pdo->prepare('
-        INSERT INTO client_game_type_overrides (client_id, game_type_code, tutorial_video_path, tutorial_video_version, tutorial_subtitles)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO client_game_type_overrides (client_id, game_type_code, tutorial_video_path, tutorial_video_version, tutorial_subtitles, tutorial_subtitles_version)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE tutorial_video_version = VALUES(tutorial_video_version),
-                                tutorial_subtitles = VALUES(tutorial_subtitles)
+                                tutorial_subtitles = VALUES(tutorial_subtitles),
+                                tutorial_subtitles_version = VALUES(tutorial_subtitles_version)
     ');
-    $stmt->execute([$auth['user_id'], $code, $existingVideoPath, $newVersion, json_encode($subtitles)]);
+    $stmt->execute([$auth['user_id'], $code, $existingVideoPath, $version, json_encode($subtitles), $subtitlesVersion]);
 
-    echo json_encode(['success' => true, 'version' => $newVersion, 'lang' => $lang]);
+    echo json_encode(['success' => true, 'version' => $version, 'subtitles_version' => $subtitlesVersion, 'lang' => $lang]);
 }
 
 function handleClientRemoveSubtitle($pdo) {
@@ -711,24 +712,21 @@ function handleClientRemoveSubtitle($pdo) {
     $override = gtLoadOverride($pdo, $auth['user_id'], $code);
     if (!$override) { http_response_code(404); echo json_encode(['error' => 'No override exists']); return; }
 
-    $oldVersion = (int)$override['tutorial_video_version'];
-    $newVersion = $oldVersion + 1;
-    $oldDir = gtClientVersionDir($code, $auth['user_id'], $oldVersion);
-    $newDir = gtClientVersionDir($code, $auth['user_id'], $newVersion);
-    gtRenameVersionDir($oldDir, $newDir);
-    @unlink("$newDir/subtitles/$lang.vtt");
+    $version = (int)$override['tutorial_video_version'];
+    $subtitlesVersion = (int)($override['tutorial_subtitles_version'] ?? 0) + 1;
+    @unlink(gtClientVersionDir($code, $auth['user_id'], $version) . "/subtitles/$lang.vtt");
 
     $subtitles = $override['tutorial_subtitles'] ? json_decode($override['tutorial_subtitles'], true) : [];
     unset($subtitles[$lang]);
 
     $stmt = $pdo->prepare('
         UPDATE client_game_type_overrides
-        SET tutorial_subtitles = ?, tutorial_video_version = ?
+        SET tutorial_subtitles = ?, tutorial_subtitles_version = ?
         WHERE client_id = ? AND game_type_code = ?
     ');
-    $stmt->execute([json_encode((object)$subtitles), $newVersion, $auth['user_id'], $code]);
+    $stmt->execute([json_encode((object)$subtitles), $subtitlesVersion, $auth['user_id'], $code]);
 
-    echo json_encode(['success' => true, 'version' => $newVersion]);
+    echo json_encode(['success' => true, 'version' => $version, 'subtitles_version' => $subtitlesVersion]);
 }
 
 function handleGetMedia($pdo) {

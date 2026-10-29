@@ -68,34 +68,6 @@ try {
             jsonResponse(['data' => $devices]);
             break;
 
-        case 'lan_networks':
-            // Read-only dashboard view of the client's studio-authored Wi-Fi
-            // hotspots. The password IS returned here because this is the
-            // client's OWN network (client-auth) and they need it to render a
-            // join QR for their phones - they just can't edit it (admin-only).
-            // Defensive: the lan_networks table may not be migrated yet -> [].
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
-            }
-
-            $clientId = requireClientAuth($db);
-
-            $networks = [];
-            try {
-                $networks = $db->fetchAll(
-                    'SELECT id, ssid, password, source, is_default, updated_at
-                     FROM lan_networks
-                     WHERE client_id = ? AND is_default = 1
-                     ORDER BY updated_at DESC',
-                    [$clientId]
-                );
-            } catch (Exception $e) {
-                $networks = [];
-            }
-
-            jsonResponse(['data' => $networks]);
-            break;
-
         case 'register':
             if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
                 jsonResponse(['error' => 'Method not allowed'], 405);

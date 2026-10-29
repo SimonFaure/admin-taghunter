@@ -113,7 +113,12 @@
   "displayOptions": {
     "sectionTitle": "Options d'affichage",
     "displayScore": "Afficher le score pendant le jeu",
-    "displayScoreHint": "Affiche le score en cours dans le HUD tout au long de la partie."
+    "displayScoreHint": "Affiche le score en cours dans le HUD tout au long de la partie.",
+    "showLegend": "Afficher la légende sur la page",
+    "showLegendHint": "Affiche les images de retour et leur signification dans un encadré, à placer et redimensionner dans l'éditeur de mise en page. C'est la valeur par défaut : l'opérateur peut afficher ou masquer la légende au lancement de la partie (options avancées).",
+    "legendMissingImage": "{{image}} non définie : cette ligne ne sera pas affichée dans la légende.",
+    "legendText": "Texte de légende - {{image}}",
+    "legendTextHint": "Laissez un champ vide pour garder le texte par défaut (affiché en grisé)."
   },
   "hudFrames": {
     "sectionTitle": "Cadres HUD"

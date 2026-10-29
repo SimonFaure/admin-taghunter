@@ -1,7 +1,11 @@
 <?php
 
 class PlaygroundAuthState {
-    public static function build(object $db, int $clientId, ?int $deviceId = null): ?array {
+    // $channelDeviceId: the calling device, used ONLY to resolve its update
+    // channel override when $deviceId (which also emits the `device` block) is
+    // not passed. Keeps the block - and the playground's mother-role alignment
+    // it triggers - limited to the callers that ask for it.
+    public static function build(object $db, int $clientId, ?int $deviceId = null, ?int $channelDeviceId = null): ?array {
         $client = $db->fetch(
             'SELECT id, email, name, license_type, billing_up_to_date,
                     avatar_url, company_logo_url, company_logo_uses_avatar,
@@ -85,6 +89,41 @@ class PlaygroundAuthState {
                 if (!empty($device['update_channel'])) {
                     $resolvedChannel = $device['update_channel'];
                 }
+
+                // The mother role (one per licensee, set from the playground's
+                // "Rôle de ce poste"). `mother_since` is when the licensee's
+                // CURRENT mother was designated: a device that still believes it
+                // is the mother, but is not the one flagged here and was
+                // designated before that date, gives the role up. Read apart
+                // and guarded, so the playground keeps authenticating if this
+                // code is deployed before add_default_mother_since.sql.
+                try {
+                    $role = $db->fetch(
+                        'SELECT is_default_mother FROM devices WHERE id = ?',
+                        [$deviceId]
+                    );
+                    $mother = $db->fetch(
+                        'SELECT default_mother_since FROM devices
+                          WHERE client_id = ? AND is_default_mother = 1
+                            AND default_mother_since IS NOT NULL
+                          ORDER BY default_mother_since DESC LIMIT 1',
+                        [$clientId]
+                    );
+                    $state['device']['is_default_mother'] = (bool)($role['is_default_mother'] ?? false);
+                    $state['device']['mother_since'] = !empty($mother['default_mother_since'])
+                        ? date('c', strtotime($mother['default_mother_since']))
+                        : null;
+                } catch (\Throwable $e) {
+                    // Column not there yet: say nothing about the role.
+                }
+            }
+        } elseif ($channelDeviceId !== null) {
+            $device = $db->fetch(
+                'SELECT update_channel FROM devices WHERE id = ? AND client_id = ?',
+                [$channelDeviceId, $clientId]
+            );
+            if ($device && !empty($device['update_channel'])) {
+                $resolvedChannel = $device['update_channel'];
             }
         }
 

@@ -8,9 +8,41 @@
     "storyHint": "Detalles técnicos o de jugabilidad para el licenciatario: mismos visuales que otro escenario, modo afectado, particularidades. Nunca se muestra a los jugadores."
   },
   "cover": {
-    "sectionTitleTracks": "Portada, fondo y mapa",
-    "sectionTitle": "Portada y fondo",
-    "mapImage": "Imagen del mapa"
+    "sectionTitleTracks": "Portada, fondo, mapa y vídeo",
+    "sectionTitle": "Portada, fondo y vídeo",
+    "mapImage": "Imagen del mapa",
+    "groupImages": "Imágenes",
+    "groupVideo": "Vídeo del escenario",
+    "visualLangs": {
+      "title": "Imagen de portada para los demás idiomas",
+      "set": "1 versión",
+      "notSet": "Sin versión",
+      "hint": "La imagen de portada de arriba es la versión francesa. Añade aquí una única versión para todos los demás idiomas: los licenciatarios cuya cuenta no esté en francés la verán en su lugar, en el Studio y en el Playground. Sin ella, todos ven la imagen de arriba. Guarda el escenario para aplicar los cambios.",
+      "otherLanguages": "Otros idiomas",
+      "usesDefault": "- usa la imagen principal",
+      "legacyHint": "Versiones antiguas por idioma, ya no se usan en ningún sitio. Puedes quitarlas.",
+      "upload": "Subir imagen",
+      "replace": "Reemplazar",
+      "remove": "Quitar",
+      "notImage": "Este archivo no es una imagen.",
+      "uploadFailed": "Error al subir"
+    },
+    "subtitles": {
+      "title": "Subtítulos",
+      "count_one": "{{count}} subtítulo",
+      "count_other": "{{count}} subtítulos",
+      "hint": "Un archivo .vtt (WebVTT) por idioma, ofrecido durante la reproducción en el Playground. Guarda el escenario para aplicar los cambios.",
+      "upload": "Subir .vtt",
+      "replace": "Reemplazar",
+      "remove": "Quitar",
+      "notVtt": "Este archivo no es un archivo de subtítulos WebVTT (.vtt) válido.",
+      "uploadFailed": "Error al subir",
+      "off": "Desactivados",
+      "empty": "Aún no hay subtítulos.",
+      "addLabel": "Añadir un idioma:",
+      "selectLabel": "Subtítulos:",
+      "none": "ningún archivo subido"
+    }
   },
   "timing": {
     "sectionTitle": "Tiempos",

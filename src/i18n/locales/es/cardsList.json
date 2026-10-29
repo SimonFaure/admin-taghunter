@@ -1,4 +1,4 @@
 {
   "title": "Mis tarjetas",
-  "description": "Registra, edita y elimina tus tarjetas de juego. Los cambios se sincronizan con tus dispositivos playground en su próxima actualización."
+  "description": "Registra, edita y elimina tus tarjetas de juego. Para importar tarjetas en lote, descarga la plantilla Excel, rellénala e impórtala. Las tarjetas nuevas se añaden a las ya registradas: no hace falta volver a importar todas tus tarjetas, el archivo puede contener solo las nuevas. Los cambios se sincronizan con tus dispositivos playground en su próxima actualización."
 }

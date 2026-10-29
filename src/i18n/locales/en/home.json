@@ -12,5 +12,10 @@
   "ownedTitle": "The scenarios I own",
   "ownedEmpty": "No scenarios assigned to you yet.",
   "customTitle": "My Custom scenarios",
-  "customEmpty": "You haven't created any custom scenarios yet."
+  "customEmpty": "You haven't created any custom scenarios yet.",
+  "statGoLoads": "GO/Spot games opened",
+  "statGoTeams": "GO/Spot teams",
+  "statGoFinished": "GO/Spot teams finished",
+  "othersAvailable_one": "{{count}} other scenario available - see it",
+  "othersAvailable_other": "{{count}} other scenarios available - see them"
 }

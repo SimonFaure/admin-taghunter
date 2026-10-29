@@ -19,6 +19,8 @@
     "customColor": "Couleur personnalisée",
     "background": "Fond",
     "backgroundOpacity": "Opacité",
+    "minFontSize": "Taille min.",
+    "minFontSizeHint": "Le nom d'équipe rétrécit pour tenir dans sa boîte (taille d'origine {{size}} px sur un écran 1920×1080). Sous cette taille, il passe sur deux lignes. Vide = 20 px. 0 = toujours une ligne.",
     "inherited": "hérité",
     "reset": "Réinitialiser ce rôle",
     "resetAll": "Tout réinitialiser",

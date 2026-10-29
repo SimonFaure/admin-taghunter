@@ -27,16 +27,23 @@
   },
   "durations": {
     "catalogTitle": "Mis duraciones",
-    "catalogHint": "Las duraciones de juego que ofreces. Luego marca, en cada código QR, las propuestas para ese escenario.",
+    "catalogHint": "Las duraciones de juego propuestas a los jugadores. Por defecto se proponen todas; marca algunas en un código QR para ofrecer solo esas en ese escenario.",
     "minutes": "minutos",
     "add": "Añadir",
     "remove": "Quitar",
     "offered": "Desafíos propuestos",
     "noneInCatalog": "Añade primero una duración en «Mis duraciones».",
-    "fallbackHint": "Ninguna marcada: se usa la duración original del escenario.",
+    "fallbackHint": "Ninguna marcada: se proponen al jugador todas tus duraciones.",
     "allDurations": "Todas",
     "unspecified": "Duración no indicada",
     "challenge": "Desafío"
+  },
+  "playerLanguages": {
+    "title": "Idiomas de los jugadores",
+    "enable": "Permitir que los jugadores elijan su idioma",
+    "allHint": "Ninguno marcado: se proponen todos los idiomas del escenario.",
+    "someHint": "Solo se proponen los idiomas marcados que tiene el escenario.",
+    "disabledHint": "Sin elección: los jugadores juegan en el idioma de la cuenta si el escenario lo tiene; si no, en el idioma por defecto del escenario."
   },
   "instructions": {
     "title": "Instrucciones para jugadores",

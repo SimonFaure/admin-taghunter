@@ -97,7 +97,7 @@ export function ClientGameTypesPanel({ clientId }: Props) {
   return (
     <div>
       <p className="mb-4 text-sm text-slate-500">
-        Control which game types this client can see, create, and sync. A per-client
+        Control which game types this licensee can see, create, and sync. A per-licensee
         setting overrides the global default - you can grant a type that's disabled
         platform-wide, or hide one that's globally enabled. Untouched types follow global.
       </p>
@@ -127,7 +127,7 @@ export function ClientGameTypesPanel({ clientId }: Props) {
                         effective ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
                       }`}
                     >
-                      {effective ? 'Visible to client' : 'Hidden from client'}
+                      {effective ? 'Visible to licensee' : 'Hidden from licensee'}
                     </span>
                     <span className="text-slate-400">
                       global {globallyOn ? 'ON' : 'OFF'}
@@ -135,14 +135,14 @@ export function ClientGameTypesPanel({ clientId }: Props) {
                         ? ' · inheriting'
                         : isOverriding
                           ? ` · overridden ${override ? 'ON' : 'OFF'}`
-                          : ` · client ${override ? 'ON' : 'OFF'}`}
+                          : ` · licensee ${override ? 'ON' : 'OFF'}`}
                     </span>
                     {override !== null && (
                       <button
                         onClick={() => setClientEnabled(t.code, null)}
                         disabled={busyCode === t.code}
                         className="text-blue-600 hover:text-blue-800 hover:underline"
-                        title="Clear the per-client override and follow the global default"
+                        title="Clear the per-licensee override and follow the global default"
                       >
                         reset to global
                       </button>
@@ -158,7 +158,7 @@ export function ClientGameTypesPanel({ clientId }: Props) {
                 className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
                   effective ? 'bg-emerald-500' : 'bg-slate-300'
                 } ${busyCode === t.code ? 'opacity-50' : ''}`}
-                title={effective ? 'Hide from this client' : 'Show to this client'}
+                title={effective ? 'Hide from this licensee' : 'Show to this licensee'}
               >
                 <span
                   className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${

@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download, QrCode } from 'lucide-react';
+import { Download, Eye, QrCode, X } from 'lucide-react';
 import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
 import { getAppAccess } from '../../auth/appAccess';
+import { HelpButton } from '../../help';
 import {
   DurationCatalogCard,
   ScenarioDurationPicker,
   useDurationCatalog,
 } from '../go/durations';
+import { ScenarioLanguagePicker, type PlayerLanguages } from '../go/playerLanguages';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 // The player PWAs. Each QR opens the app pointed at a specific client + scenario;
@@ -27,6 +29,10 @@ interface QrItem {
   title: string;
   /** The challenges offered for this scenario in this app (minutes). */
   durations: number[];
+  /** Language picker policy for this scenario in this app. */
+  playerLanguages?: PlayerLanguages;
+  /** The languages this client may be served the scenario in. */
+  scenarioLanguages: string[];
 }
 
 /**
@@ -40,27 +46,23 @@ export function MyQrCodesView() {
   const { user } = useAuth();
   const access = getAppAccess(user);
   const clientId = user?.client_id ?? '';
-  // The catalog is loaded once here and handed to every QR card, so the tick-box
-  // rows don't each re-fetch it (project_go_spot_durations).
-  const { catalog, loading: catalogLoading, save: saveCatalog } = useDurationCatalog();
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-2">
         <QrCode className="w-7 h-7 text-emerald-600" />
         <h1 className="text-2xl font-bold text-slate-900">{t('clientGameConfig:qrCodes.title')}</h1>
+        <HelpButton chapter={access.go ? 'go-studio' : 'spot-studio'} className="ml-auto" />
       </div>
       <p className="text-slate-600 mb-6">
         {t('clientGameConfig:qrCodes.subtitle')}
       </p>
 
-      <DurationCatalogCard catalog={catalog} onSave={saveCatalog} loading={catalogLoading} />
-
       {access.go && (
-        <QrSection clientId={clientId} app="go" baseUrl={GO_BASE_URL} heading="Tag Hunter GO" accent="emerald" catalog={catalog} />
+        <QrSection clientId={clientId} app="go" baseUrl={GO_BASE_URL} heading="Tag Hunter GO" accent="emerald" />
       )}
       {access.spot && (
-        <QrSection clientId={clientId} app="spot" baseUrl={SPOT_BASE_URL} heading="Tag Hunter Spot" accent="sky" catalog={catalog} />
+        <QrSection clientId={clientId} app="spot" baseUrl={SPOT_BASE_URL} heading="Tag Hunter Spot" accent="sky" />
       )}
     </div>
   );
@@ -73,18 +75,31 @@ function QrSection({
   baseUrl,
   heading,
   accent,
-  catalog,
 }: {
   clientId: string;
   app: 'go' | 'spot';
   baseUrl: string;
   heading: string;
   accent: 'emerald' | 'sky';
-  catalog: number[];
 }) {
   const { t } = useTranslation();
+  // Each app has its own catalog (GO 30/60/90, Spot 15/30/45 by default), loaded
+  // once per section and handed to every QR card so the tick-box rows don't each
+  // re-fetch it (project_go_spot_durations).
+  const { catalog, loading: catalogLoading, save: saveCatalog } = useDurationCatalog(app);
   const [items, setItems] = useState<QrItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // Card shown full page - for projecting / holding up to a room.
+  const [fullscreen, setFullscreen] = useState<QrItem | null>(null);
+
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +122,8 @@ function QrSection({
             scenario_id: string | number;
             title: string;
             durations?: number[];
+            player_languages?: PlayerLanguages;
+            scenario_languages?: string[];
           }>;
           if (!cancelled) {
             setItems(
@@ -114,6 +131,8 @@ function QrSection({
                 id: String(r.scenario_id),
                 title: r.title,
                 durations: r.durations ?? [],
+                playerLanguages: r.player_languages,
+                scenarioLanguages: r.scenario_languages ?? [],
               })),
             );
           }
@@ -148,6 +167,7 @@ function QrSection({
   return (
     <section className="mb-10">
       <h2 className={`text-sm font-semibold uppercase tracking-wide mb-3 ${headingColor}`}>{heading}</h2>
+      <DurationCatalogCard catalog={catalog} onSave={saveCatalog} loading={catalogLoading} />
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900" />
@@ -163,8 +183,16 @@ function QrSection({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {items.map((s) => (
-            <div key={s.id} className="border border-slate-200 rounded-xl p-5 flex flex-col items-center bg-white">
-              <h3 className="font-semibold text-slate-900 text-center mb-3 truncate w-full">{s.title}</h3>
+            <div key={s.id} className="relative border border-slate-200 rounded-xl p-5 flex flex-col items-center bg-white">
+              <button
+                onClick={() => setFullscreen(s)}
+                title={t('clientGameConfig:qrCodes.showFullscreen')}
+                aria-label={t('clientGameConfig:qrCodes.showFullscreen')}
+                className="absolute top-3 right-3 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+              >
+                <Eye className="w-5 h-5" />
+              </button>
+              <h3 className="font-semibold text-slate-900 text-center mb-3 truncate w-full px-7">{s.title}</h3>
               <div className="bg-white p-2 rounded-lg border border-slate-100">
                 <QRCodeSVG id={qrId(s.id)} value={playerUrl(baseUrl, clientId, s.id)} size={176} level="M" marginSize={2} />
               </div>
@@ -186,8 +214,43 @@ function QrSection({
                   initial={s.durations}
                 />
               </div>
+              <div className="mt-3 w-full border-t border-slate-100 pt-3">
+                <ScenarioLanguagePicker
+                  scenarioId={s.id}
+                  app={app}
+                  scenarioLanguages={s.scenarioLanguages}
+                  initial={s.playerLanguages}
+                />
+              </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {fullscreen && (
+        <div
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white p-6"
+          onClick={() => setFullscreen(null)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setFullscreen(null);
+            }}
+            title={t('clientGameConfig:qrCodes.exitFullscreen')}
+            aria-label={t('clientGameConfig:qrCodes.exitFullscreen')}
+            className="absolute top-4 right-4 rounded-full bg-slate-100 p-2 text-slate-600 hover:bg-slate-200"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <h2 className="mb-1 text-2xl font-bold text-slate-900 text-center">{fullscreen.title}</h2>
+          <p className={`mb-6 text-sm font-semibold uppercase tracking-wide ${headingColor}`}>{heading}</p>
+          <QRCodeSVG
+            value={playerUrl(baseUrl, clientId, fullscreen.id)}
+            level="M"
+            marginSize={2}
+            className="h-[min(70vh,70vw)] w-[min(70vh,70vw)]"
+          />
         </div>
       )}
     </section>

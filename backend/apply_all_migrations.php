@@ -251,7 +251,7 @@ if ($cardsBefore > 0) {
 
 if ($runSeeds) {
     echo "\n=== seeds ===\n";
-    foreach (['team_name_pools_seed.php', 'recovery_codes_seed.php', 'client_hotspot_seed.php'] as $seed) {
+    foreach (['team_name_pools_seed.php', 'recovery_codes_seed.php'] as $seed) {
         echo "--- {$seed} ---\n";
         try {
             require $dir . '/' . $seed; // both are idempotent (skip existing)

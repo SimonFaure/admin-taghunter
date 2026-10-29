@@ -8,7 +8,7 @@
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Upload, Trash2, Image as ImageIcon, Music, Film } from 'lucide-react';
 import type { MediaSlot } from '../../types';
@@ -29,6 +29,11 @@ interface AssetUploadFieldProps {
    * like enigmas / overscores where the preview is the focal point).
    */
   previewSize?: 'sm' | 'md' | 'lg';
+  /**
+   * Replaces the built-in image/audio/video preview when a file is set (e.g.
+   * the scenario video, which plays with its subtitle tracks).
+   */
+  renderPreview?: (value: string) => ReactNode;
 }
 
 const PREVIEW_HEIGHT_CLASS = {
@@ -50,7 +55,7 @@ function fileMatchesAccept(file: File, accept: string): boolean {
   });
 }
 
-export function AssetUploadField({ slot, value, onChange, validate, previewSize = 'sm' }: AssetUploadFieldProps) {
+export function AssetUploadField({ slot, value, onChange, validate, previewSize = 'sm', renderPreview }: AssetUploadFieldProps) {
   const editor = useScenarioEditor();
   const { t } = useTranslation('editorShared');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -172,7 +177,8 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
           )}
         </div>
       </div>
-      {slot.kind === 'image' && value && (
+      {renderPreview && value && renderPreview(value)}
+      {!renderPreview && slot.kind === 'image' && value && (
         <img
           src={editor.getMediaUrl(value)}
           alt={t('mediaSlots:' + (slot.labelKey ?? slot.key), { defaultValue: slot.label })}
@@ -180,10 +186,10 @@ export function AssetUploadField({ slot, value, onChange, validate, previewSize 
           onError={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')}
         />
       )}
-      {slot.kind === 'sound' && value && (
+      {!renderPreview && slot.kind === 'sound' && value && (
         <audio src={editor.getMediaUrl(value)} controls className="w-full h-8" />
       )}
-      {slot.kind === 'video' && value && (
+      {!renderPreview && slot.kind === 'video' && value && (
         <video
           src={editor.getMediaUrl(value)}
           controls

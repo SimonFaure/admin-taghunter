@@ -66,7 +66,7 @@ function deviceName(r: FleetErrorRow): string {
 }
 
 function clientName(r: FleetErrorRow): string {
-  return r.client_name || r.client_email || `client #${r.client_id}`;
+  return r.client_name || r.client_email || `licensee #${r.client_id}`;
 }
 
 function formatRelative(iso: string | null): string {
@@ -131,7 +131,7 @@ function reportAsText(r: FleetErrorRow): string {
   const lines = [
     r.error_message,
     '',
-    `Client:        ${clientName(r)}${r.client_email ? ` <${r.client_email}>` : ''} (#${r.client_id})`,
+    `Licensee:      ${clientName(r)}${r.client_email ? ` <${r.client_email}>` : ''} (#${r.client_id})`,
     `Device:        ${deviceName(r) || 'unknown'}${r.device_id ? ` (#${r.device_id})` : ''}`,
     `Device uniq:   ${r.device_uniq || '-'}`,
     `OS:            ${r.device_os || '-'}${r.device_os_version ? ` ${r.device_os_version}` : ''}`,
@@ -282,7 +282,7 @@ export function RecentErrorsView() {
             <span className="text-xs font-medium text-slate-400 mr-1">Sort</span>
             {sortButton('recent', 'Recent')}
             {sortButton('count', 'Frequency')}
-            {sortButton('client', 'Client')}
+            {sortButton('client', 'Licensee')}
             {sortButton('device', 'Device')}
           </div>
           <button
@@ -300,7 +300,7 @@ export function RecentErrorsView() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter by message, client, device, version, origin, stack or fingerprint…"
+          placeholder="Filter by message, licensee, device, version, origin, stack or fingerprint…"
           className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-300"
         />
       </div>
@@ -440,7 +440,7 @@ function ErrorDetailPanel({ row }: { row: FleetErrorRow }) {
       </div>
 
       <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3">
-        <Fact label="Client" value={clientName(row)} hint={row.client_email} />
+        <Fact label="Licensee" value={clientName(row)} hint={row.client_email} />
         <Fact
           label="Device"
           value={deviceName(row) || 'unknown'}

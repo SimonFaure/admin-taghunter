@@ -70,6 +70,10 @@ export interface TranslationFile {
   language: string | null;
   parent_file_id: number | null;
   mime_type: string;
+  /** "No translation needed" - set on the primary, read by the Scenario overview only. */
+  no_translation?: boolean;
+  /** Which required document this is; null/absent = recognised from the name. */
+  doc_type?: string | null;
   texts: FileText[];
 }
 

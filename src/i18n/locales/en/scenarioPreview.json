@@ -52,6 +52,8 @@
     "previewTeamName": "Preview team name",
     "teamNamePlaceholder": "Type the longest expected name",
     "teamNameHint": "Preview only - paste a long name to check the team-name box still reads.",
+    "minFontSize": "Team name min font size (px, 1920×1080 screen)",
+    "minFontSizeHint": "When the name has to shrink below this size to fit on one line, it is shown on two lines instead. Empty = 20 px. 0 = always one line.",
     "resetDefaults": "Reset to defaults",
     "showElement": "Show {{element}}",
     "idleTickHint": "Tick to show an element on the idle screen, then drag it on the background.",

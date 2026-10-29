@@ -163,7 +163,7 @@ export function ReportLayoutsView() {
           <option value="landscape">Landscape</option>
         </select>
         {savingFormat && <Loader2 className="animate-spin text-slate-400" size={15} />}
-        <span className="text-xs text-slate-500">Proposed as the default in the print dialog on devices; a client's own format (client portal) wins over this.</span>
+        <span className="text-xs text-slate-500">Proposed as the default in the print dialog on devices; a licensee's own format (licensee portal) wins over this.</span>
       </div>
 
       <div className="flex gap-2">

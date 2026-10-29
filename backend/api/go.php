@@ -33,6 +33,32 @@ header('Content-Type: application/json');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
+// A crash must still answer JSON. A PHP warning printed before the body, or an
+// HTML 500 from an uncaught DB exception, is unparseable to the PWA, which then
+// shows the team a generic "can't connect" with nothing in the logs to explain
+// it. Errors go to the log, never into the response.
+ini_set('display_errors', '0');
+function goFailJson($message) {
+    error_log('go.php: ' . $message);
+    if (class_exists('Logger', false)) {
+        Logger::log('go', $_SERVER['REQUEST_METHOD'] ?? '', $_GET['action'] ?? '', null, $_GET, ['error' => $message], 500, 'go');
+    }
+    if (!headers_sent()) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'server_error', 'reason' => 'server_error']);
+    }
+}
+set_exception_handler(function ($e) {
+    goFailJson(get_class($e) . ': ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
+});
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if ($err !== null && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+        goFailJson('fatal: ' . $err['message'] . ' @ ' . basename($err['file']) . ':' . $err['line']);
+    }
+});
+
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
@@ -95,16 +121,85 @@ function normalizeDurations($raw) {
     return array_slice($out, 0, 12);
 }
 
-// The durations a (client, scenario, app) offers, falling back to the scenario's
-// authored default_time when the operator hasn't configured anything - so every
-// pre-existing QR keeps working with exactly one implicit challenge.
-function resolveDurations($grantDurationsJson, $authoredMinutes) {
+// Each app's starting duration list, used until the licensee edits theirs.
+const GO_DEFAULT_DURATIONS = [30, 60, 90];
+const SPOT_DEFAULT_DURATIONS = [15, 30, 45];
+
+// Decode clients.duration_catalog into {go: [...], spot: [...]}. Stored shape is
+// that object; an app key that's absent = that app's defaults, a key present
+// (even []) = the licensee's own list. A legacy plain array (the old catalog
+// shared by both apps) is read as both apps' list so earlier edits survive.
+function decodeDurationCatalog($raw) {
+    $data = !empty($raw) ? json_decode($raw, true) : null;
+    $isLegacy = is_array($data) && $data && array_keys($data) === range(0, count($data) - 1);
+    $out = [];
+    foreach (['go' => GO_DEFAULT_DURATIONS, 'spot' => SPOT_DEFAULT_DURATIONS] as $app => $defaults) {
+        if ($isLegacy) {
+            $out[$app] = normalizeDurations($data);
+        } elseif (is_array($data) && array_key_exists($app, $data)) {
+            $out[$app] = normalizeDurations($data[$app]);
+        } else {
+            $out[$app] = $defaults;
+        }
+    }
+    return $out;
+}
+
+function clientDurationCatalog($raw, $app) {
+    return decodeDurationCatalog($raw)[$app === 'spot' ? 'spot' : 'go'];
+}
+
+// The durations a (client, scenario, app) offers: the ones ticked on the grant,
+// else every duration in the app's list (the player picks), else the scenario's
+// authored default_time as a single implicit challenge.
+function resolveDurations($grantDurationsJson, $catalog, $authoredMinutes) {
     $configured = normalizeDurations(
         !empty($grantDurationsJson) ? json_decode($grantDurationsJson, true) : []
     );
     if ($configured) return $configured;
+    if ($catalog) return $catalog;
     $authored = (int)$authoredMinutes;
     return $authored > 0 ? [$authored] : [];
+}
+
+// A grant's player-language policy (client_scenarios.player_languages), normalized
+// from any caller: {enabled: bool, languages: [codes]}. NULL/garbage = OFF (no
+// picker) - the default for every grant until the operator turns it on.
+function normalizePlayerLanguages($raw) {
+    if (is_string($raw)) $raw = json_decode($raw, true);
+    if (!is_array($raw)) return ['enabled' => false, 'languages' => []];
+    $langs = [];
+    foreach ((array)($raw['languages'] ?? []) as $code) {
+        $code = strtolower(trim((string)$code));
+        if (preg_match('/^[a-z]{2}$/', $code)) $langs[$code] = true;
+    }
+    return [
+        'enabled' => !empty($raw['enabled']),
+        'languages' => array_slice(array_keys($langs), 0, 12),
+    ];
+}
+
+// The languages a phone may offer for one scenario, and the one preselected.
+// Enabled: the scenario's languages ∩ the operator's list (empty list = all; an
+// empty intersection falls back to all, so a game is never left languageless).
+// Disabled: exactly one - the licensee's own language when the scenario has it,
+// else the scenario default. One language = the PWA shows no picker.
+function resolvePlayerLanguages($settings, $clientLang, $scenarioLangs, $scenarioDefault) {
+    $scenarioLangs = array_values(array_filter(array_map('strval', (array)$scenarioLangs)));
+    if (!$scenarioLangs) $scenarioLangs = [$scenarioDefault];
+    if (!in_array($scenarioDefault, $scenarioLangs, true)) $scenarioDefault = $scenarioLangs[0];
+
+    if (empty($settings['enabled'])) {
+        $only = in_array($clientLang, $scenarioLangs, true) ? $clientLang : $scenarioDefault;
+        return [[$only], $only];
+    }
+    $allowed = $settings['languages']
+        ? array_values(array_intersect($scenarioLangs, $settings['languages']))
+        : $scenarioLangs;
+    if (!$allowed) $allowed = $scenarioLangs;
+    $default = in_array($scenarioDefault, $allowed, true) ? $scenarioDefault
+        : (in_array($clientLang, $allowed, true) ? $clientLang : $allowed[0]);
+    return [$allowed, $default];
 }
 
 // This endpoint serves two apps from one codebase (project_taghunter_spot): GO
@@ -419,7 +514,7 @@ function mergeEnigmaMedia($gm, $medias) {
 // never implies them.
 function goResolveGrant($db, $clientId, $scenarioId, $app) {
     $grant = $db->fetch(
-        'SELECT pattern_id, durations FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
+        'SELECT pattern_id, durations, player_languages FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
         [$clientId, $scenarioId, $app]
     );
     return $grant ?: null;
@@ -705,7 +800,8 @@ try {
         if ($app === 'spot') {
             $client = $db->fetch(
                 'SELECT id, spot_enabled,
-                        spot_billing_overdue_since, spot_billing_grace_days
+                        spot_billing_overdue_since, spot_billing_grace_days,
+                        language, duration_catalog
                  FROM clients WHERE id = ?',
                 [$clientId]
             );
@@ -720,7 +816,8 @@ try {
         } else {
             $client = $db->fetch(
                 'SELECT id, go_enabled, go_subscription_active,
-                        go_billing_overdue_since, go_billing_grace_days
+                        go_billing_overdue_since, go_billing_grace_days,
+                        language, duration_catalog
                  FROM clients WHERE id = ?',
                 [$clientId]
             );
@@ -905,13 +1002,23 @@ try {
         // custom fonts. Only the families actually used are shipped.
         $slideFonts = slideFontFaces([$tutorialSlides, $briefingSlides]);
 
+        // This grant's language policy narrows what the phone may offer
+        // (project_go_spot_player_languages). Server-side, so an older PWA build
+        // obeys it too: one language left = it shows no picker.
+        [$playerLangs, $playerDefaultLang] = resolvePlayerLanguages(
+            normalizePlayerLanguages($grant['player_languages'] ?? null),
+            (string)($client['language'] ?? ''),
+            $data['available_languages'] ?? ['fr'],
+            (string)($data['default_language'] ?? 'fr')
+        );
+
         $bundle = [
             'version' => $scenario['version'],
             'app' => $app,
             'scenario_id' => (int)$scenario['id'],
             'go_answer_count' => $answerCount,
-            'default_language' => $data['default_language'] ?? 'fr',
-            'available_languages' => $data['available_languages'] ?? ['fr'],
+            'default_language' => $playerDefaultLang,
+            'available_languages' => $playerLangs,
             'title' => $gm['title'] ?? $scenario['title'] ?? '',
             // The scenario's pitch (Localized), shown under the title on the
             // PWA's inscription screen so the team reads what the game is about
@@ -969,13 +1076,18 @@ try {
                 'default_time_malus' => $gm['default_time_malus'] ?? null,
                 'late_malus' => $gm['late_malus'] ?? null,
             ],
-            // The challenges this operator offers for this scenario, in minutes.
-            // One entry = no choice screen (applied silently); several = the
-            // player picks on the setup screen. `duration_reference` is the time
+            // The challenges this operator offers for this scenario, in minutes:
+            // the ticked ones, else the app's whole list (GO 30/60/90, Spot
+            // 15/30/45 by default). One entry = no choice screen (applied
+            // silently); several = the player picks on the setup screen. `duration_reference` is the time
             // the scenario's LEVELS were authored for: the PWA scales the level
             // thresholds by chosen/reference so a short challenge stays
             // climbable. (project_go_spot_durations)
-            'durations' => resolveDurations($grant['durations'] ?? null, $gm['default_time'] ?? null),
+            'durations' => resolveDurations(
+                $grant['durations'] ?? null,
+                clientDurationCatalog($client['duration_catalog'] ?? null, $app),
+                $gm['default_time'] ?? null
+            ),
             'duration_reference' => (int)($gm['default_time'] ?? 0) ?: null,
             'typography' => [
                 'font' => $gm['font'] ?? null,
@@ -1047,7 +1159,8 @@ try {
 
     // ---- duration_*: the operator's challenge configuration (client/admin) ---
     // Two levels (project_go_spot_durations): a client-level CATALOG of minutes
-    // shared by GO and Spot, and a per-(scenario, app) SELECTION drawn from it.
+    // per app (GO and Spot each start from their defaults), and a per-(scenario,
+    // app) SELECTION drawn from it - nothing ticked = the whole catalog is offered.
     // A client always acts on itself; an admin passes client_id and gets the same
     // editor inside the client page.
     case 'duration_catalog': {
@@ -1055,12 +1168,12 @@ try {
             jsonResponse(['error' => 'method_not_allowed'], 405);
         }
         [, $clientId] = requireClientScope($db, $_GET['client_id'] ?? null);
+        $app = requestApp($_GET['app'] ?? null);
         $row = $db->fetch('SELECT duration_catalog FROM clients WHERE id = ?', [$clientId]);
         if (!$row) {
             jsonResponse(['error' => 'refused', 'reason' => 'unknown_client'], 403);
         }
-        $catalog = !empty($row['duration_catalog']) ? json_decode($row['duration_catalog'], true) : [];
-        jsonResponse(['data' => ['catalog' => normalizeDurations($catalog)]]);
+        jsonResponse(['data' => ['catalog' => clientDurationCatalog($row['duration_catalog'], $app)]]);
         break;
     }
 
@@ -1070,10 +1183,19 @@ try {
         }
         $d = getRequestData();
         [, $clientId] = requireClientScope($db, $d['client_id'] ?? null);
+        $app = requestApp($d['app'] ?? null);
+        $row = $db->fetch('SELECT duration_catalog FROM clients WHERE id = ?', [$clientId]);
+        if (!$row) {
+            jsonResponse(['error' => 'refused', 'reason' => 'unknown_client'], 403);
+        }
+        // Rewrite only this app's list; the other app keeps whatever it resolves
+        // to today (defaults or a legacy shared list) - frozen as explicit values.
+        $all = decodeDurationCatalog($row['duration_catalog']);
         $catalog = normalizeDurations($d['catalog'] ?? []);
+        $all[$app] = $catalog;
         $db->execute(
             'UPDATE clients SET duration_catalog = ? WHERE id = ?',
-            [json_encode($catalog), $clientId]
+            [json_encode($all), $clientId]
         );
         jsonResponse(['ok' => true, 'catalog' => $catalog]);
         break;
@@ -1106,6 +1228,40 @@ try {
             [$durations ? json_encode($durations) : null, $grant['id']]
         );
         jsonResponse(['ok' => true, 'durations' => $durations]);
+        break;
+    }
+
+    // ---- player_languages: the language picker policy (client/admin) --------
+    // Per (scenario, app), on the grant row like the challenge list
+    // (project_go_spot_player_languages): whether the setup screen offers a
+    // language picker, and which languages. Same scoping as the duration actions.
+    case 'player_languages_scenario_save': {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            jsonResponse(['error' => 'method_not_allowed'], 405);
+        }
+        $d = getRequestData();
+        [, $clientId] = requireClientScope($db, $d['client_id'] ?? null);
+        $scenarioId = $d['scenario_id'] ?? null;
+        if (!$scenarioId) {
+            jsonResponse(['error' => 'missing_params', 'reason' => 'scenario_id required'], 400);
+        }
+        $app = requestApp($d['app'] ?? null);
+        $grant = $db->fetch(
+            'SELECT id FROM client_scenarios WHERE client_id = ? AND scenario_id = ? AND mode = ?',
+            [$clientId, $scenarioId, $app]
+        );
+        if (!$grant) {
+            jsonResponse(['error' => 'refused', 'reason' => 'not_granted'], 403);
+        }
+        $settings = normalizePlayerLanguages([
+            'enabled' => $d['enabled'] ?? false,
+            'languages' => $d['languages'] ?? [],
+        ]);
+        $db->execute(
+            'UPDATE client_scenarios SET player_languages = ? WHERE id = ?',
+            [json_encode($settings), $grant['id']]
+        );
+        jsonResponse(['ok' => true, 'data' => $settings]);
         break;
     }
 

@@ -48,6 +48,8 @@
     "remove": "Eliminar",
     "upload": "Subir",
     "uploadOverride": "Subir reemplazo",
-    "uploadVtt": "Subir .vtt"
+    "uploadVtt": "Subir .vtt",
+    "download": "Descargar",
+    "downloadDefault": "Descargar (Tag Hunter)"
   }
 }

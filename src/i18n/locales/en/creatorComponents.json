@@ -8,7 +8,7 @@
     "allAdded": "All available languages have been added.",
     "cancel": "Cancel",
     "draft": "Draft",
-    "draftHint": "Not released to clients yet. Validate it in Admin › Translations › Scenarios."
+    "draftHint": "Not released to licensees yet. Validate it in Admin › Translations › Scenarios."
   },
   "creator": {
     "back": "Back",

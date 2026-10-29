@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, Settings, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, LayoutGrid, ChevronDown, FileVideo } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, LayoutGrid, ChevronDown, FileVideo, Building2 } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
@@ -61,7 +61,11 @@ const NAV_ITEMS: NavEntry[] = [
   { to: '/my/report-layouts', labelKey: 'nav.reportLayouts', icon: Printer, end: false, show: (a) => a.playground },
   // Merged: Playground game stats + GO/Spot usage sections in one page.
   { to: '/my/statistics', labelKey: 'nav.statistics', icon: BarChart3, end: false, show: (a) => a.playground || a.go || a.spot },
-  { to: '/my/settings', labelKey: 'nav.settings', icon: Settings, end: false, show: (a) => a.playground },
+  // The licensee's own customers + their game history (project_licensee_customers).
+  // Playground games only, so Playground-gated.
+  { to: '/my/customers', labelKey: 'nav.customers', icon: Building2, end: false, show: (a) => a.playground },
+  // "Paramètres" (/my/settings) hidden from clients; MySettingsView is kept, the
+  // route redirects to home (see AppRouter).
   { to: '/my/account', labelKey: 'nav.account', icon: User, end: false, show: () => true },
   { to: '/my/help', labelKey: 'nav.help', icon: HelpCircle, end: false, show: () => true },
 ];
@@ -125,6 +129,11 @@ export function ClientLayout() {
 
   const access = getAppAccess(user);
   const navItems = NAV_ITEMS.filter((item) => item.show(access));
+  // Help only shows the chapters of the products enabled on this account (GO, Spot, Playground).
+  const helpProducts = useMemo(
+    () => (['playground', 'go', 'spot'] as const).filter((p) => access[p]),
+    [access.playground, access.go, access.spot], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -132,7 +141,7 @@ export function ClientLayout() {
   };
 
   return (
-    <HelpProvider audience="client" lang={i18n.language} navigateToDocs={() => navigate('/my/help')} openPdfFile={studioOpenPdf}>
+    <HelpProvider audience="client" lang={i18n.language} products={helpProducts} navigateToDocs={() => navigate('/my/help')} openPdfFile={studioOpenPdf}>
     <div className="min-h-screen bg-slate-50 print:bg-white">
       <aside className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white flex flex-col print:hidden">
         <div className="p-6 border-b border-slate-800 flex-shrink-0">

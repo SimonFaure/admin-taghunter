@@ -8,8 +8,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
 // GO / Spot "challenges" = the game durations an operator offers
 // (project_go_spot_durations). Two levels, both edited with the pieces below:
-//   - the client's CATALOG of minutes, shared by GO and Spot;
+//   - the client's CATALOG of minutes, one per app (GO starts at 30/60/90,
+//     Spot at 15/30/45 - the server returns those until the licensee edits);
 //   - per (scenario, app), which of those minutes are offered to players.
+//     Nothing ticked = the whole catalog is offered.
 // Both surfaces (the client's QR page and the admin's client page) use these
 // components; `clientId` is only passed by the admin — a client always acts on
 // itself and the backend ignores any client_id it sends.
@@ -18,12 +20,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 // so the editors and the boards can never drift apart on how a challenge reads.
 export { formatDuration } from '../../lib/goRanking';
 
-/** The client's duration catalog + its save call. */
-export function useDurationCatalog(clientId?: string | number | null) {
+/** The client's duration catalog for one app + its save call. */
+export function useDurationCatalog(app: 'go' | 'spot', clientId?: string | number | null) {
   const [catalog, setCatalog] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const qs = clientId ? `&client_id=${encodeURIComponent(String(clientId))}` : '';
+  const qs = `&app=${app}${clientId ? `&client_id=${encodeURIComponent(String(clientId))}` : ''}`;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,10 +52,10 @@ export function useDurationCatalog(clientId?: string | number | null) {
       await authFetch(`${API_BASE_URL}/go.php?action=duration_catalog_save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ catalog: next, ...(clientId ? { client_id: clientId } : {}) }),
+        body: JSON.stringify({ catalog: next, app, ...(clientId ? { client_id: clientId } : {}) }),
       });
     },
-    [clientId],
+    [app, clientId],
   );
 
   return { catalog, loading, save };
@@ -136,7 +138,7 @@ export function DurationCatalogCard({
 /**
  * The per-scenario offer: tick which catalog durations this scenario proposes in
  * this app. One tick = that clock is applied silently; several = the player picks
- * on the setup screen ("Votre défi"). None = the scenario's authored time.
+ * on the setup screen ("Votre défi"). None = every catalog duration is offered.
  */
 export function ScenarioDurationPicker({
   clientId,

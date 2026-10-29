@@ -28,5 +28,6 @@
   "goSection": "Tag Hunter GO",
   "goPreviewOpen": "GO preview - codes & answers",
   "goPreviewHint": "See each enigma's code and the answer images behind A / B (printable).",
+  "goPreviewPrint": "Print / PDF",
   "fileLanguageNotice": "This document is in {{lang}} - no version in your language is available yet."
 }

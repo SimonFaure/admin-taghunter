@@ -1,0 +1,131 @@
+{
+  "title": "Mes clients",
+  "subtitle": "Les structures pour lesquelles vous organisez des parties. Associez une partie à un client dans le Playground (au lancement ou après) pour construire son historique.",
+  "fields": {
+    "name": "Nom",
+    "type": "Type",
+    "typeNone": "Non précisé",
+    "contactName": "Personne à contacter",
+    "email": "E-mail",
+    "phone": "Téléphone",
+    "city": "Ville",
+    "notes": "Notes"
+  },
+  "list": {
+    "search": "Rechercher un client…",
+    "showArchived": "Afficher les archivés",
+    "sortName": "Nom",
+    "sortLastPlayed": "Dernière partie",
+    "sortGames": "Nombre de parties",
+    "sortLabel": "Trier par",
+    "new": "Nouveau client",
+    "import": "Importer",
+    "export": "Exporter en CSV",
+    "empty": "Aucun client pour l'instant. Créez-en un ici, importez une liste, ou ajoutez-le à la volée au lancement d'une partie dans le Playground.",
+    "emptySearch": "Aucun client ne correspond à cette recherche.",
+    "games_one": "{{count}} partie",
+    "games_other": "{{count}} parties",
+    "lastPlayed": "Dernière partie : {{date}}",
+    "never": "Aucune partie",
+    "archived": "Archivé",
+    "fromPlayground": "Créé dans le Playground"
+  },
+  "form": {
+    "createTitle": "Nouveau client",
+    "editTitle": "Modifier le client",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "nameRequired": "Le nom est obligatoire.",
+    "similarTitle": "Des clients au nom proche existent déjà :",
+    "similarHint": "Vérifiez qu'il ne s'agit pas de l'un d'eux avant de créer un doublon."
+  },
+  "detail": {
+    "back": "Tous les clients",
+    "edit": "Modifier",
+    "archive": "Archiver",
+    "unarchive": "Désarchiver",
+    "archivedBanner": "Ce client est archivé : il n'apparaît plus dans les listes du Playground, son historique est conservé.",
+    "merge": "Fusionner dans…",
+    "delete": "Supprimer",
+    "deleteConfirm": "Supprimer « {{name}} » ? Cette action est définitive.",
+    "deleteHasGames": "Ce client a des parties et ne peut pas être supprimé. Archivez-le, ou fusionnez-le dans un autre client.",
+    "mergedFrom": "Inclut aussi : {{names}}",
+    "statGames": "Parties",
+    "statLastPlayed": "Dernière partie",
+    "statScenarios": "Scénarios joués",
+    "historyTitle": "Historique des parties",
+    "historyEmpty": "Aucune partie associée à ce client pour l'instant.",
+    "attach": "Associer des parties passées",
+    "teams_one": "{{count}} équipe",
+    "teams_other": "{{count}} équipes",
+    "players_one": "{{count}} joueur",
+    "players_other": "{{count}} joueurs",
+    "customerColumn": "Client",
+    "notPlayedTitle": "Pas encore joués",
+    "notPlayedHint": "Vos scénarios que ce client n'a jamais joués : des idées pour sa prochaine venue.",
+    "notPlayedEmpty": "Ce client a joué tous vos scénarios.",
+    "notFound": "Ce client n'existe pas (ou plus)."
+  },
+  "merge": {
+    "title": "Fusionner « {{name}} »",
+    "intro": "Toutes les parties de « {{name}} » passent au client choisi, et « {{name}} » disparaît. Les appareils qui le connaissent encore sont redirigés automatiquement.",
+    "target": "Fusionner dans",
+    "targetPlaceholder": "Choisir un client…",
+    "gamesWillMove_one": "{{count}} partie sera déplacée.",
+    "gamesWillMove_other": "{{count}} parties seront déplacées.",
+    "confirm": "Fusionner"
+  },
+  "attach": {
+    "title": "Associer des parties passées à « {{name}} »",
+    "filterUntagged": "Sans client",
+    "filterOther": "Avec un autre client",
+    "filterAll": "Toutes",
+    "search": "Rechercher un nom de partie ou un scénario…",
+    "empty": "Aucune partie à associer.",
+    "currentlyWith": "Actuellement : {{name}}",
+    "attachSelected_one": "Associer {{count}} partie",
+    "attachSelected_other": "Associer {{count}} parties",
+    "loadMore": "Voir plus"
+  },
+  "import": {
+    "title": "Importer des clients",
+    "intro": "Choisissez un fichier Excel (.xlsx) ou CSV avec un client par ligne et une ligne d'en-tête. Les clients dont le nom existe déjà sont ignorés.",
+    "chooseFile": "Choisir un fichier",
+    "mapping": "Colonnes",
+    "ignore": "- Ignorer -",
+    "preview": "Aperçu ({{count}} lignes)",
+    "status": {
+      "new": "Nouveau",
+      "exists": "Existe déjà",
+      "duplicate": "Doublon dans le fichier",
+      "invalid": "Sans nom"
+    },
+    "importN_one": "Importer {{count}} client",
+    "importN_other": "Importer {{count}} clients",
+    "done_one": "{{count}} client importé.",
+    "done_other": "{{count}} clients importés.",
+    "skipped_one": "{{count}} ligne ignorée.",
+    "skipped_other": "{{count}} lignes ignorées.",
+    "parseError": "Ce fichier n'a pas pu être lu.",
+    "noName": "Associez une colonne à « Nom » pour continuer.",
+    "close": "Fermer"
+  },
+  "export": {
+    "filename": "clients",
+    "archived": "Archivé",
+    "gamesCount": "Parties",
+    "lastPlayed": "Dernière partie",
+    "createdAt": "Créé le",
+    "yes": "oui",
+    "no": "non"
+  },
+  "picker": {
+    "none": "- Aucun client -"
+  },
+  "errors": {
+    "load": "Impossible de charger les clients.",
+    "save": "Enregistrement impossible : {{message}}",
+    "generic": "Une erreur est survenue : {{message}}"
+  },
+  "empty": "-"
+}

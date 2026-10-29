@@ -12,7 +12,7 @@
 //       {
 //         event_uuid: "<uuid v4>",
 //         event_type: "heartbeat" | "error" | "launch" | "game_summary" | "recovery_code_used"
-//                   | "sync_item_failed" | "sync_item_resolved",
+//                   | "sync_item_failed" | "sync_item_resolved" | "bug_report" | "customer_upsert",
 //         occurred_at: "<ISO 8601>",
 //         payload: {...event-type-specific...}
 //       },
@@ -29,6 +29,7 @@ require_once __DIR__ . '/../utils/SecurityHeaders.php';
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/PlaygroundAuth.php';
 require_once __DIR__ . '/../utils/DeviceManager.php';
+require_once __DIR__ . '/../utils/LicenseeCustomers.php';
 
 SecurityHeaders::setHeaders();
 setCorsHeaders();
@@ -171,6 +172,24 @@ function ingestGameSummary(
         return false;
     }
 
+    $params = [
+        $summaryUuid,
+        $clientId,
+        $authDeviceId,
+        isset($payload['name']) ? (string)$payload['name'] : null,
+        $gameType,
+        $payload['scenario_uniqid'] ?? null,
+        normalizeDatetime($payload['played_at'] ?? null),
+        isset($payload['teams_launched']) && $payload['teams_launched'] !== null
+            ? (int)$payload['teams_launched'] : null,
+        (int)($payload['teams_played'] ?? 0),
+        (int)($payload['players_played'] ?? 0),
+    ];
+
+    if (LicenseeCustomers::migrated()) {
+        return ingestGameSummaryWithCustomer($db, $clientId, $summaryUuid, $payload, $params);
+    }
+
     // Upsert keyed on summary_uuid (the playground's stable per-game id):
     // last-write-wins, so a post-game score edit that re-emits refreshes the
     // same row rather than duplicating it.
@@ -188,21 +207,95 @@ function ingestGameSummary(
            teams_launched = VALUES(teams_launched),
            teams_played = VALUES(teams_played),
            players_played = VALUES(players_played)',
-        [
-            $summaryUuid,
-            $clientId,
-            $authDeviceId,
-            isset($payload['name']) ? (string)$payload['name'] : null,
-            $gameType,
-            $payload['scenario_uniqid'] ?? null,
-            normalizeDatetime($payload['played_at'] ?? null),
-            isset($payload['teams_launched']) && $payload['teams_launched'] !== null
-                ? (int)$payload['teams_launched'] : null,
-            (int)($payload['teams_played'] ?? 0),
-            (int)($payload['players_played'] ?? 0),
-        ]
+        $params
     );
 
+    return true;
+}
+
+// game_summary upsert carrying the licensee-customer assignment
+// (add_licensee_customers.sql). customer_assigned_at decides between this
+// playground value and a studio edit: strictly newest wins. A payload without
+// customer_assigned_at (older playgrounds) never touches the customer columns.
+function ingestGameSummaryWithCustomer(object $db, int $clientId, string $summaryUuid, array $payload, array $params): bool {
+    $assignedAt = LicenseeCustomers::isoToUtc($payload['customer_assigned_at'] ?? null);
+    $customerId = null;
+    if ($assignedAt !== null && ($payload['customer_id'] ?? null) !== null) {
+        $customerId = LicenseeCustomers::resolveForIngest(
+            $db, $clientId, (string)$payload['customer_id'], $payload['customer_name'] ?? null
+        );
+        if ($customerId === null) {
+            // Unusable id (foreign / malformed): store the game, leave the customer alone.
+            $assignedAt = null;
+        }
+    }
+
+    $before = $db->fetch(
+        'SELECT customer_id, played_at, scenario_uniqid FROM game_summaries WHERE summary_uuid = ?',
+        [$summaryUuid]
+    );
+
+    // MySQL evaluates ON DUPLICATE KEY UPDATE assignments left to right and
+    // later ones see earlier results: customer_assigned_at MUST be assigned
+    // last so the two conditions before it compare against the old value.
+    $newer = '(? IS NOT NULL AND (customer_assigned_at IS NULL OR ? > customer_assigned_at))';
+    $db->execute(
+        'INSERT INTO game_summaries
+           (summary_uuid, client_id, device_id, name, game_type, scenario_uniqid,
+            played_at, teams_launched, teams_played, players_played,
+            customer_id, customer_assigned_at, customer_assigned_source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           device_id = VALUES(device_id),
+           name = VALUES(name),
+           game_type = VALUES(game_type),
+           scenario_uniqid = VALUES(scenario_uniqid),
+           played_at = VALUES(played_at),
+           teams_launched = VALUES(teams_launched),
+           teams_played = VALUES(teams_played),
+           players_played = VALUES(players_played),
+           customer_id = IF(' . $newer . ', ?, customer_id),
+           customer_assigned_source = IF(' . $newer . ', \'playground\', customer_assigned_source),
+           customer_assigned_at = IF(' . $newer . ', ?, customer_assigned_at)',
+        array_merge($params, [
+            $customerId, $assignedAt, $assignedAt !== null ? 'playground' : null,
+            $assignedAt, $assignedAt, $customerId,
+            $assignedAt, $assignedAt,
+            $assignedAt, $assignedAt, $assignedAt,
+        ])
+    );
+
+    // Devices' badges ("already played") follow the version counter.
+    $after = $db->fetch('SELECT customer_id FROM game_summaries WHERE summary_uuid = ?', [$summaryUuid]);
+    $changed = ($before['customer_id'] ?? null) !== ($after['customer_id'] ?? null)
+        || ($after['customer_id'] !== null && (!$before
+            || $before['played_at'] !== $params[6] || $before['scenario_uniqid'] !== $params[5]));
+    if ($changed) {
+        LicenseeCustomers::bumpVersion($db, $clientId);
+    }
+    return true;
+}
+
+// A customer quick-created in the playground (offline-capable, device UUID).
+// Create-only: studio owns the fields once the row exists, so a re-push is a
+// no-op. Accepted even when stats_disabled - a customer is not a statistic.
+function ingestCustomerUpsert(object $db, int $clientId, array $payload): bool {
+    $id = (string)($payload['customer_id'] ?? '');
+    $name = LicenseeCustomers::str($payload['name'] ?? null, 190);
+    if (!LicenseeCustomers::isUuid($id) || $name === null) {
+        return false;
+    }
+    $row = $db->fetch('SELECT client_id FROM licensee_customers WHERE id = ?', [$id]);
+    if ($row) {
+        return (int)$row['client_id'] === $clientId;
+    }
+    $createdAt = LicenseeCustomers::isoToUtc($payload['created_at'] ?? null) ?? LicenseeCustomers::utcNowMs();
+    $db->execute(
+        'INSERT IGNORE INTO licensee_customers (id, client_id, name, customer_type, created_source, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)',
+        [$id, $clientId, $name, LicenseeCustomers::normalizeType($payload['type'] ?? null), 'playground', $createdAt]
+    );
+    LicenseeCustomers::bumpVersion($db, $clientId);
     return true;
 }
 
@@ -257,7 +350,7 @@ function ingestRecoveryCodeUsed(
     return true;
 }
 
-// ─── sync-failure lifecycle ─────────────────────────────────────────────────
+// â”€â”€â”€ sync-failure lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Per-item content-sync failures from the playground. One CURRENT-STATE row per
 // (client_id, device_id, item_key) that flips status failed<->resolved. We
@@ -401,6 +494,136 @@ function ingestSyncItemResolved(
     return true;
 }
 
+// Every new bug report is mailed here. Single constant so the recipient is one
+// edit away.
+const BUG_REPORT_NOTIFY_EMAIL = 'support@taghunter.fr';
+const BUG_REPORT_MAX_COMMENT = 5000;
+
+// A licensee's "Report a problem" from the launched-games page. The snapshot is
+// stored verbatim (JSON string) - Studio > Bug reports renders it. INSERT IGNORE
+// on event_uuid: a retried delivery collapses silently and does not re-mail.
+function ingestBugReport(
+    object $db,
+    int $clientId,
+    ?int $authDeviceId,
+    string $eventUuid,
+    string $occurredAt,
+    array $payload
+): bool {
+    $comment = trim((string)($payload['comment'] ?? ''));
+    if ($comment === '') {
+        return false;
+    }
+    if (mb_strlen($comment) > BUG_REPORT_MAX_COMMENT) {
+        $comment = mb_substr($comment, 0, BUG_REPORT_MAX_COMMENT);
+    }
+
+    $str = function ($v, int $max): ?string {
+        if ($v === null) return null;
+        $s = trim((string)$v);
+        return $s === '' ? null : mb_substr($s, 0, $max);
+    };
+
+    $teams = is_array($payload['teams_concerned'] ?? null) ? $payload['teams_concerned'] : [];
+    $snapshot = $payload['snapshot'] ?? null;
+    $role = $str($payload['device_role'] ?? null, 16);
+
+    $stmt = $db->query(
+        'INSERT IGNORE INTO bug_reports
+           (event_uuid, client_id, device_id, app_version, launched_game_id, game_name,
+            game_type, scenario_uniqid, summary_uuid, game_started_at, comment,
+            teams_concerned_json, contact, device_role, snapshot_json, snapshot_error,
+            snapshot_truncated, reported_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+            $eventUuid,
+            $clientId,
+            $authDeviceId,
+            $str($payload['app_version'] ?? null, 32),
+            isset($payload['launched_game_id']) ? (int)$payload['launched_game_id'] : null,
+            $str($payload['game_name'] ?? null, 255),
+            $str($payload['game_type'] ?? null, 32),
+            $str($payload['scenario_uniqid'] ?? null, 64),
+            $str($payload['summary_uuid'] ?? null, 36),
+            normalizeDatetime($payload['game_started_at'] ?? null),
+            $comment,
+            count($teams) > 0 ? json_encode($teams) : null,
+            $str($payload['contact'] ?? null, 255),
+            $role,
+            $snapshot !== null ? json_encode($snapshot) : null,
+            $str($payload['snapshot_error'] ?? null, 2000),
+            !empty($payload['snapshot_truncated']) ? 1 : 0,
+            normalizeDatetime($occurredAt) ?? date('Y-m-d H:i:s'),
+        ]
+    );
+
+    // Only a first delivery mails; a retried duplicate inserted nothing.
+    if ($stmt->rowCount() > 0) {
+        try {
+            notifyBugReport($db, $clientId, $authDeviceId, $payload, $comment, $teams);
+        } catch (Exception $e) {
+            error_log('[telemetry.bug_report] notify failed: ' . $e->getMessage());
+        }
+    }
+
+    return true;
+}
+
+function notifyBugReport(
+    object $db,
+    int $clientId,
+    ?int $authDeviceId,
+    array $payload,
+    string $comment,
+    array $teams
+): void {
+    $client = $db->fetch('SELECT name, email FROM clients WHERE id = ?', [$clientId]) ?: [];
+    $device = $authDeviceId !== null
+        ? ($db->fetch('SELECT display_name, device_label FROM devices WHERE id = ?', [$authDeviceId]) ?: [])
+        : [];
+
+    $licensee = trim((string)($client['name'] ?? '')) ?: ('#' . $clientId);
+    $gameName = (string)($payload['game_name'] ?? '?');
+    $teamNames = [];
+    foreach ($teams as $t) {
+        if (!is_array($t)) continue;
+        $label = trim((string)($t['team_name'] ?? ''));
+        $teamNames[] = $label !== '' ? $label : ('#' . ($t['team_number'] ?? '?'));
+    }
+
+    $lines = [
+        "Licensee:  {$licensee}" . (!empty($client['email']) ? " <{$client['email']}>" : ''),
+        'Device:    ' . (($device['display_name'] ?? '') ?: ($device['device_label'] ?? '') ?: '?')
+            . (!empty($payload['device_role']) ? " ({$payload['device_role']})" : ''),
+        'App:       v' . ($payload['app_version'] ?? '?'),
+        "Game:      {$gameName} Â· " . ($payload['game_type'] ?? '?') . ' Â· #' . ($payload['launched_game_id'] ?? '?'),
+        'Teams:     ' . (count($teamNames) > 0 ? implode(', ', $teamNames) : '-'),
+        'Contact:   ' . (($payload['contact'] ?? '') ?: '-'),
+    ];
+    if (!empty($payload['snapshot_error'])) {
+        $lines[] = 'Snapshot:  UNAVAILABLE - ' . $payload['snapshot_error'];
+    } elseif (!empty($payload['snapshot_truncated'])) {
+        $lines[] = 'Snapshot:  truncated (oldest punches dropped)';
+    }
+    $lines[] = '';
+    $lines[] = $comment;
+    $lines[] = '';
+    $lines[] = 'Full report: Studio > Bug reports';
+
+    $subject = "[Bug report] {$licensee} - {$gameName}";
+    $headers = "From: Tag Hunter <noreply@taghunter.fr>\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion();
+
+    mail(
+        BUG_REPORT_NOTIFY_EMAIL,
+        '=?UTF-8?B?' . base64_encode($subject) . '?=',
+        implode("\n", $lines),
+        $headers
+    );
+}
+
 function normalizeDatetime($value): ?string {
     if ($value === null || $value === '') return null;
     $ts = strtotime((string)$value);
@@ -492,6 +715,16 @@ try {
                 case 'sync_item_resolved':
                     $ok = ingestSyncItemResolved($db, $clientId, $authDeviceId, $occurredAt, $payload);
                     break;
+                case 'bug_report':
+                    // Deliberate licensee action, not a statistic: accepted
+                    // even when stats_disabled.
+                    $ok = ingestBugReport($db, $clientId, $authDeviceId, $uuid, $occurredAt, $payload);
+                    break;
+                case 'customer_upsert':
+                    // A licensee customer quick-created on a device: not a
+                    // statistic, accepted even when stats_disabled.
+                    $ok = ingestCustomerUpsert($db, $clientId, $payload);
+                    break;
                 default:
                     $ok = false;
             }
@@ -503,6 +736,14 @@ try {
             // the outer try and returned 5xx, which the client treats as
             // retryable.
             error_log('[telemetry.ingest] event ' . $uuid . ' failed: ' . $e->getMessage());
+            // A bug report is written by a person and is not reproducible:
+            // leave it un-acked so the outbox keeps it and retries (e.g. the
+            // bug_reports migration has not been applied yet).
+            // Same for a customer created on a device (e.g. the customers
+            // migration is late): dropping it would orphan the games tagged with it.
+            if ($type === 'bug_report' || $type === 'customer_upsert') {
+                continue;
+            }
             $results[] = eventStatus($uuid, 'rejected');
         }
     }

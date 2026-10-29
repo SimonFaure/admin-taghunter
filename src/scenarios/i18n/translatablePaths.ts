@@ -93,6 +93,17 @@ export const TRACKS_OMITTED_KEYS = new Set<string>([
 export const TRACKS_TEXT_KEYS = TEXT_KEYS.filter((k) => !TRACKS_OMITTED_KEYS.has(k));
 
 /**
+ * Tracks legend captions (one per feedback image). Authored next to the
+ * "show legend" option in DisplayOptionsSection - NOT in TextStringsSection -
+ * but translatable like any other string. Blank = the app's own caption
+ * (`ingame_tracks:legend_*`).
+ */
+export const TRACKS_LEGEND_TEXT_KEYS = [
+  'text_legend_wrong_order',
+  'text_legend_missing_checkpoint',
+] as const;
+
+/**
  * Retours #55 - Clash surfaces NONE of these strings. Every player-facing word
  * in a Clash game comes from the app's `ingame_clash` translations or from the
  * scenario's own event-banner texts (CLASH_SCALARS below).
@@ -102,7 +113,7 @@ export const CLASH_TEXT_KEYS: readonly string[] = [];
 export const TEXT_KEYS_BY_GAME_TYPE: Record<ScenarioGameType, readonly string[]> = {
   mystery: MYSTERY_TEXT_KEYS,
   tagquest: TAGQUEST_TEXT_KEYS,
-  tracks: TRACKS_TEXT_KEYS,
+  tracks: [...TRACKS_TEXT_KEYS, ...TRACKS_LEGEND_TEXT_KEYS],
   clash: CLASH_TEXT_KEYS,
 };
 
@@ -228,6 +239,7 @@ export const TRANSLATABLE_LEAF_FIELDS: readonly string[] = [
   ...COMMON_SCALARS,
   ...TEXT_KEYS,
   'text_team_cheating',
+  ...TRACKS_LEGEND_TEXT_KEYS,
   ...CLASH_SCALARS,
   'name',
   'description',

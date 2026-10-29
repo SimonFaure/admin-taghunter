@@ -2,6 +2,11 @@
   "subtitle": "Consultez et gérez vos scénarios de jeu disponibles",
   "premiumBadge": "Premium - tous les scénarios débloqués",
   "newScenario": "Nouveau scénario",
+  "others": {
+    "title": "Autres scénarios disponibles",
+    "subtitle": "Pas encore dans votre compte - contactez-nous pour en ajouter un.",
+    "noneOwned": "Aucun scénario n'est encore attribué à votre compte."
+  },
   "filters": {
     "all": "Tous",
     "products": "Produits",

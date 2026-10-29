@@ -9,6 +9,7 @@ require_once __DIR__ . '/../utils/AudienceCompat.php';
 require_once __DIR__ . '/../utils/ScenarioHashes.php';
 require_once __DIR__ . '/../utils/GameTypes.php';
 require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+require_once __DIR__ . '/../utils/LicenseeCustomers.php';
 
 SecurityHeaders::setHeaders();
 setCorsHeaders();
@@ -387,6 +388,15 @@ try {
         // playground still wants the legacy `game_media_images` / `game_sounds`
         // field→filename maps next to game_meta, so splice them back in here.
         $structuredMedias = !empty($scenario['medias']) ? json_decode($scenario['medias'], true) : null;
+        // The cover-visual version of an unvalidated language stays behind
+        // with its texts.
+        if (is_array($structuredMedias)) {
+            $structuredMedias = ScenarioLanguages::stripMedias(
+                $structuredMedias,
+                array_diff(ScenarioLanguages::fromData($scenario['data'] ?? null), $visibleLangs),
+                $visibleLangs
+            );
+        }
         if (is_array($gameData)) {
             $mediaImages = is_array($structuredMedias['images'] ?? null) ? $structuredMedias['images'] : [];
             $mediaSounds = is_array($structuredMedias['sounds'] ?? null) ? $structuredMedias['sounds'] : [];
@@ -1077,16 +1087,10 @@ try {
             $reportLayoutsVersion = 0;
         }
 
-        // Relayed default-hotspot Wi-Fi networks version (per-client). The client
-        // re-pulls get_lan_networks when this advances. Defensive: the table may
-        // not be migrated yet on older installs -> version 0 (nothing to pull).
+        // Device hotspot feature removed: the studio no longer relays Wi-Fi
+        // creds. Frozen at 0 so older playground builds (which re-pull
+        // get_lan_networks when this advances) never loop.
         $lanNetworksVersion = 0;
-        try {
-            $lnv = $db->fetch('SELECT COALESCE(MAX(version),0) AS v FROM lan_networks WHERE client_id = ?', [$userId]);
-            $lanNetworksVersion = (int)($lnv['v'] ?? 0);
-        } catch (Exception $e) {
-            $lanNetworksVersion = 0;
-        }
 
         // Global admin-managed config rows (bucket 2). Small enough to ship
         // inline (a few hundred bytes per row). Add new meta keys here to surface
@@ -1115,7 +1119,8 @@ try {
         $disabledTypeCodes = playgroundDisabledTypes($db, $client);
         $gameTypeRows = $db->fetchAll(
             'SELECT code, name, supports_tutorial_video, supports_intro_video,
-                    tutorial_video_path, tutorial_video_version, tutorial_subtitles
+                    tutorial_video_path, tutorial_video_version, tutorial_subtitles,
+                    tutorial_subtitles_version
              FROM game_types ORDER BY code'
         );
         $gameTypeRows = array_values(array_filter($gameTypeRows, function ($r) use ($disabledTypeCodes) {
@@ -1130,12 +1135,16 @@ try {
                 'supports_intro_video' => (bool)$row['supports_intro_video'],
                 'tutorial_video_filename' => $row['tutorial_video_path'] ?: null,
                 'tutorial_video_version' => (int)$row['tutorial_video_version'],
+                // Bumped by subtitle edits alone: the playground then re-pulls
+                // just the .vtt tracks instead of the whole video.
+                'tutorial_subtitles_version' => (int)$row['tutorial_subtitles_version'],
                 'tutorial_subtitles' => $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass(),
             ];
         }
 
         $overrideRows = $db->fetchAll(
-            'SELECT game_type_code, tutorial_video_path, tutorial_video_version, tutorial_subtitles
+            'SELECT game_type_code, tutorial_video_path, tutorial_video_version, tutorial_subtitles,
+                    tutorial_subtitles_version
              FROM client_game_type_overrides WHERE client_id = ?',
             [$userId]
         );
@@ -1148,6 +1157,9 @@ try {
                 'game_type_code' => $row['game_type_code'],
                 'tutorial_video_filename' => $row['tutorial_video_path'] ?: null,
                 'tutorial_video_version' => (int)$row['tutorial_video_version'],
+                // Bumped by subtitle edits alone: the playground then re-pulls
+                // just the .vtt tracks instead of the whole video.
+                'tutorial_subtitles_version' => (int)$row['tutorial_subtitles_version'],
                 'tutorial_subtitles' => $row['tutorial_subtitles'] ? json_decode($row['tutorial_subtitles'], true) : new stdClass(),
             ];
         }
@@ -1156,6 +1168,13 @@ try {
         $clientPrefs = ($clientRow && $clientRow['preferences'])
             ? json_decode($clientRow['preferences'], true)
             : new stdClass();
+
+        // Licensee customers (add_licensee_customers.sql). The KEY's presence
+        // tells the playground this studio supports customers - it hides the
+        // feature (and never pushes customer events) when absent.
+        $customersVersion = LicenseeCustomers::migrated()
+            ? LicenseeCustomers::version($db, (int)$userId)
+            : null;
 
         Logger::log('playground', $method, 'get_user_data_update', $userId, [], [
             'custom_scenarios_count' => count($customScenarios),
@@ -1167,6 +1186,7 @@ try {
             'team_names_version' => $teamNamesVersion,
             'recovery_codes_version' => $recoveryCodesVersion,
             'report_layouts_version' => $reportLayoutsVersion,
+            'customers_version' => $customersVersion,
             'translations_count' => count($translations),
             'game_types_count' => count($gameTypes),
             'overrides_count' => count($overrides),
@@ -1183,10 +1203,15 @@ try {
             'recovery_codes_version' => $recoveryCodesVersion,
             'report_layouts_version' => $reportLayoutsVersion,
             'lan_networks_version' => $lanNetworksVersion,
+        ] + ($customersVersion !== null ? ['customers_version' => $customersVersion] : []) + [
             'translations' => $translations,
             'game_types' => $gameTypes,
             'client_game_type_overrides' => $overrides,
             'client_preferences' => $clientPrefs,
+            // Snapshot time (ms). Devices pass manifests to each other over the
+            // LAN when offline; this orders them so only a strictly newer cloud
+            // snapshot can delete content on a peer.
+            'server_time' => (int) round(microtime(true) * 1000),
         ]);
         break;
 
@@ -1321,6 +1346,76 @@ try {
         header('Content-Type: application/json');
         header('Content-Disposition: attachment; filename="recovery_codes.json"');
         echo json_encode(['version' => $version, 'codes' => $codes]);
+        exit;
+
+    case 'get_customers':
+        // Licensee customers cache for the device (pickers + "already played"
+        // badges). Only id / name / type / city / archived travel: contact
+        // details and notes stay in studio. `redirects` maps merged ids to
+        // their final target, `deleted` lists soft-deleted ids, and `games` is
+        // studio's game -> customer view (positional rows, compact):
+        //   [summary_uuid, customer_id|null, scenario_uniqid, played_at, assigned_at ISO]
+        // A newer studio assignment flows back to the device from there.
+        if ($method !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $client = requirePlaygroundClient($db);
+        $userId = (int)$client['id'];
+        if (!LicenseeCustomers::migrated()) {
+            jsonResponse(['error' => 'Customers not available'], 404);
+        }
+
+        $version = LicenseeCustomers::version($db, $userId);
+        $customers = [];
+        $redirects = new stdClass();
+        $deleted = [];
+        foreach ($db->fetchAll(
+            'SELECT id, name, customer_type, city, archived, merged_into_id, deleted_at
+             FROM licensee_customers WHERE client_id = ?',
+            [$userId]
+        ) as $r) {
+            if (!empty($r['merged_into_id'])) {
+                $redirects->{$r['id']} = $r['merged_into_id'];
+            } elseif (!empty($r['deleted_at'])) {
+                $deleted[] = $r['id'];
+            } else {
+                $customers[] = [
+                    'id' => $r['id'],
+                    'name' => $r['name'],
+                    'type' => $r['customer_type'],
+                    'city' => $r['city'],
+                    'archived' => (int)$r['archived'],
+                ];
+            }
+        }
+        $games = array_map(fn($g) => [
+            $g['summary_uuid'],
+            $g['customer_id'],
+            $g['scenario_uniqid'],
+            $g['played_at'],
+            LicenseeCustomers::utcToIso($g['customer_assigned_at']),
+        ], $db->fetchAll(
+            'SELECT summary_uuid, customer_id, scenario_uniqid, played_at, customer_assigned_at
+             FROM game_summaries
+             WHERE client_id = ? AND customer_assigned_at IS NOT NULL',
+            [$userId]
+        ));
+
+        Logger::log('playground', $method, 'get_customers', $userId, [], [
+            'version' => $version, 'customers' => count($customers), 'games' => count($games),
+        ], 200, 'playground');
+
+        http_response_code(200);
+        header('Content-Type: application/json');
+        header('Content-Disposition: attachment; filename="customers.json"');
+        echo json_encode([
+            'version' => $version,
+            'server_time' => (int) round(microtime(true) * 1000),
+            'customers' => $customers,
+            'redirects' => $redirects,
+            'deleted' => $deleted,
+            'games' => $games,
+        ]);
         exit;
 
     case 'get_report_layouts':
@@ -1474,34 +1569,16 @@ try {
         break;
 
     case 'get_lan_networks':
-        // Sibling-consumption side of Feature B: a never-paired device pulls the
-        // client's announced default hotspot networks so its auto-join engine can
-        // join one that's in range. Hotspot creds only (router creds are never
-        // relayed). See plans/playground-first-launch-onboarding.md.
+        // RETIRED: the device hotspot feature is gone, the studio no longer
+        // stores/relays Wi-Fi creds. Kept as an always-empty endpoint (same
+        // shape) so older playground builds still syncing don't error.
         if ($method !== 'GET') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
         $client = requirePlaygroundClient($db);
         $userId = $client['id'];
-        $rows = $db->fetchAll(
-            'SELECT ssid, password, source, version FROM lan_networks
-             WHERE client_id = ? AND is_default = 1 ORDER BY updated_at DESC',
-            [$userId]
-        );
-        $networks = [];
-        foreach ($rows as $r) {
-            $networks[] = [
-                'ssid' => $r['ssid'],
-                'password' => $r['password'],
-                'source' => $r['source'],
-                'version' => (int)$r['version'],
-            ];
-        }
-        // Same MAX(version) as the manifest's lan_networks_version, so the
-        // device can store exactly the cursor it will be compared against.
-        $verRow = $db->fetch('SELECT COALESCE(MAX(version),0) AS v FROM lan_networks WHERE client_id = ?', [$userId]);
-        Logger::log('playground', $method, 'get_lan_networks', $userId, [], ['count' => count($networks)], 200, 'playground');
-        jsonResponseWithAuthState($db, $userId, ['networks' => $networks, 'version' => (int)($verRow['v'] ?? 0)]);
+        Logger::log('playground', $method, 'get_lan_networks', $userId, [], ['retired' => true], 200, 'playground');
+        jsonResponseWithAuthState($db, $userId, ['networks' => [], 'version' => 0]);
         break;
 
     case 'announce_lan_network':
@@ -1521,8 +1598,12 @@ try {
         break;
 
     case 'set_default_mother':
-        // Inventory only (no secret leaves the device): record which machine is
-        // the client's canonical mother for the admin dashboard. on_off=0 clears.
+        // Record which machine is the licensee's mother ("Rôle de ce poste" in
+        // the playground). No secret leaves the device. There is ONE mother per
+        // licensee: setting it here clears the bit on the licensee's other
+        // devices, in the same statement, and stamps when it was set. A device
+        // that held the role learns it lost it from its auth_state (see
+        // PlaygroundAuthState). is_default_mother=0 clears this device only.
         if ($method !== 'POST') {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
@@ -1535,11 +1616,21 @@ try {
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
         $on = array_key_exists('is_default_mother', $body) ? (int)!empty($body['is_default_mother']) : 1;
         $motherUuid = isset($body['mother_uuid']) ? substr((string)$body['mother_uuid'], 0, 64) : null;
-        $db->query(
-            'UPDATE devices SET is_default_mother = ?, mother_uuid = COALESCE(?, mother_uuid)
-             WHERE id = ? AND client_id = ?',
-            [$on, $motherUuid, $deviceId, $userId]
-        );
+        if ($on) {
+            $db->query(
+                'UPDATE devices
+                    SET is_default_mother = (id = ?),
+                        default_mother_since = CASE WHEN id = ? THEN NOW() ELSE default_mother_since END,
+                        mother_uuid = CASE WHEN id = ? THEN COALESCE(?, mother_uuid) ELSE mother_uuid END
+                  WHERE client_id = ? AND (id = ? OR is_default_mother = 1)',
+                [$deviceId, $deviceId, $deviceId, $motherUuid, $userId, $deviceId]
+            );
+        } else {
+            $db->query(
+                'UPDATE devices SET is_default_mother = 0 WHERE id = ? AND client_id = ?',
+                [$deviceId, $userId]
+            );
+        }
         Logger::log('playground', $method, 'set_default_mother', $userId, ['device_id' => $deviceId], ['on' => $on], 200, 'playground');
         jsonResponseWithAuthState($db, $userId, ['success' => true]);
         break;

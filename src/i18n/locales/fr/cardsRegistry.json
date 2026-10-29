@@ -2,7 +2,8 @@
   "title": "Puces",
   "save": "Enregistrer",
   "cancel": "Annuler",
-  "importCsv": "Importer CSV",
+  "importCsv": "Importer (Excel / CSV)",
+  "downloadTemplate": "Télécharger le modèle",
   "registerCard": "Enregistrer une puce",
   "cardCount_one": "{{count}} puce · version {{version}}",
   "cardCount_other": "{{count}} puces · version {{version}}",
@@ -34,16 +35,45 @@
   "empty": {
     "title": "Aucune puce enregistrée pour l'instant",
     "registerStrong": "Enregistrer une puce",
-    "importStrong": "Importer CSV",
-    "lead": "Cliquez sur <0>Enregistrer une puce</0> pour en ajouter une manuellement, ou sur <1>Importer CSV</1> pour importer en masse."
+    "importStrong": "Importer (Excel / CSV)",
+    "lead": "Cliquez sur <0>Enregistrer une puce</0> pour en ajouter une manuellement, ou sur <1>Importer (Excel / CSV)</1> pour importer en masse."
   },
   "import": {
-    "title": "Importer des puces depuis un CSV",
+    "title": "Importer des puces (Excel ou CSV)",
     "importing": "Importation…",
-    "dropPrompt": "Déposez le CSV ici ou cliquez pour parcourir",
+    "dropPrompt": "Déposez le fichier Excel ou CSV ici ou cliquez pour parcourir",
     "expectedHeaders": "En-têtes attendus :",
-    "upsertNote": "Les lignes existantes sont mises à jour par ID de puce.",
+    "upsertNote": "Les puces importées s'ajoutent à celles déjà enregistrées : inutile de réimporter toute la liste, le fichier peut ne contenir que les nouvelles puces. Une puce dont l'ID existe déjà est mise à jour.",
+    "howToFill": "Comment remplir le fichier ?",
     "cancel": "Annuler"
+  },
+  "guide": {
+    "title": "Remplir le fichier d'import des puces",
+    "intro": "Téléchargez le modèle Excel, ajoutez une ligne par puce en suivant les indications ci-dessous, puis importez le fichier avec le bouton « Importer ».",
+    "previewLabel": "Aperçu du modèle",
+    "previewNote": "Ligne 1 : en-têtes (ne pas modifier). Ligne 2 : puce d'exemple, à remplacer par vos puces.",
+    "close": "Fermer",
+    "download": "Télécharger le modèle (.xlsx)"
+  },
+  "template": {
+    "fileName": "modele-import-puces.xlsx",
+    "cardsSheet": "Puces",
+    "instructionsSheet": "Instructions",
+    "colColumn": "Colonne",
+    "colDescription": "Description",
+    "colRequired": "Obligatoire",
+    "colExample": "Exemple",
+    "mock": { "name": "Exemple", "color": "rouge" },
+    "columns": {
+      "key_name": { "description": "Nom de la puce, affiché dans les jeux et les classements (ex. une lettre, un mot, un prénom).", "required": "Oui" },
+      "color": { "description": "Couleur de la puce ou de son support, en texte libre. Peut rester vide.", "required": "Non" },
+      "key_number": { "description": "Numéro de la puce dans votre lot (celui que vous écrivez sur l'étiquette). Nombre entier ; deux puces ne peuvent pas avoir le même numéro.", "required": "Oui" },
+      "id": { "description": "Numéro de série inscrit sur la puce SportIdent. Nombre entier, unique, sans espace ni séparateur.", "required": "Oui" }
+    },
+    "noteHeaders": "Remplissez la feuille « Puces » sans modifier la première ligne (en-têtes) : une puce par ligne.",
+    "noteExample": "La ligne 2 est une puce d'exemple : remplacez-la ou supprimez-la. Si elle reste dans le fichier, elle est ignorée à l'import.",
+    "noteAddOnly": "Pour ajouter des puces, indiquez seulement les nouvelles : les puces déjà enregistrées sont conservées.",
+    "noteUpdate": "Si l'ID d'une puce existe déjà, ses informations sont mises à jour."
   },
   "confirmDelete": {
     "title": "Supprimer la puce ?",
@@ -67,7 +97,8 @@
     "updateFailed": "Échec de la mise à jour de la puce",
     "cardDeleted": "Puce supprimée",
     "deleteFailed": "Échec de la suppression de la puce",
-    "onlyCsv": "Seuls les fichiers CSV sont autorisés",
+    "onlyCsv": "Seuls les fichiers Excel (.xlsx, .xls) ou CSV sont autorisés",
+    "templateFailed": "Échec du téléchargement du modèle",
     "inserted": "{{count}} ajoutée(s)",
     "updated": "{{count}} mise(s) à jour",
     "skipped": "{{count}} ignorée(s)",

@@ -1,0 +1,131 @@
+{
+  "title": "My Customers",
+  "subtitle": "The organisations you run games for. Tag a game with a customer in the Playground (when launching it, or afterwards) to build their history.",
+  "fields": {
+    "name": "Name",
+    "type": "Type",
+    "typeNone": "Not specified",
+    "contactName": "Contact person",
+    "email": "Email",
+    "phone": "Phone",
+    "city": "City",
+    "notes": "Notes"
+  },
+  "list": {
+    "search": "Search a customer…",
+    "showArchived": "Show archived",
+    "sortName": "Name",
+    "sortLastPlayed": "Last game",
+    "sortGames": "Number of games",
+    "sortLabel": "Sort by",
+    "new": "New customer",
+    "import": "Import",
+    "export": "Export CSV",
+    "empty": "No customers yet. Create one here, import a list, or add one on the fly when launching a game in the Playground.",
+    "emptySearch": "No customer matches this search.",
+    "games_one": "{{count}} game",
+    "games_other": "{{count}} games",
+    "lastPlayed": "Last game: {{date}}",
+    "never": "No game yet",
+    "archived": "Archived",
+    "fromPlayground": "Created in the Playground"
+  },
+  "form": {
+    "createTitle": "New customer",
+    "editTitle": "Edit customer",
+    "save": "Save",
+    "cancel": "Cancel",
+    "nameRequired": "The name is required.",
+    "similarTitle": "Similar customers already exist:",
+    "similarHint": "Check it is not one of them before creating a duplicate."
+  },
+  "detail": {
+    "back": "All customers",
+    "edit": "Edit",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
+    "archivedBanner": "This customer is archived: it is hidden from the Playground pickers, its history is kept.",
+    "merge": "Merge into…",
+    "delete": "Delete",
+    "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
+    "deleteHasGames": "This customer has games and cannot be deleted. Archive it, or merge it into another customer.",
+    "mergedFrom": "Also includes: {{names}}",
+    "statGames": "Games",
+    "statLastPlayed": "Last game",
+    "statScenarios": "Scenarios played",
+    "historyTitle": "Game history",
+    "historyEmpty": "No game tagged with this customer yet.",
+    "attach": "Attach past games",
+    "teams_one": "{{count}} team",
+    "teams_other": "{{count}} teams",
+    "players_one": "{{count}} player",
+    "players_other": "{{count}} players",
+    "customerColumn": "Customer",
+    "notPlayedTitle": "Not played yet",
+    "notPlayedHint": "Your scenarios this customer has never played - ideas for their next visit.",
+    "notPlayedEmpty": "This customer has played all your scenarios.",
+    "notFound": "This customer does not exist (any more)."
+  },
+  "merge": {
+    "title": "Merge \"{{name}}\"",
+    "intro": "All the games of \"{{name}}\" move to the customer you pick, and \"{{name}}\" disappears. Devices that still know it are redirected automatically.",
+    "target": "Merge into",
+    "targetPlaceholder": "Choose a customer…",
+    "gamesWillMove_one": "{{count}} game will move.",
+    "gamesWillMove_other": "{{count}} games will move.",
+    "confirm": "Merge"
+  },
+  "attach": {
+    "title": "Attach past games to \"{{name}}\"",
+    "filterUntagged": "Without customer",
+    "filterOther": "With another customer",
+    "filterAll": "All",
+    "search": "Search a game name or scenario…",
+    "empty": "No game to attach.",
+    "currentlyWith": "Currently: {{name}}",
+    "attachSelected_one": "Attach {{count}} game",
+    "attachSelected_other": "Attach {{count}} games",
+    "loadMore": "Load more"
+  },
+  "import": {
+    "title": "Import customers",
+    "intro": "Choose an Excel (.xlsx) or CSV file with one customer per row and a header row. Customers whose name already exists are skipped.",
+    "chooseFile": "Choose a file",
+    "mapping": "Columns",
+    "ignore": "- Ignore -",
+    "preview": "Preview ({{count}} rows)",
+    "status": {
+      "new": "New",
+      "exists": "Already exists",
+      "duplicate": "Duplicate in file",
+      "invalid": "No name"
+    },
+    "importN_one": "Import {{count}} customer",
+    "importN_other": "Import {{count}} customers",
+    "done_one": "{{count}} customer imported.",
+    "done_other": "{{count}} customers imported.",
+    "skipped_one": "{{count}} row skipped.",
+    "skipped_other": "{{count}} rows skipped.",
+    "parseError": "This file could not be read.",
+    "noName": "Map a column to \"Name\" to continue.",
+    "close": "Close"
+  },
+  "export": {
+    "filename": "customers",
+    "archived": "Archived",
+    "gamesCount": "Games",
+    "lastPlayed": "Last game",
+    "createdAt": "Created",
+    "yes": "yes",
+    "no": "no"
+  },
+  "picker": {
+    "none": "- No customer -"
+  },
+  "errors": {
+    "load": "Could not load the customers.",
+    "save": "Could not save: {{message}}",
+    "generic": "Something went wrong: {{message}}"
+  },
+  "empty": "-"
+}

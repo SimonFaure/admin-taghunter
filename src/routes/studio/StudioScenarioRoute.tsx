@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ScenarioCreator } from '../../creator-ported/components/ScenarioCreator';
 import { db } from '../../creator-ported/lib/db';
 import { useAuth } from '../../auth/AuthContext';
@@ -19,6 +19,7 @@ interface ScenarioRow {
 export function StudioScenarioRoute() {
   const { uniqid = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { userType, user } = useAuth();
   const isAdmin = userType === 'admin';
 
@@ -70,10 +71,13 @@ export function StudioScenarioRoute() {
   }, [isNew, uniqid, navigate, isAdmin, user?.client_id]);
 
   // Admins land on Dashboard with the Scenarios tab pre-selected (Dashboard
-   // reads `location.state.tab`); clients have a dedicated list route.
+   // reads `location.state.tab`) - or on the tab they opened the editor from,
+   // when it said so (`backTab`, e.g. the Scenario overview); clients have a
+   // dedicated list route.
+   const backTab = (location.state as { backTab?: string } | null)?.backTab ?? 'scenarios';
    const backToList = () =>
      isAdmin
-       ? navigate('/admin', { state: { tab: 'scenarios' } })
+       ? navigate('/admin', { state: { tab: backTab } })
        : navigate('/my/scenarios');
   const openLayoutEditor = (scenarioUniqid: string) =>
     // Remember we came from the editor so the layout editor's Back returns here

@@ -278,13 +278,6 @@ function handleGetScenario($pdo) {
         }
     }
 
-    $gameVisual = null;
-    if (!empty($medias['images']['game_visual'])) {
-        $gv = $medias['images']['game_visual'];
-        // Pass through absolute URLs unchanged; otherwise return as-is (relative).
-        $gameVisual = $gv;
-    }
-
     $videoUrl = null;
     if (!empty($medias['video'])) {
         $videoUrl = $medias['video'];
@@ -305,6 +298,11 @@ function handleGetScenario($pdo) {
     // whose account language is `en` gets the EN edition (and its EN title)
     // where the admin uploaded one, and the primary otherwise.
     $viewerLang = clientLanguageFor($pdo, $email, $scenarioDefaultLang, $scenario);
+
+    // The cover in the viewer's language when the author uploaded that
+    // version, the default cover otherwise. Absolute URLs and bare filenames
+    // both pass through as stored.
+    $gameVisual = ScenarioLanguages::gameVisual($medias['images'] ?? null, $viewerLang);
     $stmt4 = $pdo->prepare("
         SELECT id, name, name_i18n, language, parent_file_id, file_path, file_size, mime_type, created_at
         FROM scenario_files WHERE scenario_id = ? ORDER BY created_at DESC
@@ -853,8 +851,8 @@ function handleList($pdo) {
     // SECURITY: this action used to run with NO authorization at all - any
     // caller could enumerate any scenario's files by id. It now carries
     // translation state (name_i18n, texts_count) that is ADMIN ONLY, so it is
-    // gated like every other read here, and the admin-only columns are stripped
-    // for everyone else.
+    // gated like every other read here, and the admin-only columns (those two
+    // and no_translation) are stripped for everyone else.
     $email = resolveEmailFromRequest();
     if (!$email) {
         http_response_code(401);
@@ -874,6 +872,7 @@ function handleList($pdo) {
     $stmt = $pdo->prepare("
         SELECT sf.id, sf.scenario_id, sf.name, sf.name_i18n, sf.language,
                sf.parent_file_id, sf.file_path, sf.file_size, sf.mime_type, sf.created_at,
+               sf.no_translation, sf.doc_type,
                (SELECT COUNT(*) FROM scenario_file_texts t WHERE t.file_id = sf.id) AS texts_count
         FROM scenario_files sf
         WHERE sf.scenario_id = ?
@@ -909,6 +908,10 @@ function handleList($pdo) {
             $decoded = $f['name_i18n'] ? json_decode($f['name_i18n'], true) : null;
             $row['name_i18n']   = is_array($decoded) ? $decoded : [];
             $row['texts_count'] = (int)$f['texts_count'];
+            // "No translation needed": left out of the Scenario overview's counts.
+            $row['no_translation'] = (int)$f['no_translation'] === 1;
+            // Which required document this is; null = recognised from the name.
+            $row['doc_type'] = $f['doc_type'];
         }
         return $row;
     }, $files);

@@ -4,7 +4,9 @@
     "to": "To",
     "gameType": "Game type",
     "scenario": "Scenario",
-    "client": "Client",
+    "client": "Licensee",
+    "customer": "Customer",
+    "customerNone": "Without customer",
     "all": "All",
     "clear": "Clear"
   },
@@ -14,6 +16,7 @@
   },
   "errors": {
     "fetchFailed": "Failed to fetch statistics",
+    "assignFailed": "Could not change the customer of this game.",
     "loadFailed": "Failed to load statistics"
   },
   "kpi": {
@@ -28,8 +31,8 @@
     "gameCount_other": "{{count}} games"
   },
   "topClients": {
-    "title": "Top Clients",
-    "empty": "No client activity yet"
+    "title": "Top Licensees",
+    "empty": "No licensee activity yet"
   },
   "chart": {
     "title": "Daily Activity",
@@ -47,7 +50,8 @@
     "name": "Name",
     "type": "Type",
     "scenario": "Scenario",
-    "client": "Client",
+    "client": "Licensee",
+    "customer": "Customer",
     "teams": "Teams",
     "players": "Players",
     "empty": "No games match these filters"

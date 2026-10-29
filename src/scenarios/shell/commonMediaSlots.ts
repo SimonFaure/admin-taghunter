@@ -29,10 +29,41 @@ const scenarioVideoSubtitleSlots: readonly MediaSlot[] = SUPPORTED_LANGS.map((la
   acceptMime: ['text/vtt', 'text/plain'],
 })) as readonly MediaSlot[];
 
+/**
+ * The cover visual comes in two versions: `game_visual` is the French one
+ * (and the fallback), `game_visual_intl` the one shown to every licensee whose
+ * account language is not French. Both live in `medias.images`, so the
+ * playground receives them in `game_media_images` with no server change.
+ * Resolved by getGameVisualUrl (studio), ScenarioLanguages::gameVisual (PHP)
+ * and pickGameVisual (playground).
+ */
+export const GAME_VISUAL_INTL_KEY = 'game_visual_intl';
+
+/**
+ * Legacy per-language versions (`game_visual_<lang>`, one per language) from
+ * before the single "other languages" version. No longer shown anywhere; still
+ * declared so a save keeps them and the editor can list them for removal.
+ */
+export const gameVisualLangKey = (lang: string) => `game_visual_${lang}`;
+
+export const gameVisualLangFields = [GAME_VISUAL_INTL_KEY, ...SUPPORTED_LANGS.map(gameVisualLangKey)];
+
+const gameVisualLangSlots: readonly MediaSlot[] = [
+  { key: GAME_VISUAL_INTL_KEY, kind: 'image', required: false, scope: 'common', label: 'Game cover visual (other languages)' },
+  ...SUPPORTED_LANGS.map((lang) => ({
+    key: gameVisualLangKey(lang),
+    kind: 'image',
+    required: false,
+    scope: 'common',
+    label: `Game cover visual (${lang}, legacy)`,
+  })),
+] as readonly MediaSlot[];
+
 export const commonMediaSlots: readonly MediaSlot[] = [
   // Cover / background
   { key: 'background_image', kind: 'image', required: 'error', scope: 'common', label: 'Background image' },
   { key: 'game_visual', kind: 'image', required: 'error', scope: 'common', label: 'Game cover visual' },
+  ...gameVisualLangSlots,
 
   // End-of-game
   { key: 'final_image_sound', kind: 'sound', required: false, scope: 'common', label: 'Final image sound' },

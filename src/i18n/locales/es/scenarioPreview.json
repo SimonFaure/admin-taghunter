@@ -52,6 +52,8 @@
     "previewTeamName": "Vista previa del nombre de equipo",
     "teamNamePlaceholder": "Escribe el nombre más largo previsto",
     "teamNameHint": "Solo vista previa: pega un nombre largo para comprobar que la caja del nombre de equipo sigue siendo legible.",
+    "minFontSize": "Tamaño de fuente mín. del nombre de equipo (px, pantalla 1920×1080)",
+    "minFontSizeHint": "Si el nombre tiene que bajar de este tamaño para caber en una línea, se muestra en dos líneas. Vacío = 20 px. 0 = siempre una línea.",
     "resetDefaults": "Restablecer valores predeterminados",
     "showElement": "Mostrar {{element}}",
     "idleTickHint": "Marca para mostrar un elemento en la pantalla de espera y luego arrástralo sobre el fondo.",

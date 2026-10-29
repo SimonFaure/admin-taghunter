@@ -4,7 +4,9 @@
     "to": "Hasta",
     "gameType": "Tipo de juego",
     "scenario": "Escenario",
-    "client": "Cliente",
+    "client": "Licenciatario",
+    "customer": "Cliente",
+    "customerNone": "Sin cliente",
     "all": "Todos",
     "clear": "Borrar"
   },
@@ -14,6 +16,7 @@
   },
   "errors": {
     "fetchFailed": "Error al obtener las estadísticas",
+    "assignFailed": "No se ha podido cambiar el cliente de esta partida.",
     "loadFailed": "Error al cargar las estadísticas"
   },
   "kpi": {
@@ -47,7 +50,8 @@
     "name": "Nombre",
     "type": "Tipo",
     "scenario": "Escenario",
-    "client": "Cliente",
+    "client": "Licenciatario",
+    "customer": "Cliente",
     "teams": "Equipos",
     "players": "Jugadores",
     "empty": "Ninguna partida coincide con estos filtros"

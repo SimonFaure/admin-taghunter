@@ -6,6 +6,7 @@ import { MyScenariosView } from '../components/client/MyScenariosView';
 import { MyCatalogView } from '../components/client/MyCatalogView';
 import { MyQrCodesView } from '../components/client/MyQrCodesView';
 import { RankingsView } from '../components/client/RankingsView';
+import { MobileRankingsView } from '../components/client/MobileRankingsView';
 import { ScenarioDetailView } from '../components/client/ScenarioDetailView';
 import { ScenarioRecapPage } from '../components/client/ScenarioRecapPage';
 import { MyPatternsView } from '../components/client/MyPatternsView';
@@ -23,8 +24,8 @@ import { StudioScenarioRoute } from './studio/StudioScenarioRoute';
 import { StudioPatternRoute } from './studio/StudioPatternRoute';
 import { StudioLayoutRoute } from './studio/StudioLayoutRoute';
 import { GameTypesView } from '../components/GameTypesView';
-import { MySettingsView } from '../components/client/MySettingsView';
 import { ClientStatisticsView } from '../components/client/ClientStatisticsView';
+import { MyCustomersView, MyCustomerDetailView } from '../components/client/MyCustomersView';
 import { MyHelpView } from '../components/client/MyHelpView';
 import { MyReleasesView } from '../components/client/MyReleasesView';
 import { TutorialVideoDownloadsView } from '../components/client/TutorialVideoDownloadsView';
@@ -65,6 +66,9 @@ export function AppRouter() {
         </Route>
 
         <Route element={<RequireRole role="client" />}>
+          {/* Phone-first leaderboard. Outside ClientLayout on purpose: its fixed
+              sidebar leaves a portrait phone no room for a board. */}
+          <Route path="/m/rankings" element={<MobileRankingsView />} />
           <Route path="/my" element={<ClientLayout />}>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<MyHomeView />} />
@@ -89,7 +93,10 @@ export function AppRouter() {
             <Route path="game-types" element={<GameTypesView />} />
             <Route path="tutorial-downloads" element={<TutorialVideoDownloadsView />} />
             <Route path="statistics" element={<ClientStatisticsView />} />
-            <Route path="settings" element={<MySettingsView />} />
+            <Route path="customers" element={<MyCustomersView />} />
+            <Route path="customers/:id" element={<MyCustomerDetailView />} />
+            {/* Settings page hidden from clients; old bookmarks land on home. */}
+            <Route path="settings" element={<Navigate to="../home" replace />} />
             <Route path="help" element={<MyHelpView />} />
             <Route path="account" element={<MyAccountView />} />
             <Route path="account/security" element={<AccountSecurityView />} />

@@ -522,7 +522,7 @@ export function DefaultConfigPage({ onBack, gameType = 'tagquest' }: DefaultConf
         onSubmit={doPublish}
         onCancel={() => setShowClientEmailModal(false)}
         title="Publish Default Configuration"
-        description="Enter the client email address to publish this default configuration under"
+        description="Enter the licensee email address to publish this default configuration under"
       />
 
       <ConfirmDialog

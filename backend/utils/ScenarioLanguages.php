@@ -134,6 +134,37 @@ class ScenarioLanguages {
         }));
     }
 
+    /** Target languages of a scenario whose `target_languages` was never set. */
+    const DEFAULT_TARGETS = ['fr', 'en', 'es'];
+
+    /**
+     * The languages this scenario is MEANT to exist in ("available in French
+     * only" = just its own), the scenario's own language first. Never set
+     * (NULL) resolves to DEFAULT_TARGETS plus everything already released, so
+     * introducing the column changed nothing for any licensee.
+     *
+     * This is a cap on validation, enforced AT WRITE TIME by
+     * scenario_translations.php (`set_language_validation` refuses a language
+     * outside it, `set_target_languages` withdraws the ones it drops) - so
+     * `validated_languages` always sits inside it and no read path consults
+     * it. `$row` needs `data`, `client_id`, `validated_languages` and
+     * `target_languages`.
+     */
+    public static function targetLanguages(array $row) {
+        $default = self::fromData($row['data'] ?? null)[0];
+        $raw = $row['target_languages'] ?? null;
+        $list = is_string($raw) ? json_decode($raw, true) : $raw;
+        if (!is_array($list)) {
+            $list = array_merge(self::DEFAULT_TARGETS, self::validatedLanguages($row));
+        }
+        $out = [$default];
+        foreach ($list as $l) {
+            $c = self::toCode($l);
+            if ($c && !in_array($c, $out, true)) $out[] = $c;
+        }
+        return $out;
+    }
+
     /**
      * The languages `$row` may be served in. `$clientId` is the viewing client;
      * null means an admin viewer, who sees everything.
@@ -200,6 +231,50 @@ class ScenarioLanguages {
     }
 
     /**
+     * The cover visual to show a viewer whose language is `$lang`:
+     * `game_visual` is the French cover; any other language gets the "other
+     * languages" version `game_visual_intl` when the author uploaded one, else
+     * `game_visual`. `$images` is the `medias.images` map. Null when the
+     * scenario has no cover at all. Mirrors getGameVisualUrl (studio) and
+     * pickGameVisual (playground).
+     */
+    public static function gameVisual($images, $lang) {
+        if (!is_array($images)) return null;
+        $code = self::toCode($lang);
+        if ($code && $code !== 'fr' && !empty($images['game_visual_intl'])) return $images['game_visual_intl'];
+        return !empty($images['game_visual']) ? $images['game_visual'] : null;
+    }
+
+    /**
+     * Drop the cover versions of hidden languages from a `medias` column
+     * (array or JSON string; returned in the same form): the legacy
+     * `medias.images.game_visual_<lang>` of each language in `$hidden`, and the
+     * shared "other languages" `game_visual_intl` when a non-French language is
+     * hidden and none is in `$visible`. The cover of a language still being
+     * translated is as unreleased as its texts.
+     */
+    public static function stripMedias($medias, array $hidden, array $visible = []) {
+        $wasString = is_string($medias);
+        $obj = $wasString ? json_decode($medias, true) : $medias;
+        if (!is_array($obj) || !is_array($obj['images'] ?? null)) return $medias;
+        $changed = false;
+        foreach ($hidden as $l) {
+            if (array_key_exists('game_visual_' . $l, $obj['images'])) {
+                unset($obj['images']['game_visual_' . $l]);
+                $changed = true;
+            }
+        }
+        $notFr = function ($l) { return $l !== 'fr'; };
+        if (array_key_exists('game_visual_intl', $obj['images'])
+            && array_filter($hidden, $notFr) && !array_filter($visible, $notFr)) {
+            unset($obj['images']['game_visual_intl']);
+            $changed = true;
+        }
+        if (!$changed) return $medias;
+        return $wasString ? json_encode($obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : $obj;
+    }
+
+    /**
      * The sync hash to serve. Unchanged when nothing is narrowed, so every
      * ungated or fully validated scenario keeps byte-identical hashes;
      * otherwise salted with the visible set, so validating / un-validating a
@@ -214,7 +289,8 @@ class ScenarioLanguages {
     }
 
     /**
-     * Narrow one scenario row for a client viewer: strip `data` and salt the
+     * Narrow one scenario row for a client viewer: strip `data` (and the
+     * hidden languages' cover visuals from `medias`) and salt the
      * `content_hash` / `data_hash` columns when present. The row needs
      * `data`, `client_id` and `validated_languages`.
      */
@@ -223,6 +299,9 @@ class ScenarioLanguages {
         if (!self::isNarrowed($row, $visible)) return $row;
         foreach (['content_hash', 'data_hash'] as $col) {
             if (array_key_exists($col, $row)) $row[$col] = self::servedHash($row[$col], $row, $visible);
+        }
+        if (array_key_exists('medias', $row)) {
+            $row['medias'] = self::stripMedias($row['medias'], array_diff(self::fromData($row['data'] ?? null), $visible), $visible);
         }
         if (array_key_exists('data', $row)) $row['data'] = self::strip($row['data'], $visible);
         return $row;

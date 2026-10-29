@@ -10,6 +10,8 @@ import { buildGroups, buildTracksGroups, buildClashGroups, TRACKS_HUD_ITEMS, TRA
 import { defaultClashTerritories } from '../../scenarios/bodies/clash/defaults';
 import { alignQuestMainImagesVertically, clampQuestInnerElement } from '../utils/questSync';
 import { TracksTextFit } from '../../scenarios/bodies/tracks/TracksTextFit';
+import { TracksLegend, TRACKS_LEGEND_ID, TRACKS_LEGEND_DEFAULT_BOX, TRACKS_LEGEND_DEFAULT_SCALE } from '../../scenarios/bodies/tracks/TracksLegend';
+import { INGAME_CATALOG } from '../../i18n/ingameCatalog';
 import {
   TEXT_ELEMENT_DEFAULT_POSITION,
   TEXT_ELEMENT_DEFAULT_ALIGN,
@@ -22,6 +24,13 @@ import {
 import { resolveFontFamily } from '../../fonts/resolveFontFamily';
 import { registerStudioCustomFonts } from '../../fonts/registerStudioCustomFonts';
 import { getLocalized } from '../../scenarios/i18n/getLocalized';
+import {
+  readMinFontSize,
+  TeamNameFit,
+  TEAM_NAME_MIN_FONT_DEFAULT,
+  TEAM_NAME_MIN_FONT_MAX,
+  TEAM_NAME_MIN_FONT_MIN,
+} from '../../scenarios/preview/teamNameFit';
 import type {
   CustomFont,
   TextCategory,
@@ -97,6 +106,12 @@ interface ImageElement {
    * (`TRACKS_HUD_MOCK[id].defaultScale`). Retours point 45.
    */
   textScale?: number;
+  /**
+   * Tracks team-name frame only: minimum font size of the name, in px on a
+   * 1920×1080 screen. The name shrinks to fit the frame; below this size it is
+   * drawn over two lines. Undefined = 20 px (the default); 0 = always one line.
+   */
+  minFontSize?: number;
 }
 
 interface TextElement {
@@ -166,6 +181,8 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
 
   const [backgroundImage, setBackgroundImage] = useState<string>('');
   const [elements, setElements] = useState<LayoutElement[]>([]);
+  // Tracks: sample shown in the team-name frame, to check a long name wraps.
+  const [tracksTeamSample, setTracksTeamSample] = useState('');
   const [availableImages, setAvailableImages] = useState<{ id: string; name: string; filename: string }[]>([]);
   const [isTagquestGame, setIsTagquestGame] = useState(false);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
@@ -240,6 +257,14 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const clashRankingTitlePreview = clashEventTexts.rankingTitle || 'Classement des clans';
   const [checkpointCount, setCheckpointCount] = useState<number>(0);
   const [tracksIconSize, setTracksIconSize] = useState<number>(3);
+  // Tracks feedback-image legend (game_meta.show_legend): the element is only
+  // offered while the option is on. The feedback image filenames feed the
+  // preview rows ('' = dashed placeholder).
+  const [tracksShowLegend, setTracksShowLegend] = useState(false);
+  const [tracksLegendImages, setTracksLegendImages] = useState<{ wrongOrder: string; missing: string }>({ wrongOrder: '', missing: '' });
+  // Authored legend captions (game_meta.text_legend_*), keyed by the app
+  // caption they override; blank/missing = the app caption.
+  const [tracksLegendTexts, setTracksLegendTexts] = useState<Record<string, unknown>>({});
   const [naturalAspects, setNaturalAspects] = useState<Record<string, number>>({});
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -260,9 +285,22 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   // and re-adding the timer plate restores its authored size instead of the
   // generic default (territory markers just take the per-role sidebar size).
   const clashSeedBoxRef = useRef<Record<string, { width: number; height: number }>>({});
+  // Tracks: a saved legend box kept aside while show_legend is off, so turning
+  // the option back on finds the legend where the author last left it.
+  const tracksLegendKeepRef = useRef<LayoutElement | null>(null);
 
   const instructionLayoutImages = ['game_instructions_image', 'game_instructions_button_image', 'game_refresh_button_image'];
   const TRACKS_HUD_IDS = TRACKS_HUD_ITEMS.map((i) => i.id);
+  // Legend captions: the author's own text when filled in, else the app-owned
+  // one (ingame_tracks) from the bundled seed - previewed in the scenario
+  // default language.
+  const legendCaption = (key: string) => {
+    const lang = scenarioDefaultLanguage as never;
+    const authored = String(getLocalized(tracksLegendTexts[key] as never, lang, lang)).trim();
+    if (authored) return authored;
+    const def = INGAME_CATALOG.ingame_tracks.find((d) => d.key === key);
+    return def ? def.seed[scenarioDefaultLanguage] ?? def.seed.en : key;
+  };
   const isCheckpointElement = (id: string) => isTracksGame && /^checkpoint_\d+$/.test(id);
   // Clash map markers are anchored by their CENTER on the map image, exactly
   // like the runtime draws them (ClashGameRenderer plants banner / name-gauge /
@@ -318,11 +356,24 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
   const groups: GroupDef[] = isTagquestGame
     ? buildGroups(questCount)
     : isTracksGame
-      ? buildTracksGroups(
-          checkpointCount,
-          scenarioTextCategories.map((c) => ({ id: c.id, name: c.name })),
-          tracksTextItemsByCategory,
-        )
+      ? (() => {
+          const g = buildTracksGroups(
+            checkpointCount,
+            scenarioTextCategories.map((c) => ({ id: c.id, name: c.name })),
+            tracksTextItemsByCategory,
+          );
+          // Legend group sits right after the HUD frames, only while the
+          // scenario's "show legend" option is on.
+          if (tracksShowLegend) {
+            g.splice(2, 0, {
+              id: 'tracks_legend',
+              name: 'Legend',
+              mainImageId: '',
+              items: [{ id: TRACKS_LEGEND_ID, name: 'Legend', type: 'image' }],
+            });
+          }
+          return g;
+        })()
       : isClashGame
         ? buildClashGroups(
             territoryCount,
@@ -689,8 +740,32 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
           imagesList.push({ id: item.id, name: item.name, filename: media?.images?.[item.id] || '' });
         });
 
+        const showLegend = gm.show_legend === true;
+        setTracksShowLegend(showLegend);
+        setTracksLegendImages({
+          wrongOrder: media?.images?.wrong_order_image || '',
+          missing: media?.images?.missing_checkpoint_image || '',
+        });
+        setTracksLegendTexts({
+          legend_wrong_order: gm.text_legend_wrong_order,
+          legend_missing_checkpoint: gm.text_legend_missing_checkpoint,
+        });
+        if (showLegend) imagesList.push({ id: TRACKS_LEGEND_ID, name: 'Legend', filename: '' });
+
         tracksSeedRef.current = seeds;
         setAvailableImages(imagesList);
+
+        // Legend box: saved geometry from scenario_layout, else the default
+        // bottom-left box. With the option off it is kept aside (not drawn,
+        // not listed) and written back unchanged on save.
+        const savedLegend = (Array.isArray(scenarioLayout?.elements) ? scenarioLayout.elements : [])
+          .find((el: any) => el?.id === TRACKS_LEGEND_ID);
+        const legendEl: LayoutElement | null = savedLegend
+          ? { ...savedLegend, type: 'image', name: 'Legend', filename: '' }
+          : showLegend
+            ? { type: 'image', id: TRACKS_LEGEND_ID, name: 'Legend', filename: '', ...TRACKS_LEGEND_DEFAULT_BOX }
+            : null;
+        tracksLegendKeepRef.current = showLegend ? null : legendEl;
 
         // HUD frame elements: reuse saved positions from scenario_layout when
         // present, otherwise drop them into a default top strip so they show.
@@ -733,7 +808,13 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
             height: Number(te.position.height) || TEXT_ELEMENT_DEFAULT_POSITION.height,
           }));
 
-        setElements([...checkpointEls, ...savedHud, ...seededHud, ...placedTextEls]);
+        setElements([
+          ...checkpointEls,
+          ...savedHud,
+          ...seededHud,
+          ...(showLegend && legendEl ? [legendEl] : []),
+          ...placedTextEls,
+        ]);
         return;
       }
 
@@ -1316,7 +1397,9 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
         : { width: tracksIconSize, height: tracksIconSize };
       // Tracks HUD frames re-add at their own default strip position rather
       // than the generic 20×20 box (they are wide, short plates).
-      const hudBox = isTracksGame ? TRACKS_DEFAULT_HUD_POS[itemId] : undefined;
+      const hudBox = isTracksGame
+        ? TRACKS_DEFAULT_HUD_POS[itemId] ?? (itemId === TRACKS_LEGEND_ID ? { ...TRACKS_LEGEND_DEFAULT_BOX } : undefined)
+        : undefined;
       // The clash ranking panel is a plain corner-anchored box, but it re-adds
       // where the runtime would have drawn it, not at the generic 20×20.
       const clashPanelBox = itemId === 'clash_ranking' ? { ...CLASH_RANKING_DEFAULT_BOX } : undefined;
@@ -1632,6 +1715,10 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     // elements would be redundant here (the runtime reads them out of
     // gameMeta) and risk drift, so strip them before writing.
     const layoutElements = elements.filter((el) => el.type !== 'scenario_text');
+    // Legend option off: keep its last saved box so re-enabling restores it.
+    if (tracksLegendKeepRef.current && !layoutElements.some((el) => el.id === TRACKS_LEGEND_ID)) {
+      layoutElements.push(tracksLegendKeepRef.current);
+    }
 
     // Bump the row version so playgrounds re-sync the new positions.
     const update: Record<string, unknown> = {
@@ -2375,15 +2462,15 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                           </button>
                                         )}
                                       </div>
-                                      {isTracksGame && element.type === 'image' && TRACKS_HUD_MOCK[element.id] && (() => {
+                                      {isTracksGame && element.type === 'image' && (TRACKS_HUD_MOCK[element.id] || element.id === TRACKS_LEGEND_ID) && (() => {
                                         // Retours point 45: the value drawn in
                                         // a HUD frame used to be locked to the
                                         // box height. It is now an explicit
                                         // knob (% of box height) persisted on
                                         // the layout element and honoured by
                                         // the playground runtime.
-                                        const mock = TRACKS_HUD_MOCK[element.id];
-                                        const scale = element.textScale ?? mock.defaultScale;
+                                        const defaultScale = TRACKS_HUD_MOCK[element.id]?.defaultScale ?? TRACKS_LEGEND_DEFAULT_SCALE;
+                                        const scale = element.textScale ?? defaultScale;
                                         const setScale = (v: number) => {
                                           const clamped = Math.max(5, Math.min(150, parseFloat(v.toFixed(1))));
                                           setElements(prev => prev.map(el =>
@@ -2409,11 +2496,47 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                               }}
                                               className="w-14 text-xs text-center bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-white focus:outline-none focus:border-blue-500"
                                             />
-                                            <span className="text-xs text-gray-500">% of box height</span>
+                                            <span className="text-xs text-gray-500">{element.id === TRACKS_LEGEND_ID ? '% of row height' : '% of box height'}</span>
                                             <button onClick={(e) => { e.stopPropagation(); setScale(scale + 2.5); }} className="w-5 h-5 bg-gray-700 hover:bg-gray-600 rounded text-xs flex items-center justify-center">+</button>
                                           </div>
                                         );
                                       })()}
+                                      {isTracksGame && element.type === 'image' && element.id === 'team_name_background_image' && (
+                                        // The team name shrinks to fit its frame;
+                                        // under this size it goes on two lines.
+                                        <div className="pl-5 space-y-1" onClick={(e) => e.stopPropagation()}>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs text-gray-400">Min size:</span>
+                                            <input
+                                              type="number"
+                                              min={TEAM_NAME_MIN_FONT_MIN}
+                                              max={TEAM_NAME_MIN_FONT_MAX}
+                                              step="1"
+                                              value={element.minFontSize ?? ''}
+                                              placeholder={String(TEAM_NAME_MIN_FONT_DEFAULT)}
+                                              onChange={(e) => {
+                                                const val = parseFloat(e.target.value);
+                                                const next = !isNaN(val)
+                                                  ? Math.min(TEAM_NAME_MIN_FONT_MAX, Math.max(TEAM_NAME_MIN_FONT_MIN, val))
+                                                  : undefined;
+                                                setElements(prev => prev.map(el =>
+                                                  el.id === element.id && el.type === 'image'
+                                                    ? { ...el, minFontSize: next }
+                                                    : el));
+                                              }}
+                                              className="w-14 text-xs text-center bg-gray-700 border border-gray-600 rounded px-1 py-0.5 text-white focus:outline-none focus:border-blue-500"
+                                            />
+                                            <span className="text-xs text-gray-500">px (1920×1080 screen, empty = {TEAM_NAME_MIN_FONT_DEFAULT}) - smaller names wrap to 2 lines</span>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={tracksTeamSample}
+                                            onChange={(e) => setTracksTeamSample(e.target.value)}
+                                            placeholder="Preview team name (try a long one)"
+                                            className="w-full text-xs bg-gray-700 border border-gray-600 rounded px-1.5 py-0.5 text-white focus:outline-none focus:border-blue-500"
+                                          />
+                                        </div>
+                                      )}
                                       {element.type === 'text' && (
                                         <div className="flex items-center gap-2 pl-5">
                                           <span className="text-xs text-gray-400">Size:</span>
@@ -2877,6 +3000,27 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                         </div>
                       );
                     })()
+                  ) : isTracksGame && element.id === TRACKS_LEGEND_ID ? (
+                    // Feedback-image legend - same component as the runtime.
+                    // Always previews both rows: free/itinerary is a launch
+                    // choice, so the editor cannot know which rows will show.
+                    <TracksLegend
+                      rows={[
+                        {
+                          imageUrl: tracksLegendImages.wrongOrder ? getMediaUrl(scenarioUniqid, tracksLegendImages.wrongOrder) : '',
+                          label: legendCaption('legend_wrong_order'),
+                        },
+                        {
+                          imageUrl: tracksLegendImages.missing ? getMediaUrl(scenarioUniqid, tracksLegendImages.missing) : '',
+                          label: legendCaption('legend_missing_checkpoint'),
+                        },
+                      ]}
+                      boxWidthPx={elWidthPx}
+                      boxHeightPx={elHeightPx}
+                      fontFamily={resolveFontFamily(scenarioFont) || ''}
+                      textScale={element.textScale}
+                      placeholders
+                    />
                   ) : element.filename ? (
                   <img
                     src={getMediaUrl(scenarioUniqid, element.filename)}
@@ -2983,6 +3127,32 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                         ? element.textScale
                         : hudMock.defaultScale;
                     const valueFontSize = Math.max(8, elHeightPx * (scale / 100));
+                    if (element.id === 'team_name_background_image') {
+                      // Same fit as the playground: shrink to the frame, two
+                      // lines under the author's min size.
+                      // Min authored in px on a 1080-high screen; the editor
+                      // container stands in for that screen.
+                      const minPx =
+                        readMinFontSize(element.type === 'image' ? element.minFontSize : undefined) *
+                        (containerHeightPx / 1080);
+                      return (
+                        <div
+                          className="absolute inset-0 pointer-events-none select-none"
+                          style={{
+                            fontFamily: resolveFontFamily(scenarioFont) || undefined,
+                            color: scenarioFontColor || '#ffffff',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.85)',
+                          }}
+                        >
+                          <TeamNameFit
+                            text={tracksTeamSample || hudMock.value}
+                            maxPx={valueFontSize}
+                            minPx={minPx}
+                            textStyle={{ fontWeight: 700 }}
+                          />
+                        </div>
+                      );
+                    }
                     return (
                       <div
                         className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none select-none overflow-hidden"

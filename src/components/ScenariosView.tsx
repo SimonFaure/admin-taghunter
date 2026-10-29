@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download, Gauge, Languages, CornerDownRight } from 'lucide-react';
+import { Film, User, Calendar, Trash2, Eye, Pencil, Image as ImageIcon, FileJson, Globe, Tag, Upload, File, FileImage, FileVideo, FileAudio, FileText, FileCode, ChevronDown, FileArchive, Plus, Download, Gauge, Languages, CornerDownRight, ListChecks, Search, X } from 'lucide-react';
 import { SUPPORTED_LANGS, LANGUAGES } from '../i18n/languages';
 import { authFetch } from '../lib/authFetch';
 import { ImportLegacyZipModal } from './ImportLegacyZipModal';
+import { ImportScenarioJsonModal } from './ImportScenarioJsonModal';
 import { ManageGameTypesModal } from './ManageGameTypesModal';
 import { ScenarioListControls } from './scenarios/ScenarioListControls';
 import { AUDIENCE_BANDS, type AudienceBand, getBandLabel, resolveBands } from '../types/audience';
@@ -17,6 +18,12 @@ import { HelpButton } from '../help';
 // chips below can be derived from the registry even when the editor route
 // hasn't been visited yet.
 import '../scenarios/bootstrap';
+import {
+  OTHER_DOC_TYPE,
+  detectDocumentType,
+  documentTypeLabel,
+  requiredDocuments,
+} from '../scenarios/documentTypes';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -99,7 +106,14 @@ function isScenarioSpot(scenario: Scenario): boolean {
 // The `(string & {})` keeps literal autocomplete while accepting any game-type kind.
 type ScenarioFilter = 'all' | 'products' | 'client-authored' | 'drafts' | (string & {});
 
-export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: ScenarioFilter } = {}) {
+export function ScenariosView({
+  initialFilter = 'all',
+  onOpenOverview,
+}: {
+  initialFilter?: ScenarioFilter;
+  /** Opens the Scenario overview (production checklist) - a Dashboard tab. */
+  onOpenOverview?: () => void;
+} = {}) {
   const navigate = useNavigate();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [filter, setFilter] = useState<ScenarioFilter>(initialFilter);
@@ -141,6 +155,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [groupBy, setGroupBy] = useState<'scenario_type' | 'game_type'>('scenario_type');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showJsonImportModal, setShowJsonImportModal] = useState(false);
   const [showGameTypesModal, setShowGameTypesModal] = useState(false);
   // Catalog metadata filters - independent multi-selects, AND across categories,
   // OR within each. A scenario passes the band filter if it includes ANY selected
@@ -150,6 +165,8 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
   const [difficultyFilters, setDifficultyFilters] = useState<Set<number>>(new Set());
   const [universFilters, setUniversFilters] = useState<Set<string>>(new Set());
   const [difficultySort, setDifficultySort] = useState<'none' | 'asc' | 'desc'>('none');
+  // Free-text name search (case- and accent-insensitive), ANDed with the chips.
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchScenarios();
@@ -546,6 +563,62 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
     }
   };
 
+  /**
+   * Say which required document a file is ('' = automatic, recognised from
+   * its name). Read by the Scenario overview only. Optimistic; reverts on failure.
+   */
+  const handleSetFileDocType = async (fileId: number, docType: string) => {
+    const previous = scenarioFiles;
+    setScenarioFiles(scenarioFiles.map((f) => (f.id === fileId ? { ...f, doc_type: docType || null } : f)));
+    try {
+      const response = await authFetch(
+        `${API_BASE_URL}/scenario_translations.php?action=set_file_meta`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_id: fileId, doc_type: docType }),
+        },
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to update the file');
+      }
+    } catch (err) {
+      setScenarioFiles(previous);
+      alert(err instanceof Error ? err.message : 'Failed to update the file');
+    }
+  };
+
+  /**
+   * Mark a document as needing no translation: the Scenario overview then
+   * leaves it out of its translation counts. Optimistic; reverts on failure.
+   */
+  const handleSetFileNoTranslation = async (fileId: number, noTranslation: boolean) => {
+    const previous = scenarioFiles;
+    setScenarioFiles(
+      scenarioFiles.map((f) => (f.id === fileId ? { ...f, no_translation: noTranslation } : f)),
+    );
+    try {
+      const response = await authFetch(
+        `${API_BASE_URL}/scenario_translations.php?action=set_file_meta`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_id: fileId, no_translation: noTranslation }),
+        },
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to update the file');
+      }
+    } catch (err) {
+      setScenarioFiles(previous);
+      alert(err instanceof Error ? err.message : 'Failed to update the file');
+    }
+  };
+
   const handleDownloadFile = (file: { name?: string; file_path?: string }) => {
     if (!file.file_path) return;
     const url = `${MEDIA_BASE_URL}/media/${file.file_path}`;
@@ -877,7 +950,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
 
             {selectedScenario.client_name && (
               <div className="mb-6">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2">Client</h4>
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Licensee</h4>
                 <p className="text-slate-600">
                   {selectedScenario.client_name} ({selectedScenario.client_email})
                 </p>
@@ -988,6 +1061,42 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                                 {formatFileSize(file.file_size)} •{' '}
                                 {new Date(file.created_at).toLocaleDateString()}
                               </span>
+                              {!isVariant && requiredDocuments(selectedScenario?.game_type ?? '').length > 0 && (
+                                <select
+                                  value={file.doc_type ?? ''}
+                                  onChange={(e) => handleSetFileDocType(file.id, e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  title="Which required document this file is (Scenario overview checklist)"
+                                  className="px-1 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-600 text-[11px]"
+                                >
+                                  <option value="">
+                                    Auto:{' '}
+                                    {documentTypeLabel(
+                                      selectedScenario?.game_type ?? '',
+                                      detectDocumentType(selectedScenario?.game_type ?? '', file.name),
+                                    )}
+                                  </option>
+                                  {requiredDocuments(selectedScenario?.game_type ?? '').map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                      {d.label}
+                                    </option>
+                                  ))}
+                                  <option value={OTHER_DOC_TYPE}>Other</option>
+                                </select>
+                              )}
+                              {!isVariant && (
+                                <label
+                                  className="inline-flex items-center gap-1 cursor-pointer select-none"
+                                  title="This document is the same in every language: the Scenario overview does not count it as left to translate"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={file.no_translation === true}
+                                    onChange={(e) => handleSetFileNoTranslation(file.id, e.target.checked)}
+                                  />
+                                  No translation needed
+                                </label>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -1034,7 +1143,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                     <span>
                       Adding a language version of{' '}
                       <span className="font-medium">{variantParent.name}</span>. It inherits the
-                      original&apos;s title, so clients see it under the translated name.
+                      original&apos;s title, so licensees see it under the translated name.
                     </span>
                     <button
                       type="button"
@@ -1197,7 +1306,17 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
     return true;
   };
 
-  const filteredScenarios = scenarios.filter((s) => matchesProvenance(s) && matchesMetadata(s));
+  const normalizeSearch = (v: string) =>
+    v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const searchNeedle = normalizeSearch(searchQuery);
+  const matchesSearch = (s: Scenario): boolean =>
+    searchNeedle === '' ||
+    normalizeSearch(s.title || '').includes(searchNeedle) ||
+    normalizeSearch(s.uniqid || '').includes(searchNeedle);
+
+  const filteredScenarios = scenarios.filter(
+    (s) => matchesProvenance(s) && matchesMetadata(s) && matchesSearch(s),
+  );
 
   // Apply the difficulty sort (when active) before grouping so both the grid
   // groups and the list view inherit the order.
@@ -1346,7 +1465,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
             {scenario.client_name && (
               <span className="inline-flex items-center gap-1.5 min-w-0">
                 <User className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">Client: {scenario.client_name}</span>
+                <span className="truncate">Licensee: {scenario.client_name}</span>
               </span>
             )}
           </div>
@@ -1553,7 +1672,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
         <div className="flex items-center gap-2">
           <p className="text-slate-600">
             {filteredScenarios.length} {filteredScenarios.length === 1 ? 'scenario' : 'scenarios'}
-            {filter !== 'all' && ` (${scenarios.length} total)`}
+            {(filter !== 'all' || searchNeedle !== '') && ` (${scenarios.length} total)`}
           </p>
           <HelpButton chapter="scenarios" className="text-slate-400 hover:text-slate-700" />
         </div>
@@ -1585,6 +1704,14 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                 Import legacy ZIP
               </button>
               <button
+                onClick={() => setShowJsonImportModal(true)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                title="Import a Clash scenario from a scenario.json (or ZIP with media)"
+              >
+                <FileJson className="w-4 h-4" />
+                Import JSON
+              </button>
+              <button
                 onClick={() => setShowGameTypesModal(true)}
                 className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
                 title="Enable or disable game types"
@@ -1592,6 +1719,16 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                 <Gauge className="w-4 h-4" />
                 Manage game types
               </button>
+              {onOpenOverview && (
+                <button
+                  onClick={onOpenOverview}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+                  title="See what each scenario has and what is left to do"
+                >
+                  <ListChecks className="w-4 h-4" />
+                  Scenario overview
+                </button>
+              )}
             </>
           }
         />
@@ -1606,6 +1743,15 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
         }}
       />
 
+      <ImportScenarioJsonModal
+        open={showJsonImportModal}
+        onClose={() => setShowJsonImportModal(false)}
+        onSuccess={() => {
+          setShowJsonImportModal(false);
+          fetchScenarios();
+        }}
+      />
+
       <ManageGameTypesModal
         open={showGameTypesModal}
         onClose={() => setShowGameTypesModal(false)}
@@ -1613,10 +1759,31 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
       />
 
       <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setSearchQuery(''); }}
+            placeholder="Search by name..."
+            className="w-56 pl-8 pr-7 py-1.5 text-sm rounded-full border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 [&::-webkit-search-cancel-button]:hidden"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
         {([
           { key: 'all', label: 'All' },
           { key: 'products', label: 'Products' },
-          { key: 'client-authored', label: 'Client-authored' },
+          { key: 'client-authored', label: 'Licensee-authored' },
           { key: 'drafts', label: 'Drafts' },
         ] as const).map(({ key, label }) => (
           <button
@@ -1779,7 +1946,11 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
           <Film className="w-12 h-12 text-slate-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            {scenarios.length === 0 ? 'No scenarios yet' : 'No scenarios match this filter'}
+            {scenarios.length === 0
+              ? 'No scenarios yet'
+              : searchNeedle !== ''
+                ? `No scenarios match "${searchQuery.trim()}"`
+                : 'No scenarios match this filter'}
           </h3>
           <p className="text-slate-600">
             {scenarios.length === 0
@@ -1817,7 +1988,7 @@ export function ScenariosView({ initialFilter = 'all' }: { initialFilter?: Scena
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Difficulty</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Version</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Licensee</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Created</th>
                   <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-10"></th>
                 </tr>

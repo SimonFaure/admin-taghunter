@@ -119,7 +119,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
       ],
     },
     {
-      title: 'Client Authentication (Secure)',
+      title: 'Licensee Authentication (Secure)',
       icon: <Lock className="w-5 h-5" />,
       color: 'bg-indigo-500',
       endpoints: [
@@ -129,7 +129,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           description: 'Request OTP code or magic link for passwordless authentication',
           auth: false,
           body: [
-            { name: 'email', type: 'string', description: 'Client or admin email address' },
+            { name: 'email', type: 'string', description: 'Licensee or admin email address' },
             { name: 'type', type: 'string', description: '"otp" or "magic_link" (default: otp)' },
           ],
           response: '{ "success": true, "message": "Code sent to your email", "expires_in": 900 }',
@@ -140,7 +140,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           description: 'Verify OTP code and receive authentication token',
           auth: false,
           body: [
-            { name: 'email', type: 'string', description: 'Client or admin email address' },
+            { name: 'email', type: 'string', description: 'Licensee or admin email address' },
             { name: 'code', type: 'string', description: '6-digit OTP code' },
           ],
           response: '{ "success": true, "data": { "token": "auth_token_here", "expires_at": "2024-01-15T10:30:00Z", "user_id": "uuid-here", "user_type": "client", "email": "client@example.com", "name": "Client Name" } }',
@@ -178,33 +178,33 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
       ],
     },
     {
-      title: 'Clients',
+      title: 'Licensees',
       icon: <Users className="w-5 h-5" />,
       color: 'bg-green-500',
       endpoints: [
         {
           method: 'GET',
           path: '/backend/api/clients.php?action=list',
-          description: 'Get all clients',
+          description: 'Get all licensees',
           auth: true,
           response: '{ "data": [{ "id": 1, "email": "client@example.com", "name": "Client Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "created_at": "2024-01-15T10:30:00Z" }] }',
         },
         {
           method: 'GET',
           path: '/backend/api/clients.php?action=get&id={id}',
-          description: 'Get single client by ID',
+          description: 'Get single licensee by ID',
           auth: true,
-          params: [{ name: 'id', type: 'integer', description: 'Client ID' }],
+          params: [{ name: 'id', type: 'integer', description: 'Licensee ID' }],
           response: '{ "data": { "id": 1, "email": "client@example.com", "name": "Client Name", "company": "Acme Corp", "phone": "+1234567890", "notes": "VIP client", "license_type": "premium", "billing_up_to_date": true, "created_at": "2024-01-15T10:30:00Z" } }',
         },
         {
           method: 'POST',
           path: '/backend/api/clients.php?action=create',
-          description: 'Create new client',
+          description: 'Create new licensee',
           auth: true,
           body: [
-            { name: 'email', type: 'string', description: 'Client email (required)' },
-            { name: 'name', type: 'string', description: 'Client name (required)' },
+            { name: 'email', type: 'string', description: 'Licensee email (required)' },
+            { name: 'name', type: 'string', description: 'Licensee name (required)' },
             { name: 'company', type: 'string', description: 'Company name (optional)' },
             { name: 'phone', type: 'string', description: 'Phone number (optional)' },
             { name: 'notes', type: 'string', description: 'Notes (optional)' },
@@ -216,12 +216,12 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'PUT',
           path: '/backend/api/clients.php?action=update',
-          description: 'Update existing client',
+          description: 'Update existing licensee',
           auth: true,
           body: [
-            { name: 'id', type: 'integer', description: 'Client ID (required)' },
-            { name: 'email', type: 'string', description: 'Client email (optional)' },
-            { name: 'name', type: 'string', description: 'Client name (optional)' },
+            { name: 'id', type: 'integer', description: 'Licensee ID (required)' },
+            { name: 'email', type: 'string', description: 'Licensee email (optional)' },
+            { name: 'name', type: 'string', description: 'Licensee name (optional)' },
             { name: 'company', type: 'string', description: 'Company name (optional)' },
             { name: 'phone', type: 'string', description: 'Phone number (optional)' },
             { name: 'notes', type: 'string', description: 'Notes (optional)' },
@@ -233,7 +233,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/clients.php?action=creator_list&email={email}',
-          description: 'Get all clients (Creator API - admin only)',
+          description: 'Get all licensees (Creator API - admin only)',
           auth: false,
           creator: true,
           params: [{ name: 'email', type: 'string', description: 'Admin email for authentication' }],
@@ -242,9 +242,9 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'DELETE',
           path: '/backend/api/clients.php?action=delete&id={id}',
-          description: 'Delete client',
+          description: 'Delete licensee',
           auth: true,
-          params: [{ name: 'id', type: 'integer', description: 'Client ID' }],
+          params: [{ name: 'id', type: 'integer', description: 'Licensee ID' }],
           response: '{ "message": "Client deleted successfully" }',
         },
       ],
@@ -257,10 +257,10 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/scenarios.php?action=list',
-          description: 'Get all scenarios or scenarios for a specific client',
+          description: 'Get all scenarios or scenarios for a specific licensee',
           auth: true,
           params: [
-            { name: 'client_id', type: 'integer', description: 'Filter by client ID (optional)' },
+            { name: 'client_id', type: 'integer', description: 'Filter by licensee ID (optional)' },
           ],
           response: '{ "scenarios": [{ "id": 1, "client_id": 1, "title": "Scenario Title", "description": "Scenario description", "game_data": "{\\"key\\":\\"value\\"}", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6", "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
         },
@@ -279,7 +279,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           creator: true,
           body: [
-            { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
+            { name: 'email', type: 'string', description: 'User email (licensee or admin) for authentication (required)' },
             { name: 'scenarioData', type: 'JSON string', description: 'Scenario data object containing title, description, uniqid, game_type, scenario_type, data, media, scenario_layout (required)' },
           ],
           response: '{ "success": true, "data": { "id": 1, "title": "New Scenario", "description": "Description", "client_id": 1, "data": "{\\"key\\":\\"value\\"}", "medias": "{}", "game_type": "puzzle", "scenario_type": "multiplayer", "scenario_layout": "[]", "uniqid": "scenario_674fb123a45e6", "created_at": "2024-01-15T10:30:00Z" }, "message": "Scenario created successfully" }',
@@ -312,7 +312,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           creator: true,
           body: [
-            { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
+            { name: 'email', type: 'string', description: 'User email (licensee or admin) for authentication (required)' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier (required)' },
             { name: 'file', type: 'file', description: 'Media file to upload (required)' },
           ],
@@ -340,7 +340,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           creator: true,
           body: [
-            { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
+            { name: 'email', type: 'string', description: 'User email (licensee or admin) for authentication (required)' },
             { name: 'scenario_id', type: 'integer', description: 'Scenario ID (required)' },
             { name: 'name', type: 'string', description: 'Display name for the file (required)' },
             { name: 'file', type: 'file', description: 'File to upload (required, max 50MB)' },
@@ -354,7 +354,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           creator: true,
           body: [
-            { name: 'email', type: 'string', description: 'User email (client or admin) for authentication (required)' },
+            { name: 'email', type: 'string', description: 'User email (licensee or admin) for authentication (required)' },
             { name: 'id', type: 'integer', description: 'File ID (required)' }
           ],
           response: '{ "success": true, "message": "File deleted successfully" }',
@@ -366,7 +366,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           params: [
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
-            { name: 'email', type: 'string', description: 'Client email address (must have access to scenario)' },
+            { name: 'email', type: 'string', description: 'Licensee email address (must have access to scenario)' },
           ],
           response: '(Binary zip file with all scenario files)',
         },
@@ -419,17 +419,17 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
       ],
     },
     {
-      title: 'Client Scenarios',
+      title: 'Licensee Scenarios',
       icon: <ShoppingCart className="w-5 h-5" />,
       color: 'bg-amber-500',
       endpoints: [
         {
           method: 'POST',
           path: '/backend/api/client_scenarios.php?action=add',
-          description: 'Add a product scenario to a client',
+          description: 'Add a product scenario to a licensee',
           auth: true,
           body: [
-            { name: 'client_id', type: 'integer', description: 'Client ID (required)' },
+            { name: 'client_id', type: 'integer', description: 'Licensee ID (required)' },
             { name: 'scenario_id', type: 'integer', description: 'Product scenario ID (required)' },
           ],
           response: '{ "success": true, "message": "Scenario added to client successfully" }',
@@ -437,10 +437,10 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'POST',
           path: '/backend/api/client_scenarios.php?action=remove',
-          description: 'Remove a product scenario from a client',
+          description: 'Remove a product scenario from a licensee',
           auth: true,
           body: [
-            { name: 'client_id', type: 'integer', description: 'Client ID (required)' },
+            { name: 'client_id', type: 'integer', description: 'Licensee ID (required)' },
             { name: 'scenario_id', type: 'integer', description: 'Product scenario ID (required)' },
           ],
           response: '{ "success": true, "message": "Scenario removed from client successfully" }',
@@ -448,36 +448,36 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/client_scenarios.php?action=list&client_id={id}',
-          description: 'Get all product scenarios assigned to a client',
+          description: 'Get all product scenarios assigned to a licensee',
           auth: true,
-          params: [{ name: 'client_id', type: 'integer', description: 'Client ID' }],
+          params: [{ name: 'client_id', type: 'integer', description: 'Licensee ID' }],
           response: '[{ "id": 1, "client_id": 1, "scenario_id": 5, "granted_at": "2024-01-15T10:30:00Z", "granted_by": 1, "granted_by_email": "admin@example.com", "title": "Product Scenario", "description": "...", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6" }]',
         },
       ],
     },
     {
-      title: 'Client Cards',
+      title: 'Licensee Cards',
       icon: <CreditCard className="w-5 h-5" />,
       color: 'bg-slate-600',
       endpoints: [
         {
           method: 'GET',
           path: '/backend/api/cards.php?action=get_metadata',
-          description: 'Get cards file metadata for authenticated client',
+          description: 'Get cards file metadata for authenticated licensee',
           auth: true,
           response: '{ "data": { "id": 1, "client_id": "uuid", "version": 1, "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z", "has_file": true } }',
         },
         {
           method: 'GET',
           path: '/backend/api/cards.php?action=get_data',
-          description: 'Get parsed cards data from CSV file (client only). CSV must have headers: key_name, color, key_number, id',
+          description: 'Get parsed cards data from CSV file (licensee only). CSV must have headers: key_name, color, key_number, id',
           auth: true,
           response: '{ "success": true, "data": [{ "key_name": "Key 1", "color": "red", "key_number": "001", "id": "uuid-here" }], "headers": ["key_name", "color", "key_number", "id"], "count": 1 }',
         },
         {
           method: 'POST',
           path: '/backend/api/cards.php?action=upload',
-          description: 'Upload a CSV cards file (client only). File must have headers: key_name, color, key_number, id',
+          description: 'Upload a CSV cards file (licensee only). File must have headers: key_name, color, key_number, id',
           auth: true,
           body: [
             { name: 'file', type: 'file', description: 'CSV file with headers: key_name, color, key_number, id (required)' },
@@ -487,28 +487,28 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/cards.php?action=download',
-          description: 'Download the cards CSV file (client only)',
+          description: 'Download the cards CSV file (licensee only)',
           auth: true,
           response: '(Binary CSV file with Content-Type: text/csv)',
         },
         {
           method: 'DELETE',
           path: '/backend/api/cards.php?action=delete',
-          description: 'Delete the cards file and metadata (client only)',
+          description: 'Delete the cards file and metadata (licensee only)',
           auth: true,
           response: '{ "success": true }',
         },
       ],
     },
     {
-      title: 'Client Devices',
+      title: 'Licensee Devices',
       icon: <Smartphone className="w-5 h-5" />,
       color: 'bg-stone-500',
       endpoints: [
         {
           method: 'GET',
           path: '/backend/api/devices.php?action=list',
-          description: 'Get all devices for authenticated client',
+          description: 'Get all devices for authenticated licensee',
           auth: true,
           response: '{ "devices": [{ "id": 1, "client_id": "uuid", "device_uniq": "device-123", "playground_version": "1.0.0", "cards_file_version": 1, "created_at": "2024-01-15T10:30:00Z", "updated_at": "2024-01-15T10:30:00Z" }] }',
         },
@@ -525,7 +525,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           description: 'Get all scenarios available to a user based on their license type',
           auth: false,
           playground: true,
-          params: [{ name: 'email', type: 'string', description: 'Client email address' }],
+          params: [{ name: 'email', type: 'string', description: 'Licensee email address' }],
           response: '{ "client": { "id": 1, "email": "client@example.com", "licence_type": "premium", "company_name": "Acme Corp" }, "scenarios": [{ "id": 1, "title": "Scenario Title", "description": "Description", "game_type": "puzzle", "uniqid": "scenario_674fb123a45e6" }] }',
         },
         {
@@ -534,17 +534,17 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           description: 'Get product scenarios that the user has not yet purchased (access license only)',
           auth: false,
           playground: true,
-          params: [{ name: 'email', type: 'string', description: 'Client email address' }],
+          params: [{ name: 'email', type: 'string', description: 'Licensee email address' }],
           response: '{ "scenarios": [{ "id": 5, "title": "Product Scenario", "description": "Available for purchase", "game_type": "puzzle", "scenario_type": "product", "uniqid": "scenario_674fb123a45e6" }] }',
         },
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_scenario_game_data&email={email}&uniqid={uniqid}',
-          description: 'Get game data and media information for a specific scenario (client must have access)',
+          description: 'Get game data and media information for a specific scenario (licensee must have access)',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
           ],
           response: '{ "scenario": { "id": 1, "name": "Scenario Title", "uniqid": "scenario_674fb123a45e6", "scenario_type": "custom" }, "game_data": { "game_meta": { "font": "Arial", "title": "Game Title", "levels": {} }, "translations": { "fr": {} } }, "medias": { "images": { "game_visual": "game_visual.png" }, "levels": {}, "sounds": {}, "videos": {}, "enigmas": [] } }',
@@ -556,7 +556,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier' },
           ],
           response: '{ "scenario": { "id": 1, "name": "Scenario Title", "uniqid": "scenario_674fb123a45e6", "scenario_type": "custom", "available_for_purchase": true }, "medias": { "images": { "game_visual": "game_visual.png" }, "levels": {}, "sounds": {}, "videos": {}, "enigmas": [] } }',
@@ -564,11 +564,11 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_media&email={email}&uniqid={uniqid}&filename={filename}',
-          description: 'Get media file for a scenario (client must have access). Files are served from media/scenarios/{uniqid}/{filename}.',
+          description: 'Get media file for a scenario (licensee must have access). Files are served from media/scenarios/{uniqid}/{filename}.',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
             { name: 'uniqid', type: 'string', description: 'Scenario unique identifier - maps to the folder media/scenarios/{uniqid}/' },
             { name: 'filename', type: 'string', description: 'Media filename inside the scenario folder' },
           ],
@@ -577,55 +577,55 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_billing_status&email={email}',
-          description: 'Get the billing status and license type for a client',
+          description: 'Get the billing status and license type for a licensee',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
           ],
           response: '{ "billing_up_to_date": true, "license_type": "premium" }',
         },
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_cards_version&email={email}',
-          description: 'Get the current cards file version for a client',
+          description: 'Get the current cards file version for a licensee',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
           ],
           response: '{ "version": 3, "updated_at": "2024-01-15T10:30:00Z" }',
         },
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_patterns&email={email}',
-          description: 'Get all default patterns plus patterns owned by the client.',
+          description: 'Get all default patterns plus patterns owned by the licensee.',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
           ],
           response: '{ "patterns": [{ "id": 1, "name": "Default Pattern", "game_type": "taghunter", "version": "1.0", "is_default": true, "owner_type": "admin", "pattern_uniqid": "pat_abc123", "pattern_slug": "default-pattern", "description": null, "created_at": "2024-01-15T10:30:00Z" }], "count": 1 }',
         },
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_cards&email={email}',
-          description: 'Get the full cards list for a client parsed from their latest CSV file',
+          description: 'Get the full cards list for a licensee parsed from their latest CSV file',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
           ],
           response: '{ "cards": [{ "key_name": "Tag Alpha", "color": "#FF0000", "key_number": "1", "id": "card_001" }], "version": 3, "count": 150 }',
         },
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=get_on_demand_cards&email={email}',
-          description: 'Get all active on-demand cards assigned to a client (excludes expired assignments)',
+          description: 'Get all active on-demand cards assigned to a licensee (excludes expired assignments)',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
           ],
           response: '{ "cards": [{ "id": "uuid", "pool_card_id": "uuid", "end_date": "2025-12-31", "assigned_at": "2024-01-15T10:30:00Z", "key_name": "Tag Alpha", "color": "#FF0000", "key_number": "1", "card_id": "card_001" }], "count": 5 }',
         },
@@ -636,18 +636,18 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client or admin email address' },
+            { name: 'email', type: 'string', description: 'Licensee or admin email address' },
           ],
           response: '{ "custom_scenarios": [{ "title": "My Scenario", "uniqid": "scenario_abc123", "version": "1.2", "game_type": "taghunter" }], "product_scenarios": [{ "title": "Product Scenario", "uniqid": "scenario_def456", "version": "2.0", "game_type": "taghunter" }], "default_patterns": [{ "name": "Default Pattern", "game_type": "taghunter", "version": "1.0", "pattern_uniqid": "pattern_abc123" }], "custom_patterns": [{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0", "pattern_uniqid": "pattern_def456" }], "cards_version": 3, "has_on_demand_cards": true, "billing_up_to_date": true, "license_type": "premium" }',
         },
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=download_pattern&email={email}&pattern_uniqid={pattern_uniqid}',
-          description: 'Download full pattern data by pattern_uniqid. Returns the complete pattern_data JSON. Access is granted for default patterns (all users) and custom patterns owned by the requesting client.',
+          description: 'Download full pattern data by pattern_uniqid. Returns the complete pattern_data JSON. Access is granted for default patterns (all users) and custom patterns owned by the requesting licensee.',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client or admin email address' },
+            { name: 'email', type: 'string', description: 'Licensee or admin email address' },
             { name: 'pattern_uniqid', type: 'string', description: 'Unique identifier of the pattern to download' },
           ],
           response: '{ "name": "My Pattern", "game_type": "taghunter", "version": "1.0", "pattern_uniqid": "pattern_abc123", "pattern_slug": "my-pattern", "description": "...", "is_default": false, "pattern_data": { ... } }',
@@ -655,11 +655,11 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/playground.php?action=download_cards&email={email}&version={version}',
-          description: 'Download a specific version of the client cards file as a JSON array. The version must match an existing entry in the client cards metadata.',
+          description: 'Download a specific version of the licensee cards file as a JSON array. The version must match an existing entry in the licensee cards metadata.',
           auth: false,
           playground: true,
           params: [
-            { name: 'email', type: 'string', description: 'Client email address' },
+            { name: 'email', type: 'string', description: 'Licensee email address' },
             { name: 'version', type: 'integer', description: 'Cards file version number to download' },
           ],
           response: '{ "version": 3, "count": 150, "cards": [{ "key_name": "Tag Alpha", "color": "#FF0000", "key_number": "1", "id": "card_001" }] }',
@@ -674,7 +674,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/dashboard.php?action=stats',
-          description: 'Get dashboard statistics including clients, scenarios, media storage, and API requests',
+          description: 'Get dashboard statistics including licensees, scenarios, media storage, and API requests',
           auth: true,
           response: '{ "clients": { "total": 25, "change": "+12%" }, "scenarios": { "total": 150, "change": "+8%" }, "storage": { "total": "2.5 GB", "change": "+15%" }, "apiRequests": { "total": 5000, "change": "+23%" } }',
         },
@@ -688,7 +688,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/statistics.php?action=overview',
-          description: 'Get statistics overview with games, clients, and top performers',
+          description: 'Get statistics overview with games, licensees, and top performers',
           auth: true,
           response: '{ "overview": { "total_games": 150, "unique_clients": 25, "avg_duration": 45.5, "completion_rate": 85.5 }, "games_per_day": [...], "top_scenarios": [...], "top_clients": [...] }',
         },
@@ -738,7 +738,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/check_email.php?email={email}',
-          description: 'Check if email exists and determine user type (client or admin)',
+          description: 'Check if email exists and determine user type (licensee or admin)',
           auth: false,
           creator: true,
           params: [{ name: 'email', type: 'string', description: 'Email address to check' }],
@@ -792,7 +792,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
         {
           method: 'GET',
           path: '/backend/api/patterns.php?action=list',
-          description: 'Get all patterns (admins see all, clients see default + own patterns)',
+          description: 'Get all patterns (admins see all, licensees see default + own patterns)',
           auth: true,
           params: [
             { name: 'game_type', type: 'string', description: 'Filter by game type (optional)' },
@@ -816,7 +816,7 @@ export default function ApiDocsView({ onNavigate }: ApiDocsViewProps) {
           auth: false,
           creator: true,
           body: [
-            { name: 'email', type: 'string', description: 'Email of admin or client (required)' },
+            { name: 'email', type: 'string', description: 'Email of admin or licensee (required)' },
             { name: 'name', type: 'string', description: 'Pattern name (required)' },
             { name: 'game_type', type: 'string', description: 'Game type (required)' },
             { name: 'version', type: 'string', description: 'Pattern version (required)' },
@@ -1492,7 +1492,7 @@ https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
               <Mono>media/</Mono> yields a &ldquo;Failed to create media dir&rdquo; error)
             </li>
             <li>
-              <Mono>cards/</Mono> - per-client CSV card files
+              <Mono>cards/</Mono> - per-licensee CSV card files
             </li>
             <li>
               <Mono>backend/releases/</Mono> - uploaded playground build artifacts
@@ -1677,7 +1677,7 @@ function GoDeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void 
             <Mono>patterns.php</Mono>. Deployed exactly like any other studio backend file.
           </li>
           <li>
-            <strong>3 · Studio frontend.</strong> The GO authoring UI (editor toggle, client GO
+            <strong>3 · Studio frontend.</strong> The GO authoring UI (editor toggle, licensee GO
             grants, the admin <strong>GO</strong> nav group) ships inside the normal studio bundle -
             no separate step beyond the usual <Mono>npm run build</Mono> + upload.
           </li>
@@ -1798,9 +1798,9 @@ function GoDeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void 
           <strong>Deployment &amp; Versioning</strong> guide.
         </p>
         <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
-          <li>GO authoring is <strong>admin-only</strong> - clients never see anything GO in the scenario editor.</li>
-          <li>The admin sidebar gains a <strong>GO</strong> group (Scenarios / Clients / Statistics).</li>
-          <li>Per-client GO flags live in the client page, inside the <strong>GO Scenarios</strong> section.</li>
+          <li>GO authoring is <strong>admin-only</strong> - licensees never see anything GO in the scenario editor.</li>
+          <li>The admin sidebar gains a <strong>GO</strong> group (Scenarios / Licensees / Statistics).</li>
+          <li>Per-licensee GO flags live in the licensee page, inside the <strong>GO Scenarios</strong> section.</li>
         </ul>
       </GuideSection>
 
@@ -1855,7 +1855,7 @@ VITE_GO_BASE_URL=https://go.taghunter.fr                   # used by the studio 
       </GuideSection>
 
       {/* Runbook 5 - turn it on for a client */}
-      <GuideSection icon={<ClipboardCheck className="w-5 h-5" />} color="bg-cyan-500" title="Turn GO on for a client & scenario">
+      <GuideSection icon={<ClipboardCheck className="w-5 h-5" />} color="bg-cyan-500" title="Turn GO on for a licensee & scenario">
         <p className="text-sm text-gray-700 mb-4">
           Once everything is deployed, enabling GO for a real operator is all done in studio:
         </p>
@@ -1870,7 +1870,7 @@ VITE_GO_BASE_URL=https://go.taghunter.fr                   # used by the studio 
           </Step>
           <Step n={2}>
             <p>
-              <strong>Enable GO for the client.</strong> On the client page, open the{' '}
+              <strong>Enable GO for the licensee.</strong> On the licensee page, open the{' '}
               <strong>GO Scenarios</strong> section and turn on <strong>GO enabled</strong> +{' '}
               <strong>subscription active</strong> (and a valid-until date if the sub is time-boxed),
               then <strong>Save GO settings</strong>.
@@ -1879,12 +1879,12 @@ VITE_GO_BASE_URL=https://go.taghunter.fr                   # used by the studio 
           <Step n={3}>
             <p>
               <strong>Grant the GO scenario.</strong> Still in that section, add the GO scenario to
-              the client - the grant uses the scenario's default GO pattern automatically.
+              the licensee - the grant uses the scenario's default GO pattern automatically.
             </p>
           </Step>
           <Step n={4}>
             <p>
-              <strong>Share the QR.</strong> The client gets the GO QR codes (built against{' '}
+              <strong>Share the QR.</strong> The licensee gets the GO QR codes (built against{' '}
               <Mono>go.taghunter.fr</Mono>) from their own studio area; players scan, load once
               online, then play.
             </p>

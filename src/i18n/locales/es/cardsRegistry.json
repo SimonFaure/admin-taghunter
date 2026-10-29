@@ -2,7 +2,8 @@
   "title": "Tarjetas",
   "save": "Guardar",
   "cancel": "Cancelar",
-  "importCsv": "Importar CSV",
+  "importCsv": "Importar (Excel / CSV)",
+  "downloadTemplate": "Descargar plantilla",
   "registerCard": "Registrar tarjeta",
   "cardCount_one": "{{count}} tarjeta · versión {{version}}",
   "cardCount_other": "{{count}} tarjetas · versión {{version}}",
@@ -34,16 +35,45 @@
   "empty": {
     "title": "Aún no hay tarjetas registradas",
     "registerStrong": "Registrar tarjeta",
-    "importStrong": "Importar CSV",
-    "lead": "Haz clic en <0>Registrar tarjeta</0> para añadir una manualmente, o en <1>Importar CSV</1> para importar en lote."
+    "importStrong": "Importar (Excel / CSV)",
+    "lead": "Haz clic en <0>Registrar tarjeta</0> para añadir una manualmente, o en <1>Importar (Excel / CSV)</1> para importar en lote."
   },
   "import": {
-    "title": "Importar tarjetas desde CSV",
+    "title": "Importar tarjetas (Excel o CSV)",
     "importing": "Importando…",
-    "dropPrompt": "Suelta el CSV aquí o haz clic para explorar",
+    "dropPrompt": "Suelta el archivo Excel o CSV aquí o haz clic para explorar",
     "expectedHeaders": "Encabezados esperados:",
-    "upsertNote": "Las filas existentes se actualizan por ID de chip.",
+    "upsertNote": "Las tarjetas importadas se añaden a las ya registradas: no hace falta volver a importar toda la lista, el archivo puede contener solo las tarjetas nuevas. Una tarjeta cuyo ID de chip ya existe se actualiza.",
+    "howToFill": "¿Cómo rellenar el archivo?",
     "cancel": "Cancelar"
+  },
+  "guide": {
+    "title": "Rellenar el archivo de importación de tarjetas",
+    "intro": "Descarga la plantilla Excel, añade una fila por tarjeta siguiendo las indicaciones de abajo y luego importa el archivo con el botón «Importar».",
+    "previewLabel": "Vista previa de la plantilla",
+    "previewNote": "Fila 1: encabezados (no modificar). Fila 2: tarjeta de ejemplo, a sustituir por tus tarjetas.",
+    "close": "Cerrar",
+    "download": "Descargar plantilla (.xlsx)"
+  },
+  "template": {
+    "fileName": "plantilla-importacion-tarjetas.xlsx",
+    "cardsSheet": "Tarjetas",
+    "instructionsSheet": "Instrucciones",
+    "colColumn": "Columna",
+    "colDescription": "Descripción",
+    "colRequired": "Obligatorio",
+    "colExample": "Ejemplo",
+    "mock": { "name": "Ejemplo", "color": "rojo" },
+    "columns": {
+      "key_name": { "description": "Nombre de la tarjeta, mostrado en los juegos y las clasificaciones (ej. una letra, una palabra, un nombre).", "required": "Sí" },
+      "color": { "description": "Color de la tarjeta o de su soporte, texto libre. Puede quedar vacío.", "required": "No" },
+      "key_number": { "description": "Número de la tarjeta en tu lote (el que escribes en su etiqueta). Número entero; dos tarjetas no pueden tener el mismo número.", "required": "Sí" },
+      "id": { "description": "Número de serie impreso en el chip SportIdent. Número entero, único, sin espacios ni separadores.", "required": "Sí" }
+    },
+    "noteHeaders": "Rellena la hoja «Tarjetas» sin modificar la primera fila (encabezados): una tarjeta por fila.",
+    "noteExample": "La fila 2 es una tarjeta de ejemplo: sustitúyela o elimínala. Si se queda en el archivo, se ignora al importar.",
+    "noteAddOnly": "Para añadir tarjetas, indica solo las nuevas: las tarjetas ya registradas se conservan.",
+    "noteUpdate": "Si el ID de un chip ya existe, sus datos se actualizan."
   },
   "confirmDelete": {
     "title": "¿Eliminar tarjeta?",
@@ -67,7 +97,8 @@
     "updateFailed": "Error al actualizar la tarjeta",
     "cardDeleted": "Tarjeta eliminada",
     "deleteFailed": "Error al eliminar la tarjeta",
-    "onlyCsv": "Solo se permiten archivos CSV",
+    "onlyCsv": "Solo se permiten archivos Excel (.xlsx, .xls) o CSV",
+    "templateFailed": "Error al descargar la plantilla",
     "inserted": "{{count}} insertada(s)",
     "updated": "{{count}} actualizada(s)",
     "skipped": "{{count}} omitida(s)",

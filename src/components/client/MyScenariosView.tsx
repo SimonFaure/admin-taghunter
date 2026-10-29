@@ -27,6 +27,7 @@ import { normalizeUnivers } from '../../types/univers';
 import { formatLangCode, resolveScenarioLanguages } from '../../types/scenarioLanguages';
 import { listRegisteredAdapters } from '../../scenarios';
 import type { ClientScenario } from './types';
+import { fetchGrantedScenarioIds, isHeldScenario, isPlayableInApps } from './heldScenarios';
 import { HelpButton } from '../../help';
 // Side-effect import: registers every shipped adapter so the game-type filter
 // chips can be derived from the registry even when the editor route hasn't
@@ -36,15 +37,24 @@ import '../../scenarios/bootstrap';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
 
+/**
+ * The scenario's cover visual. `lang` is the viewing licensee's account
+ * language: `game_visual` is the French cover; any other language gets the
+ * "other languages" version (`game_visual_intl`, authored in the editor's
+ * cover section) when there is one, `game_visual` otherwise. No language
+ * (admin viewers) means the French cover.
+ */
 export function getGameVisualUrl(
   medias: string | Record<string, unknown> | null | undefined,
-  uniqid?: string
+  uniqid?: string,
+  lang?: string | null
 ): string | null {
   if (!medias) return null;
   try {
     const parsed =
       typeof medias === 'string' ? JSON.parse(medias) : medias;
-    const gv = (parsed as { images?: { game_visual?: string } })?.images?.game_visual;
+    const images = (parsed as { images?: Record<string, string | undefined> })?.images;
+    const gv = (lang && lang !== 'fr' && images?.game_visual_intl) || images?.game_visual;
     if (!gv) return null;
     if (gv.startsWith('http')) return gv;
     if (gv.startsWith('/')) return `${MEDIA_BASE_URL}${gv}`;
@@ -90,8 +100,12 @@ export function MyScenariosView() {
   // scenarios, and keep just the cards/list view toggle + the audience filter;
   // hide the subtitle header, sort/group/new-scenario controls, and the
   // provenance/game-type filter chips. Derived per-app (project_client_app_section).
-  const goClientOnly = getAppAccess(user).scenariosGoOnly;
+  const appAccess = getAppAccess(user);
+  const goClientOnly = appAccess.scenariosGoOnly;
   const [scenarios, setScenarios] = useState<ClientScenario[]>([]);
+  // GO-only portal: the granted scenario ids (see heldScenarios.ts); the rest
+  // are shown apart, as smaller "other available" cards. null = not GO-only.
+  const [grantedIds, setGrantedIds] = useState<Set<number> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -168,10 +182,13 @@ export function MyScenariosView() {
 
       try {
         const token = secureAuth.getStoredToken();
-        const response = await fetch(`${API_BASE_URL}/client_scenarios.php?action=list`, {
-          credentials: 'include',
-          headers: token ? { 'X-Auth-Token': token } : {},
-        });
+        const [response, granted] = await Promise.all([
+          fetch(`${API_BASE_URL}/client_scenarios.php?action=list`, {
+            credentials: 'include',
+            headers: token ? { 'X-Auth-Token': token } : {},
+          }),
+          fetchGrantedScenarioIds(appAccess),
+        ]);
 
         const result = await response.json();
 
@@ -180,6 +197,7 @@ export function MyScenariosView() {
         } else {
           setError(result.error || t('errors.fetchFailed'));
         }
+        setGrantedIds(granted);
       } catch (err) {
         setError(t('errors.network'));
         console.error('Failed to fetch scenarios:', err);
@@ -189,7 +207,7 @@ export function MyScenariosView() {
     };
 
     fetchScenarios();
-  }, [user?.client_id]);
+  }, [user?.client_id, goClientOnly, appAccess.go, appAccess.spot]);
 
   const visible = useMemo(() => {
     const isProduct = (s: ClientScenario) => s.scenario_type === 'product';
@@ -236,11 +254,11 @@ export function MyScenariosView() {
       return true;
     };
 
-    // GO-only portal: hard-restrict to GO scenarios regardless of the active
-    // filter, so a GO/Spot-without-Playground client only ever sees GO content.
+    // GO-only portal: hard-restrict to scenarios playable in the client's apps
+    // (GO and/or Spot) regardless of the active filter.
     const filtered = scenarios.filter(
       (s) =>
-        (!goClientOnly || s.adaptable_go === true) && passesProvenance(s) && passesFacets(s),
+        (!goClientOnly || isPlayableInApps(s, appAccess)) && passesProvenance(s) && passesFacets(s),
     );
 
     const sorted = [...filtered].sort((a, b) => {
@@ -267,14 +285,25 @@ export function MyScenariosView() {
     sortBy,
     user?.client_id,
     goClientOnly,
+    appAccess.go,
+    appAccess.spot,
   ]);
+
+  // Held = granted (or the client's own custom scenario); outside GO-only mode
+  // everything the list returns is held.
+  const { owned, others } = useMemo(() => {
+    return {
+      owned: visible.filter((s) => isHeldScenario(s, grantedIds)),
+      others: visible.filter((s) => !isHeldScenario(s, grantedIds)),
+    };
+  }, [visible, grantedIds]);
 
   const groups = useMemo(() => {
     if (groupBy === 'none') {
-      return [{ key: '', label: '', items: visible }] as const;
+      return [{ key: '', label: '', items: owned }] as const;
     }
     const buckets = new Map<string, ClientScenario[]>();
-    for (const s of visible) {
+    for (const s of owned) {
       const raw = groupBy === 'game_type' ? s.game_type : s.scenario_type;
       const key = (raw && String(raw)) || 'Other';
       if (!buckets.has(key)) buckets.set(key, []);
@@ -283,7 +312,7 @@ export function MyScenariosView() {
     return Array.from(buckets.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, items]) => ({ key, label: key, items }));
-  }, [visible, groupBy]);
+  }, [owned, groupBy]);
 
   return (
     <div>
@@ -503,7 +532,13 @@ export function MyScenariosView() {
         </div>
       ) : (
         <div className="flex flex-col gap-8">
-          {groups.map((g) => (
+          {owned.length === 0 && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 text-center text-slate-600">
+              <Film className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              {t('others.noneOwned')}
+            </div>
+          )}
+          {owned.length > 0 && groups.map((g) => (
             <section key={g.key || 'flat'}>
               {g.label && (
                 <h2 className="text-xs uppercase tracking-wide text-slate-500 mb-3 font-semibold">
@@ -517,8 +552,66 @@ export function MyScenariosView() {
               )}
             </section>
           ))}
+          {others.length > 0 && (
+            <section className="pt-6 border-t border-slate-200">
+              <h2 className="text-sm font-semibold text-slate-700">{t('others.title')}</h2>
+              <p className="text-xs text-slate-500 mb-3">{t('others.subtitle')}</p>
+              <ScenarioMiniGrid scenarios={others} onOpen={(uniqid) => navigate(`/my/scenarios/${uniqid}`)} />
+            </section>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Compact cards for the scenarios available in the catalogue but not held. */
+function ScenarioMiniGrid({
+  scenarios,
+  onOpen,
+}: {
+  scenarios: ClientScenario[];
+  onOpen: (uniqid: string) => void;
+}) {
+  const { t } = useTranslation('scenariosList');
+  const { user } = useSecureAuth();
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      {scenarios.map((scenario) => {
+        const visual = getGameVisualUrl(scenario.medias, scenario.uniqid, user?.language);
+        return (
+          <button
+            key={scenario.id}
+            onClick={() => scenario.uniqid && onOpen(scenario.uniqid)}
+            className="flex flex-col bg-white rounded-lg border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all text-left w-full group overflow-hidden"
+          >
+            <div className="relative w-full overflow-hidden bg-slate-100 aspect-square">
+              {visual ? (
+                <img
+                  src={visual}
+                  alt={scenario.title}
+                  loading="lazy"
+                  className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Film className="w-8 h-8 text-slate-300" />
+                </div>
+              )}
+            </div>
+            <div className="p-2">
+              <h3 className="text-xs font-semibold text-slate-800 group-hover:text-blue-600 transition-colors line-clamp-2">
+                {scenario.title}
+              </h3>
+              {scenario.difficulty && (
+                <span className={`mt-1 inline-block px-1.5 py-0.5 rounded-full text-[10px] font-semibold capitalize ${getDifficultyBadgeClass(scenario.difficulty)}`}>
+                  {getDifficultyLabel(scenario.difficulty, t)}
+                </span>
+              )}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -533,10 +626,11 @@ function ScenarioGrid({
   onEdit: (uniqid: string) => void;
 }) {
   const { t } = useTranslation('scenariosList');
+  const { user } = useSecureAuth();
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {scenarios.map((scenario) => {
-        const visual = getGameVisualUrl(scenario.medias, scenario.uniqid);
+        const visual = getGameVisualUrl(scenario.medias, scenario.uniqid, user?.language);
         const editable = scenario.scenario_type !== 'product' && !!scenario.uniqid;
         const bands = resolveBands(scenario.audience_bands, scenario.audience);
         const languages = resolveScenarioLanguages(
@@ -671,6 +765,7 @@ function ScenarioTable({
   onEdit: (uniqid: string) => void;
 }) {
   const { t } = useTranslation('scenariosList');
+  const { user } = useSecureAuth();
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
       <table className="w-full text-sm">
@@ -689,7 +784,7 @@ function ScenarioTable({
         </thead>
         <tbody>
           {scenarios.map((scenario) => {
-            const visual = getGameVisualUrl(scenario.medias, scenario.uniqid);
+            const visual = getGameVisualUrl(scenario.medias, scenario.uniqid, user?.language);
             const editable = scenario.scenario_type !== 'product' && !!scenario.uniqid;
             const bands = resolveBands(scenario.audience_bands, scenario.audience);
             const languages = resolveScenarioLanguages(

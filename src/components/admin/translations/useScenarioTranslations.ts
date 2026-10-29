@@ -35,6 +35,8 @@ export interface ScenarioPickerRow {
   gated: boolean;
   /** Languages released to clients (always includes the default language). */
   validated_langs: string[];
+  /** The languages the scenario is meant to exist in; only these can be validated. */
+  target_langs: string[];
   files_count: number;
 }
 
@@ -44,6 +46,8 @@ export interface ScenarioTranslationModel {
     version: string;
     gated: boolean;
     validated_languages: string[];
+    /** The languages the scenario is meant to exist in; only these can be validated. */
+    target_languages: string[];
   };
   gameMeta: Record<string, unknown>;
   translationMeta: Record<string, Record<string, string>>;

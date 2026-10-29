@@ -1,8 +1,7 @@
-import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X, Server, Wifi, Eye, EyeOff } from 'lucide-react';
+import { Smartphone, Calendar, Package, HardDrive, Trash2, AlertCircle, Pencil, Check, X, Server } from 'lucide-react';
 import { useState, useEffect, KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { QRCodeSVG } from 'qrcode.react';
-import { getDevices, deleteDevice, updateDevice, getLanNetworks, wifiQrPayload, Device, LanNetwork } from '../../lib/devicesApi';
+import { getDevices, deleteDevice, updateDevice, Device } from '../../lib/devicesApi';
 import { HelpButton } from '../../help';
 
 const MAX_DISPLAY_NAME = 120;
@@ -10,22 +9,12 @@ const MAX_DISPLAY_NAME = 120;
 export function MyDevicesView() {
   const { t, i18n } = useTranslation('devicesList');
   const [devices, setDevices] = useState<Device[]>([]);
-  const [networks, setNetworks] = useState<LanNetwork[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
-  const [revealPw, setRevealPw] = useState<Set<number>>(new Set());
-
-  const togglePw = (id: number) =>
-    setRevealPw((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
 
   const startEdit = (device: Device) => {
     setEditingId(device.id);
@@ -80,13 +69,6 @@ export function MyDevicesView() {
       setError('');
       const data = await getDevices();
       setDevices(data);
-      // Best-effort: the hotspots panel is supplementary, so a failure here
-      // (e.g. table not migrated) must not break the device list.
-      try {
-        setNetworks(await getLanNetworks());
-      } catch {
-        setNetworks([]);
-      }
     } catch (err) {
       console.error('Failed to load devices:', err);
       setError(err instanceof Error ? err.message : t('loadFailed'));
@@ -271,52 +253,6 @@ export function MyDevicesView() {
           </div>
         )}
       </div>
-
-      {networks.length > 0 && (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-1">
-            <Wifi className="w-6 h-6" />
-            <span>{t('hotspots.title')}</span>
-          </h2>
-          <p className="text-slate-600 mb-4 text-sm">
-            {t('hotspots.subtitle')}
-          </p>
-          <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
-            {networks.map((n) => (
-              <div key={n.id} className="flex items-center justify-between gap-4 p-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Wifi className="w-4 h-4 text-slate-700" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900 font-mono truncate">{n.ssid}</p>
-                    {n.password && (
-                      <p className="text-xs text-slate-500 font-mono flex items-center gap-1.5">
-                        <span className="truncate">
-                          {revealPw.has(n.id) ? n.password : '••••••••••••'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => togglePw(n.id)}
-                          className="text-slate-400 hover:text-slate-700 flex-shrink-0"
-                          aria-label={t('hotspots.togglePassword')}
-                        >
-                          {revealPw.has(n.id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        </button>
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {n.password && (
-                  <div className="bg-white p-1.5 rounded border border-slate-200 flex-shrink-0">
-                    <QRCodeSVG value={wifiQrPayload(n.ssid, n.password)} size={64} level="M" marginSize={0} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">

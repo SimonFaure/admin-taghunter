@@ -19,6 +19,8 @@
     "customColor": "Custom colour",
     "background": "Background",
     "backgroundOpacity": "Opacity",
+    "minFontSize": "Min size",
+    "minFontSizeHint": "The team name shrinks to fit its box (authored size {{size}} px on a 1920×1080 screen). Below this size it goes on two lines instead. Empty = 20 px. 0 = always one line.",
     "inherited": "inherited",
     "reset": "Reset this role",
     "resetAll": "Reset all",

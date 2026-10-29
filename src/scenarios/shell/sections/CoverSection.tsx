@@ -1,12 +1,17 @@
 /**
- * Cover section - background_image, game_visual.
+ * Cover section - two groups: images (background_image, game_visual and its
+ * language versions, the tracks map) and the scenario video with its subtitles.
  *
  * Plan: C:\Users\faure\.claude\plans\wiggly-baking-spring.md (Stage 2 section)
  */
 
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Film, Image as ImageIcon, type LucideIcon } from 'lucide-react';
 import { AssetUploadField } from '../components/AssetUploadField';
 import { CollapsibleSection } from '../components/CollapsibleSection';
+import { GameVisualLanguages } from '../components/GameVisualLanguages';
+import { ScenarioVideoPlayer, ScenarioVideoSubtitles } from '../components/ScenarioVideoSubtitles';
 import { useScenarioEditor } from '../useScenarioEditor';
 import { commonMediaSlots } from '../commonMediaSlots';
 import type { MediaSlot } from '../../types';
@@ -45,33 +50,72 @@ export function CoverSection() {
   const meta = editor.gameMeta as Record<string, unknown>;
   const tracksMapSlot: MediaSlot = { ...TRACKS_MAP_SLOT, label: t('cover.mapImage') };
 
+  const imageSlots = slots.filter((s) => s.kind === 'image');
+  const videoSlot = slots.find((s) => s.key === 'scenario_video');
+  const setField = (key: string) => (filename: string) =>
+    editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), [key]: filename }) as typeof m);
+
   return (
     <CollapsibleSection title={isTracks ? t('cover.sectionTitleTracks') : t('cover.sectionTitle')}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {slots.map((slot) => (
+      <GroupLabel icon={ImageIcon}>{t('cover.groupImages')}</GroupLabel>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {imageSlots.map((slot) => (
           <AssetUploadField
             key={slot.key}
             slot={slot}
             value={String(meta[slot.key] ?? '')}
-            onChange={(filename) =>
-              editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), [slot.key]: filename }) as typeof m)
-            }
+            onChange={setField(slot.key)}
+            previewSize="md"
           />
         ))}
       </div>
 
+      <GameVisualLanguages />
+
       {isTracks && (
-        <div className="mt-4">
+        <div className="mt-3">
           <AssetUploadField
             slot={tracksMapSlot}
             value={String(meta.map_image ?? '')}
-            onChange={(filename) =>
-              editor.setGameMeta((m) => ({ ...(m as Record<string, unknown>), map_image: filename }) as typeof m)
-            }
+            onChange={setField('map_image')}
             previewSize="lg"
           />
         </div>
       )}
+
+      {videoSlot && (
+        <>
+          <GroupLabel icon={Film} className="mt-5 pt-4 border-t border-gray-100">
+            {t('cover.groupVideo')}
+          </GroupLabel>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+            <AssetUploadField
+              slot={videoSlot}
+              value={String(meta[videoSlot.key] ?? '')}
+              onChange={setField(videoSlot.key)}
+              renderPreview={(video) => <ScenarioVideoPlayer video={video} />}
+            />
+            <ScenarioVideoSubtitles />
+          </div>
+        </>
+      )}
     </CollapsibleSection>
+  );
+}
+
+function GroupLabel({
+  icon: Icon,
+  className = '',
+  children,
+}: {
+  icon: LucideIcon;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`flex items-center gap-1.5 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 ${className}`}>
+      <Icon className="w-3.5 h-3.5" />
+      {children}
+    </div>
   );
 }

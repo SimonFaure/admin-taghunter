@@ -2,6 +2,11 @@
   "subtitle": "Consulta y gestiona tus escenarios de juego disponibles",
   "premiumBadge": "Premium - todos los escenarios desbloqueados",
   "newScenario": "Nuevo escenario",
+  "others": {
+    "title": "Otros escenarios disponibles",
+    "subtitle": "Aún no están en tu cuenta - contáctanos para añadir uno.",
+    "noneOwned": "Aún no se ha asignado ningún escenario a tu cuenta."
+  },
   "filters": {
     "all": "Todos",
     "products": "Productos",

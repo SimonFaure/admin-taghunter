@@ -5,6 +5,8 @@
  *                   versioned blobs in `default_config` and synced to devices.
  *  - Scenarios    : the text authored INTO one scenario (and its files), stored
  *                   as `Localized<string>` maps in `scenarios.data.game_meta`.
+ *  - Video subtitles : the `.vtt` tracks of each scenario's intro video, stored
+ *                   as media files referenced from `scenarios.medias.sounds`.
  *
  * They are separate tabs because they are separate stores with separate
  * lifecycles, not two views of one thing.
@@ -16,12 +18,14 @@
 import { useState } from 'react';
 import IngameTextPanel from './translations/IngameTextPanel';
 import ScenarioTranslationsPanel from './translations/ScenarioTranslationsPanel';
+import VideoSubtitlesPanel from './translations/VideoSubtitlesPanel';
 
-type Tab = 'ingame' | 'scenarios';
+type Tab = 'ingame' | 'scenarios' | 'subtitles';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'ingame', label: 'In-game text' },
   { id: 'scenarios', label: 'Scenarios' },
+  { id: 'subtitles', label: 'Video subtitles' },
 ];
 
 export default function AdminTranslationsView() {
@@ -46,7 +50,9 @@ export default function AdminTranslationsView() {
         ))}
       </div>
 
-      {tab === 'ingame' ? <IngameTextPanel /> : <ScenarioTranslationsPanel />}
+      {tab === 'ingame' && <IngameTextPanel />}
+      {tab === 'scenarios' && <ScenarioTranslationsPanel />}
+      {tab === 'subtitles' && <VideoSubtitlesPanel />}
     </div>
   );
 }

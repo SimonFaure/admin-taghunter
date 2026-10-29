@@ -19,6 +19,8 @@
     "customColor": "Color personalizado",
     "background": "Fondo",
     "backgroundOpacity": "Opacidad",
+    "minFontSize": "Tamaño mín.",
+    "minFontSizeHint": "El nombre de equipo se reduce para caber en su caja (tamaño original {{size}} px en una pantalla 1920×1080). Por debajo de este tamaño pasa a dos líneas. Vacío = 20 px. 0 = siempre una línea.",
     "inherited": "heredado",
     "reset": "Restablecer este rol",
     "resetAll": "Restablecer todo",

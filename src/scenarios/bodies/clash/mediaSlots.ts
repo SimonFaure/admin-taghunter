@@ -9,6 +9,7 @@
  */
 
 import type { MediaSlot } from '../../types';
+import { gameVisualLangFields, scenarioVideoSubtitleFields } from '../../shell/commonMediaSlots';
 
 /** Optional dashboard chrome frames - default styling is used when unset. */
 export const clashFrameSlots: readonly MediaSlot[] = [
@@ -47,6 +48,7 @@ export const clashMediaSlots: readonly MediaSlot[] = [
 export const clashImageFields = [
   'background_image',
   'game_visual',
+  ...gameVisualLangFields,
   'map_image',
   'frame_ranking',
   'frame_territory_name',
@@ -58,4 +60,4 @@ export const clashImageFields = [
 ] as const;
 
 /** Flat top-level sound fields partitioned into medias.sounds on save. */
-export const clashSoundFields: readonly string[] = ['purge_sound'];
+export const clashSoundFields: readonly string[] = ['purge_sound', ...scenarioVideoSubtitleFields];

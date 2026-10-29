@@ -74,6 +74,7 @@ import {
   type IdleLayout,
   type IdleRoleKey,
 } from './mysteryIngameLayout';
+import { TEAM_NAME_MIN_FONT_DEFAULT, TEAM_NAME_MIN_FONT_MAX, TEAM_NAME_MIN_FONT_MIN } from './teamNameFit';
 
 interface MysteryIngameLayoutModalProps {
   open: boolean;
@@ -984,6 +985,29 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                       components={{ b: <strong /> }}
                     />
                   </p>
+                  {selected === 'team_name' && (
+                    <label className="block text-xs text-gray-600">
+                      <span>{t('scenarioPreview:ingameLayout.minFontSize')}</span>
+                      <input
+                        type="number"
+                        min={TEAM_NAME_MIN_FONT_MIN}
+                        max={TEAM_NAME_MIN_FONT_MAX}
+                        step={1}
+                        value={sel.minFontSize ?? ''}
+                        placeholder={String(TEAM_NAME_MIN_FONT_DEFAULT)}
+                        onChange={(e) => {
+                          const n = parseFloat(e.target.value);
+                          updateBox(selected, {
+                            minFontSize: isFinite(n) ? clamp(n, TEAM_NAME_MIN_FONT_MIN, TEAM_NAME_MIN_FONT_MAX) : undefined,
+                          });
+                        }}
+                        className="mt-0.5 w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                      />
+                      <span className="block text-[11px] text-gray-400 mt-1 leading-snug">
+                        {t('scenarioPreview:ingameLayout.minFontSizeHint')}
+                      </span>
+                    </label>
+                  )}
                 </div>
 
                 {/* Stress-test team name */}
@@ -1477,6 +1501,8 @@ export function MysteryIngameLayoutModal({ open, onClose }: MysteryIngameLayoutM
                             text={textByRole[role.key]}
                             fontFamily={overlayFont}
                             color={overlayColor}
+                            canvasScale={stage.width / 1920}
+                            isTeamName={role.key === 'team_name'}
                           />
                           {/* Resize handle (bottom-right) */}
                           <div

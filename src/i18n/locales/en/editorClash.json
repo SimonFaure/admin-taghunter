@@ -49,13 +49,13 @@
       },
       "purge_text_own_territory": {
         "label": "Own territory",
-        "placeholder": "You cannot purge your own territory",
-        "when": "The current target is a territory this clan controls."
+        "placeholder": "Purge on hold: the target is your own territory. It will fire on a later card read.",
+        "when": "The current target is a territory this clan controls. The purge-station punch stays pending and fires on a later card read."
       },
       "purge_text_no_target": {
         "label": "No target",
-        "placeholder": "No territory to purge yet",
-        "when": "No clan leads yet, or the leading clan has not validated any territory."
+        "placeholder": "Purge on hold: no clan is leading yet. It will fire on a later card read.",
+        "when": "No clan leads yet, or the leading clan has not validated any territory. The purge-station punch stays pending and fires on a later card read."
       }
     }
   },

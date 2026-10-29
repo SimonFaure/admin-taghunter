@@ -19,7 +19,7 @@ interface ClientSelectorProps {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
-export function ClientSelector({ value, onChange, label = 'Client Email', placeholder = 'Enter client email', required = false }: ClientSelectorProps) {
+export function ClientSelector({ value, onChange, label = 'Licensee Email', placeholder = 'Enter licensee email', required = false }: ClientSelectorProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -151,9 +151,9 @@ export function ClientSelector({ value, onChange, label = 'Client Email', placeh
           {showDropdown && isAdmin && (
             <div className="absolute z-50 mt-1.5 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-2xl overflow-hidden">
               {loading ? (
-                <div className="px-4 py-3 text-sm text-slate-400">Loading clients...</div>
+                <div className="px-4 py-3 text-sm text-slate-400">Loading licensees...</div>
               ) : filteredClients.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-slate-400">No clients match</div>
+                <div className="px-4 py-3 text-sm text-slate-400">No licensees match</div>
               ) : (
                 <div className="max-h-56 overflow-y-auto">
                   {filteredClients.map((client) => (

@@ -27,10 +27,12 @@
     "used": "(used)"
   },
   "qrCodes": {
-    "title": "QR codes",
+    "title": "My QR Codes",
     "subtitle": "Print and post these at your venue. Players scan a code to open the app for that scenario.",
     "noScenarios": "No {{heading}} scenarios yet",
     "willAppear": "They'll appear here once they're assigned to your account.",
-    "downloadSvg": "Download SVG"
+    "downloadSvg": "Download SVG",
+    "showFullscreen": "Show full screen",
+    "exitFullscreen": "Exit full screen"
   }
 }

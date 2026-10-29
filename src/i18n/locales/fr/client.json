@@ -21,6 +21,7 @@
     "gameTypes": "Vidéos tutorielles",
     "tutorialDownloads": "Télécharger les tutoriels",
     "statistics": "Statistiques",
+    "customers": "Mes clients",
     "settings": "Paramètres",
     "account": "Mon compte",
     "help": "Aide"
@@ -72,13 +73,13 @@
   },
   "goStats": {
     "title": "Statistiques GO & Spot",
-    "subtitle": "Utilisation et scores des équipes de vos jeux Tag Hunter GO.",
+    "subtitle": "Utilisation et scores des équipes de vos jeux Tag Hunter GO et Spot.",
     "goHeading": "Tag Hunter GO",
-    "spotHeading": "Spot",
+    "spotHeading": "Tag Hunter Spot",
     "spotComingSoon": "L'application Spot n'existe pas encore - les statistiques apparaîtront ici à son lancement.",
     "byScenario": "Par scénario",
-    "empty": "Aucune activité GO pour le moment.",
-    "error": "Échec du chargement des statistiques GO",
+    "empty": "Aucune activité pour le moment.",
+    "error": "Échec du chargement des statistiques",
     "cards": {
       "loads": "Chargements totaux",
       "teams": "Équipes ayant joué",
@@ -123,7 +124,8 @@
     "range_custom": "Personnalisé",
     "from": "Du",
     "to": "Au",
-    "openBoard": "Classement joueurs"
+    "openBoard": "Classement joueurs",
+    "openMobile": "Suivi sur téléphone"
   },
   "publicBoard": {
     "title": "Classement",
@@ -132,5 +134,15 @@
     "pinHint": "Touchez votre équipe pour la surligner",
     "truncated": "Affichage des {{shown}} premières équipes sur {{total}}.",
     "stale": "Hors ligne : derniers scores connus."
+  },
+  "mobileRankings": {
+    "title": "Suivi des classements",
+    "backToStudio": "Retour au Studio",
+    "changeScenario": "Changer de scénario",
+    "textSize": "Grands caractères",
+    "summary_one": "{{count}} équipe · {{finished}} terminée(s)",
+    "summary_other": "{{count}} équipes · {{finished}} terminée(s)",
+    "finished": "Terminé",
+    "playing": "En cours"
   }
 }

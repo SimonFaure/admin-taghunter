@@ -113,7 +113,12 @@
   "displayOptions": {
     "sectionTitle": "Display options",
     "displayScore": "Display score during play",
-    "displayScoreHint": "Show the running score in the HUD throughout the game."
+    "displayScoreHint": "Show the running score in the HUD throughout the game.",
+    "showLegend": "Show the legend on the page",
+    "showLegendHint": "Shows the feedback images and their meaning in a box, placed and resized in the layout editor. This is the default: the operator can show or hide the legend when launching the game (advanced options).",
+    "legendMissingImage": "{{image}} not set: this row will not be shown in the legend.",
+    "legendText": "Legend text - {{image}}",
+    "legendTextHint": "Leave a field empty to keep the default text (shown greyed out)."
   },
   "hudFrames": {
     "sectionTitle": "HUD frames"

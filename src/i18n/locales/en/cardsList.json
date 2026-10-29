@@ -1,4 +1,4 @@
 {
   "title": "My Cards",
-  "description": "Register, edit and delete your game cards. Changes sync to your playground devices on their next refresh."
+  "description": "Register, edit and delete your game cards. To bulk-import cards, download the Excel template, fill it in, then import it. New cards are added to the ones already registered: no need to re-import all your cards, the file can contain only the new ones. Changes sync to your playground devices on their next refresh."
 }

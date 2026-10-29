@@ -8,9 +8,41 @@
     "storyHint": "Précisions techniques ou de gameplay à l'attention du licencié : mêmes visuels qu'un autre scénario, mode concerné, particularités. Jamais montré aux joueurs."
   },
   "cover": {
-    "sectionTitleTracks": "Couverture, arrière-plan et carte",
-    "sectionTitle": "Couverture et arrière-plan",
-    "mapImage": "Image de la carte"
+    "sectionTitleTracks": "Couverture, arrière-plan, carte et vidéo",
+    "sectionTitle": "Couverture, arrière-plan et vidéo",
+    "mapImage": "Image de la carte",
+    "groupImages": "Images",
+    "groupVideo": "Vidéo du scénario",
+    "visualLangs": {
+      "title": "Visuel de couverture pour les autres langues",
+      "set": "1 version",
+      "notSet": "Aucune version",
+      "hint": "Le visuel de couverture ci-dessus est la version française. Ajoutez ici une version unique pour toutes les autres langues : les licenciés dont le compte n'est pas en français la voient à la place, dans le Studio et sur le Playground. Sans version, tout le monde voit le visuel ci-dessus. Enregistrez le scénario pour appliquer les changements.",
+      "otherLanguages": "Autres langues",
+      "usesDefault": "- utilise le visuel principal",
+      "legacyHint": "Anciennes versions par langue, plus utilisées nulle part. Vous pouvez les retirer.",
+      "upload": "Téléverser une image",
+      "replace": "Remplacer",
+      "remove": "Retirer",
+      "notImage": "Ce fichier n'est pas une image.",
+      "uploadFailed": "Échec du téléversement"
+    },
+    "subtitles": {
+      "title": "Sous-titres",
+      "count_one": "{{count}} sous-titre",
+      "count_other": "{{count}} sous-titres",
+      "hint": "Un fichier .vtt (WebVTT) par langue, proposé pendant la lecture sur le Playground. Enregistrez le scénario pour appliquer les changements.",
+      "upload": "Téléverser .vtt",
+      "replace": "Remplacer",
+      "remove": "Retirer",
+      "notVtt": "Ce fichier n'est pas un fichier de sous-titres WebVTT (.vtt) valide.",
+      "uploadFailed": "Échec du téléversement",
+      "off": "Désactivés",
+      "empty": "Aucun sous-titre pour l’instant.",
+      "addLabel": "Ajouter une langue :",
+      "selectLabel": "Sous-titres :",
+      "none": "aucun fichier téléversé"
+    }
   },
   "timing": {
     "sectionTitle": "Minutage",

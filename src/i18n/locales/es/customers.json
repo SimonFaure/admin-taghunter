@@ -1,0 +1,131 @@
+{
+  "title": "Mis clientes",
+  "subtitle": "Las organizaciones para las que organiza partidas. Asocie una partida a un cliente en el Playground (al lanzarla o después) para construir su historial.",
+  "fields": {
+    "name": "Nombre",
+    "type": "Tipo",
+    "typeNone": "Sin especificar",
+    "contactName": "Persona de contacto",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "city": "Ciudad",
+    "notes": "Notas"
+  },
+  "list": {
+    "search": "Buscar un cliente…",
+    "showArchived": "Mostrar archivados",
+    "sortName": "Nombre",
+    "sortLastPlayed": "Última partida",
+    "sortGames": "Número de partidas",
+    "sortLabel": "Ordenar por",
+    "new": "Nuevo cliente",
+    "import": "Importar",
+    "export": "Exportar CSV",
+    "empty": "Todavía no hay clientes. Cree uno aquí, importe una lista o añádalo sobre la marcha al lanzar una partida en el Playground.",
+    "emptySearch": "Ningún cliente coincide con esta búsqueda.",
+    "games_one": "{{count}} partida",
+    "games_other": "{{count}} partidas",
+    "lastPlayed": "Última partida: {{date}}",
+    "never": "Ninguna partida",
+    "archived": "Archivado",
+    "fromPlayground": "Creado en el Playground"
+  },
+  "form": {
+    "createTitle": "Nuevo cliente",
+    "editTitle": "Editar el cliente",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "nameRequired": "El nombre es obligatorio.",
+    "similarTitle": "Ya existen clientes con un nombre parecido:",
+    "similarHint": "Compruebe que no se trata de uno de ellos antes de crear un duplicado."
+  },
+  "detail": {
+    "back": "Todos los clientes",
+    "edit": "Editar",
+    "archive": "Archivar",
+    "unarchive": "Desarchivar",
+    "archivedBanner": "Este cliente está archivado: ya no aparece en las listas del Playground, su historial se conserva.",
+    "merge": "Fusionar en…",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar «{{name}}»? Esta acción es definitiva.",
+    "deleteHasGames": "Este cliente tiene partidas y no se puede eliminar. Archívelo o fusiónelo con otro cliente.",
+    "mergedFrom": "Incluye también: {{names}}",
+    "statGames": "Partidas",
+    "statLastPlayed": "Última partida",
+    "statScenarios": "Escenarios jugados",
+    "historyTitle": "Historial de partidas",
+    "historyEmpty": "Todavía no hay ninguna partida asociada a este cliente.",
+    "attach": "Asociar partidas pasadas",
+    "teams_one": "{{count}} equipo",
+    "teams_other": "{{count}} equipos",
+    "players_one": "{{count}} jugador",
+    "players_other": "{{count}} jugadores",
+    "customerColumn": "Cliente",
+    "notPlayedTitle": "Aún no jugados",
+    "notPlayedHint": "Sus escenarios que este cliente nunca ha jugado: ideas para su próxima visita.",
+    "notPlayedEmpty": "Este cliente ha jugado todos sus escenarios.",
+    "notFound": "Este cliente no existe (o ya no existe)."
+  },
+  "merge": {
+    "title": "Fusionar «{{name}}»",
+    "intro": "Todas las partidas de «{{name}}» pasan al cliente elegido y «{{name}}» desaparece. Los dispositivos que aún lo conocen se redirigen automáticamente.",
+    "target": "Fusionar en",
+    "targetPlaceholder": "Elegir un cliente…",
+    "gamesWillMove_one": "Se moverá {{count}} partida.",
+    "gamesWillMove_other": "Se moverán {{count}} partidas.",
+    "confirm": "Fusionar"
+  },
+  "attach": {
+    "title": "Asociar partidas pasadas a «{{name}}»",
+    "filterUntagged": "Sin cliente",
+    "filterOther": "Con otro cliente",
+    "filterAll": "Todas",
+    "search": "Buscar un nombre de partida o un escenario…",
+    "empty": "Ninguna partida para asociar.",
+    "currentlyWith": "Actualmente: {{name}}",
+    "attachSelected_one": "Asociar {{count}} partida",
+    "attachSelected_other": "Asociar {{count}} partidas",
+    "loadMore": "Ver más"
+  },
+  "import": {
+    "title": "Importar clientes",
+    "intro": "Elija un archivo Excel (.xlsx) o CSV con un cliente por fila y una fila de encabezado. Los clientes cuyo nombre ya existe se omiten.",
+    "chooseFile": "Elegir un archivo",
+    "mapping": "Columnas",
+    "ignore": "- Ignorar -",
+    "preview": "Vista previa ({{count}} filas)",
+    "status": {
+      "new": "Nuevo",
+      "exists": "Ya existe",
+      "duplicate": "Duplicado en el archivo",
+      "invalid": "Sin nombre"
+    },
+    "importN_one": "Importar {{count}} cliente",
+    "importN_other": "Importar {{count}} clientes",
+    "done_one": "{{count}} cliente importado.",
+    "done_other": "{{count}} clientes importados.",
+    "skipped_one": "{{count}} fila omitida.",
+    "skipped_other": "{{count}} filas omitidas.",
+    "parseError": "No se ha podido leer este archivo.",
+    "noName": "Asocie una columna a «Nombre» para continuar.",
+    "close": "Cerrar"
+  },
+  "export": {
+    "filename": "clientes",
+    "archived": "Archivado",
+    "gamesCount": "Partidas",
+    "lastPlayed": "Última partida",
+    "createdAt": "Creado el",
+    "yes": "sí",
+    "no": "no"
+  },
+  "picker": {
+    "none": "- Ningún cliente -"
+  },
+  "errors": {
+    "load": "No se han podido cargar los clientes.",
+    "save": "No se ha podido guardar: {{message}}",
+    "generic": "Se ha producido un error: {{message}}"
+  },
+  "empty": "-"
+}

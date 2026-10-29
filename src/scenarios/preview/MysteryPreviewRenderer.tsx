@@ -806,6 +806,7 @@ export function MysteryPreviewRenderer({
                 text={textByRole[role.key]}
                 fontFamily={overlayFont}
                 color={overlayColor}
+                isTeamName={role.key === 'team_name'}
               />
             ));
           })()}

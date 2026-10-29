@@ -7,7 +7,7 @@
  */
 
 import type { MediaSlot } from '../../types';
-import { scenarioVideoSubtitleFields } from '../../shell/commonMediaSlots';
+import { gameVisualLangFields, scenarioVideoSubtitleFields } from '../../shell/commonMediaSlots';
 
 export const mysteryMediaSlots: readonly MediaSlot[] = [
   // Mystery-only top-level images
@@ -56,6 +56,7 @@ export const mysteryMediaSlots: readonly MediaSlot[] = [
 export const mysteryImageFields = [
   'background_image',
   'game_visual',
+  ...gameVisualLangFields,
   'game_instructions_image',
   'game_instructions_button_image',
   'game_instructions_button_hover_image',

@@ -36,6 +36,7 @@ import {
   type TagquestTextStyle,
   type TagquestTypography,
 } from '../bodies/tagquest/typographyCategories';
+import { TEAM_NAME_MIN_FONT_DEFAULT, TEAM_NAME_MIN_FONT_MAX, TEAM_NAME_MIN_FONT_MIN } from './teamNameFit';
 
 /** `<input type="color">` only accepts `#rrggbb` - drop any alpha byte. */
 function toPickerColor(value: string | undefined, fallback: string): string {
@@ -121,7 +122,8 @@ export function TagquestTypographyPanel({
       if (
         merged.size === undefined &&
         merged.color === undefined &&
-        merged.background === undefined
+        merged.background === undefined &&
+        merged.minSize === undefined
       ) {
         delete next[id];
       } else {
@@ -332,6 +334,41 @@ export function TagquestTypographyPanel({
                   <span className="text-[11px] text-gray-400">%</span>
                 </label>
               </div>
+
+              {/* Team name only: below this size the name wraps onto two
+                  lines instead of shrinking further (canonical 1920 px, like
+                  the role's authored size). */}
+              {cat.id === 'team_name' && (
+                <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                  <label className="flex items-center gap-1">
+                    <span className="text-[11px] text-gray-500">
+                      {t('editorTagquest:typography.minFontSize')}
+                    </span>
+                    <input
+                      type="number"
+                      min={TEAM_NAME_MIN_FONT_MIN}
+                      max={TEAM_NAME_MIN_FONT_MAX}
+                      step={1}
+                      value={effective.minSize ?? ''}
+                      placeholder={String(TEAM_NAME_MIN_FONT_DEFAULT)}
+                      onChange={(e) => {
+                        const n = Number(e.target.value.trim());
+                        setCategory(cat.id, {
+                          minSize:
+                            e.target.value.trim() !== '' && Number.isFinite(n)
+                              ? Math.min(TEAM_NAME_MIN_FONT_MAX, Math.max(0, n))
+                              : undefined,
+                        });
+                      }}
+                      className="ml-auto w-[62px] px-1.5 py-1 border border-gray-300 rounded-md text-sm text-right"
+                    />
+                    <span className="text-[11px] text-gray-400">px</span>
+                  </label>
+                  <p className="mt-0.5 text-[11px] text-gray-400 leading-snug">
+                    {t('editorTagquest:typography.minFontSizeHint', { size: cat.baseSize })}
+                  </p>
+                </div>
+              )}
             </div>
           );
         })}

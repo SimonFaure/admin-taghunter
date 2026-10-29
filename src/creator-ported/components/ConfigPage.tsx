@@ -104,7 +104,7 @@ export function ConfigPage({ onNavigate, onNavigateWithGameType, onOpenLayoutEdi
                 <ShieldCheck className="text-red-400" size={24} />
                 <div className="text-left">
                   <div className="text-white font-semibold">Admin Configuration</div>
-                  <div className="text-slate-400 text-sm">Manage clients and connections</div>
+                  <div className="text-slate-400 text-sm">Manage licensees and connections</div>
                 </div>
               </button>
 
@@ -114,8 +114,8 @@ export function ConfigPage({ onNavigate, onNavigateWithGameType, onOpenLayoutEdi
               >
                 <Users className="text-blue-400" size={24} />
                 <div className="text-left">
-                  <div className="text-white font-semibold">Clients</div>
-                  <div className="text-slate-400 text-sm">View and manage all clients</div>
+                  <div className="text-white font-semibold">Licensees</div>
+                  <div className="text-slate-400 text-sm">View and manage all licensees</div>
                 </div>
               </button>
 

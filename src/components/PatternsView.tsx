@@ -725,7 +725,7 @@ export function PatternsView() {
         {([
           { key: 'all' as const, label: 'All' },
           { key: 'admin' as const, label: 'Admin' },
-          { key: 'client' as const, label: 'Client-authored' },
+          { key: 'client' as const, label: 'Licensee-authored' },
         ]).map(({ key, label }) => (
           <button
             key={key}

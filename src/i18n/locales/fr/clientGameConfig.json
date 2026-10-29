@@ -27,10 +27,12 @@
     "used": "(utilisée)"
   },
   "qrCodes": {
-    "title": "Codes QR",
+    "title": "Mes QR codes",
     "subtitle": "Imprimez-les et affichez-les sur votre site. Les joueurs scannent un code pour ouvrir l'application de ce scénario.",
     "noScenarios": "Aucun scénario {{heading}} pour le moment",
     "willAppear": "Ils apparaîtront ici dès qu'ils seront attribués à votre compte.",
-    "downloadSvg": "Télécharger le SVG"
+    "downloadSvg": "Télécharger le SVG",
+    "showFullscreen": "Afficher en plein écran",
+    "exitFullscreen": "Quitter le plein écran"
   }
 }

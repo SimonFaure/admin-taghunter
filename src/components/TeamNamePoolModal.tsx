@@ -46,7 +46,7 @@ export function TeamNamePoolModal({ scope, clientName, onClose }: TeamNamePoolMo
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const title = scope === 'global' ? 'Team Name Catalog' : `Team Names - ${clientName ?? `Client ${scope}`}`;
+  const title = scope === 'global' ? 'Team Name Catalog' : `Team Names - ${clientName ?? `Licensee ${scope}`}`;
 
   const fetchPool = async () => {
     setLoading(true);

@@ -12,5 +12,10 @@
   "ownedTitle": "Los escenarios que poseo",
   "ownedEmpty": "Aún no tienes ningún escenario asignado.",
   "customTitle": "Mis escenarios personalizados",
-  "customEmpty": "Aún no has creado ningún escenario personalizado."
+  "customEmpty": "Aún no has creado ningún escenario personalizado.",
+  "statGoLoads": "Partidas GO/Spot abiertas",
+  "statGoTeams": "Equipos GO/Spot",
+  "statGoFinished": "Equipos GO/Spot que terminaron",
+  "othersAvailable_one": "{{count}} escenario más disponible - verlo",
+  "othersAvailable_other": "{{count}} escenarios más disponibles - verlos"
 }

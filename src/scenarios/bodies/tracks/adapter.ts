@@ -32,6 +32,9 @@ const TRACKS_TEXT_KEYS: readonly string[] = [
   'text_scenario_ended',
   'text_card_empty',
   'text_if_error',
+  // Legend captions (DisplayOptionsSection, not TextStringsSection).
+  'text_legend_wrong_order',
+  'text_legend_missing_checkpoint',
 ];
 
 function buildMediasColumn(gameMeta: TracksGameMeta, uniqid: string): MediasColumn {
@@ -131,6 +134,7 @@ function buildZipPayload(
 
     // Tracks-specific scalars
     display_score: gm.display_score,
+    show_legend: gm.show_legend,
     clues_page: gm.clues_page,
     routes: gm.routes,
     displays: gm.displays,

@@ -52,6 +52,8 @@
     "previewTeamName": "Aperçu du nom d'équipe",
     "teamNamePlaceholder": "Saisissez le nom le plus long attendu",
     "teamNameHint": "Aperçu uniquement : collez un nom long pour vérifier que la boîte du nom d'équipe reste lisible.",
+    "minFontSize": "Taille de police min. du nom d'équipe (px, écran 1920×1080)",
+    "minFontSizeHint": "Si le nom doit descendre sous cette taille pour tenir sur une ligne, il est affiché sur deux lignes. Vide = 20 px. 0 = toujours une ligne.",
     "resetDefaults": "Réinitialiser par défaut",
     "showElement": "Afficher {{element}}",
     "idleTickHint": "Cochez pour afficher un élément sur l'écran d'attente, puis faites-le glisser sur l'arrière-plan.",

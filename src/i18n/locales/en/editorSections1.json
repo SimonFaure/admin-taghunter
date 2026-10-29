@@ -8,9 +8,41 @@
     "storyHint": "Technical or gameplay notes for the licensee: same artwork as another scenario, which mode, quirks. Never shown to players."
   },
   "cover": {
-    "sectionTitleTracks": "Cover, background & map",
-    "sectionTitle": "Cover & background",
-    "mapImage": "Map image"
+    "sectionTitleTracks": "Cover, background, map & video",
+    "sectionTitle": "Cover, background & video",
+    "mapImage": "Map image",
+    "groupImages": "Images",
+    "groupVideo": "Scenario video",
+    "visualLangs": {
+      "title": "Cover visual for other languages",
+      "set": "1 version",
+      "notSet": "No version",
+      "hint": "The cover visual above is the French version. Add one version here for every other language: licensees whose account is not in French see it instead, in the Studio and on the Playground. Without it, everyone sees the cover above. Save the scenario to apply the changes.",
+      "otherLanguages": "Other languages",
+      "usesDefault": "- uses the main visual",
+      "legacyHint": "Old per-language versions, no longer used anywhere. You can remove them.",
+      "upload": "Upload image",
+      "replace": "Replace",
+      "remove": "Remove",
+      "notImage": "This file is not an image.",
+      "uploadFailed": "Upload failed"
+    },
+    "subtitles": {
+      "title": "Subtitles",
+      "count_one": "{{count}} subtitle",
+      "count_other": "{{count}} subtitles",
+      "hint": "One .vtt (WebVTT) file per language, offered during playback on the Playground. Save the scenario to apply the changes.",
+      "upload": "Upload .vtt",
+      "replace": "Replace",
+      "remove": "Remove",
+      "notVtt": "This file is not a valid WebVTT (.vtt) subtitle file.",
+      "uploadFailed": "Upload failed",
+      "off": "Off",
+      "empty": "No subtitles yet.",
+      "addLabel": "Add a language:",
+      "selectLabel": "Subtitles:",
+      "none": "no file uploaded"
+    }
   },
   "timing": {
     "sectionTitle": "Timing",

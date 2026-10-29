@@ -98,7 +98,7 @@ export function ScenarioAdminControls({ scenarioId }: ScenarioAdminControlsProps
       >
         <Shield className="w-5 h-5" />
         Admin-only settings
-        <span className="text-xs font-normal text-amber-700">(not visible to clients)</span>
+        <span className="text-xs font-normal text-amber-700">(not visible to licensees)</span>
       </button>
 
       {expanded && (
@@ -127,8 +127,8 @@ export function ScenarioAdminControls({ scenarioId }: ScenarioAdminControlsProps
             <div className="flex items-start gap-2 rounded border border-slate-200 bg-white p-3 text-sm text-slate-700">
               <Users className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <p>
-                All clients get this scenario in the Playground as soon as it is published. Tag Hunter GO / Spot
-                access is never automatic: grant it per client from the admin client page.
+                All licensees get this scenario in the Playground as soon as it is published. Tag Hunter GO / Spot
+                access is never automatic: grant it per licensee from the admin licensee page.
               </p>
             </div>
           )}

@@ -80,7 +80,8 @@ function getExtraImages(medias: string | Record<string, unknown> | null | undefi
   const parsed = parseMedias(medias) as { images?: Record<string, string> };
   if (!parsed.images) return [];
   return Object.entries(parsed.images)
-    .filter(([key]) => key !== 'game_visual')
+    // The cover and its language versions: the cover is shown first, on its own.
+    .filter(([key]) => key !== 'game_visual' && !key.startsWith('game_visual_'))
     .map(([, url]) => resolveMediaUrl(url, uniqid));
 }
 
@@ -236,7 +237,7 @@ export function ScenarioDetailView() {
   // background image (no other scenario media). Derived per-app
   // (project_client_app_section).
   const goClientOnly = getAppAccess(user).scenariosGoOnly;
-  const gameVisual = getGameVisualUrl(scenario?.medias, scenario?.uniqid);
+  const gameVisual = getGameVisualUrl(scenario?.medias, scenario?.uniqid, user?.language);
   const extraImages = goClientOnly
     ? (getBackgroundImageUrl(scenario?.medias, scenario?.uniqid) ? [getBackgroundImageUrl(scenario?.medias, scenario?.uniqid)!] : [])
     : getExtraImages(scenario?.medias, scenario?.uniqid);

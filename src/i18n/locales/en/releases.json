@@ -19,5 +19,6 @@
   "size": {
     "mb": "{{value}} MB",
     "kb": "{{value}} KB"
-  }
+  },
+  "androidScanHint": "Scan with the tablet to download the APK, then allow the browser to install apps."
 }

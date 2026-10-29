@@ -21,7 +21,7 @@ export function TeamNamesView() {
       const rows = await adminCardsApi.listAllDb();
       setClients(rows);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch clients list');
+      setError(err instanceof Error ? err.message : 'Failed to fetch licensees list');
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,7 @@ export function TeamNamesView() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-slate-600">
-            Curated team-name pools - the global catalog and per-client overrides
+            Curated team-name pools - the global catalog and per-licensee overrides
           </p>
           <div className="flex items-center gap-2">
             <HelpButton chapter="cards" label="Help" className="mr-1 text-slate-500 hover:text-slate-800" />
@@ -64,7 +64,7 @@ export function TeamNamesView() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by client name or email..."
+            placeholder="Search by licensee name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
@@ -92,10 +92,10 @@ export function TeamNamesView() {
         <div className="bg-white p-12 rounded-xl shadow-sm border border-slate-200 text-center">
           <Tags className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            {searchQuery ? 'No results' : 'No clients yet'}
+            {searchQuery ? 'No results' : 'No licensees yet'}
           </h3>
           <p className="text-slate-600">
-            {searchQuery ? 'Try adjusting your search.' : 'Clients will appear here once they have an account.'}
+            {searchQuery ? 'Try adjusting your search.' : 'Licensees will appear here once they have an account.'}
           </p>
         </div>
       ) : (
@@ -105,7 +105,7 @@ export function TeamNamesView() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Client
+                    Licensee
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Actions

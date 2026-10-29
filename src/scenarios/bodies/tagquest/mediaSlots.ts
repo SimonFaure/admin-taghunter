@@ -9,7 +9,7 @@
  */
 
 import type { MediaSlot } from '../../types';
-import { scenarioVideoSubtitleFields } from '../../shell/commonMediaSlots';
+import { gameVisualLangFields, scenarioVideoSubtitleFields } from '../../shell/commonMediaSlots';
 
 export const tagquestMediaSlots: readonly MediaSlot[] = [
   // Tagquest-only images
@@ -33,6 +33,7 @@ export const tagquestMediaSlots: readonly MediaSlot[] = [
 export const tagquestImageFields = [
   'background_image',
   'game_visual',
+  ...gameVisualLangFields,
   'malus_image',
   'late_malus_image',
   'custom_template',

@@ -6,7 +6,7 @@
   "fields": {
     "name": "Name",
     "email": "Email",
-    "clientId": "Client ID",
+    "clientId": "Licensee ID",
     "licenseType": "License Type",
     "paymentStatus": "Payment Status",
     "memberSince": "Member Since",

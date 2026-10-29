@@ -2,6 +2,11 @@
   "subtitle": "View and manage your available game scenarios",
   "premiumBadge": "Premium - all scenarios unlocked",
   "newScenario": "New scenario",
+  "others": {
+    "title": "Other available scenarios",
+    "subtitle": "Not in your account yet - contact us to add one.",
+    "noneOwned": "No scenario has been assigned to your account yet."
+  },
   "filters": {
     "all": "All",
     "products": "Products",

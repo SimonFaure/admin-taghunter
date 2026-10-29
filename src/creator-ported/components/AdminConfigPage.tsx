@@ -128,7 +128,7 @@ export function AdminConfigPage() {
           const result = await (window as any).electron.clients.saveSelected(client);
           console.log('Client saved:', result);
           if (result.success) {
-            setSaveMessage('Client configuration saved successfully');
+            setSaveMessage('Licensee configuration saved successfully');
             setTimeout(() => setSaveMessage(''), 3000);
           }
         }
@@ -180,7 +180,7 @@ export function AdminConfigPage() {
         <div className="space-y-4">
           <div>
             <label htmlFor="client-select" className="block text-lg font-semibold text-white mb-3">
-              Select Client
+              Select Licensee
             </label>
             <select
               id="client-select"

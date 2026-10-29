@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS game_types (
   tutorial_video_path     VARCHAR(500) NULL,
   tutorial_video_version  INT NOT NULL DEFAULT 0,
   tutorial_subtitles      JSON NULL,
+  tutorial_subtitles_version INT NOT NULL DEFAULT 0,
   created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS client_game_type_overrides (
   tutorial_video_path    VARCHAR(500) NULL,
   tutorial_video_version INT NOT NULL DEFAULT 0,
   tutorial_subtitles     JSON NULL,
+  tutorial_subtitles_version INT NOT NULL DEFAULT 0,
   updated_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (client_id, game_type_code),
   FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,

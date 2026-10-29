@@ -160,7 +160,7 @@ export function TestersView() {
   };
   const SOURCE_LABEL: Record<Source, string> = {
     device: 'device',
-    client: 'client',
+    client: 'licensee',
     'all-testers': 'all testers',
     global: 'global',
   };
@@ -174,7 +174,7 @@ export function TestersView() {
         <p className="text-sm text-slate-600 max-w-2xl">
           Devices on the <span className="font-medium">test</span> update channel. Enable a game
           type for <span className="font-medium">all testers</span> (the test channel) or override
-          it per device. Resolution: device → client → all-testers → global default.
+          it per device. Resolution: device → licensee → all-testers → global default.
         </p>
         <button
           onClick={fetchData}
@@ -233,7 +233,7 @@ export function TestersView() {
               <Monitor className="w-12 h-12 mx-auto mb-3 text-slate-300" />
               <p className="text-slate-500">No tester devices.</p>
               <p className="text-sm text-slate-400 mt-1">
-                Set a client (or a specific device) to the Test update channel to see it here.
+                Set a licensee (or a specific device) to the Test update channel to see it here.
               </p>
             </div>
           ) : (
@@ -258,7 +258,7 @@ export function TestersView() {
                         <div className="text-[11px] text-slate-400">
                           {tester.device_channel === 'test'
                             ? 'device-level tester'
-                            : 'via client channel'}{' '}
+                            : 'via licensee channel'}{' '}
                           · seen {formatRelative(tester.last_seen_at)}
                         </div>
                       </td>

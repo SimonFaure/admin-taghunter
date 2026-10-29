@@ -487,7 +487,7 @@ export function AssignOnDemandCardsModal({ clientId, clientName, onClose }: Assi
                 <div className="text-center py-12">
                   <Layers className="w-14 h-14 text-slate-200 mx-auto mb-3" />
                   <h3 className="text-base font-semibold text-slate-700 mb-1">No cards assigned</h3>
-                  <p className="text-sm text-slate-500 mb-4">Use the Assign Cards tab to add cards for this client</p>
+                  <p className="text-sm text-slate-500 mb-4">Use the Assign Cards tab to add cards for this licensee</p>
                   <button
                     onClick={() => setViewMode('pool')}
                     className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"

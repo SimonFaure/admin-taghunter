@@ -9,20 +9,35 @@ export interface ValidationIssue {
   severity: ValidationSeverity;
 }
 
+/** One rule that was evaluated, whether it passed or not. */
+export interface ValidationCheck extends ValidationIssue {
+  ok: boolean;
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: ValidationIssue[];
   warnings: ValidationIssue[];
+  /** Every rule evaluated, passed ones included - the Scenario overview's checklist. */
+  checks: ValidationCheck[];
 }
 
-function check(issues: ValidationIssue[], condition: boolean, field: string, message: string, severity: ValidationSeverity) {
-  if (!condition) {
-    issues.push({ field, message, severity });
-  }
+function check(issues: ValidationCheck[], condition: boolean, field: string, message: string, severity: ValidationSeverity) {
+  issues.push({ field, message, severity, ok: condition });
+}
+
+function result(checks: ValidationCheck[]): ValidationResult {
+  const failed = checks.filter((c) => !c.ok).map(({ field, message, severity }) => ({ field, message, severity }));
+  return {
+    valid: failed.filter((i) => i.severity === 'error').length === 0,
+    errors: failed.filter((i) => i.severity === 'error'),
+    warnings: failed.filter((i) => i.severity === 'warning'),
+    checks,
+  };
 }
 
 export function validateTagquestConfig(config: any, scenarioTitle: string, scenarioDescription: string): ValidationResult {
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationCheck[] = [];
 
   check(issues, !!scenarioTitle?.trim(), 'title', 'Scenario title is required', 'error');
   check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
@@ -65,15 +80,11 @@ export function validateTagquestConfig(config: any, scenarioTitle: string, scena
   check(issues, !!config.end_station && config.end_station !== '0', 'end_station', 'End station number should be set', 'warning');
   check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
 
-  return {
-    valid: issues.filter((i) => i.severity === 'error').length === 0,
-    errors: issues.filter((i) => i.severity === 'error'),
-    warnings: issues.filter((i) => i.severity === 'warning'),
-  };
+  return result(issues);
 }
 
 export function validateMysteryConfig(config: any, scenarioTitle: string, scenarioDescription: string): ValidationResult {
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationCheck[] = [];
 
   check(issues, !!scenarioTitle?.trim(), 'title', 'Scenario title is required', 'error');
   check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
@@ -102,19 +113,16 @@ export function validateMysteryConfig(config: any, scenarioTitle: string, scenar
   check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
   check(issues, !!config.score_full_game && config.score_full_game !== '0', 'score_full_game', 'Full game score should be greater than 0', 'warning');
 
-  return {
-    valid: issues.filter((i) => i.severity === 'error').length === 0,
-    errors: issues.filter((i) => i.severity === 'error'),
-    warnings: issues.filter((i) => i.severity === 'warning'),
-  };
+  return result(issues);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateClashConfig(config: any, scenarioTitle: string, scenarioDescription: string): ValidationResult {
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationCheck[] = [];
 
   check(issues, !!scenarioTitle?.trim(), 'title', 'Scenario title is required', 'error');
   check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
+  check(issues, !!config.game_visual, 'game_visual', 'Game visual image is required', 'error');
   check(issues, !!config.map_image, 'map_image', 'Territory map image is required', 'error');
 
   const clans = config.clans ?? [];
@@ -170,16 +178,12 @@ export function validateClashConfig(config: any, scenarioTitle: string, scenario
 
   check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
 
-  return {
-    valid: issues.filter((i) => i.severity === 'error').length === 0,
-    errors: issues.filter((i) => i.severity === 'error'),
-    warnings: issues.filter((i) => i.severity === 'warning'),
-  };
+  return result(issues);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function validateTracksConfig(config: any, scenarioTitle: string, scenarioDescription: string): ValidationResult {
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationCheck[] = [];
 
   check(issues, !!scenarioTitle?.trim(), 'title', 'Scenario title is required', 'error');
   check(issues, !!scenarioDescription?.trim(), 'description', 'Scenario description is required', 'warning');
@@ -232,9 +236,5 @@ export function validateTracksConfig(config: any, scenarioTitle: string, scenari
 
   check(issues, !!config.default_time && config.default_time !== '0', 'default_time', 'Default game time should be greater than 0', 'warning');
 
-  return {
-    valid: issues.filter((i) => i.severity === 'error').length === 0,
-    errors: issues.filter((i) => i.severity === 'error'),
-    warnings: issues.filter((i) => i.severity === 'warning'),
-  };
+  return result(issues);
 }

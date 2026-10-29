@@ -59,6 +59,13 @@ export interface TagquestTextStyle {
    * but offered on every role: a custom template may need a plate anywhere.
    */
   background?: string;
+  /**
+   * Team name only: minimum font size in px on the 1920-wide canonical stage.
+   * The name shrinks to fit its box; when that size would fall below this, it
+   * is drawn over two lines instead. Absent = 20 px (the default); 0 = always
+   * one line.
+   */
+  minSize?: number;
 }
 
 export type TagquestTypography = Partial<Record<TagquestTextCategoryId, TagquestTextStyle>>;
@@ -237,7 +244,16 @@ export function readTagquestTypography(value: unknown): TagquestTypography {
     if (typeof rec.background === 'string' && rec.background.trim()) {
       style.background = rec.background.trim();
     }
-    if (style.size !== undefined || style.color !== undefined || style.background !== undefined) {
+    if (typeof rec.minSize === 'number' || typeof rec.minSize === 'string') {
+      const n = Number(rec.minSize);
+      if (Number.isFinite(n) && n >= 0) style.minSize = n;
+    }
+    if (
+      style.size !== undefined ||
+      style.color !== undefined ||
+      style.background !== undefined ||
+      style.minSize !== undefined
+    ) {
       out[cat.id] = style;
     }
   }
@@ -256,7 +272,14 @@ export function resolveTagquestTextStyle(
   typography: TagquestTypography | undefined,
   baseFontSize: number | undefined,
   baseColor: string | undefined,
-): { fontSize: number | undefined; color: string | undefined; background: string | undefined } {
+): {
+  fontSize: number | undefined;
+  color: string | undefined;
+  background: string | undefined;
+  /** Authored two-line threshold (canonical px, like fontSize); undefined =
+   *  not set - callers apply the default via readMinFontSize. */
+  minFontSize: number | undefined;
+} {
   const catId = tagquestTextCategoryFor(elementId);
   const style = catId && typography ? typography[catId] : undefined;
   const factor = tagquestSizeFactor(style?.size);
@@ -264,6 +287,7 @@ export function resolveTagquestTextStyle(
     fontSize: baseFontSize != null ? baseFontSize * factor : undefined,
     color: style?.color || baseColor,
     background: style?.background || undefined,
+    minFontSize: style?.minSize,
   };
 }
 

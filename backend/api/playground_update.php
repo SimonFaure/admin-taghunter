@@ -18,14 +18,19 @@
  *                comparison + release notes + mobile store links.
  *   - download : Streams a release artifact by id (PHP passthrough; the
  *                releases/ directory is never web-served directly).
+ *   - android  : Redirects to the latest STABLE Android APK. The short link the
+ *                first-install QR code points at (no app installed yet).
  *   - list     : Public list of the latest release per platform (no signatures
  *                or internal paths). Powers the client portal download page.
+ *                Android is left out unless the admin enabled it on the
+ *                Releases page (playground_release_settings).
  */
 
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/SecurityHeaders.php';
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
+require_once __DIR__ . '/../utils/PlaygroundReleaseSettings.php';
 
 setCorsHeaders();
 
@@ -69,6 +74,22 @@ function sanitizeChannel(string $value): string {
     return in_array($value, ['stable', 'test'], true) ? $value : 'stable';
 }
 
+/** Absolute path of a stored artifact, containment-checked under releases/; false when missing. */
+function resolveArtifact(?string $relPath) {
+    if (empty($relPath)) return false;
+    $releasesRoot = realpath(__DIR__ . '/../releases');
+    $resolved = $releasesRoot
+        ? realpath($releasesRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relPath))
+        : false;
+    if (!$resolved || strpos($resolved, $releasesRoot) !== 0 || !is_file($resolved)) return false;
+    return $resolved;
+}
+
+/** False when the row has an artifact path but the file is missing (store links pass). */
+function releaseFileOnDisk(array $row): bool {
+    return empty($row['artifact_path']) || resolveArtifact($row['artifact_path']) !== false;
+}
+
 /** The latest release for a platform on a specific channel (null if none). */
 function latestRow(Database $db, string $target, string $arch, string $channel, bool $isMobile): ?array {
     if ($isMobile) {
@@ -95,9 +116,13 @@ function latestRow(Database $db, string $target, string $arch, string $channel, 
 function buildManifest(Database $db, string $target, string $arch, string $channel = 'stable'): ?array {
     $isMobile = in_array($target, ['android', 'ios'], true);
 
+    // A release whose file is gone counts as unpublished: advertising it would
+    // only hand the updater a URL that 404s.
     $row = latestRow($db, $target, $arch, $channel, $isMobile);
+    if ($row && !releaseFileOnDisk($row)) $row = null;
     if (!$row && $channel !== 'stable') {
         $row = latestRow($db, $target, $arch, 'stable', $isMobile);
+        if ($row && !releaseFileOnDisk($row)) $row = null;
     }
 
     if (!$row) {
@@ -112,7 +137,22 @@ function buildManifest(Database $db, string $target, string $arch, string $chann
         // playground's own update service reads them.
         'min_supported_version' => $row['min_supported_version'] ?? '0.0.0',
         'store_urls' => mobileStoreUrls($db),
+        // The build's own channel (a 'test' caller may get the stable one).
+        // Playground devices cache installers and hand them to each other
+        // over the LAN; a stable device must never be offered a test build.
+        'channel' => $row['channel'] ?? $channel,
     ];
+
+    // Android sideload: the playground downloads this APK, checks its SHA-256
+    // and hands it to the system installer (memory project_android_operator_tablet).
+    if ($target === 'android' && !empty($row['artifact_path']) && !empty($row['artifact_sha256'])) {
+        $manifest['apk'] = [
+            'id'     => (int)$row['id'],
+            'url'    => updateBaseUrl() . '?action=download&id=' . (int)$row['id'],
+            'sha256' => $row['artifact_sha256'],
+            'size'   => $row['artifact_size'] !== null ? (int)$row['artifact_size'] : null,
+        ];
+    }
 
     // Desktop platforms carry a downloadable, signed artifact.
     if (!$isMobile && !empty($row['artifact_path']) && $row['signature'] !== null) {
@@ -194,7 +234,7 @@ try {
             // device only reaches the test track via the channel-aware
             // manifest/check path after an admin designates it a tester.
             $rows = $db->fetchAll(
-                "SELECT id, version, target, arch, artifact_filename, artifact_size,
+                "SELECT id, version, target, arch, artifact_path, artifact_filename, artifact_size,
                         store_url, pub_date, notes, min_supported_version
                  FROM playground_releases
                  WHERE is_latest = 1 AND channel = 'stable'
@@ -202,8 +242,10 @@ try {
             );
 
             $base = updateBaseUrl();
+            $androidVisible = PlaygroundReleaseSettings::androidVisibleToClients($db);
             $releases = [];
             foreach ($rows as $r) {
+                if ($r['target'] === 'android' && !$androidVisible) continue;
                 $isMobile = in_array($r['target'], ['android', 'ios'], true);
                 $releases[] = [
                     'version'      => $r['version'],
@@ -212,9 +254,11 @@ try {
                     'notes'        => $r['notes'] ?? '',
                     'pub_date'     => $r['pub_date'] ? date('c', strtotime($r['pub_date'])) : null,
                     'artifact_size' => $r['artifact_size'] !== null ? (int)$r['artifact_size'] : null,
-                    // Mobile -> store listing; desktop -> authenticated-free binary stream.
+                    // Mobile -> store listing; desktop and the Android APK ->
+                    // authenticated-free binary stream.
                     'store_url'    => $isMobile ? ($r['store_url'] ?: null) : null,
-                    'download_url' => (!$isMobile && !empty($r['artifact_filename']))
+                    'download_url' => ((!$isMobile || $r['target'] === 'android') && !empty($r['artifact_filename'])
+                            && resolveArtifact($r['artifact_path']) !== false)
                         ? $base . '?action=download&id=' . (int)$r['id']
                         : null,
                 ];
@@ -241,15 +285,13 @@ try {
                 jsonResponse(['error' => 'Release artifact not found'], 404);
             }
 
-            $releasesRoot = realpath(__DIR__ . '/../releases');
-            $resolved = $releasesRoot
-                ? realpath($releasesRoot . DIRECTORY_SEPARATOR
-                    . str_replace('/', DIRECTORY_SEPARATOR, $row['artifact_path']))
-                : false;
-
             // Containment guard: the resolved path must stay under releases/.
-            if (!$resolved || !$releasesRoot
-                || strpos($resolved, $releasesRoot) !== 0 || !is_file($resolved)) {
+            $resolved = resolveArtifact($row['artifact_path']);
+            if (!$resolved) {
+                // The row exists but its file is gone: worth a Recent Errors entry.
+                Logger::log('playground_update', $method, 'download', null,
+                    ['id' => $id, 'artifact_path' => $row['artifact_path']],
+                    ['error' => 'artifact file missing on disk'], 404, 'playground');
                 jsonResponse(['error' => 'Release artifact not found'], 404);
             }
 
@@ -257,7 +299,9 @@ try {
             Logger::log('playground_update', $method, 'download', null,
                 ['id' => $id], ['filename' => $filename], 200, 'playground');
 
-            header('Content-Type: application/octet-stream');
+            // The APK MIME type lets the tablet's browser offer "Install" directly.
+            $isApk = strtolower(pathinfo($filename, PATHINFO_EXTENSION)) === 'apk';
+            header('Content-Type: ' . ($isApk ? 'application/vnd.android.package-archive' : 'application/octet-stream'));
             header('Content-Length: ' . filesize($resolved));
             header('Content-Disposition: attachment; filename="'
                 . str_replace('"', '', $filename) . '"');
@@ -275,8 +319,21 @@ try {
             exit;
         }
 
+        case 'android': {
+            $row = $db->fetch(
+                "SELECT id FROM playground_releases
+                 WHERE target = 'android' AND channel = 'stable' AND is_latest = 1
+                   AND artifact_path IS NOT NULL LIMIT 1"
+            );
+            if (!$row) {
+                jsonResponse(['error' => 'No Android release published yet'], 404);
+            }
+            header('Location: ' . updateBaseUrl() . '?action=download&id=' . (int)$row['id'], true, 302);
+            exit;
+        }
+
         default:
-            jsonResponse(['error' => 'Invalid action. Available: manifest, check, download, list'], 400);
+            jsonResponse(['error' => 'Invalid action. Available: manifest, check, download, list, android'], 400);
     }
 } catch (Exception $e) {
     Logger::log('playground_update', $_SERVER['REQUEST_METHOD'] ?? 'GET',

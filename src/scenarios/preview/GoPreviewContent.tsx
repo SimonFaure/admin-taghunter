@@ -10,6 +10,7 @@
  */
 
 import { Check, Printer } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface GoPreviewAnswer {
   letter: string;
@@ -107,6 +108,7 @@ export function printGoPreview(title: string, answerCount: 2 | 4, enigmas: GoPre
 }
 
 export function GoPreviewContent({ title, answerCount, enigmas, warning }: Props) {
+  const { t } = useTranslation();
   const lettersLabel = answerCount === 4 ? 'A / B / C / D' : 'A / B';
 
   return (
@@ -124,7 +126,7 @@ export function GoPreviewContent({ title, answerCount, enigmas, warning }: Props
           className="inline-flex flex-shrink-0 items-center gap-2 rounded-lg bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
         >
           <Printer className="w-4 h-4" />
-          Print / PDF
+          {t('scenarioDetail:goPreviewPrint')}
         </button>
       </div>
 

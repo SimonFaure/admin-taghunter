@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Rocket, Download, ExternalLink, Monitor, Smartphone, RefreshCw, AlertCircle } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const ENDPOINT = `${API_BASE_URL}/playground_update.php`;
@@ -26,6 +27,10 @@ const TARGET_LABELS: Record<string, string> = {
 };
 
 const MOBILE_TARGETS = ['android', 'ios'];
+
+// Short link to the latest stable APK, for the tablet to scan (the Android app
+// is sideloaded, not on the Play Store). Absolute: the QR leaves this origin.
+const ANDROID_INSTALL_URL = new URL(`${ENDPOINT}?action=android`, window.location.origin).toString();
 
 function formatSize(bytes: number | null, t: TFunction): string {
   if (!bytes) return '';
@@ -184,6 +189,13 @@ function ReleaseCard({ release, t, locale }: { release: Release; t: TFunction; l
 
       {release.notes && (
         <p className="text-sm text-slate-600 mb-4 whitespace-pre-line line-clamp-4">{release.notes}</p>
+      )}
+
+      {release.target === 'android' && release.download_url && (
+        <div className="flex flex-col items-center gap-2 mb-4">
+          <QRCodeSVG value={ANDROID_INSTALL_URL} size={160} level="M" marginSize={2} />
+          <p className="text-xs text-slate-500 text-center">{t('androidScanHint')}</p>
+        </div>
       )}
 
       <div className="mt-auto pt-2">

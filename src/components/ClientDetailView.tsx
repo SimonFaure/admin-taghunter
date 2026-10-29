@@ -1,15 +1,16 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Server, KeyRound, Lock, Power, Wifi, BarChart3, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Server, KeyRound, Lock, Power, BarChart3, RotateCcw, Building2 } from 'lucide-react';
+import { AdminCustomersSection } from './client/customers/AdminCustomersSection';
 import { clientApi } from '../lib/clientApi';
 import { Client, UpdateClientData } from '../types/client';
 import { ScenarioData, adminCardsApi } from '../lib/api';
 import { authFetch } from '../lib/authFetch';
 import { CardsRegistryEditor, CardsEditorApi } from './CardsRegistryEditor';
 import { RecoveryCodesPanel } from './RecoveryCodesPanel';
-import { ClientHotspotPanel } from './ClientHotspotPanel';
 import { ClientGameTypesPanel } from './ClientGameTypesPanel';
 import { GameTypeIcon } from './icons/GameTypeIcons';
 import { DurationCatalogCard, ScenarioDurationPicker, useDurationCatalog } from './go/durations';
+import { ScenarioLanguagePicker, type PlayerLanguages } from './go/playerLanguages';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -98,14 +99,10 @@ function CollapsibleSection({
 }
 
 export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
-  // The client's challenge catalog (minutes), shared by its GO and Spot grants.
-  // One instance for the whole page so both tabs edit the same list
-  // (project_go_spot_durations).
-  const {
-    catalog: durationCatalog,
-    loading: durationCatalogLoading,
-    save: saveDurationCatalog,
-  } = useDurationCatalog(clientId);
+  // The client's challenge catalogs (minutes), one per app: GO starts at
+  // 30/60/90, Spot at 15/30/45 (project_go_spot_durations).
+  const goDurations = useDurationCatalog('go', clientId);
+  const spotDurations = useDurationCatalog('spot', clientId);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -135,6 +132,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     uniqid: string;
     /** Challenges offered for this scenario in this app (project_go_spot_durations). */
     durations?: number[];
+    /** Language picker policy for this scenario in this app (project_go_spot_player_languages). */
+    player_languages?: PlayerLanguages;
+    /** The languages this client may be served the scenario in. */
+    scenario_languages?: string[];
   }
   const [goGrants, setGoGrants] = useState<GoGrant[]>([]);
   const [showAddGoModal, setShowAddGoModal] = useState(false);
@@ -183,11 +184,11 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
     // Playground master on/off.
     playground_enabled: true,
     // Per-client Playground device cap (project_playground_max_devices_admin).
-    max_devices: 4,
+    max_devices: 6,
     // Tag Hunter GO flags. go_subscription_active is the GO billing-ok bool;
     // go_billing_grace_days is its grace clock (valid_until retired).
     go_enabled: false,
-    go_subscription_active: false,
+    go_subscription_active: true,
     go_billing_grace_days: 30,
     // Spot (future app) flags.
     spot_enabled: false,
@@ -562,9 +563,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         // (or any nullish value) must not read as disabled and hide Playground.
         playground_enabled: data.playground_enabled === undefined ? true : Number(data.playground_enabled) === 1,
         // Device cap: floor at 1, default 4 when a legacy row has no stored value.
-        max_devices: Number(data.max_devices) >= 1 ? Number(data.max_devices) : 4,
+        max_devices: Number(data.max_devices) >= 1 ? Number(data.max_devices) : 6,
         go_enabled: Number(data.go_enabled) === 1,
-        go_subscription_active: Number(data.go_subscription_active) === 1,
+        // go_subscription_active defaults to true (up to date) when absent, like Spot.
+        go_subscription_active: data.go_subscription_active === undefined ? true : Number(data.go_subscription_active) === 1,
         go_billing_grace_days: Number(data.go_billing_grace_days ?? 30),
         spot_enabled: Number(data.spot_enabled) === 1,
         // spot_billing_ok defaults to true (current) when absent.
@@ -653,7 +655,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
       setError(error);
     } else if (data) {
       setClient(data);
-      setSuccess('Client updated successfully');
+      setSuccess('Licensee updated successfully');
       setTimeout(() => setSuccess(''), 3000);
     }
 
@@ -724,7 +726,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
   const lockStatusDetail = (): string => {
     if (formData.devices_disabled) {
-      return 'All of this client’s devices are blocked from launching and joining games. Operators can run one event per recovery code.';
+      return 'All of this licensee’s devices are blocked from launching and joining games. Operators can run one event per recovery code.';
     }
     if (!formData.billing_up_to_date) {
       const since = client?.billing_overdue_since;
@@ -786,7 +788,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
   if (!client) {
     return (
       <div className="text-center py-12">
-        <p className="text-slate-600">Client not found</p>
+        <p className="text-slate-600">Licensee not found</p>
         <button
           onClick={onBack}
           className="mt-4 text-slate-900 hover:underline"
@@ -804,7 +806,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         className="flex items-center space-x-2 text-slate-600 hover:text-slate-900 mb-6 transition-colors"
       >
         <ArrowLeft className="w-5 h-5" />
-        <span>Back to Clients</span>
+        <span>Back to Licensees</span>
       </button>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -815,7 +817,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 {client.avatar_url ? (
                   <img
                     src={client.avatar_url}
-                    alt={client.name || 'Client avatar'}
+                    alt={client.name || 'Licensee avatar'}
                     className="w-32 h-32 rounded-full object-cover border-4 border-slate-100"
                   />
                 ) : (
@@ -849,7 +851,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-slate-900 mb-1">
-                {client.name || 'Unnamed Client'}
+                {client.name || 'Unnamed Licensee'}
               </h2>
               <p className="text-slate-600 mb-4">{client.email}</p>
               <div className="flex flex-wrap gap-3">
@@ -924,7 +926,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 <ChevronDown className="w-5 h-5 text-slate-500 group-hover:text-slate-700 transition-colors" />
               )}
               <User className="w-6 h-6 text-slate-700" />
-              <h3 className="text-xl font-bold text-slate-900">Client Details</h3>
+              <h3 className="text-xl font-bold text-slate-900">Licensee Details</h3>
             </button>
           </div>
 
@@ -942,7 +944,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  placeholder="client@example.com"
+                  placeholder="licensee@example.com"
                 />
               </div>
 
@@ -1001,7 +1003,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 <option value="es">Español</option>
               </select>
               <p className="mt-1 text-xs text-slate-500">
-                The client's Studio UI language, the playground onboarding default, and the default language of new scenarios they create.
+                The licensee's Studio UI language, the playground onboarding default, and the default language of new scenarios they create.
               </p>
             </div>
 
@@ -1014,7 +1016,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={4}
                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                placeholder="Additional information about the client..."
+                placeholder="Additional information about the licensee..."
               />
             </div>
 
@@ -1034,7 +1036,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 <span>
                   <span className="block text-sm font-medium text-slate-700">No global stats for this account</span>
                   <span className="block text-xs text-slate-500">
-                    Games are still recorded and visible to the client, but left out of the global statistics.
+                    Games are still recorded and visible to the licensee, but left out of the global statistics.
                   </span>
                 </span>
               </label>
@@ -1048,7 +1050,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 <span>
                   <span className="block text-sm font-medium text-slate-700">No stats at all</span>
                   <span className="block text-xs text-slate-500">
-                    New games played by this client are not recorded. Existing stats are kept until reset.
+                    New games played by this licensee are not recorded. Existing stats are kept until reset.
                   </span>
                 </span>
               </label>
@@ -1075,7 +1077,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 <span>
                   <span className="block text-sm font-medium text-slate-700">Sees draft languages (tester)</span>
                   <span className="block text-xs text-slate-500">
-                    This client&apos;s studio and playgrounds also get the scenario languages still in draft in
+                    This licensee&apos;s studio and playgrounds also get the scenario languages still in draft in
                     Admin › Translations, to test a translation on real hardware before validating it.
                   </span>
                 </span>
@@ -1237,7 +1239,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     className="w-4 h-4 rounded text-slate-900 focus:ring-slate-900"
                   />
                   <span className="text-slate-700">
-                    App enabled <span className="text-slate-400">(client owns Playground; disabling refuses login/launch)</span>
+                    App enabled <span className="text-slate-400">(licensee owns Playground; disabling refuses login/launch)</span>
                   </span>
                 </label>
 
@@ -1296,7 +1298,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    Days after billing goes Overdue before this client's devices stop launching/joining games.
+                    Days after billing goes Overdue before this licensee's devices stop launching/joining games.
                   </p>
                 </div>
 
@@ -1312,7 +1314,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                     <option value="test">Test (Tester)</option>
                   </select>
                   <p className="mt-1 text-xs text-slate-500">
-                    Which app-release track this client's playground devices download updates from. Set to
+                    Which app-release track this licensee's playground devices download updates from. Set to
                     Test to make this account a tester. Individual devices can override this in the Devices section.
                   </p>
                 </div>
@@ -1368,6 +1370,16 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
             );
           })()}
 
+      {/* The licensee's own customers (project_licensee_customers). Admins can
+          edit and merge on the licensee's behalf. */}
+      <CollapsibleSection
+        icon={<Building2 className="w-6 h-6 text-slate-700" />}
+        title="Customers"
+        defaultCollapsed
+      >
+        <AdminCustomersSection clientId={Number(clientId)} />
+      </CollapsibleSection>
+
       <CollapsibleSection
         icon={<Smartphone className="w-6 h-6 text-slate-700" />}
         title="Devices"
@@ -1387,7 +1399,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               <Smartphone className="w-12 h-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-600">No devices registered</p>
               <p className="text-sm text-slate-500 mt-1">
-                Playground installs appear here once they connect to this client's account
+                Playground installs appear here once they connect to this licensee's account
               </p>
             </div>
           ) : (
@@ -1413,7 +1425,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       </p>
                       {device.is_default_mother ? (
                         <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-200">
-                          <Server className="w-3 h-3" /> Default game server
+                          <Server className="w-3 h-3" /> Mother device
                         </span>
                       ) : null}
                       {(() => {
@@ -1504,21 +1516,11 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         <RecoveryCodesPanel clientId={clientIdNum} />
       </CollapsibleSection>
 
-      <CollapsibleSection
-        icon={<Wifi className="w-6 h-6 text-slate-700" />}
-        title="Wi-Fi hotspots"
-        defaultCollapsed
-      >
-        {/* Studio-authored Wi-Fi hotspot: playground devices pull these creds
-            on sync and raise this network when one becomes the mother. */}
-        <ClientHotspotPanel clientId={clientIdNum} />
-      </CollapsibleSection>
-
       <div className="mt-6">
         <CardsRegistryEditor
           api={cardsApi}
           title="Cards"
-          description="Register, edit, delete, or bulk-import cards for this client."
+          description="Register, edit, delete, or bulk-import cards for this licensee."
           collapsible
           defaultCollapsed
         />
@@ -1596,7 +1598,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
 
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-sm text-amber-800">
-                  Every published product scenario authored in this client's language is available to them
+                  Every published product scenario authored in this licensee's language is available to them
                   automatically. Tag Hunter GO / Spot scenarios are granted by hand in their own sections.
                 </p>
               </div>
@@ -1623,7 +1625,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
               <FileText className="w-12 h-12 text-slate-400 mx-auto mb-3" />
               <p className="text-slate-600">No custom scenarios</p>
               <p className="text-sm text-slate-500 mt-1">
-                Custom scenarios created by this client will appear here
+                Custom scenarios created by this licensee will appear here
               </p>
             </div>
           ) : (
@@ -1718,7 +1720,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
                     />
                     <span className="text-slate-700">
-                      App enabled <span className="text-slate-400">(client owns the GO product; disabling refuses GO)</span>
+                      App enabled <span className="text-slate-400">(licensee owns the GO product; disabling refuses GO)</span>
                     </span>
                   </label>
 
@@ -1791,7 +1793,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 Grant GO Scenario
               </button>
             ) : (
-              <span className="text-xs text-amber-600">Enable GO in the Client App section to grant scenarios</span>
+              <span className="text-xs text-amber-600">Enable GO in the Licensee App section to grant scenarios</span>
             )}
             <span className="text-sm text-slate-600">{goGrants.length} total</span>
           </>
@@ -1804,9 +1806,9 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         </p>
 
         <DurationCatalogCard
-          catalog={durationCatalog}
-          onSave={saveDurationCatalog}
-          loading={durationCatalogLoading}
+          catalog={goDurations.catalog}
+          onSave={goDurations.save}
+          loading={goDurations.loading}
         />
 
         {goGrants.length === 0 ? (
@@ -1834,8 +1836,17 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       clientId={clientId}
                       scenarioId={g.scenario_id}
                       app="go"
-                      catalog={durationCatalog}
+                      catalog={goDurations.catalog}
                       initial={g.durations ?? []}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <ScenarioLanguagePicker
+                      clientId={clientId}
+                      scenarioId={g.scenario_id}
+                      app="go"
+                      scenarioLanguages={g.scenario_languages ?? []}
+                      initial={g.player_languages}
                     />
                   </div>
                 </div>
@@ -1895,7 +1906,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                     />
                     <span className="text-slate-700">
-                      App enabled <span className="text-slate-400">(client owns the Spot product)</span>
+                      App enabled <span className="text-slate-400">(licensee owns the Spot product)</span>
                     </span>
                   </label>
 
@@ -1968,7 +1979,7 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                 Grant Spot Scenario
               </button>
             ) : (
-              <span className="text-xs text-amber-600">Enable Spot in the Client App section to grant scenarios</span>
+              <span className="text-xs text-amber-600">Enable Spot in the Licensee App section to grant scenarios</span>
             )}
             <span className="text-sm text-slate-600">{spotGrants.length} total</span>
           </>
@@ -1980,11 +1991,10 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
           Manage Spot enablement and billing in the <span className="font-medium text-slate-700">Provisioning &amp; billing</span> card above.
         </p>
 
-        {/* Same catalog as the GO tab — the list of minutes is client-level. */}
         <DurationCatalogCard
-          catalog={durationCatalog}
-          onSave={saveDurationCatalog}
-          loading={durationCatalogLoading}
+          catalog={spotDurations.catalog}
+          onSave={spotDurations.save}
+          loading={spotDurations.loading}
         />
 
         {spotGrants.length === 0 ? (
@@ -2010,8 +2020,17 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
                       clientId={clientId}
                       scenarioId={g.scenario_id}
                       app="spot"
-                      catalog={durationCatalog}
+                      catalog={spotDurations.catalog}
                       initial={g.durations ?? []}
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <ScenarioLanguagePicker
+                      clientId={clientId}
+                      scenarioId={g.scenario_id}
+                      app="spot"
+                      scenarioLanguages={g.scenario_languages ?? []}
+                      initial={g.player_languages}
                     />
                   </div>
                 </div>

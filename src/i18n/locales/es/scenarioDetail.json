@@ -28,5 +28,6 @@
   "goSection": "Tag Hunter GO",
   "goPreviewOpen": "Vista previa GO - códigos y respuestas",
   "goPreviewHint": "Ver el código de cada enigma y las imágenes de respuesta detrás de A / B (imprimible).",
+  "goPreviewPrint": "Imprimir / PDF",
   "fileLanguageNotice": "Este documento está en {{lang}} - todavía no hay una versión en su idioma."
 }

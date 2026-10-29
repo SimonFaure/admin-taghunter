@@ -52,7 +52,7 @@ export function ClientsList() {
       );
 
       if (!response.ok) {
-        let errorMessage = 'Failed to fetch clients';
+        let errorMessage = 'Failed to fetch licensees';
         try {
           const errorData = await response.json();
           errorMessage = errorData.error || errorMessage;
@@ -65,13 +65,13 @@ export function ClientsList() {
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch clients');
+        throw new Error(data.error || 'Failed to fetch licensees');
       }
 
       setClients(data.data || []);
     } catch (err) {
       console.error('Error fetching clients:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch clients');
+      setError(err instanceof Error ? err.message : 'Failed to fetch licensees');
     } finally {
       setLoading(false);
     }
@@ -104,18 +104,18 @@ export function ClientsList() {
         setClients(result.data || []);
         setFetchMessage({
           type: 'success',
-          message: `Successfully fetched ${count} clients from admin backend`
+          message: `Successfully fetched ${count} licensees from admin backend`
         });
       } else {
         setFetchMessage({
           type: 'error',
-          message: result.error || 'Failed to fetch clients'
+          message: result.error || 'Failed to fetch licensees'
         });
       }
     } catch (err) {
       setFetchMessage({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Failed to fetch clients'
+        message: err instanceof Error ? err.message : 'Failed to fetch licensees'
       });
     } finally {
       setFetchingClients(false);
@@ -132,7 +132,7 @@ export function ClientsList() {
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          <p className="mt-4 text-slate-300">Loading clients...</p>
+          <p className="mt-4 text-slate-300">Loading licensees...</p>
         </div>
       </div>
     );
@@ -158,8 +158,8 @@ export function ClientsList() {
         <div className="flex items-center gap-3">
           <Users className="w-8 h-8 text-blue-400" />
           <div>
-            <h1 className="text-3xl font-bold text-white">Clients</h1>
-            <p className="text-slate-400">{clients.length} total clients</p>
+            <h1 className="text-3xl font-bold text-white">Licensees</h1>
+            <p className="text-slate-400">{clients.length} total licensees</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -167,7 +167,7 @@ export function ClientsList() {
             onClick={handleFetchFromServer}
             disabled={fetchingClients}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
-            title="Fetch clients from studio.taghunter.fr"
+            title="Fetch licensees from studio.taghunter.fr"
           >
             {fetchingClients ? (
               <>
@@ -177,7 +177,7 @@ export function ClientsList() {
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                Fetch Clients
+                Fetch Licensees
               </>
             )}
           </button>
@@ -206,8 +206,8 @@ export function ClientsList() {
       {clients.length === 0 ? (
         <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-12 text-center">
           <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">No clients found</h3>
-          <p className="text-slate-400">Clients will appear here once they are synced from the API.</p>
+          <h3 className="text-xl font-semibold text-white mb-2">No licensees found</h3>
+          <p className="text-slate-400">Licensees will appear here once they are synced from the API.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

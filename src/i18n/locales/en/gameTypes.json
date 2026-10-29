@@ -3,7 +3,7 @@
   "title": "Game Types",
   "titleClient": "Tutorial Videos",
   "description": {
-    "admin": "Manage the legacy tutorial video and subtitle tracks shipped to every client. Clients can override the video for their own events but cannot delete the legacy one.",
+    "admin": "Manage the legacy tutorial video and subtitle tracks shipped to every licensee. Licensees can override the video for their own events but cannot delete the legacy one.",
     "client": "Upload your own tutorial video to replace the Taghunter legacy version for your events. Subtitle tracks let you localize the on-screen text."
   },
   "error": {
@@ -15,7 +15,7 @@
   },
   "dismiss": "Dismiss",
   "confirm": {
-    "adminRemoveVideo": "Remove the legacy tutorial video for {{code}}? Clients without an override will have no tutorial video until you upload a new one.",
+    "adminRemoveVideo": "Remove the legacy tutorial video for {{code}}? Licensees without an override will have no tutorial video until you upload a new one.",
     "clientRemoveVideo": "Remove your tutorial video override for {{code}}? You'll fall back to the legacy video from Taghunter."
   },
   "card": {
@@ -48,6 +48,8 @@
     "remove": "Remove",
     "upload": "Upload",
     "uploadOverride": "Upload override",
-    "uploadVtt": "Upload .vtt"
+    "uploadVtt": "Upload .vtt",
+    "download": "Download",
+    "downloadDefault": "Download (Tag Hunter)"
   }
 }

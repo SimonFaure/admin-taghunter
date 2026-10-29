@@ -53,12 +53,12 @@ export function ManageGameTypesModal({ open, onClose, onChanged }: Props) {
   const setEnabled = async (code: string, enabled: boolean) => {
     // Confirm high-impact global disables with a live count of what's affected.
     if (!enabled) {
-      let msg = `Disable "${code}" globally?\n\nClients that inherit the global default won't see or be able to create this game type, and its scenarios stop syncing to playground (removed on next online sync). Clients explicitly enabled for this type keep access.`;
+      let msg = `Disable "${code}" globally?\n\nLicensees that inherit the global default won't see or be able to create this game type, and its scenarios stop syncing to playground (removed on next online sync). Licensees explicitly enabled for this type keep access.`;
       try {
         const imp = await authFetch(`${API_BASE_URL}/game_types.php?action=admin_disable_impact&code=${encodeURIComponent(code)}`);
         if (imp.ok) {
           const j = await imp.json();
-          msg = `Disable "${code}" globally?\n\nUp to ${j.scenario_count} published scenario(s) across ${j.client_count} client(s) are affected - those will stop syncing and be removed on the next online sync. Clients with an explicit per-client override for this type keep access.\n\nAlready-downloaded copies on offline devices remain until they reconnect.`;
+          msg = `Disable "${code}" globally?\n\nUp to ${j.scenario_count} published scenario(s) across ${j.client_count} licensee(s) are affected - those will stop syncing and be removed on the next online sync. Licensees with an explicit per-licensee override for this type keep access.\n\nAlready-downloaded copies on offline devices remain until they reconnect.`;
         }
       } catch {
         /* fall back to the generic message */
@@ -101,10 +101,10 @@ export function ManageGameTypesModal({ open, onClose, onChanged }: Props) {
 
         <div className="px-5 py-4">
           <p className="mb-4 text-sm text-slate-500">
-            This is the global default. Disabling a type hides it from clients, blocks
+            This is the global default. Disabling a type hides it from licensees, blocks
             creation, and stops syncing its scenarios to playground. Admins can still
-            author disabled types here in Studio. Per-client overrides on each client's
-            detail page take precedence - you can grant a disabled type to a specific client.
+            author disabled types here in Studio. Per-licensee overrides on each licensee's
+            detail page take precedence - you can grant a disabled type to a specific licensee.
           </p>
 
           {error && (
@@ -127,7 +127,7 @@ export function ManageGameTypesModal({ open, onClose, onChanged }: Props) {
                     <div>
                       <div className="font-medium capitalize text-slate-900">{t.name || t.code}</div>
                       <div className="text-xs text-slate-400">
-                        {t.enabled ? 'Available to clients' : 'Disabled platform-wide'}
+                        {t.enabled ? 'Available to licensees' : 'Disabled platform-wide'}
                       </div>
                     </div>
                   </div>

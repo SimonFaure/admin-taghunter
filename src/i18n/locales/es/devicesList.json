@@ -18,19 +18,13 @@
   "cancel": "Cancelar",
   "rename": "Renombrar",
   "deviceFallback": "Dispositivo",
-  "defaultGameServer": "Servidor de juego predeterminado",
+  "defaultGameServer": "Puesto madre",
   "deleteDevice": "Eliminar dispositivo",
   "labelVersion": "Versión:",
   "labelCards": "Tarjetas:",
   "labelRegistered": "Registrado:",
   "labelLastSeen": "Visto por última vez:",
   "notAvailable": "N/D",
-  "hotspots": {
-    "title": "Puntos de acceso Wi-Fi predeterminados",
-    "subtitle": "El punto de acceso de tu cuenta. Los dispositivos se conectan automáticamente; escanea el código QR para conectar un teléfono.",
-    "unknownDevice": "Dispositivo desconocido",
-    "togglePassword": "Mostrar u ocultar la contraseña"
-  },
   "about": {
     "title": "Acerca de los dispositivos",
     "body": "Los dispositivos se registran automáticamente cuando se conectan por primera vez a tu cuenta. El sistema controla su versión y el estado de su archivo de tarjetas para garantizar que se mantengan actualizados."

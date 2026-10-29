@@ -12,14 +12,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Upload, Plus, Trash2, Search, Loader2 } from 'lucide-react';
 import { LANGUAGES, SUPPORTED_LANGS, CLIENT_LANGS, type Lang } from '../../../i18n/languages';
-import { cellStatus, fnv1a } from '../../../i18n/translatorXlsx';
-import {
-  buildScenarioRows,
-  applyScenarioRows,
-  type ScenarioTransRow,
-  type FieldPatch,
-  type TextPatch,
-} from '../../../i18n/scenarioTranslationRows';
+import { cellStatus } from '../../../i18n/translatorXlsx';
+import { applyScenarioRows, type ScenarioTransRow } from '../../../i18n/scenarioTranslationRows';
+import { rowsForModel, foldImport, buildSaveInput } from './scenarioTranslationsBatch';
 import { toCsv, fromCsv, statusCell } from '../../../i18n/scenarioTranslationsCsv';
 import { toXlsx, fromXlsx } from '../../../i18n/scenarioTranslationsXlsx';
 import {
@@ -32,7 +27,10 @@ type Filter = 'all' | 'fields' | 'files';
 
 interface DryRun {
   summary: string;
+  /** Several-scenarios import: one line per scenario. */
+  details?: string[];
   unmatched: { target: string; reason: string }[];
+  applyLabel: string;
   apply: () => Promise<void>;
 }
 
@@ -44,6 +42,13 @@ const download = (blob: Blob, filename: string) => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+const normTitle = (s: string): string =>
+  s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
 
 /** `%team%`-style runtime tokens that must survive a translation verbatim. */
 const TOKEN_RE = /%[A-Za-z_]+%|\{[A-Za-z_]+\}/g;
@@ -101,18 +106,7 @@ export default function ScenarioTranslationsPanel() {
       setMessage(null);
       try {
         const next = await api.loadScenario(uniqid);
-        const built = buildScenarioRows({
-          scenario: next.scenario,
-          gameMeta: next.gameMeta,
-          files: next.files,
-        });
-        // Field rows carry their staleness hashes in the scenario's
-        // translation_meta column; file rows carry their own.
-        for (const row of built) {
-          if (row.tradType === 'field' && row.path) {
-            row.hashes = (next.translationMeta[row.path] ?? {}) as ScenarioTransRow['hashes'];
-          }
-        }
+        const built = rowsForModel(next);
         setModel(next);
         setRows(built);
         setBaseline(JSON.parse(JSON.stringify(built)));
@@ -198,18 +192,18 @@ export default function ScenarioTranslationsPanel() {
       const p = langProgress[lang];
       const gaps =
         p && (p.empty > 0 || p.stale > 0)
-          ? `\n\nStill ${p.empty} empty and ${p.stale} stale of ${p.total} texts - clients will see the ${sourceLang.toUpperCase()} text (or nothing) there.`
+          ? `\n\nStill ${p.empty} empty and ${p.stale} stale of ${p.total} texts - licensees will see the ${sourceLang.toUpperCase()} text (or nothing) there.`
           : '';
       if (
         !window.confirm(
-          `Release ${lang.toUpperCase()} of "${model.scenario.title}" to clients and playgrounds?${gaps}`,
+          `Release ${lang.toUpperCase()} of "${model.scenario.title}" to licensees and playgrounds?${gaps}`,
         )
       ) {
         return;
       }
     } else if (
       !window.confirm(
-        `Withdraw ${lang.toUpperCase()} of "${model.scenario.title}"? Clients lose it on their next sync, and ${lang.toUpperCase()}-language clients lose the scenario from their catalogue.`,
+        `Withdraw ${lang.toUpperCase()} of "${model.scenario.title}"? Licensees lose it on their next sync, and ${lang.toUpperCase()}-language licensees lose the scenario from their catalogue.`,
       )
     ) {
       return;
@@ -225,8 +219,8 @@ export default function ScenarioTranslationsPanel() {
       setMessage({
         type: 'success',
         text: validated
-          ? `${lang.toUpperCase()} withdrawn - back to draft, admins and tester clients only.`
-          : `${lang.toUpperCase()} validated - released to clients on their next sync.`,
+          ? `${lang.toUpperCase()} withdrawn - back to draft, admins and tester licensees only.`
+          : `${lang.toUpperCase()} validated - released to licensees on their next sync.`,
       });
     } catch (e) {
       setMessage({ type: 'error', text: (e as Error).message });
@@ -252,90 +246,20 @@ export default function ScenarioTranslationsPanel() {
     api.setError(null);
 
     try {
-      const patches: FieldPatch[] = [];
-      const stamps: { path: string; lang: Lang; hash: string }[] = [];
-      const titleEdits = new Map<number, { values: Record<string, string>; hashes: Record<string, string> }>();
-      const textEdits = new Map<number, TextPatch[]>();
-      const touchedFiles = new Set<number>();
-
-      rows.forEach((row, i) => {
-        const before = baseline[i];
-        const source = row.values[sourceLang] ?? '';
-        for (const lang of langs) {
-          if (lang === sourceLang && row.sourceReadOnly) continue;
-          const value = row.values[lang] ?? '';
-          const prior = before?.values[lang] ?? '';
-          if (value === prior) continue;
-
-          if (row.tradType === 'field' && row.path) {
-            patches.push({ path: row.path, lang, value });
-            if (lang !== sourceLang && value !== '') {
-              stamps.push({ path: row.path, lang, hash: fnv1a(source) });
-            }
-          } else if (row.fileId !== undefined) {
-            touchedFiles.add(row.fileId);
-          }
-        }
-        // Editing a file row's own source also counts as a change.
-        if (!row.sourceReadOnly && row.fileId !== undefined) {
-          if ((before?.values[sourceLang] ?? '') !== source) touchedFiles.add(row.fileId);
-        }
-      });
-
-      // Rebuild the full picture for every file that changed: titles are a
-      // whole-map write, and texts are sent as the complete ordered list so a
-      // deleted line actually disappears (delete_missing).
-      const allTextsByFile = new Map<
-        number,
-        { id?: number; position: number; source_text: string; values: Record<string, string>; hashes: Record<string, string> }[]
-      >();
-
-      for (const fileId of touchedFiles) {
-        const titleRow = rows.find((r) => r.fileId === fileId && r.tradType === 'file title');
-        if (titleRow) {
-          const values: Record<string, string> = {};
-          const hashes: Record<string, string> = { ...(titleRow.hashes as Record<string, string>) };
-          const src = titleRow.values[sourceLang] ?? '';
-          for (const lang of langs) {
-            const v = titleRow.values[lang] ?? '';
-            if (v !== '') values[lang] = v;
-            if (lang !== sourceLang && v !== '' && v !== (baseline.find((b) => b.rowId === titleRow.rowId)?.values[lang] ?? '')) {
-              hashes[lang] = fnv1a(src);
-            }
-          }
-          titleEdits.set(fileId, { values, hashes });
-        }
-
-        const list = rows
-          .filter((r) => r.fileId === fileId && r.tradType === 'text')
-          .map((r, position) => {
-            const values: Record<string, string> = {};
-            const hashes: Record<string, string> = { ...(r.hashes as Record<string, string>) };
-            const src = r.values[sourceLang] ?? '';
-            for (const lang of langs) {
-              const v = r.values[lang] ?? '';
-              if (v !== '') values[lang] = v;
-              if (lang !== sourceLang && v !== '') hashes[lang] = hashes[lang] ?? fnv1a(src);
-            }
-            return {
-              id: r.textId,
-              position,
-              source_text: src,
-              values,
-              hashes,
-            };
-          });
-        allTextsByFile.set(fileId, list);
-        textEdits.set(fileId, []);
-      }
+      const { patches, stamps, fileTitles, fileTexts, allTextsByFile, touchedFiles } = buildSaveInput(
+        rows,
+        baseline,
+        langs,
+        sourceLang,
+      );
 
       const version = await api.save({
         uniqid: model.scenario.uniqid,
         baseVersion: model.scenario.version,
         patches,
         stamps,
-        fileTitles: titleEdits,
-        fileTexts: textEdits,
+        fileTitles,
+        fileTexts,
         allTextsByFile,
       });
 
@@ -383,96 +307,284 @@ export default function ScenarioTranslationsPanel() {
     }
   };
 
-  const handleImportFile = async (file: File) => {
-    if (!model) return;
+  /**
+   * Every scenario in the picker (the search narrows it) in ONE sheet. Each
+   * scenario keeps its own source language, so the columns are the union of
+   * all of them and each row's status is computed against its own source.
+   * Re-importing it on a scenario applies that scenario's rows only - the
+   * import already skips rows whose scenario_uniqid is another one.
+   */
+  const handleExportAll = async (format: 'csv' | 'xlsx') => {
+    const targets = filteredScenarios;
+    if (targets.length === 0) return;
     setBusy(true);
     setMessage(null);
     try {
+      const all: ScenarioTransRow[] = [];
+      const sourceOfRow = new Map<string, Lang>();
+      const langSet = new Set<Lang>(CLIENT_LANGS);
+      const failed: string[] = [];
+
+      // A few requests at a time: one `get` per scenario, kept in picker order.
+      const results: (ScenarioTranslationModel | null)[] = new Array(targets.length).fill(null);
+      let cursor = 0;
+      let done = 0;
+      const worker = async () => {
+        while (cursor < targets.length) {
+          const i = cursor++;
+          try {
+            results[i] = await api.loadScenario(targets[i].uniqid);
+          } catch {
+            failed.push(targets[i].title);
+          }
+          done++;
+          setMessage({ type: 'info', text: `Loading scenarios… ${done}/${targets.length}` });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(4, targets.length) }, worker));
+
+      for (const m of results) {
+        if (!m) continue;
+        const src = (m.scenario.default_language || 'fr') as Lang;
+        sourceOfRow.set(m.scenario.uniqid, src);
+        langSet.add(src);
+        for (const l of m.scenario.available_languages ?? []) {
+          if ((SUPPORTED_LANGS as readonly string[]).includes(l)) langSet.add(l as Lang);
+        }
+        all.push(...rowsForModel(m));
+      }
+      if (showAllLangs) for (const l of SUPPORTED_LANGS) langSet.add(l);
+      // Keep the canonical language order rather than discovery order.
+      const allLangs = (SUPPORTED_LANGS as readonly Lang[]).filter((l) => langSet.has(l));
+
+      const statusOfAny = (row: ScenarioTransRow) =>
+        statusCell(row, allLangs, sourceOfRow.get(row.scenarioUniqid) ?? 'fr', (source, value, hash) =>
+          cellStatus(source, value, hash),
+        );
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      const name = `translations-all-scenarios-${stamp}`;
+      if (format === 'csv') {
+        // sourceLang only matters per row (status), which statusOfAny handles.
+        const csv = toCsv(all, { langs: allLangs, sourceLang: 'fr', statusOf: statusOfAny });
+        download(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `${name}.csv`);
+      } else {
+        const buf = await toXlsx(all, { langs: allLangs, statusOf: statusOfAny });
+        download(
+          new Blob([buf], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          }),
+          `${name}.xlsx`,
+        );
+      }
+
+      const exported = targets.length - failed.length;
+      setMessage(
+        failed.length
+          ? {
+              type: 'error',
+              text: `Exported ${exported} scenario(s), ${all.length} row(s). ${failed.length} could not be loaded: ${failed
+                .slice(0, 5)
+                .join(', ')}${failed.length > 5 ? '…' : ''}`,
+            }
+          : { type: 'success', text: `Exported ${exported} scenario(s), ${all.length} row(s) in one file.` },
+      );
+    } catch (e) {
+      setMessage({ type: 'error', text: (e as Error).message || 'Export failed.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Which scenario each imported row belongs to: its `scenario_uniqid`, else
+   * the scenario open in the grid, else a unique title match on `scenario
+   * name` (a hand-made sheet). Rows that resolve to nothing are reported.
+   */
+  const groupImported = (imported: ScenarioTransRow[]) => {
+    const known = new Set(scenarios.map((s) => s.uniqid));
+    const byTitle = new Map<string, string[]>();
+    for (const s of scenarios) {
+      const k = normTitle(s.title);
+      byTitle.set(k, [...(byTitle.get(k) ?? []), s.uniqid]);
+    }
+    const groups = new Map<string, ScenarioTransRow[]>();
+    const orphans: { target: string; reason: string }[] = [];
+    for (const r of imported) {
+      let uniqid = r.scenarioUniqid;
+      if (uniqid && !known.has(uniqid)) {
+        orphans.push({ target: `${r.scenarioName || uniqid} · ${r.target}`, reason: `Unknown scenario_uniqid "${uniqid}"` });
+        continue;
+      }
+      if (!uniqid && model) uniqid = model.scenario.uniqid;
+      if (!uniqid) {
+        const hits = byTitle.get(normTitle(r.scenarioName)) ?? [];
+        if (hits.length === 1) uniqid = hits[0];
+      }
+      if (!uniqid) {
+        orphans.push({
+          target: `${r.scenarioName || '(no scenario)'} · ${r.target}`,
+          reason: 'No scenario_uniqid, and the scenario name matches no single scenario',
+        });
+        continue;
+      }
+      groups.set(uniqid, [...(groups.get(uniqid) ?? []), r]);
+    }
+    return { groups, orphans };
+  };
+
+  const handleImportFile = async (file: File) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      // Read every language column the sheet has; each scenario then takes
+      // what applies to it.
       const isXlsx = /\.xlsx$/i.test(file.name);
       const imported = isXlsx
-        ? await fromXlsx(await file.arrayBuffer(), langs)
-        : fromCsv(await file.text(), langs);
+        ? await fromXlsx(await file.arrayBuffer(), SUPPORTED_LANGS)
+        : fromCsv(await file.text(), SUPPORTED_LANGS);
 
       if (imported.length === 0) {
         setMessage({ type: 'error', text: 'No usable rows found in that file.' });
         return;
       }
 
-      // Rows for other scenarios are ignored rather than mis-applied: the sheet
-      // may legitimately hold a whole game type's export.
-      const mine = imported.filter(
-        (r) => !r.scenarioUniqid || r.scenarioUniqid === model.scenario.uniqid,
-      );
-      const foreign = imported.length - mine.length;
+      const { groups, orphans } = groupImported(imported);
+      if (groups.size === 0) {
+        setMessage({ type: 'error', text: `None of the ${imported.length} row(s) could be tied to a scenario.` });
+        return;
+      }
 
-      const result = applyScenarioRows(mine, rows, { sourceLang, langs });
-
-      const summary =
-        `${result.counts.updated} updated · ${result.counts.created} new text row(s) · ` +
-        `${result.counts.unmatched} unmatched · ${result.counts.ignored} ignored` +
-        (foreign ? ` · ${foreign} row(s) for other scenarios skipped` : '');
-
-      setDryRun({
-        summary,
-        unmatched: result.unmatched.map((u) => ({ target: u.row.target, reason: u.reason })),
-        apply: async () => {
-          // Fold the parsed values into the in-memory grid, then reuse the
-          // normal save path so import and hand-editing cannot diverge.
-          setRows((prev) => {
-            const next = prev.slice();
-            const indexByRowId = new Map(next.map((r, i) => [r.rowId, i]));
-            const indexByPath = new Map(
-              next.map((r, i) => [r.tradType === 'field' ? r.path ?? '' : '', i]),
-            );
-            for (const p of result.patches) {
-              const i = indexByRowId.get(`f:${p.path}`) ?? indexByPath.get(p.path);
-              if (i === undefined) continue;
-              next[i] = { ...next[i], values: { ...next[i].values, [p.lang]: p.value } };
-            }
-            for (const t of result.fileTitles) {
-              const i = next.findIndex((r) => r.tradType === 'file title' && r.fileId === t.fileId);
-              if (i < 0) continue;
-              next[i] = { ...next[i], values: { ...next[i].values, [t.lang]: t.value } };
-            }
-            for (const t of result.fileTexts) {
-              const i = next.findIndex(
-                (r) => r.tradType === 'text' && r.fileId === t.fileId && r.textId === t.textId,
-              );
-              if (i < 0) continue;
-              next[i] = { ...next[i], values: { ...next[i].values, ...t.values } };
-            }
-            for (const c of result.created) {
-              const fileRow = next.find((r) => r.fileId === c.fileId);
-              next.push({
-                scenarioUniqid: model.scenario.uniqid,
-                gameType: model.scenario.game_type,
-                scenarioName: model.scenario.title,
-                target: fileRow?.target ?? '',
-                targetType: 'PDF',
-                tradType: 'text',
-                rowId: '',
-                values: { ...c.values, [sourceLang]: c.sourceText },
-                hashes: {},
-                fileId: c.fileId,
-                position: c.position,
-                sourceReadOnly: false,
-              });
-            }
-            return next;
-          });
-          setDryRun(null);
-          setMessage({
-            type: 'info',
-            text: 'Imported into the grid. Review the highlighted cells, then Save to persist.',
-          });
-        },
-      });
+      if (model && groups.size === 1 && groups.has(model.scenario.uniqid) && orphans.length === 0) {
+        prepareSingleImport(groups.get(model.scenario.uniqid)!);
+      } else {
+        await prepareMultiImport(groups, orphans);
+      }
     } catch (e) {
       setMessage({ type: 'error', text: (e as Error).message || 'Import failed.' });
     } finally {
       setBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  /** The sheet only touches the scenario in the grid: preview, then fold into the grid. */
+  const prepareSingleImport = (mine: ScenarioTransRow[]) => {
+    if (!model) return;
+    const result = applyScenarioRows(mine, rows, { sourceLang, langs });
+    setDryRun({
+      summary:
+        `${result.counts.updated} updated · ${result.counts.created} new text row(s) · ` +
+        `${result.counts.unmatched} unmatched · ${result.counts.ignored} ignored`,
+      unmatched: result.unmatched.map((u) => ({ target: u.row.target, reason: u.reason })),
+      applyLabel: 'Apply to grid',
+      apply: async () => {
+        // Fold into the in-memory grid, then the normal Save persists it, so
+        // import and hand-editing cannot diverge.
+        setRows((prev) =>
+          foldImport(
+            prev,
+            result,
+            { uniqid: model.scenario.uniqid, gameType: model.scenario.game_type, title: model.scenario.title },
+            sourceLang,
+          ),
+        );
+        setDryRun(null);
+        setMessage({
+          type: 'info',
+          text: 'Imported into the grid. Review the highlighted cells, then Save to persist.',
+        });
+      },
+    });
+  };
+
+  /**
+   * The sheet spans several scenarios: load each, compute its changes against
+   * its current data, preview per-scenario counts, then save them one by one
+   * (each with its own version guard, so one 409 does not stop the others).
+   */
+  const prepareMultiImport = async (
+    groups: Map<string, ScenarioTransRow[]>,
+    orphans: { target: string; reason: string }[],
+  ) => {
+    if (
+      isDirty &&
+      !window.confirm(
+        'The grid has unsaved edits. This file spans several scenarios and is saved straight to them, which reloads the grid. Continue and lose the grid edits?',
+      )
+    ) {
+      return;
+    }
+    const plans: { model: ScenarioTranslationModel; input: ReturnType<typeof buildSaveInput> }[] = [];
+    const details: string[] = [];
+    const unmatched = [...orphans];
+    let read = 0;
+
+    for (const [uniqid, group] of groups) {
+      read++;
+      setMessage({ type: 'info', text: `Reading scenarios… ${read}/${groups.size}` });
+      const m = await api.loadScenario(uniqid);
+      const src = (m.scenario.default_language || 'fr') as Lang;
+      const current = rowsForModel(m);
+      const result = applyScenarioRows(group, current, { sourceLang: src, langs: SUPPORTED_LANGS });
+      const next = foldImport(current, result, { uniqid, gameType: m.scenario.game_type, title: m.scenario.title }, src);
+      const input = buildSaveInput(next, current, SUPPORTED_LANGS, src);
+      const changed = input.patches.length > 0 || input.touchedFiles.size > 0;
+      for (const u of result.unmatched) {
+        unmatched.push({ target: `${m.scenario.title} · ${u.row.target}`, reason: u.reason });
+      }
+      details.push(
+        `${m.scenario.title}: ` +
+          (changed
+            ? `${input.patches.length} field value(s)` +
+              (input.touchedFiles.size ? `, ${input.touchedFiles.size} file(s)` : '') +
+              (result.counts.created ? ` (${result.counts.created} new text row(s))` : '')
+            : 'nothing new') +
+          (result.counts.unmatched ? ` · ${result.counts.unmatched} unmatched` : ''),
+      );
+      if (changed) plans.push({ model: m, input });
+    }
+    setMessage(null);
+
+    setDryRun({
+      summary:
+        `${groups.size} scenario(s) in the file · ${plans.length} with changes · ` +
+        `${unmatched.length} unmatched row(s). Applying saves straight to each scenario.`,
+      details,
+      unmatched,
+      applyLabel: `Save ${plans.length} scenario(s)`,
+      apply: async () => {
+        setBusy(true);
+        const failed: string[] = [];
+        let saved = 0;
+        for (const plan of plans) {
+          setMessage({ type: 'info', text: `Saving… ${saved + failed.length + 1}/${plans.length}` });
+          try {
+            await api.save({
+              uniqid: plan.model.scenario.uniqid,
+              baseVersion: plan.model.scenario.version,
+              patches: plan.input.patches,
+              stamps: plan.input.stamps,
+              fileTitles: plan.input.fileTitles,
+              fileTexts: plan.input.fileTexts,
+              allTextsByFile: plan.input.allTextsByFile,
+            });
+            saved++;
+          } catch (e) {
+            failed.push(`${plan.model.scenario.title}: ${(e as Error).message}`);
+          }
+        }
+        setDryRun(null);
+        setBusy(false);
+        setMessage(
+          failed.length
+            ? { type: 'error', text: `Saved ${saved} scenario(s); ${failed.length} failed - ${failed.join(' | ')}` }
+            : { type: 'success', text: `Saved ${saved} scenario(s) from the file.` },
+        );
+        api.listScenarios().then(setScenarios).catch(() => undefined);
+        if (model) await loadScenario(model.scenario.uniqid);
+      },
+    });
   };
 
   /* ------------------------------ text rows ------------------------------ */
@@ -529,11 +641,40 @@ export default function ScenarioTranslationsPanel() {
             <span className="font-medium">NEW</span> = never translated,{' '}
             <span className="font-medium">STALE</span> = the source changed since.{' '}
             On catalogue scenarios a new language is a <span className="font-medium">✎ Draft</span>{' '}
-            (admins and tester clients only) until you mark it{' '}
+            (admins and tester licensees only) until you mark it{' '}
             <span className="font-medium">✓ Validated</span> in its column header.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <div
+            className="inline-flex rounded-md border border-slate-300 overflow-hidden"
+            title={
+              query.trim()
+                ? 'Every scenario matching the search, in one file'
+                : 'Every scenario, in one file'
+            }
+          >
+            <span className="px-2.5 py-2 text-sm text-slate-600 bg-slate-50 border-r border-slate-300 inline-flex items-center gap-1.5">
+              <Download className="w-4 h-4" />
+              {query.trim() ? 'Export matching' : 'Export all'} ({filteredScenarios.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleExportAll('csv')}
+              disabled={busy || filteredScenarios.length === 0}
+              className="px-2.5 py-2 text-sm hover:bg-slate-50 disabled:opacity-50 border-r border-slate-300"
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportAll('xlsx')}
+              disabled={busy || filteredScenarios.length === 0}
+              className="px-2.5 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
+            >
+              XLSX
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => void handleExport('csv')}
@@ -553,7 +694,8 @@ export default function ScenarioTranslationsPanel() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={!model || busy}
+            disabled={busy}
+            title="A sheet for the open scenario, or one spanning several scenarios (e.g. an Export all)"
             className="px-3 py-2 border border-slate-300 rounded-md hover:bg-slate-50 text-sm disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             <Upload className="w-4 h-4" /> Import
@@ -661,6 +803,13 @@ export default function ScenarioTranslationsPanel() {
         <div className="mb-4 p-4 rounded-md border border-amber-300 bg-amber-50">
           <div className="font-medium text-amber-900 mb-1">Import preview</div>
           <div className="text-sm text-amber-900">{dryRun.summary}</div>
+          {dryRun.details && dryRun.details.length > 0 && (
+            <ul className="mt-2 text-xs text-amber-900 list-disc pl-5 max-h-48 overflow-y-auto">
+              {dryRun.details.map((d, i) => (
+                <li key={i}>{d}</li>
+              ))}
+            </ul>
+          )}
           {dryRun.unmatched.length > 0 && (
             <ul className="mt-2 text-xs text-amber-800 list-disc pl-5 max-h-40 overflow-y-auto">
               {dryRun.unmatched.slice(0, 50).map((u, i) => (
@@ -674,9 +823,10 @@ export default function ScenarioTranslationsPanel() {
             <button
               type="button"
               onClick={() => void dryRun.apply()}
-              className="px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700"
+              disabled={busy}
+              className="px-3 py-1.5 bg-amber-600 text-white rounded-md text-sm hover:bg-amber-700 disabled:opacity-50"
             >
-              Apply to grid
+              {dryRun.applyLabel}
             </button>
             <button
               type="button"
@@ -708,6 +858,7 @@ export default function ScenarioTranslationsPanel() {
                   const p = langProgress[lang];
                   const authored = model.scenario.available_languages.includes(lang);
                   const released = model.scenario.validated_languages.includes(lang);
+                  const isTarget = (model.scenario.target_languages ?? []).includes(lang);
                   return (
                     <th key={lang} className="px-2 py-2 text-left font-medium text-slate-700 align-top">
                       <div className="uppercase">
@@ -722,15 +873,23 @@ export default function ScenarioTranslationsPanel() {
                           {p.stale > 0 && <span className="text-orange-600"> · {p.stale} stale</span>}
                         </div>
                       )}
-                      {model.scenario.gated && lang !== sourceLang && authored && (
+                      {model.scenario.gated && lang !== sourceLang && authored && !isTarget && (
+                        <div
+                          className="mt-1 text-[10px] font-normal text-slate-400 normal-case"
+                          title="Not one of this scenario's target languages: it cannot be released. Add it under 'Available in' in the scenario editor."
+                        >
+                          not a target
+                        </div>
+                      )}
+                      {model.scenario.gated && lang !== sourceLang && authored && isTarget && (
                         <button
                           type="button"
                           onClick={() => void toggleValidation(lang)}
                           disabled={busy}
                           title={
                             released
-                              ? 'Released to clients. Click to withdraw (back to draft).'
-                              : 'Draft: admins and tester clients only. Click to release to clients.'
+                              ? 'Released to licensees. Click to withdraw (back to draft).'
+                              : 'Draft: admins and tester licensees only. Click to release to licensees.'
                           }
                           className={`mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium normal-case border disabled:opacity-50 ${
                             released

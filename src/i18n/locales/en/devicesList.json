@@ -18,19 +18,13 @@
   "cancel": "Cancel",
   "rename": "Rename",
   "deviceFallback": "Device",
-  "defaultGameServer": "Default game server",
+  "defaultGameServer": "Mother device",
   "deleteDevice": "Delete device",
   "labelVersion": "Version:",
   "labelCards": "Cards:",
   "labelRegistered": "Registered:",
   "labelLastSeen": "Last Seen:",
   "notAvailable": "N/A",
-  "hotspots": {
-    "title": "Default Wi-Fi hotspots",
-    "subtitle": "Your account's hotspot. Devices join this network automatically; scan the QR code to connect a phone.",
-    "unknownDevice": "Unknown device",
-    "togglePassword": "Show or hide the password"
-  },
   "about": {
     "title": "About Devices",
     "body": "Devices are automatically registered when they first connect to your account. The system tracks their version and cards file status to ensure they stay up to date."

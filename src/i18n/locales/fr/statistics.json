@@ -4,7 +4,9 @@
     "to": "Au",
     "gameType": "Type de jeu",
     "scenario": "Scénario",
-    "client": "Client",
+    "client": "Licencié",
+    "customer": "Client",
+    "customerNone": "Sans client",
     "all": "Tous",
     "clear": "Effacer"
   },
@@ -14,6 +16,7 @@
   },
   "errors": {
     "fetchFailed": "Échec de la récupération des statistiques",
+    "assignFailed": "Impossible de changer le client de cette partie.",
     "loadFailed": "Échec du chargement des statistiques"
   },
   "kpi": {
@@ -28,8 +31,8 @@
     "gameCount_other": "{{count}} parties"
   },
   "topClients": {
-    "title": "Meilleurs clients",
-    "empty": "Aucune activité client pour le moment"
+    "title": "Meilleurs licenciés",
+    "empty": "Aucune activité de licencié pour le moment"
   },
   "chart": {
     "title": "Activité par jour",
@@ -47,7 +50,8 @@
     "name": "Nom",
     "type": "Type",
     "scenario": "Scénario",
-    "client": "Client",
+    "client": "Licencié",
+    "customer": "Client",
     "teams": "Équipes",
     "players": "Joueurs",
     "empty": "Aucune partie ne correspond à ces filtres"

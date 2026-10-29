@@ -12,5 +12,10 @@
   "ownedTitle": "Les scénarios que je possède",
   "ownedEmpty": "Aucun scénario ne vous est encore attribué.",
   "customTitle": "Mes scénarios personnalisés",
-  "customEmpty": "Vous n'avez pas encore créé de scénario personnalisé."
+  "customEmpty": "Vous n'avez pas encore créé de scénario personnalisé.",
+  "statGoLoads": "Parties GO/Spot ouvertes",
+  "statGoTeams": "Équipes GO/Spot",
+  "statGoFinished": "Équipes GO/Spot arrivées au bout",
+  "othersAvailable_one": "{{count}} autre scénario disponible - le voir",
+  "othersAvailable_other": "{{count}} autres scénarios disponibles - les voir"
 }

@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical, Smartphone, BookOpen, LayoutTemplate } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical, Smartphone, BookOpen, LayoutTemplate, Bug } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -21,11 +21,14 @@ import { TeamNamesView } from './TeamNamesView';
 import { ReportLayoutsView } from './ReportLayoutsView';
 import { DevicesView } from './DevicesView';
 import { RecentErrorsView } from './RecentErrorsView';
+import { BugReportsView } from './BugReportsView';
+import { SimulationRunsView } from './SimulationRunsView';
 import { GameTypesView } from './GameTypesView';
 import { ReleasesView } from './ReleasesView';
 import { TestersView } from './TestersView';
 import AdminTranslationsView from './admin/AdminTranslationsView';
 import { DefaultLayoutsView } from './admin/DefaultLayoutsView';
+import { ScenarioOverviewView } from './admin/ScenarioOverviewView';
 import { GoClientsView } from './go/GoClientsView';
 import { GoStatisticsView } from './go/GoStatisticsView';
 import { PlayersInstructionsView } from './go/PlayersInstructionsView';
@@ -38,7 +41,7 @@ type NavGroup = { id: string; label: string; icon: typeof Home; items: MenuItem[
 // Top-level nav entries (day-to-day content management).
 const mainMenuItems: MenuItem[] = [
   { id: 'home', label: 'Dashboard', icon: Home },
-  { id: 'clients', label: 'Clients', icon: Users },
+  { id: 'clients', label: 'Licensees', icon: Users },
   { id: 'scenarios', label: 'Scenarios', icon: Film },
   { id: 'catalog', label: 'Catalog', icon: LayoutGrid },
   { id: 'patterns', label: 'Patterns', icon: Package },
@@ -62,7 +65,7 @@ const mediaMenuItems: MenuItem[] = [
 // Tag Hunter GO (hardware-free phone PWA), grouped under the collapsible "GO" section.
 const goMenuItems: MenuItem[] = [
   { id: 'go-scenarios', label: 'Scenarios', icon: Film },
-  { id: 'go-clients', label: 'Clients', icon: Users },
+  { id: 'go-clients', label: 'Licensees', icon: Users },
   { id: 'go-instructions', label: 'Players Instructions', icon: BookOpen },
   { id: 'go-statistics', label: 'Statistics', icon: TrendingUp },
 ];
@@ -71,7 +74,7 @@ const goMenuItems: MenuItem[] = [
 // section. Reuses the GO admin views, parameterized by app (project_taghunter_spot).
 const spotMenuItems: MenuItem[] = [
   { id: 'spot-scenarios', label: 'Scenarios', icon: Film },
-  { id: 'spot-clients', label: 'Clients', icon: Users },
+  { id: 'spot-clients', label: 'Licensees', icon: Users },
   // Same page as go-instructions, preselecting Spot: one editor, reachable from
   // whichever app group the admin is already in.
   { id: 'spot-instructions', label: 'Players Instructions', icon: BookOpen },
@@ -84,8 +87,10 @@ const devMenuItems: MenuItem[] = [
   { id: 'api-docs', label: 'Docs', icon: Code },
   { id: 'activity-history', label: 'Activity History', icon: Clock },
   { id: 'recent-errors', label: 'Recent Errors', icon: AlertTriangle },
+  { id: 'bug-reports', label: 'Bug reports', icon: Bug },
   { id: 'releases', label: 'Releases', icon: Rocket },
   { id: 'testers', label: 'Testers', icon: FlaskConical },
+  { id: 'simulation-runs', label: 'Simulation runs', icon: FlaskConical },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
@@ -98,6 +103,11 @@ const navGroups: NavGroup[] = [
 ];
 
 const allMenuItems: MenuItem[] = [...mainMenuItems, ...goMenuItems, ...spotMenuItems, ...mediaMenuItems, ...devMenuItems];
+
+// Tabs reached from inside another page rather than from the sidebar.
+const hiddenTabTitles: Record<string, string> = {
+  'scenario-overview': 'Scenario overview',
+};
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -195,7 +205,7 @@ export function Dashboard() {
           setActiveTab(item.id);
         }}
         className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
-          activeTab === item.id
+          activeTab === item.id || (item.id === 'scenarios' && activeTab === 'scenario-overview')
             ? 'bg-slate-800 text-white'
             : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
         }`}
@@ -288,7 +298,7 @@ export function Dashboard() {
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-slate-900 mb-2">
-              {allMenuItems.find((item) => item.id === activeTab)?.label}
+              {allMenuItems.find((item) => item.id === activeTab)?.label ?? hiddenTabTitles[activeTab]}
             </h2>
             <p className="text-slate-600">
               {activeTab === 'home' ? "Welcome back! Here's what's happening today." : ''}
@@ -306,7 +316,9 @@ export function Dashboard() {
             )
           )}
 
-          {activeTab === 'scenarios' && <ScenariosView />}
+          {activeTab === 'scenarios' && <ScenariosView onOpenOverview={() => setActiveTab('scenario-overview')} />}
+
+          {activeTab === 'scenario-overview' && <ScenarioOverviewView onBack={() => setActiveTab('scenarios')} />}
 
           {activeTab === 'catalog' && <ScenarioCatalogView />}
 
@@ -327,6 +339,8 @@ export function Dashboard() {
           {activeTab === 'testers' && <TestersView />}
 
           {activeTab === 'recent-errors' && <RecentErrorsView />}
+          {activeTab === 'bug-reports' && <BugReportsView />}
+          {activeTab === 'simulation-runs' && <SimulationRunsView />}
 
           {activeTab === 'statistics' && <StatisticsView />}
 
@@ -408,7 +422,7 @@ export function Dashboard() {
                 </span>
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-1">{stats?.clients || 0}</h3>
-              <p className="text-sm text-slate-600">Total Clients</p>
+              <p className="text-sm text-slate-600">Total Licensees</p>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
@@ -503,8 +517,8 @@ export function Dashboard() {
                   className="p-4 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all text-left"
                 >
                   <Users className="w-6 h-6 text-slate-900 mb-2" />
-                  <p className="text-sm font-medium text-slate-900">Manage Clients</p>
-                  <p className="text-xs text-slate-500">View all clients</p>
+                  <p className="text-sm font-medium text-slate-900">Manage Licensees</p>
+                  <p className="text-xs text-slate-500">View all licensees</p>
                 </button>
                 <button
                   onClick={() => setActiveTab('scenarios')}

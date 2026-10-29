@@ -492,8 +492,14 @@ export const TracksGameMetaSchema = BaseGameMetaSchema.extend({
     })
     .optional(),
 
-  // Display options (scenario-locked, NOT exposed at launch)
+  // Display options (display_score is scenario-locked, NOT exposed at launch)
   display_score: z.boolean().optional(),
+  /** Feedback-image legend box on the map (position in scenario_layout id 'legend').
+   *  The scenario's DEFAULT: the playground operator can flip it per launch. */
+  show_legend: z.boolean().optional(),
+  /** Legend captions; blank = the app's own `ingame_tracks:legend_*` caption. */
+  text_legend_wrong_order: LocalizedStringSchema.optional(),
+  text_legend_missing_checkpoint: LocalizedStringSchema.optional(),
   clues_page: z
     .looseObject({
       enabled: z.boolean(),

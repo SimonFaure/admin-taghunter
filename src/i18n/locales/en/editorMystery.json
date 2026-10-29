@@ -97,7 +97,7 @@
     "rfidHint": "Assigns each enigma's good/wrong answer images to stations/balises (RFID Playground). The mapping is shown next to each image below. Overridable at launch.",
     "defaultGoPattern": "Default GO pattern (letter answer key for Tag Hunter GO)",
     "createRandom": "Create random",
-    "goHint": "Every client granted this scenario in GO uses this pattern. “Create random” builds one with a randomised correct letter per enigma; edit it later from the Patterns page.",
+    "goHint": "Every licensee granted this scenario in GO uses this pattern. “Create random” builds one with a randomised correct letter per enigma; edit it later from the Patterns page.",
     "createModalTitle": "Create random GO pattern",
     "numberOfEnigmas": "Number of enigmas",
     "generateHint": "Generates {{answers}} answers with the correct letter randomised per enigma, and selects it as this scenario’s default GO pattern.",

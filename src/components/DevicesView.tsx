@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Monitor,
+  Tablet,
   RefreshCw,
   ArrowLeft,
   AlertTriangle,
@@ -236,7 +237,7 @@ export function DevicesView() {
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <SortHeader label="Device" sortKey="device" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Client" sortKey="client" sort={sort} onSort={toggleSort} />
+                <SortHeader label="Licensee" sortKey="client" sort={sort} onSort={toggleSort} />
                 <th className="text-left px-4 py-3 font-medium">App version</th>
                 <th className="text-left px-4 py-3 font-medium">OS</th>
                 <SortHeader label="Last seen" sortKey="last_seen" sort={sort} onSort={toggleSort} />
@@ -265,7 +266,10 @@ export function DevicesView() {
                   <td className="px-4 py-3 text-sm">{clientName(d) || '-'}</td>
                   <td className="px-4 py-3 text-sm font-mono">{d.app_version || '-'}</td>
                   <td className="px-4 py-3 text-sm">
-                    {d.os ? `${d.os}${d.os_version ? ' ' + d.os_version : ''}` : '-'}
+                    <span className="inline-flex items-center gap-1.5">
+                      {d.os === 'Android' && <Tablet className="w-4 h-4 text-emerald-600" />}
+                      {d.os ? `${d.os}${d.os_version ? ' ' + d.os_version : ''}` : '-'}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{formatRelative(d.last_seen_at)}</td>
                   <td className="px-4 py-3">
@@ -492,7 +496,7 @@ function DeviceDetail({ deviceId, onBack, onRenamed }: DeviceDetailProps) {
                 <Detail label="App version" value={data.device.app_version} mono />
                 <Detail label="Device role" value={data.device.operator_only ? 'Operator-only (manage, never plays)' : 'Plays games'} />
                 <Detail label="Cards file version" value={String(data.device.cards_file_version ?? '-')} />
-                <Detail label="Client" value={data.device.client_name || data.device.client_email} />
+                <Detail label="Licensee" value={data.device.client_name || data.device.client_email} />
                 <Detail label="Last seen" value={data.device.last_seen_at} />
                 <Detail label="First registered" value={data.device.created_at} />
               </dl>
@@ -644,7 +648,7 @@ function ErrorList({ errors }: { errors: DeviceErrorGroup[] }) {
 function syncReason(f: SyncFailure): string {
   if (f.http_status !== null) {
     if (f.http_status >= 500) return `Server error (${f.http_status})`;
-    if (f.http_status === 403) return 'Access denied - content not assigned to this client';
+    if (f.http_status === 403) return 'Access denied - content not assigned to this licensee';
     if (f.http_status === 404) return 'File not found on server';
     if (f.http_status === 408) return 'Network timeout';
     return `Request failed (${f.http_status})`;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, X, Eye, User } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Eye, EyeOff, User } from 'lucide-react';
 import { clientApi } from '../lib/clientApi';
 import { Client, CreateClientData } from '../types/client';
 import { LANGUAGES, isLang } from '../i18n/languages';
@@ -23,6 +23,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
     notes: '',
   });
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     loadClients();
@@ -70,7 +71,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this client?')) return;
+    if (!confirm('Are you sure you want to delete this licensee?')) return;
 
     const { error } = await clientApi.deleteClient(id);
     if (error) {
@@ -95,6 +96,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
 
   const handleCloseModal = () => {
     setShowModal(false);
+    setShowPassword(false);
     setEditingClient(null);
     setFormData({
       email: '',
@@ -123,9 +125,13 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
     billingOk?: boolean;
     overdueSince?: string | null;
     graceDays?: number;
+    devicesDisabled?: boolean;
   }): { label: string; cls: string } => {
     if (!opts.enabled) {
       return { label: 'Not enabled', cls: 'bg-slate-100 text-slate-500' };
+    }
+    if (opts.devicesDisabled) {
+      return { label: 'Locked', cls: 'bg-red-100 text-red-800' };
     }
     if (!opts.billingOk) {
       const lockDate = lockDateFrom(opts.overdueSince, opts.graceDays);
@@ -150,7 +156,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Search clients..."
+            placeholder="Search licensees..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -161,7 +167,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
           className="flex items-center space-x-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-all"
         >
           <Plus className="w-5 h-5" />
-          <span>New Client</span>
+          <span>New Licensee</span>
         </button>
       </div>
 
@@ -175,7 +181,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Client
+                  Licensee
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Company
@@ -184,7 +190,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                   Language
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Billing Status
+                  Playground
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   Go
@@ -201,7 +207,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
               {filteredClients.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                    no client
+                    no licensee
                   </td>
                 </tr>
               ) : (
@@ -212,7 +218,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                         {client.avatar_url ? (
                           <img
                             src={client.avatar_url}
-                            alt={client.name || 'Client avatar'}
+                            alt={client.name || 'Licensee avatar'}
                             className="w-10 h-10 rounded-full object-cover border-2 border-slate-100"
                           />
                         ) : (
@@ -235,16 +241,15 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                         return isLang(code) ? LANGUAGES[code].englishName : code.toUpperCase();
                       })()}
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                        client.billing_up_to_date
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {client.billing_up_to_date ? 'Current' : 'Overdue'}
-                      </span>
-                    </td>
                     {(() => {
+                      // playground_enabled absent ⇒ ON (column defaults to 1).
+                      const playground = appStatusBadge({
+                        enabled: client.playground_enabled !== false,
+                        billingOk: client.billing_up_to_date,
+                        overdueSince: client.billing_overdue_since,
+                        graceDays: client.billing_grace_days,
+                        devicesDisabled: client.devices_disabled,
+                      });
                       const go = appStatusBadge({
                         enabled: client.go_enabled,
                         billingOk: client.go_subscription_active,
@@ -259,6 +264,11 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                       });
                       return (
                         <>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${playground.cls}`}>
+                              {playground.label}
+                            </span>
+                          </td>
                           <td className="px-6 py-4">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${go.cls}`}>
                               {go.label}
@@ -312,7 +322,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md m-4">
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
               <h3 className="text-lg font-bold text-slate-900">
-                {editingClient ? 'Edit Client' : 'New Client'}
+                {editingClient ? 'Edit Licensee' : 'New Licensee'}
               </h3>
               <button
                 onClick={handleCloseModal}
@@ -339,7 +349,7 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  placeholder="client@example.com"
+                  placeholder="licensee@example.com"
                 />
               </div>
 
@@ -348,15 +358,25 @@ export function ClientsView({ onViewClient }: ClientsViewProps = {}) {
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Password {!editingClient && '*'}
                   </label>
-                  <input
-                    type="password"
-                    required={!editingClient}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-                    placeholder="Enter password"
-                    minLength={8}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required={!editingClient}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-3 py-2 pr-11 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      placeholder="Enter password"
+                      minLength={8}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
                   <p className="text-xs text-slate-500 mt-1">Minimum 8 characters</p>
                 </div>
               )}

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Film, Package, Sparkles, Gamepad2, UserCircle, Loader2 } from 'lucide-react';
+import { Plus, Film, Package, Sparkles, Gamepad2, UserCircle, Loader2, Smartphone, Users, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { getAppAccess } from '../../auth/appAccess';
 import { authFetch } from '../../lib/authFetch';
 import { getGameVisualUrl } from './MyScenariosView';
+import { fetchGrantedScenarioIds, isHeldScenario, isPlayableInApps } from './heldScenarios';
 import { recencyKey } from './scenarioSort';
 import { GameTypeIcon } from '../icons/GameTypeIcons';
 import type { ClientScenario } from './types';
@@ -16,6 +18,13 @@ interface Counts {
   players: number;
 }
 
+// GO + Spot usage summed (go.php?action=client_go_stats totals).
+interface GoSpotCounts {
+  loads: number;
+  teams: number;
+  finished: number;
+}
+
 const isProduct = (s: ClientScenario) => s.scenario_type === 'product';
 
 export function MyHomeView() {
@@ -24,8 +33,17 @@ export function MyHomeView() {
   const navigate = useNavigate();
   const greeting = user?.name || user?.email?.split('@')[0] || '';
 
+  // What the home page shows follows the licensee's apps (project_client_app_section):
+  // Playground surfaces (custom scenarios, editor, Playground game stats) only
+  // with Playground; GO/Spot usage from go.php's own stats for GO/Spot.
+  const access = getAppAccess(user);
+  const goOnly = access.scenariosGoOnly;
+  const hasGoSpot = access.go || access.spot;
+
   const [scenarios, setScenarios] = useState<ClientScenario[]>([]);
+  const [grantedIds, setGrantedIds] = useState<Set<number> | null>(null);
   const [counts, setCounts] = useState<Counts>({ games: 0, players: 0 });
+  const [goSpot, setGoSpot] = useState<GoSpotCounts>({ loads: 0, teams: 0, finished: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,14 +53,18 @@ export function MyHomeView() {
       setLoading(true);
       setError(null);
       try {
-        const [scenariosRes, statsRes] = await Promise.all([
-          authFetch(`${API_BASE_URL}/client_scenarios.php?action=list`),
-          authFetch(`${API_BASE_URL}/statistics.php?action=overview`),
-        ]);
-
-        const [scenariosBody, statsBody] = await Promise.all([
-          scenariosRes.json().catch(() => ({})),
-          statsRes.json().catch(() => ({})),
+        const apps = [...(access.go ? ['go'] : []), ...(access.spot ? ['spot'] : [])];
+        const [scenariosBody, statsBody, granted, ...appStats] = await Promise.all([
+          authFetch(`${API_BASE_URL}/client_scenarios.php?action=list`).then((r) => r.json().catch(() => ({}))),
+          access.playground
+            ? authFetch(`${API_BASE_URL}/statistics.php?action=overview`).then((r) => r.json().catch(() => ({})))
+            : Promise.resolve({}),
+          fetchGrantedScenarioIds(access),
+          ...apps.map((app) =>
+            authFetch(`${API_BASE_URL}/go.php?action=client_go_stats&app=${app}`)
+              .then((r) => (r.ok ? r.json() : null))
+              .catch(() => null),
+          ),
         ]);
 
         if (cancelled) return;
@@ -52,12 +74,22 @@ export function MyHomeView() {
           recencyKey(b).localeCompare(recencyKey(a))
         );
         setScenarios(sorted);
+        setGrantedIds(granted);
 
         const overview = statsBody?.overview ?? {};
         setCounts({
           games: Number(overview.total_games ?? 0),
           players: Number(overview.total_players ?? 0),
         });
+
+        const sum = { loads: 0, teams: 0, finished: 0 };
+        for (const body of appStats) {
+          const totals = body?.data?.totals ?? {};
+          sum.loads += Number(totals.loads ?? 0);
+          sum.teams += Number(totals.teams ?? 0);
+          sum.finished += Number(totals.finished ?? 0);
+        }
+        setGoSpot(sum);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : t('loadError'));
       } finally {
@@ -67,17 +99,33 @@ export function MyHomeView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [access.playground, access.go, access.spot]);
 
-  const products = scenarios.filter(isProduct);
-  const customs = scenarios.filter((s) => !isProduct(s));
+  // Same rule as the scenarios page: in GO-only mode only the granted scenarios
+  // playable in the licensee's apps are theirs; the rest of the catalogue is
+  // just "available".
+  const inScope = goOnly ? scenarios.filter((s) => isPlayableInApps(s, access)) : scenarios;
+  const held = inScope.filter((s) => isHeldScenario(s, grantedIds));
+  const othersCount = inScope.length - held.length;
+  const products = held.filter(isProduct);
+  const customs = held.filter((s) => !isProduct(s));
 
-  const stats = [
-    { labelKey: 'statScenariosOwned', value: products.length, icon: Package, to: '/my/scenarios' },
-    { labelKey: 'statCustomScenarios', value: customs.length, icon: Sparkles, to: '/my/scenarios' },
-    { labelKey: 'statGamesLaunched', value: counts.games, icon: Gamepad2, to: '/my/statistics' },
-    { labelKey: 'statPlayers', value: counts.players, icon: UserCircle, to: '/my/statistics' },
-  ];
+  const stats = goOnly
+    ? [
+        { labelKey: 'statScenariosOwned', value: held.length, icon: Package, to: '/my/scenarios' },
+        { labelKey: 'statGoLoads', value: goSpot.loads, icon: Smartphone, to: '/my/statistics' },
+        { labelKey: 'statGoTeams', value: goSpot.teams, icon: Users, to: '/my/statistics' },
+        { labelKey: 'statGoFinished', value: goSpot.finished, icon: CheckCircle2, to: '/my/statistics' },
+      ]
+    : [
+        { labelKey: 'statScenariosOwned', value: products.length, icon: Package, to: '/my/scenarios' },
+        { labelKey: 'statCustomScenarios', value: customs.length, icon: Sparkles, to: '/my/scenarios' },
+        { labelKey: 'statGamesLaunched', value: counts.games, icon: Gamepad2, to: '/my/statistics' },
+        { labelKey: 'statPlayers', value: counts.players, icon: UserCircle, to: '/my/statistics' },
+        ...(hasGoSpot
+          ? [{ labelKey: 'statGoTeams', value: goSpot.teams, icon: Users, to: '/my/statistics' }]
+          : []),
+      ];
 
   const openScenario = (uniqid?: string) => {
     if (uniqid) navigate(`/my/scenarios/${uniqid}`);
@@ -89,14 +137,16 @@ export function MyHomeView() {
         <h1 className="text-2xl font-semibold text-slate-900">
           {greeting ? t('welcomeBack', { name: greeting }) : t('welcome')}
         </h1>
-        <button
-          type="button"
-          onClick={() => navigate('/studio/scenarios/new')}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500"
-        >
-          <Plus className="w-4 h-4" />
-          {t('createScenario')}
-        </button>
+        {access.playground && (
+          <button
+            type="button"
+            onClick={() => navigate('/studio/scenarios/new')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-500"
+          >
+            <Plus className="w-4 h-4" />
+            {t('createScenario')}
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -113,7 +163,7 @@ export function MyHomeView() {
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">
               {t('quickStats')}
             </h2>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className={`grid grid-cols-2 gap-4 ${stats.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`}>
               {stats.map(({ labelKey, value, icon: Icon, to }) => (
                 <button
                   key={labelKey}
@@ -134,12 +184,22 @@ export function MyHomeView() {
 
           <ScenarioSection
             title={t('ownedTitle')}
-            scenarios={products}
+            scenarios={goOnly ? held : products}
             emptyHint={t('ownedEmpty')}
             onOpen={openScenario}
           />
 
-          <ScenarioSection
+          {othersCount > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate('/my/scenarios')}
+              className="-mt-4 text-sm text-blue-600 hover:text-blue-500"
+            >
+              {t('othersAvailable', { count: othersCount })}
+            </button>
+          )}
+
+          {access.playground && <ScenarioSection
             title={t('customTitle')}
             scenarios={customs}
             emptyHint={t('customEmpty')}
@@ -154,7 +214,7 @@ export function MyHomeView() {
                 {t('createAScenario')}
               </button>
             }
-          />
+          />}
         </>
       )}
     </div>
@@ -174,6 +234,7 @@ function ScenarioSection({
   emptyAction?: React.ReactNode;
   onOpen: (uniqid?: string) => void;
 }) {
+  const { user } = useAuth();
   return (
     <section>
       <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">
@@ -188,7 +249,7 @@ function ScenarioSection({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {scenarios.map((s) => {
-            const visual = getGameVisualUrl(s.medias, s.uniqid);
+            const visual = getGameVisualUrl(s.medias, s.uniqid, user?.language);
             return (
               <button
                 key={s.id}

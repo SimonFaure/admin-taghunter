@@ -1,6 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
+import { getAppAccess } from '../auth/appAccess';
 import { HelpProvider, studioOpenPdf } from '../help';
 
 // The studio editor routes (scenario / pattern / layout) each render their own
@@ -16,12 +17,15 @@ export function StudioLayout() {
   const { i18n } = useTranslation();
   const { user } = useAuth();
   const audience = user?.user_type === 'admin' ? 'admin' : 'client';
+  // Same product filter as ClientLayout for a licensee; an admin sees every chapter.
+  const access = getAppAccess(user);
+  const products = audience === 'admin' ? undefined : (['playground', 'go', 'spot'] as const).filter((p) => access[p]);
   const navigateToDocs = () => {
     if (user?.user_type === 'admin') navigate('/admin', { state: { tab: 'help' } });
     else navigate('/my/help');
   };
   return (
-    <HelpProvider audience={audience} lang={i18n.language} navigateToDocs={navigateToDocs} openPdfFile={studioOpenPdf}>
+    <HelpProvider audience={audience} lang={i18n.language} products={products} navigateToDocs={navigateToDocs} openPdfFile={studioOpenPdf}>
       <div className="min-h-screen bg-slate-900 text-white">
         <main>
           <Outlet />

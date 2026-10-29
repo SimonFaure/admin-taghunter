@@ -2,7 +2,8 @@
   "title": "Cards",
   "save": "Save",
   "cancel": "Cancel",
-  "importCsv": "Import CSV",
+  "importCsv": "Import (Excel / CSV)",
+  "downloadTemplate": "Download template",
   "registerCard": "Register card",
   "cardCount_one": "{{count}} card · version {{version}}",
   "cardCount_other": "{{count}} cards · version {{version}}",
@@ -34,16 +35,45 @@
   "empty": {
     "title": "No cards registered yet",
     "registerStrong": "Register card",
-    "importStrong": "Import CSV",
-    "lead": "Click <0>Register card</0> to add one manually, or <1>Import CSV</1> to bulk-import."
+    "importStrong": "Import (Excel / CSV)",
+    "lead": "Click <0>Register card</0> to add one manually, or <1>Import (Excel / CSV)</1> to bulk-import."
   },
   "import": {
-    "title": "Import cards from CSV",
+    "title": "Import cards (Excel or CSV)",
     "importing": "Importing…",
-    "dropPrompt": "Drop CSV here or click to browse",
+    "dropPrompt": "Drop the Excel or CSV file here or click to browse",
     "expectedHeaders": "Expected headers:",
-    "upsertNote": "Existing rows are upserted by chip ID.",
+    "upsertNote": "Imported cards are added to the ones already registered: no need to re-import the whole list, the file can contain only the new cards. A card whose chip ID already exists is updated.",
+    "howToFill": "How do I fill in the file?",
     "cancel": "Cancel"
+  },
+  "guide": {
+    "title": "Filling in the cards import file",
+    "intro": "Download the Excel template, add one row per card following the guidance below, then import the file with the \"Import\" button.",
+    "previewLabel": "Template preview",
+    "previewNote": "Row 1: headers (do not change). Row 2: example card, to replace with your cards.",
+    "close": "Close",
+    "download": "Download template (.xlsx)"
+  },
+  "template": {
+    "fileName": "cards-import-template.xlsx",
+    "cardsSheet": "Cards",
+    "instructionsSheet": "Instructions",
+    "colColumn": "Column",
+    "colDescription": "Description",
+    "colRequired": "Required",
+    "colExample": "Example",
+    "mock": { "name": "Example", "color": "red" },
+    "columns": {
+      "key_name": { "description": "Card name, shown in games and rankings (e.g. a letter, a word, a first name).", "required": "Yes" },
+      "color": { "description": "Color of the card or its holder, free text. Can be left empty.", "required": "No" },
+      "key_number": { "description": "Number of the card in your set (the one you write on its label). Whole number; two cards can't share the same number.", "required": "Yes" },
+      "id": { "description": "Serial number printed on the SportIdent chip. Whole number, unique, no spaces or separators.", "required": "Yes" }
+    },
+    "noteHeaders": "Fill in the \"Cards\" sheet without changing the first row (headers): one card per row.",
+    "noteExample": "Row 2 is an example card: replace or delete it. If it stays in the file, it is ignored on import.",
+    "noteAddOnly": "To add cards, list only the new ones: cards already registered are kept.",
+    "noteUpdate": "If a chip ID already exists, that card's details are updated."
   },
   "confirmDelete": {
     "title": "Delete card?",
@@ -67,7 +97,8 @@
     "updateFailed": "Failed to update card",
     "cardDeleted": "Card deleted",
     "deleteFailed": "Failed to delete card",
-    "onlyCsv": "Only CSV files are allowed",
+    "onlyCsv": "Only Excel (.xlsx, .xls) or CSV files are allowed",
+    "templateFailed": "Failed to download the template",
     "inserted": "{{count}} inserted",
     "updated": "{{count}} updated",
     "skipped": "{{count}} skipped",

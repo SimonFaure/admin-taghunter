@@ -19,5 +19,6 @@
   "size": {
     "mb": "{{value}} Mo",
     "kb": "{{value}} Ko"
-  }
+  },
+  "androidScanHint": "Scannez avec la tablette pour télécharger l'APK, puis autorisez l'installation d'applications depuis le navigateur."
 }

@@ -189,6 +189,31 @@ function updateCardRow($db, $clientId, $cardId, $fields) {
     return $stmt->rowCount();
 }
 
+function fetchCardRow($db, $clientId, $cardId) {
+    $row = $db->fetch(
+        'SELECT id, key_number, key_name, color FROM client_cards WHERE client_id = ? AND id = ?',
+        [(int)$clientId, (int)$cardId]
+    );
+    return $row ?: null;
+}
+
+// True when every given field already holds that value. Playground devices
+// share their unpushed card edits over the LAN when offline, so the same edit
+// can reach the studio twice: replaying it must succeed, not fail.
+function cardRowMatches($row, $fields) {
+    foreach (['key_number', 'key_name', 'color'] as $k) {
+        if (!array_key_exists($k, $fields)) continue;
+        $want = $fields[$k];
+        $have = $row[$k];
+        if ($k === 'key_number') {
+            if ((int)$have !== (int)$want) return false;
+        } elseif ((string)($have ?? '') !== (string)($want ?? '')) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function deleteCardRow($db, $clientId, $cardId) {
     $stmt = $db->query(
         'DELETE FROM client_cards WHERE client_id = ? AND id = ?',
@@ -390,6 +415,11 @@ try {
                 $pdo->rollBack();
                 if (isDuplicateKeyError($e)) {
                     $code = classifyCardConflict($e);
+                    // The same create replayed by another device of the fleet.
+                    $existing = $code === 'card_id_exists' ? fetchCardRow($db, $clientId, $card['id'] ?? 0) : null;
+                    if ($existing && cardRowMatches($existing, $card)) {
+                        jsonResponse(['success' => true, 'card' => $card, 'version' => fetchClientCardsVersion($db, $clientId), 'replayed' => true]);
+                    }
                     Logger::log('cards', 'POST', 'create_card', $clientId, ['card' => $card], ['conflict' => $code], 409);
                     jsonResponse(['error' => $code, 'error_code' => $code], 409);
                 }
@@ -462,6 +492,12 @@ try {
                 $affected = updateCardRow($db, $clientId, $cardId, $fields);
                 if ($affected === 0) {
                     $pdo->rollBack();
+                    // rowCount() counts CHANGED rows: an identical update (the
+                    // same edit replayed by another device) changes nothing.
+                    $existing = fetchCardRow($db, $clientId, $cardId);
+                    if ($existing && cardRowMatches($existing, $fields)) {
+                        jsonResponse(['success' => true, 'version' => fetchClientCardsVersion($db, $clientId), 'replayed' => true]);
+                    }
                     jsonResponse(['error' => 'Card not found'], 404);
                 }
                 $version = bumpClientCardsVersion($db, $clientId);
@@ -538,7 +574,9 @@ try {
                 $affected = deleteCardRow($db, $clientId, $cardId);
                 if ($affected === 0) {
                     $pdo->rollBack();
-                    jsonResponse(['error' => 'Card not found'], 404);
+                    // Already deleted (the same delete replayed by another
+                    // device of the fleet): the goal is reached.
+                    jsonResponse(['success' => true, 'version' => fetchClientCardsVersion($db, $clientId), 'replayed' => true]);
                 }
                 $version = bumpClientCardsVersion($db, $clientId);
                 $pdo->commit();

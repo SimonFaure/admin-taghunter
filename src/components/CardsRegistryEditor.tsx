@@ -13,7 +13,17 @@ import {
   Save,
   ChevronDown,
   ChevronRight,
+  Download,
+  Info,
 } from 'lucide-react';
+import {
+  CARDS_IMPORT_HEADERS,
+  CardsTemplateLabels,
+  downloadCardsTemplate,
+  excelToCardsCsvFile,
+  isExcelFile,
+} from '../lib/cardsTemplate';
+import { CardsImportGuideModal } from './CardsImportGuideModal';
 import {
   CardRow,
   NewCardInput,
@@ -78,6 +88,7 @@ export function CardsRegistryEditor({
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [keyNumberError, setKeyNumberError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CardRow | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
   const toastIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -243,13 +254,50 @@ export function CardsRegistryEditor({
   const openImport = () => setImportState({ open: true, busy: false, dragActive: false });
   const closeImport = () => setImportState({ open: false });
 
-  const handleImport = async (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.csv')) {
+  const downloadTemplate = async () => {
+    try {
+      await downloadCardsTemplate({
+        fileName: t('template.fileName'),
+        cardsSheet: t('template.cardsSheet'),
+        instructionsSheet: t('template.instructionsSheet'),
+        mockName: t('template.mock.name'),
+        mockColor: t('template.mock.color'),
+        tableHeader: [
+          t('template.colColumn'),
+          t('template.colDescription'),
+          t('template.colRequired'),
+          t('template.colExample'),
+        ],
+        columns: Object.fromEntries(
+          CARDS_IMPORT_HEADERS.map((h) => [
+            h,
+            {
+              description: t(`template.columns.${h}.description`),
+              required: t(`template.columns.${h}.required`),
+            },
+          ])
+        ) as CardsTemplateLabels['columns'],
+        notes: [
+          t('template.noteHeaders'),
+          t('template.noteExample'),
+          t('template.noteAddOnly'),
+          t('template.noteUpdate'),
+        ],
+      });
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : t('toast.templateFailed'));
+    }
+  };
+
+  const handleImport = async (picked: File) => {
+    const isCsv = picked.name.toLowerCase().endsWith('.csv');
+    if (!isCsv && !isExcelFile(picked)) {
       showToast('error', t('toast.onlyCsv'));
       return;
     }
     setImportState({ open: true, busy: true, dragActive: false });
     try {
+      const file = isCsv ? picked : await excelToCardsCsvFile(picked);
       const res = await api.importCsv(file);
       const parts = [
         t('toast.inserted', { count: res.inserted }),
@@ -337,14 +385,21 @@ export function CardsRegistryEditor({
             </div>
           </div>
           {!collapsed && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 onChange={onFileChange}
                 className="hidden"
               />
+              <button
+                onClick={() => setShowGuide(true)}
+                className="inline-flex items-center gap-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-all text-sm"
+              >
+                <Download className="w-4 h-4" />
+                <span>{t('downloadTemplate')}</span>
+              </button>
               <button
                 onClick={openImport}
                 disabled={busy}
@@ -570,9 +625,14 @@ export function CardsRegistryEditor({
             setImportState((s) => (s.open ? { ...s, dragActive: active } : s))
           }
           onCancel={closeImport}
+          onDownloadTemplate={() => setShowGuide(true)}
           onPick={() => fileInputRef.current?.click()}
           onDrop={(file) => handleImport(file)}
         />
+      )}
+
+      {showGuide && (
+        <CardsImportGuideModal onClose={() => setShowGuide(false)} onDownload={downloadTemplate} />
       )}
 
       {confirmDelete && (
@@ -592,6 +652,7 @@ interface ImportCsvModalProps {
   dragActive: boolean;
   onDragChange: (active: boolean) => void;
   onCancel: () => void;
+  onDownloadTemplate: () => void;
   onPick: () => void;
   onDrop: (file: File) => void;
 }
@@ -601,6 +662,7 @@ function ImportCsvModal({
   dragActive,
   onDragChange,
   onCancel,
+  onDownloadTemplate,
   onPick,
   onDrop,
 }: ImportCsvModalProps) {
@@ -659,7 +721,16 @@ function ImportCsvModal({
           </p>
           <p className="text-xs text-slate-500 mt-1">{t('import.upsertNote')}</p>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={onDownloadTemplate}
+            disabled={busy}
+            className="inline-flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900 underline underline-offset-2 disabled:opacity-50"
+          >
+            <Info className="w-4 h-4" />
+            <span>{t('import.howToFill')}</span>
+          </button>
           <button
             onClick={onCancel}
             disabled={busy}

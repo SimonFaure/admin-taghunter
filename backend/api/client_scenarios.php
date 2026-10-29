@@ -13,6 +13,7 @@ session_write_close();
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
+require_once __DIR__ . '/../utils/ScenarioLanguages.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -25,8 +26,8 @@ function getRequestData() {
 }
 
 // `client_scenarios.durations` holds the GO/Spot challenge offer for that grant
-// (JSON array of minutes, NULL = none configured → the scenario's authored time
-// is used instead). Hand it to callers as a plain int array, never a raw JSON
+// (JSON array of minutes, NULL = none ticked → every duration in the client's
+// catalog for that app is offered, see go.php resolveDurations). Hand it to callers as a plain int array, never a raw JSON
 // string. (project_go_spot_durations)
 function decodeGrantDurations(array $grants) {
     foreach ($grants as &$g) {
@@ -58,15 +59,35 @@ function appScenariosForClient($db, $clientId, $app) {
         : '';
     $patternJoin = $app === 'go' ? ' LEFT JOIN patterns p ON cs.pattern_id = p.id' : '';
 
-    return decodeGrantDurations($db->fetchAll(
-        'SELECT cs.scenario_id, cs.pattern_id, cs.granted_at, cs.durations,
-                s.title, s.uniqid, s.status, s.medias' . $patternCols . '
+    $grants = decodeGrantDurations($db->fetchAll(
+        'SELECT cs.scenario_id, cs.pattern_id, cs.granted_at, cs.durations, cs.player_languages,
+                s.title, s.uniqid, s.status, s.medias,
+                s.data, s.client_id AS scenario_client_id, s.validated_languages' . $patternCols . '
          FROM client_scenarios cs
          JOIN scenarios s ON cs.scenario_id = s.id' . $patternJoin . '
          WHERE cs.client_id = ? AND cs.mode = ?
          ORDER BY cs.granted_at DESC',
         [$clientId, $app]
     ));
+    // The grant's language policy + the languages this client may actually be
+    // served (validation-gated, as go.php load does) - the editor's tick-boxes
+    // (project_go_spot_player_languages). `data` is only read for that.
+    foreach ($grants as &$g) {
+        $pl = !empty($g['player_languages']) ? json_decode($g['player_languages'], true) : null;
+        $g['player_languages'] = [
+            // NULL = off: no picker until the operator turns it on.
+            'enabled' => is_array($pl) && !empty($pl['enabled']),
+            'languages' => is_array($pl) && is_array($pl['languages'] ?? null) ? array_values($pl['languages']) : [],
+        ];
+        $g['scenario_languages'] = ScenarioLanguages::visibleLanguages($db, [
+            'data' => $g['data'],
+            'client_id' => $g['scenario_client_id'],
+            'validated_languages' => $g['validated_languages'],
+        ], (int)$clientId);
+        unset($g['data'], $g['scenario_client_id'], $g['validated_languages']);
+    }
+    unset($g);
+    return $grants;
 }
 
 function requireClientOrAdminAuth($db) {
@@ -248,6 +269,22 @@ try {
                 $db,
                 $clientId
             );
+            // ...plus the client's OWN custom scenarios (owned or hand-granted).
+            // Without these a premium client's "Custom scenarios" list (studio
+            // client page, /my home) was always empty.
+            $customs = $db->fetchAll(
+                'SELECT s.id, s.title, s.description, s.uniqid, s.game_type, s.scenario_type, s.status,
+                        IFNULL(s.version, "1.0") as version, s.medias, s.data, s.client_id, s.validated_languages, s.created_at, s.updated_at,
+                        s.created_at as granted_at, s.created_by as granted_by, NULL as granted_by_email,
+                        (SELECT COUNT(*) FROM scenario_files sf WHERE sf.scenario_id = s.id) as files_count
+                 FROM scenarios s
+                 WHERE s.scenario_type != "product"
+                   AND (s.client_id = ?
+                        OR s.id IN (SELECT scenario_id FROM client_scenarios WHERE client_id = ?))
+                 ORDER BY s.created_at DESC',
+                [$clientId, $clientId]
+            );
+            $scenarios = array_merge($customs, $scenarios);
         } else {
             $scenarios = $db->fetchAll(
                 // A scenario can be granted to a client in MORE THAN ONE mode

@@ -18,7 +18,7 @@ export function ClientEmailModal({
   onSubmit,
   onCancel,
   title = 'Publish Content',
-  description = 'Enter the client email address to publish this content under'
+  description = 'Enter the licensee email address to publish this content under'
 }: ClientEmailModalProps) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
@@ -81,7 +81,7 @@ export function ClientEmailModal({
     }
 
     if (!result.clientId) {
-      setError('Failed to retrieve client information. Please try again.');
+      setError('Failed to retrieve licensee information. Please try again.');
       return;
     }
 
@@ -121,8 +121,8 @@ export function ClientEmailModal({
                 setEmail(newEmail);
                 setError('');
               }}
-              label="Client Email Address"
-              placeholder="client@example.com"
+              label="Licensee Email Address"
+              placeholder="licensee@example.com"
               required
             />
             {error && (

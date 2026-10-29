@@ -9,7 +9,6 @@ session_start();
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/RecoveryCodes.php';
-require_once __DIR__ . '/../utils/ClientHotspot.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
 
 function jsonResponse($data, $statusCode = 200) {
@@ -215,6 +214,10 @@ try {
                 // product catalogue). GO / Spot are granted separately.
                 'license_type' => 'premium',
                 'billing_up_to_date' => (isset($data['billing_up_to_date']) ? $data['billing_up_to_date'] : true) ? 1 : 0,
+                // GO billing starts "Up to date" like Spot (spot_billing_ok DEFAULT 1).
+                // Explicit so it holds even before set_clients_go_billing_default_ok.sql
+                // flips the DB default.
+                'go_subscription_active' => 1,
                 'language' => sanitizeLanguage($data['language'] ?? 'fr'),
                 'update_channel' => sanitizeChannel($data['update_channel'] ?? 'stable'),
                 'created_by' => $userId,
@@ -239,16 +242,6 @@ try {
                 RecoveryCodes::ensureForClient($db, (int)$clientId);
             } catch (Exception $e) {
                 error_log('[clients.create] recovery codes provisioning failed: ' . $e->getMessage());
-            }
-
-            // Seed the client's studio-authored Wi-Fi hotspot (SSID derived from
-            // the client name, random password). Studio is the sole author; the
-            // playground pulls these on sync and never auto-generates its own.
-            // Best-effort: never block client creation (self-heals via backfill).
-            try {
-                ClientHotspot::ensureForClient($db, (int)$clientId, $data['name']);
-            } catch (Exception $e) {
-                error_log('[clients.create] hotspot provisioning failed: ' . $e->getMessage());
             }
 
             $client = $db->fetch(
@@ -686,99 +679,6 @@ try {
             ];
             Logger::log('clients', 'GET', 'creator_list', $admin['id'], ['email' => $email], $response, 200, 'creator');
             jsonResponse($response);
-            break;
-
-        case 'hotspot_get':
-            // Admin-only: read a client's hotspot creds (incl. password, so the
-            // admin can render the join QR / hand it to the client). The client's
-            // own read-only view goes through devices.php?action=lan_networks
-            // (no password). Seeds on first read so older clients self-heal.
-            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
-            }
-            $userId = requireAuth();
-            $clientId = (int)($_GET['id'] ?? 0);
-            if ($clientId <= 0) {
-                jsonResponse(['error' => 'Client ID is required'], 400);
-            }
-            $client = $db->fetch('SELECT id, name FROM clients WHERE id = ?', [$clientId]);
-            if (!$client) {
-                jsonResponse(['error' => 'Client not found'], 404);
-            }
-            ClientHotspot::ensureForClient($db, $clientId, $client['name']);
-            $row = $db->fetch(
-                'SELECT ssid, password, source, version, updated_at
-                 FROM lan_networks WHERE client_id = ? AND is_default = 1
-                 ORDER BY updated_at DESC LIMIT 1',
-                [$clientId]
-            );
-            Logger::log('clients', 'GET', 'hotspot_get', $userId, ['id' => $clientId], ['found' => (bool)$row], 200);
-            jsonResponse(['data' => $row ?: null]);
-            break;
-
-        case 'hotspot_update':
-            // Admin-only: set a client's hotspot SSID + password. Validates against
-            // the same rules as the playground hotspot manager, then upserts by
-            // (client_id, ssid) and bumps the version so the playground manifest's
-            // lan_networks_version advances and devices re-pull on next sync.
-            // Changes take effect at the next fresh mother start, never mid-game.
-            if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'PUT') {
-                jsonResponse(['error' => 'Method not allowed'], 405);
-            }
-            $userId = requireAuth();
-            $data = getRequestData();
-            $clientId = (int)($data['id'] ?? 0);
-            $ssid = trim((string)($data['ssid'] ?? ''));
-            $regenerate = !empty($data['regenerate_password']);
-            $password = (string)($data['password'] ?? '');
-            if ($clientId <= 0) {
-                jsonResponse(['error' => 'Client ID is required'], 400);
-            }
-            $client = $db->fetch('SELECT id, name FROM clients WHERE id = ?', [$clientId]);
-            if (!$client) {
-                jsonResponse(['error' => 'Client not found'], 404);
-            }
-            // Seed first so there's always a current row to compare/replace.
-            ClientHotspot::ensureForClient($db, $clientId, $client['name']);
-            $current = $db->fetch(
-                'SELECT ssid, password FROM lan_networks WHERE client_id = ? AND is_default = 1
-                 ORDER BY updated_at DESC LIMIT 1',
-                [$clientId]
-            );
-            if ($ssid === '') {
-                $ssid = $current['ssid'] ?? ClientHotspot::defaultSsid($client['name']);
-            }
-            if ($regenerate || $password === '') {
-                $password = $regenerate
-                    ? ClientHotspot::randomPassword()
-                    : ($current['password'] ?? ClientHotspot::randomPassword());
-            }
-            $err = ClientHotspot::validateSsid($ssid) ?? ClientHotspot::validatePassword($password);
-            if ($err !== null) {
-                jsonResponse(['error' => $err], 400);
-            }
-            $nextVersion = ClientHotspot::nextVersion($db, $clientId);
-            // If the SSID changed, demote the old primary so we don't strand two
-            // is_default rows; the new (client_id, ssid) becomes the primary.
-            $oldSsid = $current['ssid'] ?? null;
-            if ($oldSsid !== null && $oldSsid !== $ssid) {
-                $db->query(
-                    'UPDATE lan_networks SET is_default = 0, version = ? WHERE client_id = ? AND ssid = ?',
-                    [$nextVersion, $clientId, $oldSsid]
-                );
-            }
-            $db->query(
-                'INSERT INTO lan_networks (client_id, ssid, password, source, is_default, version)
-                 VALUES (?, ?, ?, "hotspot", 1, ?)
-                 ON DUPLICATE KEY UPDATE
-                   password   = VALUES(password),
-                   source     = "hotspot",
-                   is_default = 1,
-                   version    = VALUES(version)',
-                [$clientId, $ssid, $password, $nextVersion]
-            );
-            Logger::log('clients', $_SERVER['REQUEST_METHOD'], 'hotspot_update', $userId, ['id' => $clientId, 'ssid' => $ssid], ['version' => $nextVersion], 200);
-            jsonResponse(['data' => ['ssid' => $ssid, 'password' => $password, 'source' => 'hotspot', 'version' => $nextVersion]]);
             break;
 
         default:

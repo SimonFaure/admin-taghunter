@@ -1,6 +1,6 @@
 {
-  "portal": "Client Portal",
-  "role": "Client",
+  "portal": "Licensee Portal",
+  "role": "Licensee",
   "signOut": "Sign Out",
   "nav": {
     "home": "Home",
@@ -21,6 +21,7 @@
     "gameTypes": "Tutorial Videos",
     "tutorialDownloads": "Download tutorials",
     "statistics": "Statistics",
+    "customers": "My Customers",
     "settings": "Settings",
     "account": "My Account",
     "help": "Help"
@@ -72,13 +73,13 @@
   },
   "goStats": {
     "title": "GO & Spot Statistics",
-    "subtitle": "Usage and team scores for your Tag Hunter GO games.",
+    "subtitle": "Usage and team scores for your Tag Hunter GO and Spot games.",
     "goHeading": "Tag Hunter GO",
-    "spotHeading": "Spot",
+    "spotHeading": "Tag Hunter Spot",
     "spotComingSoon": "Spot has no app yet - statistics will appear here once it ships.",
     "byScenario": "By scenario",
-    "empty": "No GO activity yet.",
-    "error": "Failed to load GO statistics",
+    "empty": "No activity yet.",
+    "error": "Failed to load statistics",
     "cards": {
       "loads": "Total loads",
       "teams": "Teams played",
@@ -123,7 +124,8 @@
     "range_custom": "Custom",
     "from": "From",
     "to": "To",
-    "openBoard": "Player ranking"
+    "openBoard": "Player ranking",
+    "openMobile": "Phone view"
   },
   "publicBoard": {
     "title": "Ranking",
@@ -132,5 +134,15 @@
     "pinHint": "Tap your team to highlight it",
     "truncated": "Showing the top {{shown}} of {{total}} teams.",
     "stale": "Offline — last known scores."
+  },
+  "mobileRankings": {
+    "title": "Live rankings",
+    "backToStudio": "Back to Studio",
+    "changeScenario": "Change scenario",
+    "textSize": "Large text",
+    "summary_one": "{{count}} team · {{finished}} finished",
+    "summary_other": "{{count}} teams · {{finished}} finished",
+    "finished": "Finished",
+    "playing": "Playing"
   }
 }

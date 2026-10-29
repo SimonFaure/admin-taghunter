@@ -40,6 +40,9 @@ if (!function_exists('requirePlaygroundClient')) {
 
         if (!empty($tokenData['device_id'])) {
             DeviceManager::bumpLastSeen($db, (int)$tokenData['device_id']);
+            // Remembered for jsonResponseWithAuthState: the device's own update
+            // channel override must survive every response, not just bootstrap.
+            $GLOBALS['__playground_token_device_id'] = (int)$tokenData['device_id'];
         }
 
         return [
@@ -61,8 +64,14 @@ if (!function_exists('jsonResponseWithAuthState')) {
     // $deviceId is optional: when provided, auth_state.device is populated with the
     // user-given display_name + OS device_label for that device. Callers that don't
     // pass it still get auth_state.user + brand_logo_url, just no device block.
+    // The update channel is always resolved against the token's device, so a
+    // per-device "test" override is not flipped back to the client channel by
+    // the next sync call (the playground caches it from every response).
     function jsonResponseWithAuthState($db, $clientId, array $data, int $status = 200, ?int $deviceId = null): void {
-        $authState = PlaygroundAuthState::build($db, $clientId, $deviceId);
+        $authState = PlaygroundAuthState::build(
+            $db, $clientId, $deviceId,
+            $GLOBALS['__playground_token_device_id'] ?? null
+        );
         $data['auth_state'] = $authState;
         http_response_code($status);
         echo json_encode($data);

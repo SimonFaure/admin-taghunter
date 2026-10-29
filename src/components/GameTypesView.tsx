@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, Trash2, Film, Subtitles, AlertCircle, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Upload, Download, Trash2, Film, Subtitles, AlertCircle, CheckCircle2, ChevronDown } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { SUPPORTED_LANGS, type Lang } from '../scenarios/i18n/types';
 
@@ -36,6 +36,8 @@ interface GameType {
   supports_intro_video: boolean;
   tutorial_video_path: string | null;
   tutorial_video_version: number;
+  // Bumped by subtitle edits alone (the video version is not).
+  tutorial_subtitles_version?: number;
   tutorial_subtitles: Record<string, string>;
 }
 
@@ -43,6 +45,8 @@ interface Override {
   game_type_code: string;
   tutorial_video_path: string | null;
   tutorial_video_version: number;
+  // Bumped by subtitle edits alone (the video version is not).
+  tutorial_subtitles_version?: number;
   tutorial_subtitles: Record<string, string>;
 }
 
@@ -54,6 +58,10 @@ function buildMediaUrl(p: {
   version: number;
   filename?: string;
   subtitleLang?: string;
+  // Cache-buster for subtitle URLs: a replaced track keeps its name and its
+  // (video) version dir, so without this the browser serves the old .vtt.
+  subtitlesVersion?: number;
+  download?: boolean;
   token: string | null;
 }): string {
   const u = new URLSearchParams();
@@ -63,6 +71,9 @@ function buildMediaUrl(p: {
   u.set('version', String(p.version));
   if (p.filename) u.set('filename', p.filename);
   if (p.subtitleLang) u.set('subtitle_lang', p.subtitleLang);
+  if (p.subtitleLang && p.subtitlesVersion) u.set('sv', String(p.subtitlesVersion));
+  // `download=1` flips the response to Content-Disposition: attachment.
+  if (p.download) u.set('download', '1');
   if (p.token) u.set('token', p.token);
   return `${API_BASE_URL}/game_types.php?${u.toString()}`;
 }
@@ -126,6 +137,7 @@ function MediaVideo({
   version,
   filename,
   subtitles,
+  subtitlesVersion,
   token,
 }: {
   code: string;
@@ -133,6 +145,7 @@ function MediaVideo({
   version: number;
   filename: string;
   subtitles: Record<string, string>;
+  subtitlesVersion?: number;
   token: string | null;
 }) {
   const { t } = useTranslation('gameTypes');
@@ -166,11 +179,11 @@ function MediaVideo({
       >
         {langs.map((lang) => (
           <track
-            key={lang}
+            key={`${lang}-${subtitlesVersion ?? 0}`}
             kind="subtitles"
             srcLang={lang}
             label={LANG_NAMES[lang as Lang] || lang}
-            src={buildMediaUrl({ code, variant, version, subtitleLang: lang, token })}
+            src={buildMediaUrl({ code, variant, version, subtitleLang: lang, subtitlesVersion, token })}
           />
         ))}
       </video>
@@ -395,6 +408,10 @@ function GameTypeCard(props: CardProps) {
   // Subtitle source edited in this view (admin → legacy, client → override).
   const editableSubs = (isAdmin ? gt.tutorial_subtitles : override?.tutorial_subtitles) || {};
   const subCount = Object.keys(editableSubs).length;
+  // Subtitles live in the version dir of the row they belong to.
+  const editableVariant: Variant = isAdmin ? 'admin' : 'client';
+  const editableVersion = isAdmin ? gt.tutorial_video_version : (override?.tutorial_video_version ?? 0);
+  const editableSubsVersion = (isAdmin ? gt.tutorial_subtitles_version : override?.tutorial_subtitles_version) ?? 0;
   const hasPlayableVideo = isAdmin ? adminHasVideo : (clientHasOverride || adminHasVideo);
 
   return (
@@ -454,6 +471,7 @@ function GameTypeCard(props: CardProps) {
                       version={gt.tutorial_video_version}
                       filename={gt.tutorial_video_path!}
                       subtitles={gt.tutorial_subtitles}
+                      subtitlesVersion={gt.tutorial_subtitles_version}
                       token={token}
                     />
                     {isAdmin ? (
@@ -515,6 +533,7 @@ function GameTypeCard(props: CardProps) {
                         version={override!.tutorial_video_version}
                         filename={override!.tutorial_video_path!}
                         subtitles={override!.tutorial_subtitles || {}}
+                        subtitlesVersion={override!.tutorial_subtitles_version}
                         token={token}
                       />
                       <div className="flex items-center gap-2">
@@ -562,6 +581,9 @@ function GameTypeCard(props: CardProps) {
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${subsOpen ? '' : '-rotate-90'}`} />
                   <Subtitles className="w-4 h-4" />
                   {isAdmin ? t('card.subtitleTracksLegacy') : t('card.subtitleTracksOverride')}
+                  {editableSubsVersion > 0 && (
+                    <span className="text-slate-400 font-normal">{t('card.videoVersion', { version: editableSubsVersion })}</span>
+                  )}
                   <span className="ml-auto text-xs font-normal text-slate-500">
                     {t('card.pillSubtitles', { count: subCount })}
                   </span>
@@ -570,6 +592,9 @@ function GameTypeCard(props: CardProps) {
                   <div className="px-3 pb-3 space-y-1 text-sm border-t border-slate-100 pt-2">
                     {SUPPORTED_LANGS.map((lang) => {
                       const hasSubtitle = !!editableSubs[lang];
+                      // A client with no track of their own can still grab the
+                      // Tag Hunter one (e.g. as a base to translate from).
+                      const hasDefaultSubtitle = !isAdmin && !!gt.tutorial_subtitles[lang];
                       return (
                         <div key={lang} className="flex items-center gap-3 py-1.5 px-2 hover:bg-slate-50 rounded">
                           <span className="w-32 text-slate-700">
@@ -579,10 +604,17 @@ function GameTypeCard(props: CardProps) {
                             <>
                               <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                               <span className="text-slate-600 truncate">{editableSubs[lang]}</span>
+                              <a
+                                href={buildMediaUrl({ code: gt.code, variant: editableVariant, version: editableVersion, subtitleLang: lang, subtitlesVersion: editableSubsVersion, download: true, token })}
+                                download
+                                className="ml-auto inline-flex items-center gap-1 text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
+                              >
+                                <Download className="w-3.5 h-3.5" /> {t('actions.download')}
+                              </a>
                               <FileDrop
                                 accept=".vtt,text/vtt"
                                 onFile={(f) => isAdmin ? props.onAdminUploadSubtitle(gt.code, lang, f) : props.onClientUploadSubtitle(gt.code, lang, f)}
-                                className="ml-auto text-xs px-2 py-1 bg-slate-200 text-slate-700 rounded hover:bg-slate-300"
+                                className="text-xs px-2 py-1 bg-slate-200 text-slate-700 rounded hover:bg-slate-300"
                               >
                                 {t('actions.replace')}
                               </FileDrop>
@@ -595,11 +627,20 @@ function GameTypeCard(props: CardProps) {
                             </>
                           ) : (
                             <>
-                              <span className="text-slate-400">{t('card.missing')}</span>
+                              <span className="text-slate-400 mr-auto">{t('card.missing')}</span>
+                              {hasDefaultSubtitle && (
+                                <a
+                                  href={buildMediaUrl({ code: gt.code, variant: 'admin', version: gt.tutorial_video_version, subtitleLang: lang, subtitlesVersion: gt.tutorial_subtitles_version, download: true, token })}
+                                  download
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> {t('actions.downloadDefault')}
+                                </a>
+                              )}
                               <FileDrop
                                 accept=".vtt,text/vtt"
                                 onFile={(f) => isAdmin ? props.onAdminUploadSubtitle(gt.code, lang, f) : props.onClientUploadSubtitle(gt.code, lang, f)}
-                                className="ml-auto text-xs px-2 py-1 bg-slate-700 text-white rounded hover:bg-slate-800"
+                                className="text-xs px-2 py-1 bg-slate-700 text-white rounded hover:bg-slate-800"
                               >
                                 {t('actions.uploadVtt')}
                               </FileDrop>

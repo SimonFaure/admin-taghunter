@@ -27,10 +27,12 @@
     "used": "(en uso)"
   },
   "qrCodes": {
-    "title": "Códigos QR",
+    "title": "Mis códigos QR",
     "subtitle": "Imprímelos y colócalos en tu local. Los jugadores escanean un código para abrir la aplicación de ese escenario.",
     "noScenarios": "Aún no hay escenarios de {{heading}}",
     "willAppear": "Aparecerán aquí en cuanto se asignen a tu cuenta.",
-    "downloadSvg": "Descargar SVG"
+    "downloadSvg": "Descargar SVG",
+    "showFullscreen": "Mostrar en pantalla completa",
+    "exitFullscreen": "Salir de pantalla completa"
   }
 }

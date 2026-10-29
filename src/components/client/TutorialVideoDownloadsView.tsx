@@ -19,6 +19,7 @@ interface GameType {
   supports_tutorial_video: boolean;
   tutorial_video_path: string | null;
   tutorial_video_version: number;
+  tutorial_subtitles_version?: number;
   tutorial_subtitles: Record<string, string>;
 }
 
@@ -30,6 +31,8 @@ function buildMediaUrl(p: {
   version: number;
   filename?: string;
   subtitleLang?: string;
+  // Cache-buster: a replaced subtitle keeps its URL otherwise.
+  subtitlesVersion?: number;
   download?: boolean;
   token: string | null;
 }): string {
@@ -40,6 +43,7 @@ function buildMediaUrl(p: {
   u.set('version', String(p.version));
   if (p.filename) u.set('filename', p.filename);
   if (p.subtitleLang) u.set('subtitle_lang', p.subtitleLang);
+  if (p.subtitleLang && p.subtitlesVersion) u.set('sv', String(p.subtitlesVersion));
   if (p.download) u.set('download', '1');
   if (p.token) u.set('token', p.token);
   return `${API_BASE_URL}/game_types.php?${u.toString()}`;
@@ -101,6 +105,7 @@ function VideoRow({ gt, token }: { gt: GameType; token: string | null }) {
                       code: gt.code,
                       version,
                       subtitleLang: lang,
+                      subtitlesVersion: gt.tutorial_subtitles_version,
                       download: true,
                       token,
                     })}

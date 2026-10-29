@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Trophy, RefreshCw, CheckCircle2, QrCode, Maximize2, X, Image as ImageIcon, ListOrdered } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Trophy, RefreshCw, CheckCircle2, QrCode, Maximize2, X, Image as ImageIcon, ListOrdered, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
+import { HelpButton } from '../../help';
 import { getGameVisualUrl } from './MyScenariosView';
 import {
   SPOT_BASE_URL,
@@ -166,6 +168,17 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'spot' } = {}) {
       <div className="flex items-center gap-3 mb-2">
         <Trophy className="w-7 h-7 text-emerald-600" />
         <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
+        <HelpButton chapter={`${app}-scores`} />
+        {/* The phone-first board (MobileRankingsView), opened on the scenario
+            being viewed. A phone in portrait is redirected there by RankingsView;
+            this is the way in from landscape / a tablet. */}
+        <Link
+          to={`/m/rankings?app=${app}${scenario ? `&s=${encodeURIComponent(scenario.id)}` : ''}`}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100"
+        >
+          <Smartphone className="w-4 h-4" />
+          {t('goSessions.openMobile')}
+        </Link>
       </div>
       <p className="text-slate-600 mb-6">{t('goSessions.subtitle')}</p>
 
@@ -181,7 +194,7 @@ export function GoSessionsView({ app = 'go' }: { app?: 'go' | 'spot' } = {}) {
             ) : (
               <div className="grid grid-cols-2 gap-2.5">
                 {goScenarios.map((s) => {
-                  const img = getGameVisualUrl(s.medias, s.uniqid);
+                  const img = getGameVisualUrl(s.medias, s.uniqid, user?.language);
                   const isSel = scenario?.id === s.id;
                   return (
                     <button

@@ -33,6 +33,7 @@ session_write_close();
 require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
+require_once __DIR__ . '/../utils/LicenseeCustomers.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -94,8 +95,24 @@ function summaryConditions(array $auth, bool $scopeOnly = false, bool $excludeFl
         $conds[] = 'gs.played_at <= ?';
         $args[] = date('Y-m-d 23:59:59', $ts);
     }
+    // Licensee customer filter: only within ONE licensee's scope.
+    if (!empty($_GET['customer_id']) && customerScope($auth)) {
+        if ($_GET['customer_id'] === 'none') {
+            $conds[] = 'gs.customer_id IS NULL';
+        } elseif (LicenseeCustomers::isUuid((string)$_GET['customer_id'])) {
+            $conds[] = 'gs.customer_id = ?';
+            $args[] = (string)$_GET['customer_id'];
+        }
+    }
 
     return [$conds, $args];
+}
+
+// Licensee customers (add_licensee_customers.sql) are shown only when the view
+// is ONE licensee's (their own, or an admin filtering on them) - never in the
+// fleet-wide admin statistics.
+function customerScope(array $auth): bool {
+    return ($auth['type'] === 'client' || !empty($_GET['client_id'])) && LicenseeCustomers::migrated();
 }
 
 // Guard for a studio whose DB predates add_client_stats_flags.sql: without the
@@ -193,15 +210,19 @@ try {
             $limit = isset($_GET['limit']) ? max(1, min(500, (int)$_GET['limit'])) : 100;
             $offset = isset($_GET['offset']) ? max(0, (int)$_GET['offset']) : 0;
 
+            $withCustomers = customerScope($auth);
             $rows = $db->fetchAll(
                 'SELECT gs.summary_uuid, gs.name, gs.game_type, gs.scenario_uniqid,
                         gs.played_at, gs.teams_launched, gs.teams_played, gs.players_played,
                         gs.created_at, gs.client_id,
                         c.name AS client_name, c.email AS client_email,
-                        COALESCE(s.title, gs.scenario_uniqid) AS scenario_title
+                        COALESCE(s.title, gs.scenario_uniqid) AS scenario_title' .
+                ($withCustomers ? ', gs.customer_id, lc.name AS customer_name' : '') . '
                  FROM game_summaries gs
                  LEFT JOIN clients c ON c.id = gs.client_id
-                 LEFT JOIN scenarios s ON s.uniqid = gs.scenario_uniqid' . whereOf($conds) .
+                 LEFT JOIN scenarios s ON s.uniqid = gs.scenario_uniqid' .
+                ($withCustomers ? ' LEFT JOIN licensee_customers lc ON lc.id = gs.customer_id' : '') .
+                whereOf($conds) .
                 ' ORDER BY gs.played_at DESC, gs.id DESC
                  LIMIT ? OFFSET ?',
                 array_merge($args, [$limit, $offset])
@@ -218,6 +239,7 @@ try {
                 'limit' => $limit,
                 'offset' => $offset,
                 'is_admin' => $isAdmin,
+                'customers_enabled' => $withCustomers,
             ]);
             break;
         }
@@ -275,6 +297,20 @@ try {
                 'game_types' => array_map(fn($r) => $r['game_type'], $gameTypes),
                 'scenarios' => $scenarios,
             ];
+
+            if (customerScope($auth)) {
+                $scopeClient = $auth['type'] === 'client' ? $auth['id'] : (int)$_GET['client_id'];
+                $response['customers'] = array_map(fn($r) => [
+                    'id' => $r['id'],
+                    'name' => $r['name'],
+                    'archived' => (int)$r['archived'] === 1,
+                ], $db->fetchAll(
+                    'SELECT id, name, archived FROM licensee_customers
+                     WHERE client_id = ? AND merged_into_id IS NULL AND deleted_at IS NULL
+                     ORDER BY name',
+                    [$scopeClient]
+                ));
+            }
 
             if ($isAdmin) {
                 // Unfiltered by the global-stats exclusion so an excluded

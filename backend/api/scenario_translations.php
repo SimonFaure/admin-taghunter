@@ -20,8 +20,9 @@
 //   POST ?action=save_fields             { uniqid, base_version, patches[], stamps[] }
 //   POST ?action=save_file_texts         { file_id, rows[], delete_missing }
 //   POST ?action=save_file_title         { file_id, name_i18n, hashes }
-//   POST ?action=set_file_meta           { file_id, language }
+//   POST ?action=set_file_meta           { file_id, language?, no_translation?, doc_type? }
 //   POST ?action=set_language_validation { uniqid, lang, validated }
+//   POST ?action=set_target_languages    { uniqid, langs[] }
 //
 // LANGUAGE VALIDATION: on an admin-owned scenario a language is released to
 // clients and playgrounds only once validated here (`scenarios.validated_languages`,
@@ -113,6 +114,7 @@ try {
         case 'save_file_title': handleSaveFileTitle($pdo); break;
         case 'set_file_meta':   handleSetFileMeta($pdo); break;
         case 'set_language_validation': handleSetLanguageValidation($pdo); break;
+        case 'set_target_languages': handleSetTargetLanguages($pdo); break;
         default:
             respond(['error' => 'Unknown action'], 400);
     }
@@ -126,7 +128,7 @@ try {
 function handleListScenarios(PDO $pdo): void {
     $rows = $pdo->query(
         'SELECT id, uniqid, title, game_type, scenario_type, status, version, data,
-                client_id, validated_languages
+                client_id, validated_languages, target_languages
            FROM scenarios ORDER BY title ASC'
     )->fetchAll(PDO::FETCH_ASSOC);
 
@@ -156,6 +158,7 @@ function handleListScenarios(PDO $pdo): void {
             // Released to clients. Ungated (client-owned) rows release everything.
             'gated'            => ScenarioLanguages::isGated($r),
             'validated_langs'  => ScenarioLanguages::validatedLanguages($r),
+            'target_langs'     => ScenarioLanguages::targetLanguages($r),
             'files_count'      => $counts[(int)$r['id']] ?? 0,
         ];
     }
@@ -168,7 +171,7 @@ function handleGet(PDO $pdo): void {
 
     $stmt = $pdo->prepare(
         'SELECT id, uniqid, title, description, game_type, version, data, translation_meta,
-                client_id, validated_languages
+                client_id, validated_languages, target_languages
            FROM scenarios WHERE uniqid = ?'
     );
     $stmt->execute([$uniqid]);
@@ -238,6 +241,7 @@ function handleGet(PDO $pdo): void {
             'available_languages' => $data['available_languages'] ?? [$defaultLang],
             'gated'               => ScenarioLanguages::isGated($row),
             'validated_languages' => ScenarioLanguages::validatedLanguages($row),
+            'target_languages'    => ScenarioLanguages::targetLanguages($row),
         ],
         'game_meta'        => $gm,
         'translation_meta' => jsonColumn($row['translation_meta']),
@@ -267,7 +271,8 @@ function handleSetLanguageValidation(PDO $pdo): void {
 
     $pdo->beginTransaction();
     $stmt = $pdo->prepare(
-        'SELECT id, data, client_id, validated_languages FROM scenarios WHERE uniqid = ? FOR UPDATE'
+        'SELECT id, data, client_id, validated_languages, target_languages
+           FROM scenarios WHERE uniqid = ? FOR UPDATE'
     );
     $stmt->execute([$uniqid]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -283,6 +288,15 @@ function handleSetLanguageValidation(PDO $pdo): void {
     if ($lang === $default && !$validated) {
         $pdo->rollBack();
         respond(['error' => 'The default language is always validated.'], 400);
+    }
+
+    // Target languages cap validation: a scenario "available in French only"
+    // can never be released in another language.
+    if ($validated && !in_array($lang, ScenarioLanguages::targetLanguages($row), true)) {
+        $pdo->rollBack();
+        respond([
+            'error' => strtoupper($lang) . ' is not a target language of this scenario. Add it in the scenario editor first.',
+        ], 400);
     }
 
     // Start from what is released today (NULL = default only).
@@ -301,6 +315,74 @@ function handleSetLanguageValidation(PDO $pdo): void {
     respond([
         'success' => true,
         'validated_languages' => ScenarioLanguages::validatedLanguages($row),
+    ]);
+}
+
+/**
+ * Set the languages an admin-owned scenario is meant to exist in.
+ *
+ * The list caps validation, and the cap is enforced HERE rather than on the
+ * read paths: a released language dropped from the targets is removed from
+ * `validated_languages` in the same transaction, so licensees lose it on their
+ * next sync (the served hash is salted with the visible languages). Adding a
+ * language releases nothing - it still has to be validated.
+ */
+function handleSetTargetLanguages(PDO $pdo): void {
+    $body = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($body)) respond(['error' => 'Invalid JSON body'], 400);
+
+    $uniqid = $body['uniqid'] ?? '';
+    if (!is_string($uniqid) || $uniqid === '') respond(['error' => 'uniqid required'], 400);
+    if (!is_array($body['langs'] ?? null)) respond(['error' => 'langs required'], 400);
+
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare(
+        'SELECT id, data, client_id, validated_languages, target_languages
+           FROM scenarios WHERE uniqid = ? FOR UPDATE'
+    );
+    $stmt->execute([$uniqid]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        $pdo->rollBack();
+        respond(['error' => 'Scenario not found'], 404);
+    }
+    if (!ScenarioLanguages::isGated($row)) {
+        $pdo->rollBack();
+        respond(['error' => 'A licensee scenario has no target languages.'], 400);
+    }
+
+    // The scenario's own language is always a target.
+    $targets = [ScenarioLanguages::fromData($row['data'])[0]];
+    foreach ($body['langs'] as $l) {
+        if (isLang($l) && !in_array($l, $targets, true)) $targets[] = $l;
+    }
+
+    $before = ScenarioLanguages::validatedLanguages($row);
+    $stored = jsonColumn($row['validated_languages']);
+    $kept = array_values(array_filter($stored, fn($l) => in_array($l, $targets, true)));
+
+    // `updated_at` is pinned: this is not a content edit.
+    $upd = $pdo->prepare(
+        'UPDATE scenarios
+            SET target_languages = ?, validated_languages = ?, updated_at = updated_at
+          WHERE id = ?'
+    );
+    $upd->execute([
+        json_encode($targets),
+        $row['validated_languages'] === null ? null : json_encode($kept),
+        (int)$row['id'],
+    ]);
+    $pdo->commit();
+
+    $row['target_languages'] = json_encode($targets);
+    if ($row['validated_languages'] !== null) $row['validated_languages'] = json_encode($kept);
+    $after = ScenarioLanguages::validatedLanguages($row);
+
+    respond([
+        'success'             => true,
+        'target_languages'    => ScenarioLanguages::targetLanguages($row),
+        'validated_languages' => $after,
+        'withdrawn'           => array_values(array_diff($before, $after)),
     ]);
 }
 
@@ -572,7 +654,16 @@ function handleSaveFileTitle(PDO $pdo): void {
     respond(['success' => true]);
 }
 
-/** Set a file's own language (which edition of the document this row is). */
+/**
+ * Patch a file's editorial metadata. Only the keys present in the body are
+ * written:
+ *   - `language`: the file's own language (which edition of the document this
+ *     row is);
+ *   - `no_translation`: the document needs no translation, so the Scenario
+ *     overview leaves it out of its translation counts;
+ *   - `doc_type`: which required document this is (src/scenarios/
+ *     documentTypes.ts); empty/null = automatic, recognised from the name.
+ */
 function handleSetFileMeta(PDO $pdo): void {
     $body = json_decode(file_get_contents('php://input'), true);
     if (!is_array($body)) respond(['error' => 'Invalid JSON body'], 400);
@@ -581,13 +672,38 @@ function handleSetFileMeta(PDO $pdo): void {
     if ($fileId <= 0) respond(['error' => 'file_id required'], 400);
     if (!fileScenarioUniqid($pdo, $fileId)) respond(['error' => 'File not found'], 404);
 
-    $language = $body['language'] ?? null;
-    if ($language !== null && $language !== '' && !isLang($language)) {
-        respond(['error' => 'Unsupported language'], 400);
+    $sets = [];
+    $params = [];
+
+    if (array_key_exists('language', $body)) {
+        $language = $body['language'];
+        if ($language !== null && $language !== '' && !isLang($language)) {
+            respond(['error' => 'Unsupported language'], 400);
+        }
+        $sets[] = 'language = ?';
+        $params[] = $language === '' ? null : $language;
     }
 
-    $upd = $pdo->prepare('UPDATE scenario_files SET language = ? WHERE id = ?');
-    $upd->execute([$language === '' ? null : $language, $fileId]);
+    if (array_key_exists('no_translation', $body)) {
+        $sets[] = 'no_translation = ?';
+        $params[] = !empty($body['no_translation']) ? 1 : 0;
+    }
+
+    if (array_key_exists('doc_type', $body)) {
+        $docType = $body['doc_type'];
+        $isCode = is_string($docType) && preg_match('/^[a-z0-9_]{1,40}$/', $docType);
+        if ($docType !== null && $docType !== '' && !$isCode) {
+            respond(['error' => 'Invalid document type'], 400);
+        }
+        $sets[] = 'doc_type = ?';
+        $params[] = ($docType === '' || $docType === null) ? null : $docType;
+    }
+
+    if (!$sets) respond(['error' => 'Nothing to update'], 400);
+
+    $params[] = $fileId;
+    $upd = $pdo->prepare('UPDATE scenario_files SET ' . implode(', ', $sets) . ' WHERE id = ?');
+    $upd->execute($params);
 
     respond(['success' => true]);
 }

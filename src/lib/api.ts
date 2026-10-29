@@ -723,3 +723,48 @@ export const scenarioImportApi = {
     }
   },
 };
+
+export interface JsonImportResult {
+  success: boolean;
+  scenario: { id: number; uniqid: string; title: string; game_type: string };
+  media_count: number;
+  warnings: string[];
+}
+
+export interface JsonImportFailure {
+  error: string;
+  errors?: string[];
+  warnings?: string[];
+}
+
+/** Single-scenario JSON / ZIP import (Clash) - backend/api/scenario_import_json.php. */
+export const scenarioJsonImportApi = {
+  async importFile(
+    file: File,
+    ownership: 'product' | 'client',
+    clientId: number | null
+  ): Promise<{ data?: JsonImportResult; failure?: JsonImportFailure }> {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('ownership', ownership);
+    if (ownership === 'client' && clientId !== null) {
+      fd.append('client_id', String(clientId));
+    }
+    const token = (() => {
+      try { return localStorage.getItem('auth_token') || ''; } catch { return ''; }
+    })();
+    try {
+      const response = await fetch(`${API_BASE_URL}/scenario_import_json.php?action=import`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { 'X-Auth-Token': token } : {},
+        body: fd,
+      });
+      const data = await response.json();
+      if (!response.ok) return { failure: { error: data.error || 'Import failed', errors: data.errors, warnings: data.warnings } };
+      return { data };
+    } catch (error) {
+      return { failure: { error: error instanceof Error ? error.message : 'Network error' } };
+    }
+  },
+};

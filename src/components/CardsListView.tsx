@@ -81,7 +81,7 @@ export function CardsListView() {
             className="flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
-            <span className="font-medium">Back to all clients</span>
+            <span className="font-medium">Back to all licensees</span>
           </button>
           <div className="h-6 w-px bg-slate-300"></div>
           <div>
@@ -92,7 +92,7 @@ export function CardsListView() {
         <CardsRegistryEditor
           api={api}
           title={`Cards · ${selectedClient.name}`}
-          description="Register, edit, delete, or bulk-import cards for this client."
+          description="Register, edit, delete, or bulk-import cards for this licensee."
         />
       </div>
     );
@@ -112,7 +112,7 @@ export function CardsListView() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <p className="text-slate-600">
-            All clients and their registered cards
+            All licensees and their registered cards
           </p>
           <div className="flex items-center gap-2">
             <HelpButton chapter="cards" label="Help" className="mr-1 text-slate-500 hover:text-slate-800" />
@@ -130,7 +130,7 @@ export function CardsListView() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by client name or email..."
+            placeholder="Search by licensee name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent"
@@ -158,10 +158,10 @@ export function CardsListView() {
         <div className="bg-white p-12 rounded-xl shadow-sm border border-slate-200 text-center">
           <CreditCard className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            {searchQuery ? 'No results' : 'No clients yet'}
+            {searchQuery ? 'No results' : 'No licensees yet'}
           </h3>
           <p className="text-slate-600">
-            {searchQuery ? 'Try adjusting your search.' : 'Clients will appear here once they have an account.'}
+            {searchQuery ? 'Try adjusting your search.' : 'Licensees will appear here once they have an account.'}
           </p>
         </div>
       ) : (
@@ -171,7 +171,7 @@ export function CardsListView() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Client
+                    Licensee
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Version

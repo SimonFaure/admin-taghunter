@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Database, CheckCircle, AlertCircle, Loader2, Crown } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
 import { HelpButton } from '../help';
+import { CustomerTypesSettings } from './CustomerTypesSettings';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -75,7 +76,7 @@ export function SettingsView() {
   // Single licence type: flip every client to premium in one go
   // (project_premium_client_grant_blind_spot).
   const setAllClientsPremium = async () => {
-    if (!window.confirm('Set the licence of ALL clients to Premium?')) return;
+    if (!window.confirm('Set the licence of ALL licensees to Premium?')) return;
     setIsSettingPremium(true);
     setPremiumStatus(null);
     try {
@@ -87,7 +88,7 @@ export function SettingsView() {
       if (response.ok && data.success) {
         setPremiumStatus({
           success: true,
-          message: `${data.updated} client(s) switched to Premium (${data.total} clients in total).`,
+          message: `${data.updated} licensee(s) switched to Premium (${data.total} licensees in total).`,
         });
       } else {
         setPremiumStatus({ success: false, message: data.error || `HTTP ${response.status}` });
@@ -125,7 +126,7 @@ export function SettingsView() {
             <li>Core tables (admin_users, clients, scenarios)</li>
             <li>Roles and permissions</li>
             <li>Launched games tracking</li>
-            <li>Client scenarios (purchased products)</li>
+            <li>Licensee scenarios (purchased products)</li>
             <li>API logging system</li>
             <li>Game data fields (game_data, game_type)</li>
             <li>App versions tracking</li>
@@ -205,9 +206,9 @@ export function SettingsView() {
             <Crown className="w-6 h-6 text-amber-600" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Client licences</h3>
+            <h3 className="text-lg font-bold text-slate-900">Licences</h3>
             <p className="text-sm text-slate-600">
-              There is a single licence type: switch every client to Premium
+              There is a single licence type: switch every licensee to Premium
             </p>
           </div>
         </div>
@@ -243,16 +244,18 @@ export function SettingsView() {
           {isSettingPremium ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span>Updating clients...</span>
+              <span>Updating licensees...</span>
             </>
           ) : (
             <>
               <Crown className="w-5 h-5" />
-              <span>Set all clients to Premium</span>
+              <span>Set all licensees to Premium</span>
             </>
           )}
         </button>
       </div>
+
+      <CustomerTypesSettings />
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <h3 className="text-lg font-bold text-slate-900 mb-4">System Information</h3>

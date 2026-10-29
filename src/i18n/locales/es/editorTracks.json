@@ -113,7 +113,12 @@
   "displayOptions": {
     "sectionTitle": "Opciones de visualización",
     "displayScore": "Mostrar la puntuación durante el juego",
-    "displayScoreHint": "Muestra la puntuación en curso en el HUD durante toda la partida."
+    "displayScoreHint": "Muestra la puntuación en curso en el HUD durante toda la partida.",
+    "showLegend": "Mostrar la leyenda en la página",
+    "showLegendHint": "Muestra las imágenes de retorno y su significado en un recuadro, que se coloca y redimensiona en el editor de diseño. Es el valor por defecto: el operador puede mostrar u ocultar la leyenda al lanzar la partida (opciones avanzadas).",
+    "legendMissingImage": "{{image}} no definida: esta línea no se mostrará en la leyenda.",
+    "legendText": "Texto de leyenda - {{image}}",
+    "legendTextHint": "Deje un campo vacío para conservar el texto por defecto (mostrado en gris)."
   },
   "hudFrames": {
     "sectionTitle": "Marcos HUD"

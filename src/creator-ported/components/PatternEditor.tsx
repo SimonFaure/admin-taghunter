@@ -491,7 +491,7 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
     if (publishAsClient) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!clientEmail.trim()) {
-        setClientEmailError('Please enter a client email address');
+        setClientEmailError('Please enter a licensee email address');
         return;
       }
       if (!emailRegex.test(clientEmail.trim())) {
@@ -507,7 +507,7 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
         return;
       }
       if (!result.clientId) {
-        setClientEmailError('Failed to retrieve client information. Please try again.');
+        setClientEmailError('Failed to retrieve licensee information. Please try again.');
         return;
       }
       doPublish(clientEmail.trim(), result.clientId, true);
@@ -890,8 +890,8 @@ export function PatternEditor({ patternId, gameType, patternName, onBack }: Patt
                 <ClientSelector
                   value={clientEmail}
                   onChange={(email) => { setClientEmail(email); setClientEmailError(''); }}
-                  label="Client Email Address"
-                  placeholder="client@example.com"
+                  label="Licensee Email Address"
+                  placeholder="licensee@example.com"
                   required
                 />
                 {clientEmailError && (

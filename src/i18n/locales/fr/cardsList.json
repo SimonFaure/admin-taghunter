@@ -1,4 +1,4 @@
 {
   "title": "Mes puces",
-  "description": "Enregistrez, modifiez et supprimez vos puces de jeu. Les modifications sont synchronisées avec vos appareils playground lors de leur prochaine actualisation."
+  "description": "Enregistrez, modifiez et supprimez vos puces de jeu. Pour importer des puces en masse, téléchargez le modèle Excel, remplissez-le puis importez-le. Les nouvelles puces s'ajoutent à celles déjà enregistrées : inutile de réimporter toutes vos puces, le fichier peut ne contenir que les nouvelles. Les modifications sont synchronisées avec vos appareils playground lors de leur prochaine actualisation."
 }

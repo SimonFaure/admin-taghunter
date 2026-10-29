@@ -79,6 +79,7 @@ export function defaultTracksGameMeta(): TracksGameMeta {
 
     // Display options
     display_score: true,
+    show_legend: false,
     clues_page: {
       enabled: false,
       show_title: true,

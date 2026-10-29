@@ -49,13 +49,13 @@
       },
       "purge_text_own_territory": {
         "label": "Territorio propio",
-        "placeholder": "No puedes purgar tu propio territorio",
-        "when": "El objetivo actual es un territorio que controla este clan."
+        "placeholder": "Purga en espera: el objetivo es tu propio territorio. Se activará en una próxima lectura del chip.",
+        "when": "El objetivo actual es un territorio que controla este clan. El marcaje de la baliza de purga queda en espera y se activa en una próxima lectura del chip."
       },
       "purge_text_no_target": {
         "label": "Sin objetivo",
-        "placeholder": "Aún no hay territorio que purgar",
-        "when": "Todavía no hay clan en cabeza, o el clan en cabeza no ha validado ningún territorio."
+        "placeholder": "Purga en espera: ningún clan va en cabeza todavía. Se activará en una próxima lectura del chip.",
+        "when": "Todavía no hay clan en cabeza, o el clan en cabeza no ha validado ningún territorio. El marcaje de la baliza de purga queda en espera y se activa en una próxima lectura del chip."
       }
     }
   },

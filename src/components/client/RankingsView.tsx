@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/AuthContext';
 import { getAppAccess } from '../../auth/appAccess';
@@ -15,6 +16,12 @@ export function RankingsView() {
   const access = getAppAccess(user);
   const both = access.go && access.spot;
   const [app, setApp] = useState<'go' | 'spot'>(access.go ? 'go' : 'spot');
+
+  // A portrait phone can't fit this page next to the sidebar: hand over to the
+  // phone-first board. Read once at mount, so a desktop window that is merely
+  // resized narrow keeps the page it is on.
+  const [isPhone] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  if (isPhone) return <Navigate to="/m/rankings" replace />;
 
   if (!both) {
     // Exactly one (or, defensively, neither) app enabled: show the enabled one.
