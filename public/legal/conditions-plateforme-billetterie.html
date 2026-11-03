@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Conditions de la plateforme de billetterie Tag Hunter (version 2026-11)</title>
+<style>
+  :root {
+    --bg: #ffffff; --ink: #1b2430; --muted: #5a6675; --line: #dfe4ea; --accent: #0e6e6a; --soft: #f2f6f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11161c; --ink: #e5eaf0; --muted: #9aa7b6; --line: #2a3440; --accent: #4fc2bb; --soft: #19212a; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px max(16px, env(safe-area-inset-left)) 80px; }
+  header img { height: 44px; width: auto; }
+  h1 { font-size: clamp(26px, 4.5vw, 34px); line-height: 1.2; margin: 18px 0 6px; }
+  .meta { color: var(--muted); margin: 0 0 24px; }
+  h2 { font-size: 21px; margin: 40px 0 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 17px; margin: 24px 0 6px; }
+  p, li { margin: 0 0 10px; }
+  ul, ol { padding-left: 22px; }
+  a { color: var(--accent); }
+  .box { background: var(--soft); border-radius: 10px; padding: 16px 20px; margin: 18px 0; }
+  .box h2 { border: 0; margin-top: 0; padding-top: 0; }
+  nav ol { columns: 2 260px; column-gap: 32px; margin: 0; }
+  nav li { break-inside: avoid; margin-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 14px; }
+  @media print {
+    body { font-size: 11pt; } main { padding: 0; } a { color: inherit; } nav { display: none; }
+    h2 { break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <img src="/logo_tag_hunter.png" alt="Tag Hunter">
+  <h1>Conditions de la plateforme de billetterie Tag Hunter</h1>
+  <p class="meta">À destination des organisateurs (licenciés Tag Hunter) · Version <strong>2026-11</strong> · En vigueur le 3 novembre 2026</p>
+</header>
+
+<section class="box" aria-labelledby="bref">
+  <h2 id="bref">En bref</h2>
+  <ul>
+    <li>Vous vendez vos billets <strong>en votre nom</strong> : vous êtes le vendeur, Tag Hunter fournit l'outil.</li>
+    <li>L'argent des ventes arrive <strong>directement sur votre compte Stripe</strong>. Tag Hunter ne détient jamais vos fonds.</li>
+    <li>L'acheteur paie des <strong>frais de réservation</strong> en plus du prix du billet (par défaut 3 % + 0,50 € TTC par billet payant). Tag Hunter prélève une commission du même montant, automatiquement, à chaque vente.</li>
+    <li>Billets gratuits et réservations saisies à la main : <strong>aucuns frais, aucune commission</strong>.</li>
+    <li>Vous recevez chaque mois une facture de commission dans Studio.</li>
+    <li>Pour les données de vos acheteurs, vous êtes <strong>responsable de traitement</strong> et Tag Hunter est votre <strong>sous-traitant</strong> (annexe 1).</li>
+  </ul>
+</section>
+
+<nav aria-label="Sommaire">
+  <h2>Sommaire</h2>
+  <ol>
+    <li><a href="#a1">Définitions</a></li>
+    <li><a href="#a2">Objet et documents contractuels</a></li>
+    <li><a href="#a3">Accès au service et acceptation</a></li>
+    <li><a href="#a4">Rôle de chacun</a></li>
+    <li><a href="#a5">Informations de l'Organisateur</a></li>
+    <li><a href="#a6">Paiements via Stripe</a></li>
+    <li><a href="#a7">Frais de réservation et commission</a></li>
+    <li><a href="#a8">Remboursements, annulations et contestations</a></li>
+    <li><a href="#a9">Facturation de la commission</a></li>
+    <li><a href="#a10">Obligations envers les acheteurs</a></li>
+    <li><a href="#a11">Contenus publiés</a></li>
+    <li><a href="#a12">Annuaire et classement</a></li>
+    <li><a href="#a13">Disponibilité du service</a></li>
+    <li><a href="#a14">Suspension et fin du service</a></li>
+    <li><a href="#a15">Responsabilité</a></li>
+    <li><a href="#a16">Données personnelles</a></li>
+    <li><a href="#a17">Modification des conditions</a></li>
+    <li><a href="#a18">Réclamations</a></li>
+    <li><a href="#a19">Droit applicable</a></li>
+    <li><a href="#annexe1">Annexe 1 : accord de sous-traitance (RGPD)</a></li>
+    <li><a href="#annexe2">Annexe 2 : sous-traitants ultérieurs</a></li>
+  </ol>
+</nav>
+
+<h2 id="a1">1. Définitions</h2>
+<ul>
+  <li><strong>Tag Hunter</strong> : LUDIOM, SAS au capital de 40 000 €, immatriculée au RCS d'Arras sous le n° 107 371 924, siège social : Parc du Bois Carré, rue du Bois Carré, 62150 Houdain, n° TVA intracommunautaire FR27107371924, qui exploite la marque Tag Hunter. Contact : <a href="mailto:support@taghunter.fr">support@taghunter.fr</a>.</li>
+  <li><strong>Organisateur</strong> : le licencié Tag Hunter, professionnel, qui utilise la Billetterie pour vendre des places à ses événements.</li>
+  <li><strong>Billetterie</strong> : les fonctions « Événements » et « Paiements » de Tag Hunter Studio, le site public <em>events.taghunter.fr</em>, les e-mails envoyés aux acheteurs, les pages d'accueil des équipes (check-in) et les fonctions associées de l'application Tag Hunter Playground.</li>
+  <li><strong>Acheteur</strong> : la personne qui réserve une ou plusieurs places pour une séance.</li>
+  <li><strong>Participant</strong> : chaque personne couverte par une réservation (joueur ou autre rôle).</li>
+  <li><strong>Séance</strong> : un créneau daté d'un événement, avec sa capacité.</li>
+  <li><strong>Stripe</strong> : le prestataire de services de paiement (Stripe Payments Europe, Ltd. et ses sociétés affiliées) avec lequel l'Organisateur ouvre son propre compte.</li>
+</ul>
+
+<h2 id="a2">2. Objet et documents contractuels</h2>
+<p>Les présentes conditions fixent les règles d'utilisation de la Billetterie par l'Organisateur. Elles complètent le contrat de licence Tag Hunter conclu entre l'Organisateur et Tag Hunter. En cas de contradiction sur un point propre à la Billetterie, les présentes conditions prévalent ; pour tout le reste, le contrat de licence prévaut.</p>
+<p>L'annexe 1 (accord de sous-traitance) et l'annexe 2 (liste des sous-traitants ultérieurs) font partie des présentes conditions.</p>
+
+<h2 id="a3">3. Accès au service et acceptation</h2>
+<p>La Billetterie est activée par Tag Hunter, licencié par licencié. Une fois activée, l'Organisateur peut préparer et prévisualiser ses événements librement.</p>
+<p>Avant de publier un événement, l'Organisateur doit :</p>
+<ol>
+  <li>renseigner ses informations légales dans Studio (page « Paiements ») ;</li>
+  <li>accepter la version en vigueur des présentes conditions, en cochant la case prévue à cet effet. Tag Hunter conserve la version acceptée et sa date ;</li>
+  <li>pour vendre des billets payants, connecter un compte Stripe en état d'encaisser des paiements.</li>
+</ol>
+<p>La personne qui accepte ces conditions déclare avoir le pouvoir d'engager l'Organisateur.</p>
+
+<h2 id="a4">4. Rôle de chacun</h2>
+<p><strong>L'Organisateur est le vendeur.</strong> Le contrat de vente des places est conclu directement entre l'Organisateur et l'Acheteur. L'Organisateur fixe ses prix, ses règles (âges, composition des équipes, conditions d'annulation) et assure l'événement.</p>
+<p><strong>Tag Hunter est un intermédiaire technique.</strong> Tag Hunter fournit les outils de publication, de réservation, d'envoi des e-mails, d'accueil et de jeu. Tag Hunter n'est pas partie au contrat de vente, ne fixe pas les prix des billets et ne garantit pas la tenue des événements.</p>
+<p><strong>Stripe encaisse les paiements</strong> pour le compte de l'Organisateur, selon le contrat que l'Organisateur a conclu directement avec Stripe.</p>
+
+<h2 id="a5">5. Informations de l'Organisateur</h2>
+<p>L'Organisateur fournit des informations exactes et à jour : dénomination, forme juridique, SIRET, numéro de TVA le cas échéant, adresse, e-mail et téléphone de contact. Tag Hunter peut vérifier ces informations (contrôle du SIRET, vérification du numéro de TVA auprès du service européen VIES) et les conserver, comme l'exige la réglementation applicable aux plateformes en ligne (notamment l'article 30 du règlement (UE) 2022/2065 sur les services numériques).</p>
+<p>Les informations d'identité de l'Organisateur (nom, adresse, contact, mentions légales) sont affichées aux Acheteurs sur la page de l'événement et dans les e-mails, afin qu'ils sachent avec qui ils contractent.</p>
+<p>Tag Hunter peut suspendre la vente si ces informations sont manifestement fausses ou incomplètes, après en avoir informé l'Organisateur.</p>
+
+<h2 id="a6">6. Paiements via Stripe</h2>
+<ul>
+  <li>L'Organisateur ouvre et gère son propre compte Stripe depuis Studio. Il accepte à cette occasion les conditions de Stripe, qui le lient directement à Stripe.</li>
+  <li>Les paiements des Acheteurs sont encaissés <strong>sur le compte Stripe de l'Organisateur</strong>. Tag Hunter ne reçoit, ne détient et ne reverse jamais le prix des billets.</li>
+  <li>Les frais de Stripe, le calendrier des virements et les éventuelles vérifications d'identité demandées par Stripe relèvent de la relation entre l'Organisateur et Stripe.</li>
+  <li>L'Organisateur peut déconnecter son compte Stripe à tout moment. Les ventes payantes sont alors arrêtées ; les réservations déjà payées restent valables.</li>
+</ul>
+
+<h2 id="a7">7. Frais de réservation et commission</h2>
+<p>À chaque réservation payante, l'Acheteur paie, en plus du prix des billets, des <strong>frais de réservation</strong> affichés clairement avant le paiement. Tag Hunter prélève une <strong>commission d'un montant égal</strong> à ces frais, automatiquement, au moment du paiement, sur le compte Stripe de l'Organisateur.</p>
+<p>Le montant est calculé ainsi :</p>
+<ul>
+  <li>un pourcentage du montant des billets et options, après réduction éventuelle ;</li>
+  <li>plus un montant fixe par billet payant.</li>
+</ul>
+<p>Taux par défaut : <strong>3 % + 0,50 € TTC par billet payant</strong>. Un taux différent peut être convenu avec un Organisateur ; le taux applicable est toujours indiqué dans Studio. Le taux en vigueur au moment de la réservation est enregistré avec celle-ci et ne change plus.</p>
+<p>Aucuns frais ni aucune commission ne s'appliquent :</p>
+<ul>
+  <li>aux réservations gratuites (montant à payer de 0 €) ;</li>
+  <li>aux réservations saisies manuellement par l'Organisateur dans Studio (paiement sur place, sur facture, invitations).</li>
+</ul>
+<p>Tag Hunter peut modifier son taux par défaut en prévenant les Organisateurs au moins 30 jours à l'avance. Le nouveau taux ne s'applique qu'aux réservations faites après son entrée en vigueur.</p>
+
+<h2 id="a8">8. Remboursements, annulations et contestations</h2>
+<ul>
+  <li>L'Organisateur définit sa politique de remboursement pour chaque événement. Elle est affichée à l'Acheteur avant le paiement.</li>
+  <li><strong>Remboursement décidé par l'Organisateur</strong> (total ou partiel), depuis Studio ou depuis son tableau de bord Stripe : le prix des billets est remboursé à l'Acheteur ; les frais de réservation et la commission restent acquis.</li>
+  <li><strong>Annulation d'une séance ou d'un événement depuis Studio</strong> : toutes les réservations concernées sont remboursées en totalité, frais de réservation compris, et Tag Hunter renonce à sa commission sur ces réservations. Les Acheteurs sont prévenus par e-mail.</li>
+  <li><strong>Contestations de paiement</strong> (litiges bancaires, « chargebacks ») : elles sont traitées entre l'Organisateur et Stripe. Leur coût éventuel est à la charge de l'Organisateur ; la commission reste acquise. Tag Hunter prévient l'Organisateur par e-mail dès qu'il en a connaissance.</li>
+</ul>
+
+<h2 id="a9">9. Facturation de la commission</h2>
+<ul>
+  <li>Au début de chaque mois, Tag Hunter émet une facture de commission pour le mois écoulé, numérotée en continu, avec le détail des réservations, des frais et des remboursements (PDF et CSV). Elle est disponible dans Studio, page « Paiements ».</li>
+  <li>La commission ayant déjà été prélevée lors des ventes, la facture ne donne lieu à aucun paiement supplémentaire. Si les remboursements d'un mois dépassent les commissions perçues, un avoir est émis.</li>
+  <li>TVA : la commission est indiquée TTC. Pour un Organisateur établi en France, la facture applique la TVA française au taux en vigueur. Pour un Organisateur établi dans un autre État de l'Union européenne et disposant d'un numéro de TVA intracommunautaire valide, la facture est émise hors taxes, la TVA étant due par l'Organisateur (autoliquidation, article 196 de la directive 2006/112/CE).</li>
+</ul>
+
+<h2 id="a10">10. Obligations de l'Organisateur envers les Acheteurs</h2>
+<p>En tant que vendeur, l'Organisateur est seul responsable envers les Acheteurs et les Participants, notamment :</p>
+<ul>
+  <li>de l'exactitude des informations publiées (date, lieu, durée, âges, prix TTC, ce qui est inclus) ;</li>
+  <li>de ses conditions de vente ou règlement, et de sa politique de remboursement ;</li>
+  <li>de la TVA due sur ses ventes et de ses obligations comptables. Les reçus envoyés aux Acheteurs sont émis en son nom à partir des informations qu'il a fournies ;</li>
+  <li>de l'information des Acheteurs sur l'absence de droit de rétractation pour les prestations de loisirs fournies à une date déterminée (article L221-28, 12° du Code de la consommation) ;</li>
+  <li>de la bonne tenue de l'événement, de la sécurité des Participants, des assurances nécessaires et du respect des règles d'âge et d'encadrement qu'il a fixées ;</li>
+  <li>du service client : les e-mails envoyés aux Acheteurs indiquent l'adresse de contact de l'Organisateur pour les réponses.</li>
+</ul>
+
+<h2 id="a11">11. Contenus publiés</h2>
+<ul>
+  <li>L'Organisateur est responsable des textes, images, vidéos, polices, documents et autres contenus qu'il publie. Il garantit en détenir les droits et qu'ils sont licites.</li>
+  <li>Il autorise Tag Hunter à héberger, reproduire et afficher ces contenus, pour la durée de la publication, dans la Billetterie, dans l'annuaire des événements et dans les aperçus de partage (réseaux sociaux, moteurs de recherche).</li>
+  <li>Toute personne peut signaler un contenu illicite à <a href="mailto:support@taghunter.fr">support@taghunter.fr</a>. Tag Hunter peut retirer ou rendre inaccessible un contenu manifestement illicite et en informe l'Organisateur en indiquant ses motifs.</li>
+  <li>Les pages publiques indiquent que la Billetterie est fournie par Tag Hunter.</li>
+</ul>
+
+<h2 id="a12">12. Annuaire et classement</h2>
+<p>La page d'accueil d'events.taghunter.fr présente les événements publiés que l'Organisateur a choisi de rendre visibles dans l'annuaire. Un événement non référencé reste accessible par son lien direct.</p>
+<p>Les événements y sont classés par date de première séance, et peuvent être filtrés par région, date et public. Aucun classement n'est vendu : aucun Organisateur ne peut payer pour apparaître plus haut.</p>
+
+<h2 id="a13">13. Disponibilité du service</h2>
+<p>Tag Hunter met en œuvre des moyens raisonnables pour que la Billetterie soit disponible et fonctionne correctement, sans garantir une disponibilité continue. Des interruptions peuvent avoir lieu pour maintenance, de préférence en dehors des heures d'affluence, ou en raison d'incidents chez les prestataires techniques (hébergeur, Stripe, service d'envoi d'e-mails).</p>
+<p>Le jour de l'événement, l'application Tag Hunter Playground conserve une copie locale des réservations du jour, pour permettre l'accueil des équipes sans connexion Internet.</p>
+
+<h2 id="a14">14. Suspension et fin du service</h2>
+<ul>
+  <li><strong>Retard de paiement de la licence</strong> : lorsque l'accès de l'Organisateur à Tag Hunter est suspendu pour défaut de paiement, la vente de nouvelles places est mise en pause. Les réservations existantes restent valables et l'accueil des équipes reste possible.</li>
+  <li><strong>Suspension par Tag Hunter</strong> : en cas de manquement grave (informations fausses, contenu illicite, fraude, atteinte à la sécurité de la Billetterie), Tag Hunter peut suspendre tout ou partie de la Billetterie pour l'Organisateur, en lui indiquant les motifs par écrit au plus tard au moment où la suspension prend effet.</li>
+  <li><strong>Fin du service</strong> : chacune des parties peut mettre fin à l'utilisation de la Billetterie à tout moment ; Tag Hunter respecte un préavis de 30 jours, sauf manquement grave de l'Organisateur. La fin du contrat de licence met fin à la Billetterie dans les mêmes conditions.</li>
+  <li>À la fin du service, les réservations déjà payées restent dues par l'Organisateur aux Acheteurs. L'Organisateur peut exporter ses réservations (CSV) avant la fermeture de son accès. Le sort des données est réglé à l'annexe 1.</li>
+</ul>
+
+<h2 id="a15">15. Responsabilité</h2>
+<ul>
+  <li>Tag Hunter répond des dommages directs causés par un manquement prouvé à ses obligations au titre des présentes. Sa responsabilité totale est limitée au montant des commissions perçues de l'Organisateur au cours des 12 mois précédant le fait générateur.</li>
+  <li>Tag Hunter n'est pas responsable des dommages indirects (perte de chiffre d'affaires, de clientèle, d'image), ni des conséquences des choix de l'Organisateur (prix, capacités, règles, annulations), ni de l'exécution de l'événement.</li>
+  <li>Tag Hunter n'est pas responsable du fonctionnement des services de Stripe, qui relève du contrat entre l'Organisateur et Stripe.</li>
+  <li>Ces limitations ne s'appliquent pas en cas de faute lourde ou intentionnelle, ni dans les cas où la loi les interdit.</li>
+  <li>L'Organisateur garantit Tag Hunter contre toute réclamation d'un Acheteur, d'un Participant ou d'un tiers liée à ses événements ou à ses contenus.</li>
+</ul>
+
+<h2 id="a16">16. Données personnelles</h2>
+<ul>
+  <li><strong>Données des Acheteurs et Participants</strong> : l'Organisateur est responsable de traitement ; Tag Hunter agit en tant que sous-traitant, dans les conditions de l'annexe 1.</li>
+  <li><strong>Données propres à Tag Hunter</strong> : Tag Hunter est responsable de traitement pour la gestion de la relation avec l'Organisateur (compte, acceptation des conditions, facturation de la commission), pour la sécurité de la Billetterie et la prévention des abus (dont les adresses IP, conservées 48 heures au plus) et pour ses obligations légales et comptables.</li>
+  <li><strong>Stripe</strong> traite les données de paiement dans le cadre de son propre contrat avec l'Organisateur. Tag Hunter ne reçoit ni ne conserve les numéros de carte.</li>
+</ul>
+
+<h2 id="a17">17. Modification des conditions</h2>
+<p>Tag Hunter peut faire évoluer ces conditions. Chaque version porte un numéro. Toute nouvelle version est communiquée aux Organisateurs au moins 15 jours avant son entrée en vigueur, par e-mail ou dans Studio, sauf si une modification plus rapide est imposée par la loi ou nécessaire pour faire face à un risque de sécurité ou de fraude.</p>
+<p>Studio demande alors à l'Organisateur d'accepter la nouvelle version. Tant qu'elle n'est pas acceptée, la publication de nouveaux événements est bloquée. L'Organisateur qui n'accepte pas la nouvelle version peut mettre fin à l'utilisation de la Billetterie avant son entrée en vigueur.</p>
+
+<h2 id="a18">18. Réclamations</h2>
+<p>Toute réclamation de l'Organisateur relative à la Billetterie peut être adressée à <a href="mailto:support@taghunter.fr">support@taghunter.fr</a>. Tag Hunter accuse réception et répond dans un délai de 30 jours.</p>
+
+<h2 id="a19">19. Droit applicable et litiges</h2>
+<p>Les présentes conditions sont régies par le droit français. Les parties recherchent d'abord une solution amiable. À défaut, tout litige relève des juridictions compétentes dans le ressort du siège social de Tag Hunter.</p>
+
+<h2 id="annexe1">Annexe 1 : accord de sous-traitance des données personnelles</h2>
+<p>Le présent accord est conclu en application de l'article 28 du règlement (UE) 2016/679 (RGPD). L'Organisateur est le « responsable de traitement », Tag Hunter le « sous-traitant ».</p>
+
+<h3>1. Description du traitement</h3>
+<div class="table-wrap">
+<table>
+  <tr><th scope="row">Objet</th><td>Fourniture de la Billetterie : publication des événements, réservation et paiement, e-mails aux Acheteurs, accueil des équipes, chargement des équipes dans les jeux, envoi des résultats.</td></tr>
+  <tr><th scope="row">Durée</th><td>Durée d'utilisation de la Billetterie, puis jusqu'à l'effacement ou l'anonymisation prévus ci-dessous.</td></tr>
+  <tr><th scope="row">Personnes concernées</th><td>Acheteurs, Participants, personnel de l'Organisateur utilisant l'accueil des équipes.</td></tr>
+  <tr><th scope="row">Données</th><td>Nom, prénom, e-mail, téléphone de l'Acheteur ; nom d'équipe ; prénom et âge des Participants si l'Organisateur les demande ; réponses aux questions de l'Organisateur ; consentements donnés ; langue ; détail de la réservation et des paiements (montants, références, identifiants Stripe, sans numéro de carte) ; heure d'arrivée ; scores et classements des équipes.</td></tr>
+  <tr><th scope="row">Opérations</th><td>Collecte, enregistrement, hébergement, consultation, modification, envoi d'e-mails, export, copie locale le jour de l'événement sur les appareils Playground de l'Organisateur, anonymisation, effacement.</td></tr>
+</table>
+</div>
+
+<h3>2. Instructions</h3>
+<p>Tag Hunter ne traite les données que sur instruction documentée de l'Organisateur. Ces instructions sont constituées par les présentes conditions et par les réglages et actions de l'Organisateur dans Studio. Tag Hunter informe l'Organisateur s'il estime qu'une instruction est contraire à la réglementation. Tag Hunter n'utilise pas ces données pour ses propres besoins, ne les vend pas et ne les utilise pas à des fins publicitaires.</p>
+
+<h3>3. Confidentialité</h3>
+<p>Seules les personnes de Tag Hunter qui en ont besoin pour fournir, maintenir ou dépanner la Billetterie accèdent aux données. Elles sont tenues à la confidentialité.</p>
+
+<h3>4. Sécurité</h3>
+<p>Tag Hunter met en œuvre des mesures adaptées, notamment :</p>
+<ul>
+  <li>chiffrement des échanges (HTTPS) ;</li>
+  <li>accès aux réservations limité au compte de l'Organisateur ;</li>
+  <li>liens d'accueil du personnel protégés par un code PIN, stocké sous forme hachée, avec blocage après plusieurs essais erronés et possibilité de révocation ;</li>
+  <li>minimisation : le personnel d'accueil et les appareils Playground ne reçoivent ni l'e-mail, ni le téléphone, ni les montants des réservations ;</li>
+  <li>liens personnels des Acheteurs (gestion de la réservation, billet) protégés par des jetons signés non devinables ;</li>
+  <li>limitation des tentatives sur les pages publiques.</li>
+</ul>
+<p>L'Organisateur reste responsable de la sécurité de ses propres accès (identifiants Studio, codes PIN, appareils Playground) et des exports qu'il réalise.</p>
+
+<h3>5. Sous-traitants ultérieurs</h3>
+<p>L'Organisateur autorise Tag Hunter à recourir aux sous-traitants ultérieurs listés à l'annexe 2. Tag Hunter informe l'Organisateur de tout ajout ou remplacement au moins 30 jours à l'avance ; l'Organisateur peut s'y opposer pour un motif légitime et, à défaut d'accord, mettre fin à la Billetterie. Tag Hunter impose à ses sous-traitants ultérieurs des obligations équivalentes à celles du présent accord et reste responsable de leur respect.</p>
+
+<h3>6. Localisation des données</h3>
+<p>Les données sont hébergées dans l'Union européenne. Tag Hunter ne transfère pas les données hors de l'Espace économique européen. Si un transfert devenait nécessaire, il serait encadré par un mécanisme prévu par le RGPD (décision d'adéquation ou clauses contractuelles types) et annoncé selon l'article 5 ci-dessus.</p>
+
+<h3>7. Droits des personnes</h3>
+<p>Studio permet à l'Organisateur de consulter, corriger et exporter les données de réservation. Pour effacer les données d'une personne avant l'anonymisation automatique, l'Organisateur en fait la demande à Tag Hunter, qui l'exécute dans un délai d'un mois. Si une personne s'adresse directement à Tag Hunter, Tag Hunter transmet sa demande à l'Organisateur sans délai et l'aide à y répondre.</p>
+
+<h3>8. Violations de données</h3>
+<p>Tag Hunter notifie à l'Organisateur toute violation de données personnelles dans les 48 heures après en avoir pris connaissance, avec les informations disponibles (nature, données et personnes concernées, conséquences probables, mesures prises), afin de lui permettre de respecter ses propres obligations de notification.</p>
+
+<h3>9. Assistance</h3>
+<p>Tag Hunter aide l'Organisateur, dans la mesure du raisonnable, à réaliser une analyse d'impact ou à répondre à une autorité de contrôle lorsque la Billetterie est concernée.</p>
+
+<h3>10. Durées de conservation</h3>
+<ul>
+  <li>12 mois après la fin de la dernière séance d'un événement, les données des Acheteurs et des Participants de cet événement sont anonymisées automatiquement (noms, coordonnées, prénoms, âges, réponses aux questions).</li>
+  <li>Les montants, références de réservation, identifiants de paiement et consentements sont conservés le temps des obligations comptables et légales.</li>
+  <li>Les copies locales sur les appareils Playground ne couvrent que les réservations du jour et sont renouvelées à chaque synchronisation.</li>
+</ul>
+
+<h3>11. Fin du service</h3>
+<p>À la fin de la Billetterie, l'Organisateur peut exporter ses données pendant 30 jours. Tag Hunter efface ou anonymise ensuite les données des Acheteurs et des Participants dans un délai de 3 mois, sauf obligation légale de conservation.</p>
+
+<h3>12. Audit</h3>
+<p>Tag Hunter met à la disposition de l'Organisateur, sur demande, les informations nécessaires pour démontrer le respect du présent accord. L'Organisateur peut faire réaliser un audit une fois par an, à ses frais, avec un préavis de 30 jours, par un auditeur tenu à la confidentialité et sans perturber le service.</p>
+
+<h3>13. Obligations de l'Organisateur</h3>
+<p>L'Organisateur s'assure que ses traitements reposent sur une base légale, informe les Acheteurs et Participants (notamment par ses conditions de vente et sa politique de confidentialité) et ne demande que les données nécessaires à son événement.</p>
+
+<h2 id="annexe2">Annexe 2 : sous-traitants ultérieurs</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Prestataire</th><th>Service</th><th>Localisation des données</th></tr></thead>
+  <tbody>
+    <tr><td>SiteGround Spain S.L. (infrastructure Google Cloud)</td><td>Hébergement de Studio, de la base de données et du site events.taghunter.fr</td><td>Pays-Bas (Union européenne)</td></tr>
+    <tr><td>Mailjet SAS (groupe Sinch)</td><td>Envoi des e-mails aux Acheteurs et aux Organisateurs</td><td>Union européenne</td></tr>
+  </tbody>
+</table>
+</div>
+<p>Stripe n'est pas un sous-traitant de Tag Hunter : il agit dans le cadre de son propre contrat avec l'Organisateur.</p>
+
+<footer>
+  <p>LUDIOM SAS, marque Tag Hunter · Parc du Bois Carré, rue du Bois Carré, 62150 Houdain · <a href="mailto:support@taghunter.fr">support@taghunter.fr</a></p>
+  <p>Version 2026-11 du 3 novembre 2026.</p>
+</footer>
+</main>
+</body>
+</html>
