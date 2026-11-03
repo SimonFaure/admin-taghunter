@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, LayoutGrid, ChevronDown, FileVideo, Building2 } from 'lucide-react';
+import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, LayoutGrid, ChevronDown, FileVideo, Building2, Wallet, Ticket, Calculator } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
@@ -59,11 +59,16 @@ const NAV_ITEMS: NavEntry[] = [
     ],
   },
   { to: '/my/report-layouts', labelKey: 'nav.reportLayouts', icon: Printer, end: false, show: (a) => a.playground },
+  // Mystery scoring defaults (by age + per scenario), applied by the playground.
+  { to: '/my/mystery-scoring', labelKey: 'nav.mysteryScoring', icon: Calculator, end: false, show: (a) => a.playground },
   // Merged: Playground game stats + GO/Spot usage sections in one page.
   { to: '/my/statistics', labelKey: 'nav.statistics', icon: BarChart3, end: false, show: (a) => a.playground || a.go || a.spot },
   // The licensee's own customers + their game history (project_licensee_customers).
   // Playground games only, so Playground-gated.
   { to: '/my/customers', labelKey: 'nav.customers', icon: Building2, end: false, show: (a) => a.playground },
+  // Events / online ticketing: legal info + Stripe Connect (admin-enabled per licensee).
+  { to: '/my/events', labelKey: 'nav.events', icon: Ticket, end: false, show: (a) => a.events },
+  { to: '/my/payments', labelKey: 'nav.payments', icon: Wallet, end: false, show: (a) => a.events },
   // "Paramètres" (/my/settings) hidden from clients; MySettingsView is kept, the
   // route redirects to home (see AppRouter).
   { to: '/my/account', labelKey: 'nav.account', icon: User, end: false, show: () => true },

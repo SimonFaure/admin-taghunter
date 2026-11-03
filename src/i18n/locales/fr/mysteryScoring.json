@@ -1,0 +1,30 @@
+{
+  "title": "Barème Mystery",
+  "subtitle": "Vos points et malus par défaut pour les jeux Mystery, par âge et par scénario.",
+  "intro": "Ces valeurs remplacent celles des scénarios Mystery sur vos playgrounds (à la prochaine synchronisation). Un champ vide garde la valeur du scénario. Les points bonne/mauvaise réponse s'appliquent à toutes les énigmes.",
+  "precedence": "Priorité : valeur du scénario ci-dessous > valeur de l'âge > valeur prévue dans le scénario. L'âge retenu est la tranche la plus jeune du scénario.",
+  "loading": "Chargement…",
+  "loadFailed": "Impossible de charger le barème.",
+  "saveFailed": "L'enregistrement a échoué.",
+  "notMigrated": "Fonction pas encore disponible sur ce serveur (migration à appliquer).",
+  "byAgeTitle": "Par âge",
+  "byAgeHint": "Valeurs par défaut selon la tranche d'âge du scénario.",
+  "byScenarioTitle": "Par scénario",
+  "byScenarioHint": "Remplace la valeur de l'âge pour un scénario précis. Le texte grisé indique ce qui s'applique si le champ reste vide.",
+  "age": "Âge",
+  "scenario": "Scénario",
+  "ageApplied": "Âge appliqué : {{band}}",
+  "noAge": "Aucune tranche d'âge",
+  "noScenarios": "Aucun scénario Mystery disponible.",
+  "search": "Rechercher un scénario",
+  "placeholderScenario": "Scénario",
+  "negativeHint": "(entrer une valeur négative)",
+  "save": "Enregistrer",
+  "saved": "Enregistré",
+  "fields": {
+    "good_answer_points": "Points bonne réponse",
+    "wrong_answer_points": "Points mauvaise réponse",
+    "malus_both_answers_biped": "Malus si les deux réponses sont bipées",
+    "malus_no_answer": "Malus si aucune réponse"
+  }
+}

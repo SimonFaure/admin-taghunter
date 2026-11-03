@@ -1,0 +1,61 @@
+{
+  "appName": "Participant check-in",
+  "arrivedCount": "{{arrived}} / {{expected}} arrived",
+  "allSessions": "All",
+  "search": "Team, name, reference…",
+  "missingOnly": "Missing",
+  "noSessions": "No sessions that day.",
+  "noBookings": "No bookings.",
+  "people_one": "{{count}} person",
+  "people_other": "{{count}} people",
+  "person": "Person {{n}}",
+  "paymentDue": "To pay on site",
+  "notConfirmed": "Booking cancelled",
+  "allArrived": "The whole team is here",
+  "undoAll": "Undo arrival",
+  "common": {
+    "back": "Back",
+    "refresh": "Refresh",
+    "logout": "Sign out",
+    "close": "Close",
+    "retry": "Try again"
+  },
+  "pin": {
+    "title": "Access code",
+    "help": "Enter the 4-digit code given by the organiser.",
+    "erase": "Erase",
+    "errors": {
+      "wrong_pin": "Wrong code.",
+      "locked": "Too many attempts: link locked for 15 minutes. Ask the organiser for a new code.",
+      "revoked": "The organiser deleted this link.",
+      "invalid_link": "This link is not valid.",
+      "rate_limited": "Too many attempts. Wait a few minutes.",
+      "session_expired": "Session ended: enter the code again.",
+      "network": "No internet connection.",
+      "generic": "Can't sign in. Try again."
+    }
+  },
+  "scan": {
+    "button": "Scan a ticket",
+    "title": "Scan the QR code",
+    "manual": "Or type the ticket reference",
+    "find": "Find",
+    "camera": {
+      "denied": "Camera access denied: allow it in the browser settings, or type the reference.",
+      "unavailable": "No camera available on this device: type the reference."
+    },
+    "errors": {
+      "not_found": "Ticket not found for this event.",
+      "network": "No internet connection.",
+      "generic": "Search failed. Try again."
+    }
+  },
+  "errors": {
+    "not_found": "Not found.",
+    "not_confirmed": "This booking is no longer valid.",
+    "session_expired": "Session ended.",
+    "network": "No internet connection: try again.",
+    "events_disabled": "Ticketing is not enabled.",
+    "generic": "Something went wrong. Try again."
+  }
+}

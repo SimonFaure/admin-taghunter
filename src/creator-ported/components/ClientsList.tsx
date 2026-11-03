@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Mail, Phone, Building2, Package, RefreshCw, CheckCircle, XCircle, Download, Loader2 } from 'lucide-react';
 import { authService } from '../services/authService';
+import { authFetch } from '../../lib/authFetch';
 
 interface Client {
   id: string;
@@ -47,7 +48,7 @@ export function ClientsList() {
         return;
       }
 
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/clients.php?action=creator_list&email=${encodeURIComponent(email)}`
       );
 
@@ -94,7 +95,7 @@ export function ClientsList() {
     setFetchMessage(null);
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/clients.php?action=creator_list&email=${encodeURIComponent(email)}`
       );
       const result = await response.json();

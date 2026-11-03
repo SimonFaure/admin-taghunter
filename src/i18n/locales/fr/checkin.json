@@ -1,0 +1,61 @@
+{
+  "appName": "Accueil des participants",
+  "arrivedCount": "{{arrived}} / {{expected}} arrivés",
+  "allSessions": "Toutes",
+  "search": "Équipe, nom, référence…",
+  "missingOnly": "Manquants",
+  "noSessions": "Aucune session ce jour-là.",
+  "noBookings": "Aucune réservation.",
+  "people_one": "{{count}} personne",
+  "people_other": "{{count}} personnes",
+  "person": "Personne {{n}}",
+  "paymentDue": "À régler sur place",
+  "notConfirmed": "Réservation annulée",
+  "allArrived": "Toute l'équipe est arrivée",
+  "undoAll": "Annuler l'arrivée",
+  "common": {
+    "back": "Retour",
+    "refresh": "Actualiser",
+    "logout": "Se déconnecter",
+    "close": "Fermer",
+    "retry": "Réessayer"
+  },
+  "pin": {
+    "title": "Code d'accès",
+    "help": "Saisissez le code à 4 chiffres donné par l'organisateur.",
+    "erase": "Effacer",
+    "errors": {
+      "wrong_pin": "Code incorrect.",
+      "locked": "Trop d'essais : lien bloqué 15 minutes. Demandez un nouveau code à l'organisateur.",
+      "revoked": "Ce lien a été supprimé par l'organisateur.",
+      "invalid_link": "Ce lien n'est pas valide.",
+      "rate_limited": "Trop d'essais. Patientez quelques minutes.",
+      "session_expired": "Session terminée : saisissez à nouveau le code.",
+      "network": "Pas de connexion internet.",
+      "generic": "Connexion impossible. Réessayez."
+    }
+  },
+  "scan": {
+    "button": "Scanner un billet",
+    "title": "Scanner le QR code",
+    "manual": "Ou tapez la référence du billet",
+    "find": "Chercher",
+    "camera": {
+      "denied": "Accès à la caméra refusé : autorisez-le dans les réglages du navigateur, ou tapez la référence.",
+      "unavailable": "Caméra indisponible sur cet appareil : tapez la référence."
+    },
+    "errors": {
+      "not_found": "Billet introuvable pour cet événement.",
+      "network": "Pas de connexion internet.",
+      "generic": "Recherche impossible. Réessayez."
+    }
+  },
+  "errors": {
+    "not_found": "Introuvable.",
+    "not_confirmed": "Cette réservation n'est plus valable.",
+    "session_expired": "Session terminée.",
+    "network": "Pas de connexion internet : réessayez.",
+    "events_disabled": "La billetterie n'est pas activée.",
+    "generic": "Une erreur est survenue. Réessayez."
+  }
+}

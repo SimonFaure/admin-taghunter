@@ -1,0 +1,61 @@
+{
+  "appName": "Acogida de participantes",
+  "arrivedCount": "{{arrived}} / {{expected}} llegados",
+  "allSessions": "Todas",
+  "search": "Equipo, nombre, referencia…",
+  "missingOnly": "Faltan",
+  "noSessions": "No hay sesiones ese día.",
+  "noBookings": "No hay reservas.",
+  "people_one": "{{count}} persona",
+  "people_other": "{{count}} personas",
+  "person": "Persona {{n}}",
+  "paymentDue": "Pendiente de pago",
+  "notConfirmed": "Reserva cancelada",
+  "allArrived": "Ha llegado todo el equipo",
+  "undoAll": "Anular la llegada",
+  "common": {
+    "back": "Volver",
+    "refresh": "Actualizar",
+    "logout": "Cerrar sesión",
+    "close": "Cerrar",
+    "retry": "Reintentar"
+  },
+  "pin": {
+    "title": "Código de acceso",
+    "help": "Introduzca el código de 4 cifras que le dio el organizador.",
+    "erase": "Borrar",
+    "errors": {
+      "wrong_pin": "Código incorrecto.",
+      "locked": "Demasiados intentos: enlace bloqueado 15 minutos. Pida un nuevo código al organizador.",
+      "revoked": "El organizador ha eliminado este enlace.",
+      "invalid_link": "Este enlace no es válido.",
+      "rate_limited": "Demasiados intentos. Espere unos minutos.",
+      "session_expired": "Sesión terminada: introduzca de nuevo el código.",
+      "network": "Sin conexión a internet.",
+      "generic": "No se pudo conectar. Reintente."
+    }
+  },
+  "scan": {
+    "button": "Escanear una entrada",
+    "title": "Escanear el código QR",
+    "manual": "O escriba la referencia de la entrada",
+    "find": "Buscar",
+    "camera": {
+      "denied": "Acceso a la cámara denegado: permítalo en los ajustes del navegador, o escriba la referencia.",
+      "unavailable": "No hay cámara disponible en este dispositivo: escriba la referencia."
+    },
+    "errors": {
+      "not_found": "Entrada no encontrada para este evento.",
+      "network": "Sin conexión a internet.",
+      "generic": "Búsqueda imposible. Reintente."
+    }
+  },
+  "errors": {
+    "not_found": "No encontrado.",
+    "not_confirmed": "Esta reserva ya no es válida.",
+    "session_expired": "Sesión terminada.",
+    "network": "Sin conexión a internet: reintente.",
+    "events_disabled": "La venta de entradas no está activada.",
+    "generic": "Se ha producido un error. Reintente."
+  }
+}

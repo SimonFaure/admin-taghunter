@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Server, KeyRound, Lock, Power, BarChart3, RotateCcw, Building2 } from 'lucide-react';
+import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Server, KeyRound, Lock, Power, BarChart3, RotateCcw, Building2, Ticket, Calculator } from 'lucide-react';
+import { MysteryScoringEditor } from './mystery/MysteryScoringEditor';
 import { AdminCustomersSection } from './client/customers/AdminCustomersSection';
+import { AdminEventsSection } from './admin/events/AdminEventsSection';
 import { clientApi } from '../lib/clientApi';
 import { Client, UpdateClientData } from '../types/client';
 import { ScenarioData, adminCardsApi } from '../lib/api';
@@ -1380,6 +1382,15 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         <AdminCustomersSection clientId={Number(clientId)} />
       </CollapsibleSection>
 
+      {/* Events / online ticketing: switch, commission, slug, legal + Stripe state. */}
+      <CollapsibleSection
+        icon={<Ticket className="w-6 h-6 text-slate-700" />}
+        title="Events"
+        defaultCollapsed
+      >
+        <AdminEventsSection clientId={Number(clientId)} />
+      </CollapsibleSection>
+
       <CollapsibleSection
         icon={<Smartphone className="w-6 h-6 text-slate-700" />}
         title="Devices"
@@ -1532,6 +1543,17 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         defaultCollapsed
       >
         <ClientGameTypesPanel clientId={clientIdNum} />
+      </CollapsibleSection>
+
+      {/* Mystery scoring defaults (by age + per scenario) - the same editor the
+          licensee sees at /my/mystery-scoring. Overrides scenario values in the
+          playground. */}
+      <CollapsibleSection
+        icon={<Calculator className="w-6 h-6 text-slate-700" />}
+        title="Mystery scoring"
+        defaultCollapsed
+      >
+        <MysteryScoringEditor clientId={clientIdNum} />
       </CollapsibleSection>
 
       <CollapsibleSection

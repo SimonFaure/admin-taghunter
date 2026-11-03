@@ -58,4 +58,21 @@ class Database {
     public function lastInsertId() {
         return $this->connection->lastInsertId();
     }
+
+    // Transactions (Events: place holds must be atomic with the capacity check).
+    public function begin(): void {
+        $this->connection->beginTransaction();
+    }
+
+    public function commit(): void {
+        $this->connection->commit();
+    }
+
+    public function rollBack(): void {
+        if ($this->connection->inTransaction()) $this->connection->rollBack();
+    }
+
+    public function inTransaction(): bool {
+        return $this->connection->inTransaction();
+    }
 }

@@ -13,6 +13,7 @@ import { MyPatternsView } from '../components/client/MyPatternsView';
 import { MyCardsView } from '../components/client/MyCardsView';
 import { MyTeamNamesView } from '../components/client/MyTeamNamesView';
 import { MyReportLayoutsView } from '../components/client/MyReportLayoutsView';
+import { MyMysteryScoringView } from '../components/client/MyMysteryScoringView';
 import { MyDevicesView } from '../components/client/MyDevicesView';
 import { MyAccountView } from '../components/client/MyAccountView';
 import { AccountSecurityView } from '../components/client/AccountSecurityView';
@@ -26,6 +27,10 @@ import { StudioLayoutRoute } from './studio/StudioLayoutRoute';
 import { GameTypesView } from '../components/GameTypesView';
 import { ClientStatisticsView } from '../components/client/ClientStatisticsView';
 import { MyCustomersView, MyCustomerDetailView } from '../components/client/MyCustomersView';
+import { MyPaymentsView } from '../components/client/payments/MyPaymentsView';
+import { MyEventsView } from '../components/client/events/MyEventsView';
+import { EventEditorView } from '../components/client/events/EventEditorView';
+import { LicenseeCheckinRoute, StaffCheckinRoute } from '../components/checkin/CheckinApp';
 import { MyHelpView } from '../components/client/MyHelpView';
 import { MyReleasesView } from '../components/client/MyReleasesView';
 import { TutorialVideoDownloadsView } from '../components/client/TutorialVideoDownloadsView';
@@ -52,6 +57,11 @@ export function AppRouter() {
           Backed by go.php?action=public_board, which does its own scoping. */}
       <Route path="/r/:app/:clientId/:scenarioId" element={<PublicRankingView />} />
 
+      {/* Event-day check-in for volunteers (Events phase 4) - OUTSIDE RequireAuth:
+          they have no Studio account. The link token + a 4-digit PIN open a
+          staff session; events_checkin.php scopes everything to that event. */}
+      <Route path="/checkin/:token" element={<StaffCheckinRoute />} />
+
       <Route element={<RequireAuth />}>
         {/* Printable scenario recap. Chrome-free and role-free on purpose: it is
             a document to print, and admins need to open it for the scenarios
@@ -69,6 +79,8 @@ export function AppRouter() {
           {/* Phone-first leaderboard. Outside ClientLayout on purpose: its fixed
               sidebar leaves a portrait phone no room for a board. */}
           <Route path="/m/rankings" element={<MobileRankingsView />} />
+          {/* The licensee's own event-day check-in screen (phone-first, no sidebar). */}
+          <Route path="/m/checkin/:eventId" element={<LicenseeCheckinRoute />} />
           <Route path="/my" element={<ClientLayout />}>
             <Route index element={<Navigate to="home" replace />} />
             <Route path="home" element={<MyHomeView />} />
@@ -88,6 +100,7 @@ export function AppRouter() {
             <Route path="cards" element={<MyCardsView />} />
             <Route path="team-names" element={<MyTeamNamesView />} />
             <Route path="report-layouts" element={<MyReportLayoutsView />} />
+            <Route path="mystery-scoring" element={<MyMysteryScoringView />} />
             <Route path="devices" element={<MyDevicesView />} />
             <Route path="releases" element={<MyReleasesView />} />
             <Route path="game-types" element={<GameTypesView />} />
@@ -95,6 +108,9 @@ export function AppRouter() {
             <Route path="statistics" element={<ClientStatisticsView />} />
             <Route path="customers" element={<MyCustomersView />} />
             <Route path="customers/:id" element={<MyCustomerDetailView />} />
+            <Route path="events" element={<MyEventsView />} />
+            <Route path="events/:id/:tab?" element={<EventEditorView />} />
+            <Route path="payments" element={<MyPaymentsView />} />
             {/* Settings page hidden from clients; old bookmarks land on home. */}
             <Route path="settings" element={<Navigate to="../home" replace />} />
             <Route path="help" element={<MyHelpView />} />

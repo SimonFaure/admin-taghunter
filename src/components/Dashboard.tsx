@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical, Smartphone, BookOpen, LayoutTemplate, Bug } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical, Smartphone, BookOpen, LayoutTemplate, Bug, Ticket } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -34,6 +34,8 @@ import { GoStatisticsView } from './go/GoStatisticsView';
 import { PlayersInstructionsView } from './go/PlayersInstructionsView';
 import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 import { HelpProvider, DocsShell, studioOpenPdf } from '../help';
+import { EventsSettingsView } from './admin/events/EventsSettingsView';
+import { EventsRevenueView } from './admin/events/EventsRevenueView';
 
 type MenuItem = { id: string; label: string; icon: typeof Home; route?: string };
 type NavGroup = { id: string; label: string; icon: typeof Home; items: MenuItem[]; storageKey: string };
@@ -81,6 +83,13 @@ const spotMenuItems: MenuItem[] = [
   { id: 'spot-statistics', label: 'Statistics', icon: TrendingUp },
 ];
 
+// Events / online ticketing (Claude plan "ok-i-need-a-moonlit-goose"). Per-licensee
+// switch + commission live on the licensee page; this group holds platform pages.
+const eventsMenuItems: MenuItem[] = [
+  { id: 'events-revenue', label: 'Revenue', icon: TrendingUp },
+  { id: 'events-settings', label: 'Settings', icon: Settings },
+];
+
 // Developer / operations tools, grouped under the collapsible "Dev" section.
 const devMenuItems: MenuItem[] = [
   { id: 'logs', label: 'API Logs', icon: FileText },
@@ -98,11 +107,12 @@ const devMenuItems: MenuItem[] = [
 const navGroups: NavGroup[] = [
   { id: 'go', label: 'GO', icon: Smartphone, items: goMenuItems, storageKey: 'studioGoNavOpen' },
   { id: 'spot', label: 'Spot', icon: Smartphone, items: spotMenuItems, storageKey: 'studioSpotNavOpen' },
+  { id: 'events', label: 'Events', icon: Ticket, items: eventsMenuItems, storageKey: 'studioEventsNavOpen' },
   { id: 'media', label: 'Media', icon: FolderOpen, items: mediaMenuItems, storageKey: 'studioMediaNavOpen' },
   { id: 'dev', label: 'Dev', icon: Terminal, items: devMenuItems, storageKey: 'studioDevNavOpen' },
 ];
 
-const allMenuItems: MenuItem[] = [...mainMenuItems, ...goMenuItems, ...spotMenuItems, ...mediaMenuItems, ...devMenuItems];
+const allMenuItems: MenuItem[] = [...mainMenuItems, ...goMenuItems, ...spotMenuItems, ...eventsMenuItems, ...mediaMenuItems, ...devMenuItems];
 
 // Tabs reached from inside another page rather than from the sidebar.
 const hiddenTabTitles: Record<string, string> = {
@@ -115,7 +125,10 @@ export function Dashboard() {
   // Allow callers to land on a specific tab via `navigate('/admin', { state: { tab } })`.
   const location = useLocation();
   const navigate = useNavigate();
-  const initialTab = (location.state as { tab?: string } | null)?.tab ?? 'home';
+  // ?tab=<id> also works (direct links / tests), route state wins.
+  const initialTab = (location.state as { tab?: string } | null)?.tab
+    ?? new URLSearchParams(location.search).get('tab')
+    ?? 'home';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     const state: Record<string, boolean> = {};
@@ -359,6 +372,9 @@ export function Dashboard() {
           )}
 
           {activeTab === 'settings' && <SettingsView />}
+
+          {activeTab === 'events-settings' && <EventsSettingsView />}
+          {activeTab === 'events-revenue' && <EventsRevenueView />}
 
           {activeTab === 'game-types' && <GameTypesView />}
 

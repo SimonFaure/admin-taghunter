@@ -17,8 +17,10 @@ Header always set Access-Control-Max-Age "3600"
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Deny access to config and database directories
-RewriteRule ^(config|database)/ - [F,L]
+# Deny access to config, database, Composer deps, cron scripts, private
+# storage (invoices) and tests. Composer manifests too.
+RewriteRule ^(config|database|vendor|cron|storage|tests)/ - [F,L]
+RewriteRule ^composer\.(json|lock)$ - [F,L]
 
 # Raise upload limits for large media POSTs (game-type tutorial videos,
 # scenario imports). This block ONLY applies on legacy mod_php hosts; on

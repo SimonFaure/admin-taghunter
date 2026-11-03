@@ -30,6 +30,7 @@ require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/PlaygroundAuth.php';
 require_once __DIR__ . '/../utils/DeviceManager.php';
 require_once __DIR__ . '/../utils/LicenseeCustomers.php';
+require_once __DIR__ . '/../utils/EventsCheckin.php';
 
 SecurityHeaders::setHeaders();
 setCorsHeaders();
@@ -273,6 +274,21 @@ function ingestGameSummaryWithCustomer(object $db, int $clientId, string $summar
     if ($changed) {
         LicenseeCustomers::bumpVersion($db, $clientId);
     }
+    return true;
+}
+
+// Event-day check-in from a device. payload: {client_uuid, booking_uuid,
+// ticket_ids: int[]|null, action: in|undo, occurred_at}. Idempotent on
+// client_uuid; for a ticket the action with the latest occurred_at wins.
+function ingestEventCheckin(object $db, int $clientId, ?int $deviceId, array $payload): bool {
+    if (!EventsCheckin::migrated($db)) return false;
+    $uuid = (string)($payload['client_uuid'] ?? '');
+    $bookingUuid = (string)($payload['booking_uuid'] ?? '');
+    if (!preg_match(EventsTokens::UUID_RE, $uuid) || !preg_match(EventsTokens::UUID_RE, $bookingUuid)) return false;
+    $b = $db->fetch('SELECT * FROM bookings WHERE uuid = ? AND client_id = ?', [$bookingUuid, $clientId]);
+    if (!$b || $b['status'] !== 'confirmed') return true; // cancelled since: nothing to do, ack
+    EventsCheckin::apply($db, $b, is_array($payload['ticket_ids'] ?? null) ? $payload['ticket_ids'] : null,
+        ($payload['action'] ?? 'in') === 'undo' ? 'undo' : 'in', 'playground', $payload['occurred_at'] ?? null, $uuid, null, $deviceId);
     return true;
 }
 
@@ -719,6 +735,16 @@ try {
                     // Deliberate licensee action, not a statistic: accepted
                     // even when stats_disabled.
                     $ok = ingestBugReport($db, $clientId, $authDeviceId, $uuid, $occurredAt, $payload);
+                    break;
+                case 'event_checkin':
+                    // Event-day arrival scanned on a (possibly offline) device:
+                    // not a statistic, accepted even when stats_disabled.
+                    $ok = ingestEventCheckin($db, $clientId, $authDeviceId, $payload);
+                    break;
+                case 'event_team_results':
+                    // Booked teams' results (results email): a buyer-facing
+                    // service, accepted even when stats_disabled.
+                    $ok = EventsCheckin::migrated($db) && EventsCheckin::ingestResults($db, $clientId, $payload) >= 0;
                     break;
                 case 'customer_upsert':
                     // A licensee customer quick-created on a device: not a

@@ -47,8 +47,23 @@ function requireAuth() {
     jsonResponse(['error' => 'Unauthorized'], 401);
 }
 
+// Every action in this file manages licensee accounts (identity, billing,
+// app flags, passwords), so it is admin-only. Licensees edit their own
+// profile through secure_auth.php, never here. Before this guard any licensee
+// token could list all licensees and flip their billing / app flags.
+function requireAdmin() {
+    $userId = requireAuth();
+    if (($_SESSION['user_type'] ?? '') !== 'admin') {
+        jsonResponse(['error' => 'Forbidden'], 403);
+    }
+    return $userId;
+}
+
 function formatClientData($client) {
     if (!$client) return $client;
+
+    // Never send the password hash to the browser.
+    unset($client['password_hash']);
 
     if (isset($client['billing_up_to_date'])) {
         $client['billing_up_to_date'] = (bool)$client['billing_up_to_date'];
@@ -126,7 +141,7 @@ try {
                 jsonResponse($response, 405);
             }
 
-            $userId = requireAuth();
+            $userId = requireAdmin();
 
             $clients = $db->fetchAll(
                 'SELECT * FROM clients ORDER BY created_at DESC'
@@ -146,7 +161,7 @@ try {
                 jsonResponse($response, 405);
             }
 
-            $userId = requireAuth();
+            $userId = requireAdmin();
 
             $id = $_GET['id'] ?? '';
             if (empty($id)) {
@@ -180,7 +195,7 @@ try {
                 jsonResponse($response, 405);
             }
 
-            $userId = requireAuth();
+            $userId = requireAdmin();
             $data = getRequestData();
 
             $requiredFields = ['email', 'name'];
@@ -263,7 +278,7 @@ try {
                 jsonResponse($response, 405);
             }
 
-            $userId = requireAuth();
+            $userId = requireAdmin();
             $data = getRequestData();
 
             $id = $data['id'] ?? '';
@@ -463,7 +478,7 @@ try {
                 jsonResponse($response, 405);
             }
 
-            $userId = requireAuth();
+            $userId = requireAdmin();
 
             $id = $_GET['id'] ?? '';
             if (empty($id)) {
@@ -500,7 +515,7 @@ try {
                 jsonResponse($response, 405);
             }
 
-            $userId = requireAuth();
+            $userId = requireAdmin();
 
             $clientId = $_POST['client_id'] ?? '';
             if (empty($clientId)) {
@@ -594,7 +609,7 @@ try {
                 jsonResponse($response, 405);
             }
 
-            $userId = requireAuth();
+            $userId = requireAdmin();
             $data = getRequestData();
 
             $clientId = $data['client_id'] ?? '';
@@ -648,23 +663,13 @@ try {
                 jsonResponse($response, 405);
             }
 
+            // Admin token required. This used to trust an `email` query
+            // parameter alone, so anyone who knew an admin address could read
+            // every licensee record. The parameter is still accepted (old
+            // callers send it) but is no longer used for authorisation.
+            $adminId = requireAdmin();
             $email = $_GET['email'] ?? '';
-            if (empty($email)) {
-                $response = ['error' => 'Email is required'];
-                Logger::log('clients', 'GET', 'creator_list', null, ['email' => ''], $response, 400, 'creator');
-                jsonResponse($response, 400);
-            }
-
-            $admin = $db->fetch(
-                'SELECT id, email FROM admin_users WHERE email = ?',
-                [$email]
-            );
-
-            if (!$admin) {
-                $response = ['error' => 'Admin user not found'];
-                Logger::log('clients', 'GET', 'creator_list', null, ['email' => $email], $response, 403, 'creator');
-                jsonResponse($response, 403);
-            }
+            $admin = ['id' => $adminId];
 
             $clients = $db->fetchAll(
                 'SELECT * FROM clients ORDER BY created_at DESC'

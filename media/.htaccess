@@ -1,6 +1,27 @@
-# Allow access to media files
+# Allow access to media files. Rewriting is only used to REFUSE files the
+# server could execute or render as a page (uploads are user content). Rules
+# in a child .htaccess do not inherit the parent's, so nothing else changes.
 <IfModule mod_rewrite.c>
-    RewriteEngine Off
+    RewriteEngine On
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule \.(php[0-9]?|phtml|pht|phps|phar|cgi|pl|py|sh|asp|aspx|jsp|shtml|html?|xhtml)(\.|$) - [F,NC,L]
+</IfModule>
+
+# Never hand uploaded PHP to the interpreter, even if one slips in.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+
+# SVG can carry scripts. Served from the studio origin it could read the
+# logged-in admin's token, so open it in a sandbox (images in <img> tags are
+# unaffected by this header).
+<IfModule mod_headers.c>
+    <FilesMatch "\.(svg|svgz|xml)$">
+        Header set Content-Security-Policy "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox"
+    </FilesMatch>
 </IfModule>
 
 # Enable CORS for media files

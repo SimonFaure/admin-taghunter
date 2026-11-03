@@ -1,0 +1,30 @@
+{
+  "title": "Puntuación Mystery",
+  "subtitle": "Sus puntos y penalizaciones por defecto para los juegos Mystery, por edad y por escenario.",
+  "intro": "Estos valores sustituyen los de los escenarios Mystery en sus playgrounds (en la próxima sincronización). Un campo vacío conserva el valor del escenario. Los puntos de respuesta correcta/incorrecta se aplican a todos los enigmas.",
+  "precedence": "Prioridad: valor del escenario abajo > valor de la edad > valor previsto en el escenario. La edad usada es la franja más joven del escenario.",
+  "loading": "Cargando…",
+  "loadFailed": "No se pudo cargar la puntuación.",
+  "saveFailed": "Error al guardar.",
+  "notMigrated": "Función aún no disponible en este servidor (migración pendiente).",
+  "byAgeTitle": "Por edad",
+  "byAgeHint": "Valores por defecto según la franja de edad del escenario.",
+  "byScenarioTitle": "Por escenario",
+  "byScenarioHint": "Sustituye el valor de la edad para un escenario concreto. El texto gris indica lo que se aplica si el campo queda vacío.",
+  "age": "Edad",
+  "scenario": "Escenario",
+  "ageApplied": "Edad aplicada: {{band}}",
+  "noAge": "Sin franja de edad",
+  "noScenarios": "Ningún escenario Mystery disponible.",
+  "search": "Buscar un escenario",
+  "placeholderScenario": "Escenario",
+  "negativeHint": "(introducir un valor negativo)",
+  "save": "Guardar",
+  "saved": "Guardado",
+  "fields": {
+    "good_answer_points": "Puntos respuesta correcta",
+    "wrong_answer_points": "Puntos respuesta incorrecta",
+    "malus_both_answers_biped": "Penalización si se marcan las dos respuestas",
+    "malus_no_answer": "Penalización si no hay respuesta"
+  }
+}

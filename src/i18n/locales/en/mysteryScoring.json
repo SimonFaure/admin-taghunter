@@ -1,0 +1,30 @@
+{
+  "title": "Mystery scoring",
+  "subtitle": "Your default points and penalties for Mystery games, by age and by scenario.",
+  "intro": "These values replace the Mystery scenarios' own values on your playgrounds (at the next sync). An empty field keeps the scenario's value. Right/wrong answer points apply to every enigma.",
+  "precedence": "Priority: scenario value below > age value > value set in the scenario. The age used is the scenario's youngest band.",
+  "loading": "Loading…",
+  "loadFailed": "Could not load the scoring.",
+  "saveFailed": "Saving failed.",
+  "notMigrated": "Not available on this server yet (migration pending).",
+  "byAgeTitle": "By age",
+  "byAgeHint": "Default values based on the scenario's age band.",
+  "byScenarioTitle": "By scenario",
+  "byScenarioHint": "Overrides the age value for one scenario. Greyed text shows what applies when the field is left empty.",
+  "age": "Age",
+  "scenario": "Scenario",
+  "ageApplied": "Age used: {{band}}",
+  "noAge": "No age band",
+  "noScenarios": "No Mystery scenario available.",
+  "search": "Search a scenario",
+  "placeholderScenario": "Scenario",
+  "negativeHint": "(enter a negative value)",
+  "save": "Save",
+  "saved": "Saved",
+  "fields": {
+    "good_answer_points": "Right answer points",
+    "wrong_answer_points": "Wrong answer points",
+    "malus_both_answers_biped": "Penalty when both answers are punched",
+    "malus_no_answer": "Penalty when no answer"
+  }
+}

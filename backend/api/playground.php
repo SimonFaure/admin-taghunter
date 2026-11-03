@@ -9,7 +9,10 @@ require_once __DIR__ . '/../utils/AudienceCompat.php';
 require_once __DIR__ . '/../utils/ScenarioHashes.php';
 require_once __DIR__ . '/../utils/GameTypes.php';
 require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+require_once __DIR__ . '/../utils/EventsSettings.php';
+require_once __DIR__ . '/../utils/EventsCheckin.php';
 require_once __DIR__ . '/../utils/LicenseeCustomers.php';
+require_once __DIR__ . '/../utils/MysteryScoring.php';
 
 SecurityHeaders::setHeaders();
 setCorsHeaders();
@@ -1169,12 +1172,27 @@ try {
             ? json_decode($clientRow['preferences'], true)
             : new stdClass();
 
+        // Licensee Mystery scoring defaults (add_client_mystery_scoring.sql). Key
+        // absent while the column is not migrated; the playground then keeps the
+        // scenarios' own values.
+        $mysteryScoring = MysteryScoring::load($db, $userId);
+
         // Licensee customers (add_licensee_customers.sql). The KEY's presence
         // tells the playground this studio supports customers - it hides the
         // feature (and never pushes customer events) when absent.
         $customersVersion = LicenseeCustomers::migrated()
             ? LicenseeCustomers::version($db, (int)$userId)
             : null;
+        // Events (phase 4): today's bookings feed. Key present only when Events is
+        // migrated AND enabled for this licensee; a device without it hides the feature.
+        $eventBookingsVersion = null;
+        try {
+            if (EventsCheckin::migrated($db) && EventsSettings::clientEnabled($db, (int)$userId)) {
+                $eventBookingsVersion = EventsCheckin::version($db, (int)$userId);
+            }
+        } catch (Throwable $e) {
+            $eventBookingsVersion = null;
+        }
 
         Logger::log('playground', $method, 'get_user_data_update', $userId, [], [
             'custom_scenarios_count' => count($customScenarios),
@@ -1203,11 +1221,13 @@ try {
             'recovery_codes_version' => $recoveryCodesVersion,
             'report_layouts_version' => $reportLayoutsVersion,
             'lan_networks_version' => $lanNetworksVersion,
-        ] + ($customersVersion !== null ? ['customers_version' => $customersVersion] : []) + [
+        ] + ($customersVersion !== null ? ['customers_version' => $customersVersion] : [])
+          + ($eventBookingsVersion !== null ? ['event_bookings_version' => $eventBookingsVersion] : []) + [
             'translations' => $translations,
             'game_types' => $gameTypes,
             'client_game_type_overrides' => $overrides,
             'client_preferences' => $clientPrefs,
+        ] + ($mysteryScoring !== null ? ['mystery_scoring' => MysteryScoring::forJson($mysteryScoring)] : []) + [
             // Snapshot time (ms). Devices pass manifests to each other over the
             // LAN when offline; this orders them so only a strictly newer cloud
             // snapshot can delete content on a peer.
@@ -1347,6 +1367,21 @@ try {
         header('Content-Disposition: attachment; filename="recovery_codes.json"');
         echo json_encode(['version' => $version, 'codes' => $codes]);
         exit;
+
+    case 'get_event_bookings':
+        // Events phase 4: confirmed bookings of sessions in [now - 12 h, now + 36 h]
+        // for every event of the licensee, cached by the device for an offline
+        // event day (check-in screen + "Load teams"). No email, phone or money.
+        if ($method !== 'GET') {
+            jsonResponse(['error' => 'Method not allowed'], 405);
+        }
+        $client = requirePlaygroundClient($db);
+        if (!EventsCheckin::migrated($db) || !EventsSettings::clientEnabled($db, (int)$client['id'])) {
+            jsonResponse(['error' => 'Events not available'], 404);
+        }
+        $db->query("SET time_zone = '+00:00'");
+        jsonResponse(EventsCheckin::feed($db, (int)$client['id']));
+        break;
 
     case 'get_customers':
         // Licensee customers cache for the device (pickers + "already played"

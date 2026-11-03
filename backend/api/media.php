@@ -50,6 +50,24 @@ function validateMediaPath(string $path): string {
     if (!preg_match('#^[A-Za-z0-9._/\-]+$#', $path)) {
         jsonResponse(['error' => 'Invalid characters in path'], 400);
     }
+    // No hidden files (.htaccess, .user.ini, ...): they would reconfigure the
+    // web server for the whole folder.
+    if (preg_match('#(^|/)\.#', $path)) {
+        jsonResponse(['error' => 'Invalid path (hidden file)'], 400);
+    }
+    // Never accept anything the server could execute or render as a page on
+    // the studio origin. Checked on every dot-part so "x.php.jpg" is refused
+    // too. media/.htaccess refuses to serve the same list (defence in depth).
+    $parts = explode('.', strtolower(basename($path)));
+    array_shift($parts);
+    $blocked = ['php', 'php3', 'php4', 'php5', 'php7', 'php8', 'phtml', 'pht', 'phps', 'phar',
+                'cgi', 'pl', 'py', 'sh', 'asp', 'aspx', 'jsp', 'shtml', 'html', 'htm', 'xhtml',
+                'htaccess', 'htpasswd', 'ini', 'exe', 'bat', 'cmd'];
+    foreach ($parts as $ext) {
+        if (in_array($ext, $blocked, true)) {
+            jsonResponse(['error' => 'File type not allowed'], 400);
+        }
+    }
     return $path;
 }
 

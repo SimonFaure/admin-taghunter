@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShieldCheck, Check, Loader2 } from 'lucide-react';
 import { authService } from '../services/authService';
+import { authFetch } from '../../lib/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -53,7 +54,7 @@ export function AdminConfigPage() {
     }
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/clients.php?action=creator_list&email=${encodeURIComponent(email)}`
       );
       const body = await response.json();

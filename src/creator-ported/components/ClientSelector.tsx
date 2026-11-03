@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mail, ChevronDown, User, X } from 'lucide-react';
 import { authService } from '../services/authService';
+import { authFetch } from '../../lib/authFetch';
 
 interface Client {
   id: string;
@@ -54,7 +55,7 @@ export function ClientSelector({ value, onChange, label = 'Licensee Email', plac
 
     try {
       setLoading(true);
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/clients.php?action=creator_list&email=${encodeURIComponent(email)}`
       );
       if (response.ok) {

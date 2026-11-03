@@ -35,3 +35,10 @@ dist.tar.gz
 src/help/_generated/
 public/help-assets/
 public/studio-help.pdf
+
+# Events / payments (backend Composer deps + secrets, never committed).
+backend/vendor/
+backend/config/payments.php
+# Prod-only web token for apply_all_migrations.php (CLI over SSH needs none).
+backend/config/migrate_token.php
+backend/storage/

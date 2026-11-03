@@ -13,6 +13,8 @@ export interface AppAccess {
   playground: boolean;
   go: boolean;
   spot: boolean;
+  // Events / online ticketing (Payments, and Events from phase 2). Opt-in, default OFF.
+  events: boolean;
   // The scenarios page renders in GO-only mode (only GO scenarios + trimmed
   // controls) when the client has GO/Spot but NOT Playground. This replaces the
   // old standalone `go_client_only` flag.
@@ -26,5 +28,6 @@ export function getAppAccess(user: AuthUser | null | undefined): AppAccess {
   const playground = user?.playground_enabled !== false;
   const go = !!user?.go_enabled;
   const spot = !!user?.spot_enabled;
-  return { playground, go, spot, scenariosGoOnly: !playground && (go || spot) };
+  const events = !!user?.events_enabled;
+  return { playground, go, spot, events, scenariosGoOnly: !playground && (go || spot) };
 }

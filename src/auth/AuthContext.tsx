@@ -29,6 +29,8 @@ export interface AuthUser {
   playground_enabled?: boolean;
   go_enabled?: boolean;
   spot_enabled?: boolean;
+  // Events / online ticketing (admin switch, backend EventsSettings::clientEnabled).
+  events_enabled?: boolean;
   language?: string;
   created_at?: string;
   avatar_url?: string;
@@ -80,6 +82,7 @@ function buildUserFromPayload(payload: any, fallbackToken: string): AuthUser {
     playground_enabled: payload.playground_enabled === undefined ? true : !!payload.playground_enabled,
     go_enabled: !!payload.go_enabled,
     spot_enabled: !!payload.spot_enabled,
+    events_enabled: !!payload.events_enabled,
     language: payload.language,
     created_at: payload.created_at,
     avatar_url: payload.avatar_url,

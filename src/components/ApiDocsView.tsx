@@ -1378,6 +1378,25 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
         color="bg-blue-500"
         title="Deploying the studio web app"
       >
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-emerald-900 mb-2 flex items-center gap-2 text-sm">
+            <Server className="w-4 h-4" />
+            Scripted deploy (SSH to SiteGround)
+          </h4>
+          <p className="text-sm text-emerald-800 mb-3">
+            <Mono>scripts/deploy.mjs</Mono> typechecks, builds, compares every file with the live server
+            (md5 over SSH) and uploads only what changed. New <Mono>.sql</Mono> migrations are uploaded
+            and run <strong>before</strong> the PHP that needs them. It never touches the paths in the
+            red box below, and never deletes server files. Host, web root and the never-touch list live
+            in <Mono>scripts/deploy.config.json</Mono>; the SSH key is set up once in SiteGround → SSH
+            Keys Manager.
+          </p>
+          <CodeBlock>{`npm run deploy                      # dry run: lists new/changed files + migrations
+npm run deploy -- --apply           # deploy
+npm run deploy -- --apply --paths backend/api/clients.php   # just some files`}</CodeBlock>
+          <p className="text-sm text-emerald-800 mt-3">The manual steps below still work if SSH is unavailable.</p>
+        </div>
+
         <div className="space-y-4 mb-4">
           <Step n={1}>
             <p>
@@ -1452,14 +1471,18 @@ function DeploymentGuide({ onNavigate }: { onNavigate?: (tab: string) => void })
           <p className="text-sm text-blue-800 mb-3">
             <Mono>backend/apply_all_migrations.php</Mono> loops over every migration in order
             (base schema first) and runs each statement error-tolerantly - reported errors are almost
-            always harmless &ldquo;already applied&rdquo; messages. Set the <Mono>$REQUIRED_TOKEN</Mono>{' '}
-            in the file, upload it, then hit it once and delete it afterwards.
+            always harmless &ldquo;already applied&rdquo; messages. Run it from the server shell (the
+            deploy script does this). The browser route only works when the server has a{' '}
+            <Mono>backend/config/migrate_token.php</Mono> (prod-only, never in git) returning a long
+            secret.
           </p>
-          <CodeBlock>{`# safe, idempotent migrations only
-https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
+          <CodeBlock>{`# over SSH, from the web root
+php backend/apply_all_migrations.php                       # every migration (idempotent)
+php backend/apply_all_migrations.php --only=a.sql,b.sql    # just these files
 
-# &drops=1  also runs the destructive scenarios column drops (verify empty first)
-# &seeds=1  also runs the idempotent team-name + recovery-code seeds`}</CodeBlock>
+# --drops  also runs the destructive scenarios column drops (verify empty first)
+# --seeds  also runs the idempotent team-name + recovery-code seeds
+# browser fallback: /backend/apply_all_migrations.php?token=SECRET[&only=a.sql]`}</CodeBlock>
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside mt-3">
             <li>
               <strong>Destructive drops are opt-in.</strong> The two scenarios-refactor column drops
@@ -1474,8 +1497,8 @@ https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
               <Mono>ensureTables()</Mono> call, so they need no manual migration.
             </li>
             <li>
-              <strong>Back up first</strong> (phpMyAdmin → Export), and{' '}
-              <strong>delete the runner</strong> after - it executes arbitrary migrations.
+              <strong>Back up first</strong> (phpMyAdmin → Export) before a big batch. The runner also
+              snapshots <Mono>client_cards</Mono> and restores any card a migration removes.
             </li>
           </ul>
         </div>
@@ -1502,7 +1525,9 @@ https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
             </li>
           </ul>
           <p className="text-sm text-red-800 mt-2">
-            Configure your SFTP client to skip these paths, or upload only the specific files you
+            The deploy script skips these (plus <Mono>backend/storage/</Mono>,{' '}
+            <Mono>backend/config/payments.php</Mono> and the one-shot <Mono>backend/apply_*.php</Mono>{' '}
+            scripts). By hand: configure your SFTP client to skip them, or upload only the files you
             changed.
           </p>
           <p className="text-sm text-red-800 mt-2">
@@ -1520,6 +1545,24 @@ https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
         color="bg-emerald-500"
         title="Releasing a new playground desktop version"
       >
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-emerald-900 mb-2 flex items-center gap-2 text-sm">
+            <UploadCloud className="w-4 h-4" />
+            Scripted release (does steps 1-3)
+          </h4>
+          <p className="text-sm text-emerald-800 mb-3">
+            From <Mono>taghunter_playground/</Mono>: bumps the version past both{' '}
+            <Mono>tauri.conf.json</Mono> and the newest release on Studio, builds and signs, uploads
+            the installer + <Mono>.sig</Mono> with the git branch, marks it latest, then checks what
+            devices on that channel are offered. It keeps the channel's current floor unless you pass{' '}
+            <Mono>--floor</Mono>. It needs a 30-day admin token, saved outside the repo.
+          </p>
+          <CodeBlock>{`npm run studio:login -- --email you@example.com   # then: --code 123456
+npm run release -- --channel test --devtools       # QA build (simulator, devtools)
+npm run release -- --channel test --plain
+npm run release -- --channel stable --plain --notes "…"
+# --dry-run  --no-upload  --skip-build  --bump minor|none  --floor x.y.z`}</CodeBlock>
+        </div>
         <div className="space-y-4">
           <Step n={1}>
             <p>

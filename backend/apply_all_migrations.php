@@ -23,44 +23,50 @@
 //   ?drops=1, because DROP COLUMN is irreversible. Run them only once you've
 //   confirmed those columns are empty in prod (the refactor verified empty on dev).
 //
-// USAGE (browser, after fixing backend/config/database.php prod credentials):
-//   https://YOUR-STUDIO-DOMAIN/backend/apply_all_migrations.php?token=YOUR_SECRET
-// https://studio.taghunter.fr/backend/apply_all_migrations.php?token=d2ef2a1198bde98b96746ef32e4ff5659e58b396a872cb2f&seeds=1
+// USAGE (CLI on the server - the normal way, used by scripts/deploy.mjs over SSH):
+//   php backend/apply_all_migrations.php [--only=a.sql,b.sql] [--drops] [--seeds] [--backfills]
+//   Shell access is the auth here, so the CLI needs no token.
+//
+// USAGE (browser - fallback only when SSH is unavailable):
+//   Create backend/config/migrate_token.php ON THE SERVER ONLY (gitignored, never
+//   deployed): <?php return 'a-long-random-secret';
+//   then open /backend/apply_all_migrations.php?token=THAT_SECRET[&only=a.sql,b.sql]
+//   Without that file the web route is refused.
 //   add &drops=1     to also run the destructive scenarios column drops
 //   add &seeds=1     to also run the idempotent PHP seeds (team names + recovery codes)
 //   add &backfills=1 to also run the idempotent PHP data backfills (scenario
 //                    hashes + audience/difficulty/univers) - run AFTER the SQL
-//
-// USAGE (CLI on the server):
-//   php backend/apply_all_migrations.php --token=YOUR_SECRET [--drops] [--seeds] [--backfills]
-//
-// DELETE THIS FILE after the deploy - it executes arbitrary migrations.
+//   add &only=a.sql,b.sql to run just those migration files (in the usual order)
 
 header('Content-Type: text/plain; charset=utf-8');
 
-// --- crude auth so this can't be hit anonymously on prod -------------------
-$REQUIRED_TOKEN = 'd2ef2a1198bde98b96746ef32e4ff5659e58b396a872cb2f';
-
+// --- auth: CLI = shell access; web = prod-only token file ---------------------
 $isCli   = (php_sapi_name() === 'cli');
-$token   = $isCli ? null : ($_GET['token']   ?? '');
 $runDrops = $isCli ? false : isset($_GET['drops']);
 $runSeeds = $isCli ? false : isset($_GET['seeds']);
 $runBackfills = $isCli ? false : isset($_GET['backfills']);
+$onlyArg = $isCli ? '' : (string)($_GET['only'] ?? '');
 
 if ($isCli) {
     foreach ($argv as $arg) {
-        if (strpos($arg, '--token=') === 0) $token = substr($arg, 8);
         if ($arg === '--drops') $runDrops = true;
         if ($arg === '--seeds') $runSeeds = true;
         if ($arg === '--backfills') $runBackfills = true;
+        if (strpos($arg, '--only=') === 0) $onlyArg = substr($arg, 7);
+    }
+} else {
+    $tokenFile = __DIR__ . '/config/migrate_token.php';
+    $required = is_file($tokenFile) ? (string)(include $tokenFile) : '';
+    $given = (string)($_GET['token'] ?? '');
+    if (strlen($required) < 24 || !hash_equals($required, $given)) {
+        http_response_code(403);
+        echo "Forbidden. Run this from the server CLI, or see the header comment for the web fallback.\n";
+        exit;
     }
 }
 
-if ($token !== $REQUIRED_TOKEN || $REQUIRED_TOKEN === 'CHANGE_ME_BEFORE_DEPLOY') {
-    http_response_code(403);
-    echo "Forbidden. Edit \$REQUIRED_TOKEN in this file and pass ?token=... (and remove the placeholder).\n";
-    exit;
-}
+// --only: a comma-separated list of migration basenames to run (others skipped).
+$only = array_values(array_filter(array_map(fn($f) => basename(trim($f)), explode(',', $onlyArg))));
 
 require_once __DIR__ . '/database/Database.php';
 
@@ -126,7 +132,17 @@ $ordered = array_merge(
     ['migration.sql'],
     array_values(array_filter($all, fn($f) => $f !== 'migration.sql' && !in_array($f, $drops, true)))
 );
-if ($runDrops) {
+if ($only) {
+    $known = array_merge($ordered, $drops);
+    $unknown = array_diff($only, $known);
+    if ($unknown) {
+        echo "ABORT: unknown migration file(s): " . implode(', ', $unknown) . "\n";
+        exit(1);
+    }
+    // Keep the usual order (migration.sql first, then alphabetical, drops last).
+    $ordered = array_values(array_filter($known, fn($f) => in_array($f, $only, true)));
+    echo "Running only: " . implode(', ', $ordered) . "\n\n";
+} elseif ($runDrops) {
     $ordered = array_merge($ordered, $drops);
 } else {
     echo "NOTE: skipping destructive column drops (" . implode(', ', $drops) . "). Pass drops=1 to run them.\n\n";
@@ -280,4 +296,4 @@ if ($runBackfills) {
     echo "\nNOTE: skipping PHP data backfills (scenario hashes + audience/difficulty). Pass backfills=1 to run them (they are idempotent).\n";
 }
 
-echo "\nALL DONE. Delete this file from the server now.\n";
+echo "\nALL DONE.\n";

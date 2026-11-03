@@ -1,0 +1,31 @@
+{
+  "sshHost": "ssh.taghunter.fr",
+  "remoteRoot": "www/studio.taghunter.fr/public_html",
+  "siteUrl": "https://studio.taghunter.fr",
+  "smokeUrls": [
+    "/",
+    "/backend/api/playground_update.php?action=list"
+  ],
+  "neverTouch": [
+    ".htaccess",
+    ".env",
+    "media/",
+    "cards/",
+    "backend/releases/",
+    "backend/storage/",
+    "backend/logs/",
+    "backend/tests/",
+    "backend/config/database.php",
+    "backend/config/payments.php",
+    "backend/config/migrate_token.php",
+    "backend/apply_*.php",
+    "backend/create_admin.php",
+    "backend/fix_pattern_trigger.php",
+    "backend/migrate_csv_to_cards.php",
+    "backend/quick_check.php",
+    "*.log"
+  ],
+  "alwaysAllow": [
+    "backend/apply_all_migrations.php"
+  ]
+}
