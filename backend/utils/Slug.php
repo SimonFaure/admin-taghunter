@@ -8,7 +8,7 @@ class Slug {
     const RESERVED = [
         'o', 'booking', 'bookings', 't', 'c', 'checkin', 'legal', 'api', 'assets', 'static', 'media',
         'admin', 'studio', 'events', 'event', 'search', 'login', 'help', 'about', 'contact',
-        'sitemap', 'sitemap.xml', 'robots.txt', 'favicon.ico', 'taghunter', 'www',
+        'sitemap', 'sitemap.xml', 'robots.txt', 'favicon.ico', 'taghunter', 'www', 'brand',
     ];
 
     /** Lowercase ASCII, words joined by "-", max $max chars. "Zombie Quest 2026!" -> "zombie-quest-2026". */
