@@ -26,6 +26,10 @@
     "*.log"
   ],
   "alwaysAllow": [
-    "backend/apply_all_migrations.php"
+    "backend/apply_all_migrations.php",
+    "media/.htaccess"
+  ],
+  "extraFiles": [
+    "media/.htaccess"
   ]
 }

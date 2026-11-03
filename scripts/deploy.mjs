@@ -114,6 +114,11 @@ if (!existsSync(join(distDir, 'index.html'))) fail('dist/index.html missing - ru
 const local = new Map();
 walk(distDir, '', local); // dist/ is served from the web root
 walk(join(root, 'backend'), 'backend', local);
+// Single files inside never-touch dirs that ARE code (e.g. media/.htaccess).
+for (const rel of cfg.extraFiles ?? []) {
+  const abs = join(root, rel);
+  if (existsSync(abs)) local.set(rel, { abs, md5: md5(abs) });
+}
 
 const distTopDirs = readdirSync(distDir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
 const scanDirs = ['backend', ...distTopDirs];
@@ -121,7 +126,8 @@ const prunes = cfg.neverTouch.filter((p) => p.endsWith('/') && !includes.include
 const findCmd =
   `cd ${shq(REMOTE_ROOT)} && ` +
   `{ find ${scanDirs.map(shq).join(' ')} \\( ${prunes.join(' -o ')} \\) -prune -o -type f -print0 2>/dev/null | xargs -0 -r md5sum; ` +
-  `find . -maxdepth 1 -type f -print0 | xargs -0 -r md5sum; }`;
+  `find . -maxdepth 1 -type f -print0 | xargs -0 -r md5sum; ` +
+  `${(cfg.extraFiles ?? []).map((f) => `md5sum ${shq(f)} 2>/dev/null; `).join('')}}`;
 console.log('Comparing with the live server…');
 const scan = ssh(findCmd);
 if (scan.status !== 0 && !scan.stdout) fail(`Remote scan failed: ${scan.stderr}`);
