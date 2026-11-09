@@ -28,7 +28,8 @@ const isGroup = (e: NavEntry): e is NavGroup => 'group' in e;
 // Each entry declares which Client Apps surface it (project_client_app_section).
 // `show(access)` returns true when at least one enabling app is on. Home / Account
 // / Help are universal chrome (always shown). The Playground-management surfaces
-// (patterns, cards, team names, devices, downloads, tutorial videos) are grouped
+// (patterns, cards, team names, devices, downloads, game types, Mystery scoring,
+// tutorial videos) are grouped
 // under one collapsible "Playground" section. Leaderboards (GO + Spot) are merged
 // into one "Rankings" entry; GO/Spot usage stats are merged into the Statistics
 // page. Scenarios shows for either group; its content mode is handled inside
@@ -54,13 +55,13 @@ const NAV_ITEMS: NavEntry[] = [
       { to: '/my/devices', labelKey: 'nav.devices', icon: Smartphone, end: false, show: (a) => a.playground },
       { to: '/my/releases', labelKey: 'nav.releases', icon: Rocket, end: false, show: (a) => a.playground },
       { to: '/my/game-types', labelKey: 'nav.gameTypes', icon: Video, end: false, show: (a) => a.playground },
+      // Mystery scoring defaults (by age + per scenario), applied by the playground.
+      { to: '/my/mystery-scoring', labelKey: 'nav.mysteryScoring', icon: Calculator, end: false, show: (a) => a.playground },
       // Download-only surface for the Tag Hunter default tutorial videos (mp4 + .vtt).
       { to: '/my/tutorial-downloads', labelKey: 'nav.tutorialDownloads', icon: FileVideo, end: false, show: (a) => a.playground },
     ],
   },
   { to: '/my/report-layouts', labelKey: 'nav.reportLayouts', icon: Printer, end: false, show: (a) => a.playground },
-  // Mystery scoring defaults (by age + per scenario), applied by the playground.
-  { to: '/my/mystery-scoring', labelKey: 'nav.mysteryScoring', icon: Calculator, end: false, show: (a) => a.playground },
   // Merged: Playground game stats + GO/Spot usage sections in one page.
   { to: '/my/statistics', labelKey: 'nav.statistics', icon: BarChart3, end: false, show: (a) => a.playground || a.go || a.spot },
   // The licensee's own customers + their game history (project_licensee_customers).

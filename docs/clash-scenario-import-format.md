@@ -177,6 +177,7 @@ available: `%CLAN%` (shown in the clan's colour) and `%TERRITORY%`.
 | `purge_text_own_territory` | The target is the clan's own territory | |
 | `purge_text_no_target` | There is no purge target right now | |
 | `ranking_title` | Heading of the ranking panel | `"Classement"` |
+| `join_text` | Registration screen, when a chip joins a clan (`%CLAN%` = clan name) | `"Vous êtes entré chez %CLAN%"` |
 
 ### 3.7 Look and layout (optional, normally adjusted in the editor)
 

@@ -1,6 +1,6 @@
 {
   "title": "Mes clients",
-  "subtitle": "Les structures pour lesquelles vous organisez des parties. Associez une partie à un client dans le Playground (au lancement ou après) pour construire son historique.",
+  "subtitle": "Les structures pour lesquelles vous organisez des parties. Associez une partie à un client dans le Playground (au lancement ou après), ou ajoutez à la main ses parties passées, pour construire son historique.",
   "fields": {
     "name": "Nom",
     "type": "Type",
@@ -64,7 +64,12 @@
     "notPlayedTitle": "Pas encore joués",
     "notPlayedHint": "Vos scénarios que ce client n'a jamais joués : des idées pour sa prochaine venue.",
     "notPlayedEmpty": "Ce client a joué tous vos scénarios.",
-    "notFound": "Ce client n'existe pas (ou plus)."
+    "notFound": "Ce client n'existe pas (ou plus).",
+    "historyEmptyManual": "Aucune partie pour ce client pour l'instant. Ajoutez ses parties passées à la main, ou associez-lui des parties jouées avec le Playground.",
+    "addEntry": "Ajouter une partie",
+    "manualBadge": "Saisie manuelle",
+    "manualHint": "Partie ajoutée à la main dans le Studio",
+    "deleteEntryConfirm": "Retirer cette partie de l'historique du client ?"
   },
   "merge": {
     "title": "Fusionner « {{name}} »",
@@ -86,6 +91,25 @@
     "attachSelected_one": "Associer {{count}} partie",
     "attachSelected_other": "Associer {{count}} parties",
     "loadMore": "Voir plus"
+  },
+  "entry": {
+    "createTitle": "Ajouter une partie à « {{name}} »",
+    "editTitle": "Modifier la partie",
+    "intro": "Pour une partie jouée sans le Playground ou avant Taghunter. Elle compte dans l'historique du client et dans l'alerte « Déjà joué » du Playground, mais pas dans vos statistiques.",
+    "date": "Date",
+    "teams": "Équipes",
+    "players": "Joueurs",
+    "scenario": "Scénario",
+    "scenarioPlaceholder": "Choisir un scénario…",
+    "otherGame": "Autre jeu (hors catalogue)",
+    "title": "Nom du jeu",
+    "gameType": "Type de jeu",
+    "gameTypeNone": "Non précisé",
+    "notes": "Notes",
+    "notesPlaceholder": "Lieu, occasion, remarques…",
+    "dateRequired": "Indiquez une date valide.",
+    "dateFuture": "La date ne peut pas être dans le futur.",
+    "gameRequired": "Choisissez un scénario, ou donnez un nom au jeu."
   },
   "import": {
     "title": "Importer des clients",

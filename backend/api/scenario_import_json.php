@@ -52,7 +52,7 @@ const SJ_CLASH_FLAT_IMAGES = ['game_visual', 'game_visual_intl', 'map_image', 'f
 const SJ_CLASH_FLAT_SOUNDS = ['purge_sound'];
 const SJ_CLASH_LOCALIZED = ['title', 'description', 'story', 'event_text_conquest', 'event_text_attack',
                             'event_text_neutralized', 'event_text_purge', 'purge_text_already_used',
-                            'purge_text_own_territory', 'purge_text_no_target', 'ranking_title'];
+                            'purge_text_own_territory', 'purge_text_no_target', 'ranking_title', 'join_text'];
 const SJ_CLASH_COLORS = ['timer_color', 'ranking_color', 'territory_name_color', 'event_color', 'font_color', 'level_font_color'];
 const SJ_CLASH_NUMBERS = ['banner_size_percentage', 'purge_size_percentage', 'gauge_size_percentage',
                           'territory_name_scale', 'timer_scale'];
@@ -251,7 +251,7 @@ function sj_build_clash(array $in, $dl, $ctx, PDO $pdo, array &$warnings) {
         'auto_reset' => false, 'delay_auto_reset' => '0', 'custom_fonts' => [],
         'event_text_conquest' => [], 'event_text_attack' => [], 'event_text_neutralized' => [], 'event_text_purge' => [],
         'purge_text_already_used' => [], 'purge_text_own_territory' => [], 'purge_text_no_target' => [],
-        'ranking_title' => [],
+        'ranking_title' => [], 'join_text' => [],
         'message_display_time' => '2', 'animation_display_time' => '1',
     ];
 

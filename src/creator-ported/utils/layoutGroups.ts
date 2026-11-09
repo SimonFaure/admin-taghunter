@@ -151,6 +151,28 @@ export const TRACKS_HUD_MOCK: Record<string, TracksHudMock> = {
 /** Label font size as a fraction of the value font size (runtime: .18/.45). */
 export const TRACKS_HUD_LABEL_RATIO = 0.4;
 
+/** Value size when a frame's caption is hidden - same as a caption-less frame. */
+export const TRACKS_HUD_NO_LABEL_SCALE = 55;
+
+/**
+ * Plate drawn when a HUD frame has no image: colour + opacity (0-100). Authors
+ * can override both per frame (`frameColor` / `frameOpacity`). MUST stay in
+ * sync with `HUD_PLATE_DEFAULT` in the playground's TracksGameRenderer.
+ */
+export const TRACKS_HUD_PLATE_DEFAULT = { color: '#000000', opacity: 45 } as const;
+
+/** `#rgb` / `#rrggbb` + opacity (0-100) → rgba(); bad input → the default plate. */
+export function tracksHudPlateColor(color: string | undefined, opacity: number | undefined): string {
+  const op = typeof opacity === 'number' && isFinite(opacity)
+    ? Math.max(0, Math.min(100, opacity))
+    : TRACKS_HUD_PLATE_DEFAULT.opacity;
+  let hex = (color || TRACKS_HUD_PLATE_DEFAULT.color).trim().replace(/^#/, '');
+  if (/^[0-9a-f]{3}$/i.test(hex)) hex = hex.split('').map((c) => c + c).join('');
+  if (!/^[0-9a-f]{6}$/i.test(hex)) hex = '000000';
+  const n = parseInt(hex, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${op / 100})`;
+}
+
 /**
  * Tracks groups: Checkpoints + HUD frames, then one group per text-element
  * category (in author-defined order from `gm.text_categories[]`) + an

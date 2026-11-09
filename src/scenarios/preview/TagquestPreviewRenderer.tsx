@@ -52,7 +52,8 @@ import { readMinFontSize, TeamNameFit } from './teamNameFit';
 
 type Localized = Record<string, string>;
 
-const DEFAULT_TEMPLATE_URL = '/default_templates/tagquest_template.png';
+// Bump `?v=` whenever the PNG is replaced so browsers drop the cached copy.
+const DEFAULT_TEMPLATE_URL = '/default_templates/tagquest_template.png?v=2';
 
 /**
  * Background-position for each of the four quest pieces, in the grid order
@@ -142,12 +143,31 @@ export interface TagquestPreviewRendererProps {
 const MALUS_ART_HALO =
   'drop-shadow(0 0 3px rgba(255,255,255,0.95)) drop-shadow(0 0 10px rgba(248,113,113,0.9))';
 
+/** Strip quest names + the active quest name: shrink-to-fit, never clipped. */
+function isQuestNameElement(id: string): boolean {
+  return id === 'animation_quest_name' || /^quest_\d+_name$/.test(id);
+}
+
+/** Small side margin so a fitted name never touches the plaque's frame. */
+const QUEST_NAME_FIT_BOX: React.CSSProperties = {
+  width: '100%',
+  height: '100%',
+  padding: '0 4%',
+  boxSizing: 'border-box',
+};
+
 function parseInt0(v: unknown): number {
   if (v == null) return 0;
   if (typeof v === 'number') return v;
   if (typeof v === 'string') return parseInt(v, 10) || 0;
   return 0;
 }
+
+/**
+ * Stand-in size (% of the stage) for a keyword side ('auto' width on the malus
+ * icons) in the position-edit overlay when there is no artwork to measure.
+ */
+const EDIT_BOX_KEYWORD_PCT = 4;
 
 function resolvePreviewFilename(
   filename: string | undefined,
@@ -212,6 +232,15 @@ export function TagquestPreviewRenderer({
   // Hover highlights the whole ROLE, not the single element under the cursor -
   // the author must see that touching "combo data" moves six numbers at once.
   const [hoveredCategory, setHoveredCategory] = useState<TagquestTextCategoryId | null>(null);
+  // Natural width/height ratio of each image drawn with an 'auto' side (the
+  // malus icons), so the edit box can wrap the artwork itself instead of a
+  // fixed stand-in square.
+  const [autoAspect, setAutoAspect] = useState<Record<string, number>>({});
+  const noteAutoAspect = useCallback((id: string, img: HTMLImageElement | null) => {
+    if (!img || !img.complete || !img.naturalWidth || !img.naturalHeight) return;
+    const ratio = img.naturalWidth / img.naturalHeight;
+    setAutoAspect((prev) => (prev[id] === ratio ? prev : { ...prev, [id]: ratio }));
+  }, []);
 
   // Scenario-wide font (Typography section). Overrides every layout element's
   // own fontFamily so the preview matches the in-game playground behaviour.
@@ -387,15 +416,40 @@ export function TagquestPreviewRenderer({
     startY: number;
     baseX: number;
     baseY: number;
-    baseW: number | null;
-    baseH: number | null;
+    baseW: number;
+    baseH: number;
   } | null>(null);
+
+  /**
+   * Size (% of the stage) of an element's edit box. A numeric side is used as
+   * is. An 'auto' side next to a numeric one is derived from the artwork's own
+   * ratio once it has loaded, so the box wraps the icon exactly as drawn; with
+   * no artwork it falls back to a stand-in square.
+   */
+  const editBoxPct = useCallback(
+    (el: LayoutElementInput): { w: number; h: number } => {
+      const ratio = autoAspect[el.id];
+      const canDerive = !!ratio && stage.width > 0 && stage.height > 0;
+      let w = typeof el.width === 'number' ? el.width : EDIT_BOX_KEYWORD_PCT;
+      let h = typeof el.height === 'number' ? el.height : EDIT_BOX_KEYWORD_PCT;
+      if (canDerive && typeof el.width !== 'number' && typeof el.height === 'number') {
+        w = ((el.height / 100) * stage.height * ratio) / stage.width * 100;
+      } else if (canDerive && typeof el.height !== 'number' && typeof el.width === 'number') {
+        h = ((el.width / 100) * stage.width / ratio) / stage.height * 100;
+      }
+      return { w, h };
+    },
+    [autoAspect, stage.width, stage.height],
+  );
 
   const beginDrag = useCallback(
     (e: React.MouseEvent, el: LayoutElementInput, mode: 'move' | 'resize') => {
       e.preventDefault();
       e.stopPropagation();
       onSelectElement?.(el.id);
+      // A keyword side ('auto' on the malus icons) starts from the size its
+      // edit box is drawn at, so the drag grows from what is on screen.
+      const box = editBoxPct(el);
       dragRef.current = {
         id: el.id,
         mode,
@@ -403,11 +457,11 @@ export function TagquestPreviewRenderer({
         startY: e.clientY,
         baseX: el.x,
         baseY: el.y,
-        baseW: typeof el.width === 'number' ? el.width : null,
-        baseH: typeof el.height === 'number' ? el.height : null,
+        baseW: box.w,
+        baseH: box.h,
       };
     },
-    [onSelectElement],
+    [onSelectElement, editBoxPct],
   );
 
   /**
@@ -454,10 +508,9 @@ export function TagquestPreviewRenderer({
         onElementGeometry?.(d.id, { x: round2(d.baseX + dx), y: round2(d.baseY + dy) });
         return;
       }
-      // Resizing an element authored with a CSS keyword ('auto' on the malus
-      // icons) would silently freeze its aspect ratio into a number, so the
-      // handle is not offered for those and this guard matches it.
-      if (d.baseW == null || d.baseH == null) return;
+      // Resizing an 'auto' side (the malus icons) turns it into a fixed box.
+      // The artwork still keeps its proportions inside it (`contain`, here and
+      // in the playground), so this sizes the icon without ever stretching it.
       onElementGeometry?.(d.id, {
         width: round2(Math.max(0.5, d.baseW + dx)),
         height: round2(Math.max(0.5, d.baseH + dy)),
@@ -690,15 +743,23 @@ export function TagquestPreviewRenderer({
                 return (
                   <img
                     key={`${el.id}-${idx}`}
+                    ref={(img) => noteAutoAspect(el.id, img)}
+                    onLoad={(e) => noteAutoAspect(el.id, e.currentTarget)}
                     src={src}
                     alt={el.name}
                     style={{ ...styleBase, display: visible ? 'block' : 'none', objectFit: 'contain' }}
                   />
                 );
               }
+              // A fixed box: the artwork keeps its proportions and sits in the
+              // MIDDLE of the box on both axes (same as the playground).
               return (
                 <div key={`${el.id}-${idx}`} style={{ ...styleBase, display: visible ? 'block' : 'none' }}>
-                  <img src={src} alt={el.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  <img
+                    src={src}
+                    alt={el.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center' }}
+                  />
                 </div>
               );
             }
@@ -773,6 +834,12 @@ export function TagquestPreviewRenderer({
                     maxPx={fontSizePx}
                     minPx={readMinFontSize(styled.minFontSize) * (stage.width / 1920)}
                   />
+                ) : isQuestNameElement(el.id) ? (
+                  // Quest names shrink on one line to fit their plaque instead
+                  // of being clipped by it (same rule as the playground).
+                  <div style={QUEST_NAME_FIT_BOX}>
+                    <TeamNameFit text={text} maxPx={fontSizePx} minPx={0} />
+                  </div>
                 ) : (
                   <span className="vcenter-text">{text}</span>
                 )}
@@ -788,8 +855,7 @@ export function TagquestPreviewRenderer({
               {layoutElements
                 .filter((el) => el.id !== 'tagquest_template')
                 .map((el) => {
-                  const numericW = typeof el.width === 'number';
-                  const numericH = typeof el.height === 'number';
+                  const box = editBoxPct(el);
                   const isSel = selectedElementId === el.id;
                   return (
                     <div
@@ -800,8 +866,8 @@ export function TagquestPreviewRenderer({
                         position: 'absolute',
                         left: `${el.x}%`,
                         top: `${el.y}%`,
-                        width: numericW ? `${el.width as number}%` : '4%',
-                        height: numericH ? `${el.height as number}%` : '4%',
+                        width: `${box.w}%`,
+                        height: `${box.h}%`,
                         cursor: 'move',
                         outline: isSel
                           ? '2px solid #f59e0b'
@@ -858,7 +924,7 @@ export function TagquestPreviewRenderer({
                             </div>
                           );
                         })()}
-                      {isSel && numericW && numericH && (
+                      {isSel && (
                         <div
                           onMouseDown={(e) => beginDrag(e, el, 'resize')}
                           style={{

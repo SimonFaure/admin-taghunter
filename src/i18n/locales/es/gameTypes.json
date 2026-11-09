@@ -51,5 +51,17 @@
     "uploadVtt": "Subir .vtt",
     "download": "Descargar",
     "downloadDefault": "Descargar (Tag Hunter)"
+  },
+  "uploadProgress": {
+    "uploading": "Subiendo {{name}}…",
+    "processing": "Guardando en el servidor…",
+    "progress": "{{percent}} % · {{loaded}} / {{total}} MB",
+    "remainingMin_one": "Queda {{count}} min aprox.",
+    "remainingMin_other": "Quedan {{count}} min aprox.",
+    "remainingSec_one": "Queda {{count}} s aprox.",
+    "remainingSec_other": "Quedan {{count}} s aprox.",
+    "cancel": "Cancelar",
+    "pill": "Subiendo {{percent}} %",
+    "pillProcessing": "Guardando…"
   }
 }

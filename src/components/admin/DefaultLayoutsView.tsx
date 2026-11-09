@@ -54,6 +54,32 @@ import {
 } from '../../scenarios/preview/useTagquestDefaults';
 import { DEFAULT_VIEWPORT } from '../../scenarios/preview/viewportTypes';
 import type { Lang } from '../../scenarios/i18n/types';
+import { getLocalized } from '../../scenarios/i18n/getLocalized';
+import {
+  pickDefaultScenarioId,
+  previewMediaResolver,
+  usePreviewScenario,
+  useQuestScenarioOptions,
+} from './defaultLayoutsScenario';
+
+/** Per-viewer memory of the scenario picked in the dropdown. */
+const PREVIEW_SCENARIO_STORAGE_KEY = 'defaultLayouts.previewScenarioId';
+
+function readStoredScenarioId(): string | null {
+  try {
+    return localStorage.getItem(PREVIEW_SCENARIO_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeScenarioId(id: string): void {
+  try {
+    localStorage.setItem(PREVIEW_SCENARIO_STORAGE_KEY, id);
+  } catch {
+    // Private window / blocked storage: the choice just isn't remembered.
+  }
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -107,6 +133,29 @@ export function DefaultLayoutsView() {
   const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<TagquestTextCategoryId | null>(null);
 
+  // The real scenario the HUD is drawn against (read-only).
+  const { options: scenarioOptions, loading: scenariosLoading } = useQuestScenarioOptions();
+  const [pickedScenarioId, setPickedScenarioId] = useState<string | null>(readStoredScenarioId);
+  const previewScenarioId = useMemo(() => {
+    if (pickedScenarioId && scenarioOptions.some((o) => o.id === pickedScenarioId)) return pickedScenarioId;
+    return pickDefaultScenarioId(scenarioOptions);
+  }, [pickedScenarioId, scenarioOptions]);
+  const { scenario: previewScenario, loading: scenarioLoading } = usePreviewScenario(previewScenarioId);
+  const resolvePreviewMedia = useMemo(() => previewMediaResolver(previewScenario), [previewScenario]);
+  const previewLang = previewScenario?.defaultLanguage ?? ('fr' as Lang);
+  // The scenario's own text styles are left out on purpose: this page edits the
+  // DEFAULT ones, and a scenario override would hide the change being made.
+  const previewGameMeta = useMemo<Record<string, unknown>>(() => {
+    if (!previewScenario) return MOCK_GAME_META as Record<string, unknown>;
+    const rest = { ...previewScenario.gameMeta };
+    delete rest.tagquest_typography;
+    return rest;
+  }, [previewScenario]);
+  const previewQuests = useMemo<PreviewQuest[]>(() => {
+    const q = previewScenario?.gameMeta.quests;
+    return Array.isArray(q) && q.length > 0 ? (q as PreviewQuest[]) : MOCK_QUESTS;
+  }, [previewScenario]);
+
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) h['X-Auth-Token'] = token;
@@ -150,15 +199,37 @@ export function DefaultLayoutsView() {
     () => elements.filter((el) => el.id !== 'tagquest_template'),
     [elements],
   );
+  // The code geometry, to tell a keyword dimension ('auto') from a number.
+  const skeletonById = useMemo(
+    () => new Map(defaultTagquestLayout.elements.map((el) => [el.id, el])),
+    [],
+  );
   const selectedElement = useMemo(
     () => elements.find((el) => el.id === selectedElementId) ?? null,
     [elements, selectedElementId],
   );
 
+  // `...prev` everywhere below: the blob also carries HUD-wide knobs
+  // (mainImageMargin), which rebuilding it from `elements` alone would drop.
   const patchElement = useCallback((id: string, patch: TagquestElementOverride) => {
     setLayout((prev) => ({
+      ...prev,
       elements: { ...prev.elements, [id]: { ...(prev.elements[id] ?? {}), ...patch } },
     }));
+  }, []);
+
+  /** Drop one field of an element's override, so it follows the skeleton again. */
+  const clearElementField = useCallback((id: string, field: keyof TagquestElementOverride) => {
+    setLayout((prev) => {
+      const current = prev.elements[id];
+      if (!current || current[field] === undefined) return prev;
+      const rest = { ...current };
+      delete rest[field];
+      const next = { ...prev.elements };
+      if (Object.keys(rest).length > 0) next[id] = rest;
+      else delete next[id];
+      return { ...prev, elements: next };
+    });
   }, []);
 
   const setMainImageMargin = useCallback((n: number | undefined) => {
@@ -169,7 +240,7 @@ export function DefaultLayoutsView() {
     setLayout((prev) => {
       const next = { ...prev.elements };
       delete next[id];
-      return { elements: next };
+      return { ...prev, elements: next };
     });
   }, []);
 
@@ -259,6 +330,35 @@ export function DefaultLayoutsView() {
         </div>
       </div>
 
+      {/* Which real scenario the HUD is drawn with. Display only: nothing on
+          this page is saved to that scenario. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <label htmlFor="default-layouts-preview-scenario" className="text-xs font-medium text-slate-300">
+          {t('previewScenario')}
+        </label>
+        <select
+          id="default-layouts-preview-scenario"
+          value={previewScenarioId ?? ''}
+          disabled={scenariosLoading || scenarioOptions.length === 0}
+          onChange={(e) => {
+            setPickedScenarioId(e.target.value);
+            storeScenarioId(e.target.value);
+          }}
+          className="min-w-[240px] max-w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-100 disabled:opacity-50"
+        >
+          {scenarioOptions.length === 0 && (
+            <option value="">{scenariosLoading ? t('loading') : t('previewScenarioNone')}</option>
+          )}
+          {scenarioOptions.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.title}
+            </option>
+          ))}
+        </select>
+        {scenarioLoading && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
+        <span className="text-[11px] text-slate-500">{t('previewScenarioHint')}</span>
+      </div>
+
       <p className="text-xs leading-relaxed text-slate-400">{t('intro')}</p>
 
       {message && (
@@ -283,19 +383,19 @@ export function DefaultLayoutsView() {
           {/* The real HUD. In `layoutEditMode` every element carries a drag box. */}
           <div className="min-h-[360px] flex-1">
             <TagquestPreviewRenderer
-              gameMeta={MOCK_GAME_META as Record<string, unknown>}
-              quests={MOCK_QUESTS}
-              resolveMediaUrl={noMedia}
+              gameMeta={previewGameMeta}
+              quests={previewQuests}
+              resolveMediaUrl={previewScenario ? resolvePreviewMedia : noMedia}
               canonicalWidth={DEFAULT_VIEWPORT.width}
               canonicalHeight={DEFAULT_VIEWPORT.height}
               selectedQuestIndex={0}
               questView="pieces"
               showMalusOverlay
               showLateMalusOverlay
-              readLocalized={(value) => (typeof value === 'string' ? value : '')}
-              labels={getPreviewLabels('fr' as Lang, 'fr' as Lang)}
-              lang={'fr' as Lang}
-              defaultLang={'fr' as Lang}
+              readLocalized={(value) => getLocalized(value as never, previewLang, previewLang)}
+              labels={getPreviewLabels(previewLang, previewLang)}
+              lang={previewLang}
+              defaultLang={previewLang}
               adminLabels={adminLabels}
               typographyDefaults={typography}
               layoutOverrides={layout}
@@ -384,12 +484,12 @@ export function DefaultLayoutsView() {
                           >
                             {(
                               [
-                                ['x', el.x],
-                                ['y', el.y],
-                                ['width', el.width],
-                                ['height', el.height],
+                                ['x', el.x, skeletonById.get(el.id)?.x],
+                                ['y', el.y, skeletonById.get(el.id)?.y],
+                                ['width', el.width, skeletonById.get(el.id)?.width],
+                                ['height', el.height, skeletonById.get(el.id)?.height],
                               ] as const
-                            ).map(([field, current]) => (
+                            ).map(([field, current, base]) => (
                               <label key={field} className="flex items-center gap-1">
                                 <span className="w-10 text-[10px] uppercase text-gray-400">
                                   {t(`fields.${field}`)}
@@ -398,22 +498,35 @@ export function DefaultLayoutsView() {
                                   type="number"
                                   step={0.1}
                                   // A keyword dimension ('auto' on the malus
-                                  // icons) has no number to show or nudge; typing
-                                  // one would silently freeze the artwork ratio.
+                                  // icons) shows as an empty field with the
+                                  // keyword as placeholder. Typing a number
+                                  // gives it a fixed size; emptying the field
+                                  // puts it back on the keyword.
                                   value={typeof current === 'number' ? current : ''}
-                                  placeholder={typeof current === 'string' ? current : ''}
-                                  disabled={typeof current !== 'number'}
+                                  placeholder={typeof base === 'string' ? base : ''}
                                   onChange={(e) => {
                                     const raw = e.target.value.trim();
-                                    if (raw === '') return;
+                                    if (raw === '') {
+                                      // Only keyword fields have an "empty"
+                                      // state; on a numeric one, clearing is just
+                                      // the author mid-way through retyping.
+                                      if (typeof base === 'string') clearElementField(el.id, field);
+                                      return;
+                                    }
                                     const n = Number(raw);
                                     if (!Number.isFinite(n)) return;
                                     patchElement(el.id, { [field]: n } as TagquestElementOverride);
                                   }}
-                                  className="w-full rounded border border-gray-300 px-1 py-0.5 text-right text-xs disabled:bg-gray-100"
+                                  className="w-full rounded border border-gray-300 px-1 py-0.5 text-right text-xs"
                                 />
                               </label>
                             ))}
+                            {(typeof skeletonById.get(el.id)?.width === 'string' ||
+                              typeof skeletonById.get(el.id)?.height === 'string') && (
+                              <p className="col-span-2 text-[10px] leading-snug text-gray-400">
+                                {t('autoDimHint')}
+                              </p>
+                            )}
                             {/* The one inner geometry on the HUD: room for the
                                 green/red status glow, which follows the artwork's
                                 alpha and otherwise bleeds onto the template. */}

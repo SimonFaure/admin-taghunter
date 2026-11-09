@@ -92,6 +92,7 @@ export function defaultClashGameMeta(): ClashGameMeta {
     purge_text_own_territory: {},
     purge_text_no_target: {},
     ranking_title: {},
+    join_text: {},
     message_display_time: '2',
     animation_display_time: '1',
   };

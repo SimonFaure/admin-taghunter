@@ -78,6 +78,100 @@ function buildMediaUrl(p: {
   return `${API_BASE_URL}/game_types.php?${u.toString()}`;
 }
 
+/** Live state of one in-flight video upload, keyed by game-type code. */
+interface VideoUpload {
+  fileName: string;
+  loaded: number;
+  total: number;
+  startedAt: number;
+  // Bytes are all sent; waiting for the server to store the file and answer.
+  processing: boolean;
+  abort: () => void;
+}
+
+/**
+ * POST a FormData with upload progress (fetch can't report it). Resolves with
+ * the HTTP status and the parsed JSON body (null when the body isn't JSON,
+ * e.g. an nginx 413 page). Rejects with 'abort' or 'network'.
+ */
+function xhrUpload(
+  url: string,
+  body: FormData,
+  headers: Record<string, string>,
+  onProgress: (loaded: number, total: number) => void,
+  onSent: () => void,
+): { promise: Promise<{ status: number; json: { error?: string } | null }>; abort: () => void } {
+  const xhr = new XMLHttpRequest();
+  const promise = new Promise<{ status: number; json: { error?: string } | null }>((resolve, reject) => {
+    xhr.open('POST', url);
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded, e.total); };
+    xhr.upload.onload = () => onSent();
+    xhr.onload = () => {
+      let json: { error?: string } | null = null;
+      try { json = JSON.parse(xhr.responseText); } catch { /* non-JSON error page */ }
+      resolve({ status: xhr.status, json });
+    };
+    xhr.onerror = () => reject(new Error('network'));
+    xhr.onabort = () => reject(new Error('abort'));
+    xhr.send(body);
+  });
+  return { promise, abort: () => xhr.abort() };
+}
+
+const toMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+
+/** Progress bar shown in place of the upload controls while a video uploads. */
+function VideoUploadProgress({ upload }: { upload: VideoUpload }) {
+  const { t } = useTranslation('gameTypes');
+  const percent = upload.total > 0 ? Math.min(100, Math.round((upload.loaded / upload.total) * 100)) : 0;
+  const elapsedSec = (Date.now() - upload.startedAt) / 1000;
+  const speed = elapsedSec > 0 ? upload.loaded / elapsedSec : 0;
+  // Wait a couple of seconds before estimating, the first samples are noisy.
+  const remainingSec = speed > 0 && elapsedSec >= 2 ? Math.max(0, (upload.total - upload.loaded) / speed) : null;
+  const remainingLabel = remainingSec === null
+    ? null
+    : remainingSec >= 60
+      ? t('uploadProgress.remainingMin', { count: Math.ceil(remainingSec / 60) })
+      : t('uploadProgress.remainingSec', { count: Math.max(1, Math.ceil(remainingSec)) });
+
+  return (
+    <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4 space-y-2" role="status" aria-live="polite">
+      <div className="flex items-center gap-2 text-sm">
+        <Upload className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+        <span className="font-medium text-indigo-900 truncate">
+          {upload.processing ? t('uploadProgress.processing') : t('uploadProgress.uploading', { name: upload.fileName })}
+        </span>
+        {!upload.processing && (
+          <button
+            type="button"
+            onClick={upload.abort}
+            className="ml-auto text-xs px-2 py-1 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 flex-shrink-0"
+          >
+            {t('uploadProgress.cancel')}
+          </button>
+        )}
+      </div>
+      <div
+        className="h-2.5 w-full bg-indigo-100 rounded-full overflow-hidden"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+      >
+        <div
+          className={`h-full bg-indigo-600 rounded-full transition-[width] duration-200 ${upload.processing ? 'animate-pulse' : ''}`}
+          style={{ width: `${upload.processing ? 100 : percent}%` }}
+        />
+      </div>
+      <div className="flex items-center text-xs text-indigo-800 tabular-nums">
+        <span>{t('uploadProgress.progress', { percent, loaded: toMb(upload.loaded), total: toMb(upload.total) })}</span>
+        {!upload.processing && remainingLabel && <span className="ml-auto">{remainingLabel}</span>}
+      </div>
+    </div>
+  );
+}
+
 /** A drop-zone wrapper that also opens the file picker on click. */
 function FileDrop({
   accept,
@@ -216,6 +310,18 @@ export function GameTypesView() {
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [videoUploads, setVideoUploads] = useState<Record<string, VideoUpload>>({});
+  const videoUploadsRef = useRef(videoUploads);
+  videoUploadsRef.current = videoUploads;
+  const uploadInFlight = Object.keys(videoUploads).length > 0;
+
+  // Leaving the page kills the upload: let the browser ask first.
+  useEffect(() => {
+    if (!uploadInFlight) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [uploadInFlight]);
 
   const headersJson = useMemo(() => {
     const h: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -229,8 +335,9 @@ export function GameTypesView() {
     return h;
   }, [token]);
 
+  // `loading` starts true and only gates the first render: a reload after an
+  // upload must not unmount the cards (another upload may still be running).
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${API_BASE_URL}/game_types.php?action=list`, { headers: headersJson });
@@ -265,15 +372,48 @@ export function GameTypesView() {
     return false;
   };
 
-  const handleAdminUploadVideo = async (code: string, file: File) => {
+  // Videos are big: upload through XHR so the card can show a progress bar.
+  const uploadVideo = async (action: 'admin_upload_video' | 'client_upload_video', code: string, file: File) => {
     if (!checkVideoSize(file)) return;
+    if (videoUploadsRef.current[code]) return; // one upload per game type at a time
+    setError(null);
     const fd = new FormData();
     fd.append('code', code);
     fd.append('video', file);
-    const res = await fetch(`${API_BASE_URL}/game_types.php?action=admin_upload_video`, { method: 'POST', headers: headersMultipart, body: fd });
-    if (!res.ok) { setError((await res.json()).error || t('error.uploadFailed')); return; }
-    await load();
+    const patch = (p: Partial<VideoUpload>) => setVideoUploads((prev) => (
+      prev[code] ? { ...prev, [code]: { ...prev[code], ...p } } : prev
+    ));
+    const req = xhrUpload(
+      `${API_BASE_URL}/game_types.php?action=${action}`,
+      fd,
+      headersMultipart,
+      (loaded, total) => patch({ loaded, total }),
+      () => patch({ processing: true }),
+    );
+    setVideoUploads((prev) => ({
+      ...prev,
+      [code]: { fileName: file.name, loaded: 0, total: file.size, startedAt: Date.now(), processing: false, abort: req.abort },
+    }));
+    try {
+      let ok = false;
+      const { status, json } = await req.promise;
+      ok = status >= 200 && status < 300;
+      if (!ok) setError(json?.error || (status === 413 ? t('error.fileTooLarge', { size: Math.ceil(file.size / (1024 * 1024)), max: MAX_VIDEO_MB }) : t('error.uploadFailed')));
+      // Keep the bar up until the new video is listed, so the old one doesn't flash back.
+      if (ok) await load();
+    } catch (e) {
+      // A cancel is the user's choice, not an error.
+      if (!(e instanceof Error && e.message === 'abort')) setError(t('error.uploadFailed'));
+    } finally {
+      setVideoUploads((prev) => {
+        const next = { ...prev };
+        delete next[code];
+        return next;
+      });
+    }
   };
+
+  const handleAdminUploadVideo = (code: string, file: File) => uploadVideo('admin_upload_video', code, file);
 
   const handleAdminRemoveVideo = async (code: string) => {
     if (!confirm(t('confirm.adminRemoveVideo', { code }))) return;
@@ -302,15 +442,7 @@ export function GameTypesView() {
     await load();
   };
 
-  const handleClientUploadVideo = async (code: string, file: File) => {
-    if (!checkVideoSize(file)) return;
-    const fd = new FormData();
-    fd.append('code', code);
-    fd.append('video', file);
-    const res = await fetch(`${API_BASE_URL}/game_types.php?action=client_upload_video`, { method: 'POST', headers: headersMultipart, body: fd });
-    if (!res.ok) { setError((await res.json()).error || t('error.uploadFailed')); return; }
-    await load();
-  };
+  const handleClientUploadVideo = (code: string, file: File) => uploadVideo('client_upload_video', code, file);
 
   const handleClientRemoveVideo = async (code: string) => {
     if (!confirm(t('confirm.clientRemoveVideo', { code }))) return;
@@ -366,6 +498,7 @@ export function GameTypesView() {
             override={overrides[gt.code] || null}
             isAdmin={isAdmin}
             token={token}
+            videoUpload={videoUploads[gt.code] || null}
             onAdminUploadVideo={handleAdminUploadVideo}
             onAdminRemoveVideo={handleAdminRemoveVideo}
             onAdminUploadSubtitle={handleAdminUploadSubtitle}
@@ -386,6 +519,7 @@ interface CardProps {
   override: Override | null;
   isAdmin: boolean;
   token: string | null;
+  videoUpload: VideoUpload | null;
   onAdminUploadVideo: (code: string, file: File) => void;
   onAdminRemoveVideo: (code: string) => void;
   onAdminUploadSubtitle: (code: string, lang: Lang, file: File) => void;
@@ -398,7 +532,7 @@ interface CardProps {
 
 function GameTypeCard(props: CardProps) {
   const { t } = useTranslation('gameTypes');
-  const { gameType: gt, override, isAdmin, token } = props;
+  const { gameType: gt, override, isAdmin, token, videoUpload } = props;
   const [open, setOpen] = useState(true);
   const [subsOpen, setSubsOpen] = useState(false);
 
@@ -429,6 +563,14 @@ function GameTypeCard(props: CardProps) {
           </div>
           {gt.supports_tutorial_video && (
             <div className="hidden sm:flex items-center gap-2 ml-2">
+              {videoUpload && (
+                <span className="inline-flex items-center gap-1 text-xs text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full tabular-nums">
+                  <Upload className="w-3.5 h-3.5" />
+                  {videoUpload.processing
+                    ? t('uploadProgress.pillProcessing')
+                    : t('uploadProgress.pill', { percent: videoUpload.total > 0 ? Math.round((videoUpload.loaded / videoUpload.total) * 100) : 0 })}
+                </span>
+              )}
               {hasPlayableVideo ? (
                 <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
                   <CheckCircle2 className="w-3.5 h-3.5" /> {t('card.pillVideo')}
@@ -474,7 +616,9 @@ function GameTypeCard(props: CardProps) {
                       subtitlesVersion={gt.tutorial_subtitles_version}
                       token={token}
                     />
-                    {isAdmin ? (
+                    {isAdmin && videoUpload ? (
+                      <VideoUploadProgress upload={videoUpload} />
+                    ) : isAdmin ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-500 mr-auto truncate">{gt.tutorial_video_path}</span>
                         <FileDrop
@@ -496,6 +640,8 @@ function GameTypeCard(props: CardProps) {
                       <p className="text-xs text-slate-500">{t('card.legacyVideoClientNote')}</p>
                     )}
                   </div>
+                ) : isAdmin && videoUpload ? (
+                  <VideoUploadProgress upload={videoUpload} />
                 ) : isAdmin ? (
                   <FileDrop
                     accept={VIDEO_ACCEPT}
@@ -536,6 +682,9 @@ function GameTypeCard(props: CardProps) {
                         subtitlesVersion={override!.tutorial_subtitles_version}
                         token={token}
                       />
+                      {videoUpload ? (
+                        <VideoUploadProgress upload={videoUpload} />
+                      ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-slate-500 mr-auto truncate">
                           {override!.tutorial_video_path} {t('card.videoVersion', { version: override!.tutorial_video_version })}
@@ -555,7 +704,10 @@ function GameTypeCard(props: CardProps) {
                           <Trash2 className="w-4 h-4" /> {t('actions.remove')}
                         </button>
                       </div>
+                      )}
                     </div>
+                  ) : videoUpload ? (
+                    <VideoUploadProgress upload={videoUpload} />
                   ) : (
                     <FileDrop
                       accept={VIDEO_ACCEPT}

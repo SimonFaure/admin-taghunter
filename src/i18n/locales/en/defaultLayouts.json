@@ -19,6 +19,10 @@
   "typographyFooter": "Size is a percentage of the authored size. A scenario can override each setting separately from its Aperçu.",
   "mainImageMargin": "Inner margin",
   "mainImageMarginHint": "Margin around the completed image (% of the box's shorter side). The green or red result glow follows the image's outline, so with no margin it bleeds onto the template frame. The four-piece grid is not affected.",
+  "autoDimHint": "Empty field = automatic: the width follows the image's proportions. With a value, the image keeps its proportions and fits inside the box, never stretched. Empty the field to go back to automatic.",
+  "previewScenario": "Preview with scenario",
+  "previewScenarioNone": "No Quest scenario",
+  "previewScenarioHint": "Display only: nothing is saved to this scenario. Its own text settings are ignored so the defaults show.",
   "types": {
     "tagquest": "Quest",
     "mystery": "Mystery",

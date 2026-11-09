@@ -6,6 +6,7 @@ require_once __DIR__ . '/../utils/TokenManager.php';
 require_once __DIR__ . '/../utils/ScenarioHashes.php';
 require_once __DIR__ . '/../utils/LocalizedCompat.php';
 require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+require_once __DIR__ . '/../utils/ScenarioFileApps.php';
 
 setCorsHeaders();
 session_start();
@@ -125,11 +126,17 @@ function resolveFilesForLanguage(array $files, $lang, $defaultLang) {
  * fichier disponible pour le moment" (retour Ludiom #59). This adds that fourth
  * case, matching what the catalogue already shows them.
  *
+ * Also says WHICH files: a licensee sees a file restricted to some apps only
+ * if it holds the scenario through one of them (ScenarioFileApps).
+ *
+ * Returns null = every file (owner, admin), a list of app codes, or [] = no
+ * access at all.
+ *
  * @param int|string $scenarioId
  */
-function clientMayReadScenarioFiles($pdo, $scenarioId, $email) {
+function scenarioFileAppsFor($pdo, $scenarioId, $email) {
     $stmt = $pdo->prepare("
-        SELECT s.scenario_type, s.data, s.client_id, s.validated_languages, c.email AS client_email, a.email AS admin_email
+        SELECT s.id, s.scenario_type, s.game_type, s.data, s.client_id, s.validated_languages, c.email AS client_email, a.email AS admin_email
         FROM scenarios s
         LEFT JOIN clients c ON s.client_id = c.id
         LEFT JOIN admin_users a ON s.created_by = a.id
@@ -137,38 +144,34 @@ function clientMayReadScenarioFiles($pdo, $scenarioId, $email) {
     ");
     $stmt->execute([$scenarioId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$row) return false;
+    if (!$row) return [];
 
     // Owner (client or authoring admin).
-    if ($row['client_email'] === $email || $row['admin_email'] === $email) return true;
+    if ($row['client_email'] === $email || $row['admin_email'] === $email) return null;
 
     // Any admin.
     $stmt = $pdo->prepare("SELECT id FROM admin_users WHERE email = ?");
     $stmt->execute([$email]);
-    if ($stmt->fetch(PDO::FETCH_ASSOC)) return true;
+    if ($stmt->fetch(PDO::FETCH_ASSOC)) return null;
 
-    // Explicit grant, in any mode.
-    $stmt = $pdo->prepare("
-        SELECT cs.id FROM client_scenarios cs
-        JOIN clients c ON cs.client_id = c.id
-        WHERE cs.scenario_id = ? AND c.email = ?
-    ");
-    $stmt->execute([$scenarioId, $email]);
-    if ($stmt->fetch(PDO::FETCH_ASSOC)) return true;
+    $stmt = $pdo->prepare("SELECT id, license_type FROM clients WHERE email = ?");
+    $stmt->execute([$email]);
+    $client = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$client) return [];
 
-    // Premium client + product released in the client's language = implicit access.
-    if ($row['scenario_type'] === 'product') {
-        $stmt = $pdo->prepare("SELECT id FROM clients WHERE email = ? AND license_type = 'premium'");
-        $stmt->execute([$email]);
-        $premium = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($premium) {
-            if (ScenarioLanguages::hasVisibleLanguage($pdo, $row, (int)$premium['id'], ScenarioLanguages::clientLanguage($pdo, $premium['id']))) {
-                return true;
-            }
-        }
-    }
+    // Premium client + product released in the client's language = implicit
+    // (Playground) access.
+    $premiumProduct = $row['scenario_type'] === 'product'
+        && $client['license_type'] === 'premium'
+        && ScenarioLanguages::hasVisibleLanguage($pdo, $row, (int)$client['id'], ScenarioLanguages::clientLanguage($pdo, $client['id']));
 
-    return false;
+    // Explicit grants, in any mode.
+    return ScenarioFileApps::heldByClient($pdo, (int)$client['id'], $row, $premiumProduct);
+}
+
+/** @param int|string $scenarioId */
+function clientMayReadScenarioFiles($pdo, $scenarioId, $email) {
+    return scenarioFileAppsFor($pdo, $scenarioId, $email) !== [];
 }
 
 try {
@@ -253,7 +256,8 @@ function handleGetScenario($pdo) {
     }
 
     // Read access: owner / admin / explicit grant / premium+product (#59).
-    if (!clientMayReadScenarioFiles($pdo, $scenario['id'], $email)) {
+    $heldApps = scenarioFileAppsFor($pdo, $scenario['id'], $email);
+    if ($heldApps === []) {
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized']);
         return;
@@ -304,11 +308,16 @@ function handleGetScenario($pdo) {
     // both pass through as stored.
     $gameVisual = ScenarioLanguages::gameVisual($medias['images'] ?? null, $viewerLang);
     $stmt4 = $pdo->prepare("
-        SELECT id, name, name_i18n, language, parent_file_id, file_path, file_size, mime_type, created_at
+        SELECT id, name, name_i18n, language, parent_file_id, file_path, file_size, mime_type, created_at, apps
         FROM scenario_files WHERE scenario_id = ? ORDER BY created_at DESC
     ");
     $stmt4->execute([$scenario['id']]);
-    $files = resolveFilesForLanguage($stmt4->fetchAll(PDO::FETCH_ASSOC), $viewerLang, $scenarioDefaultLang);
+    // Only the documents meant for the apps this caller holds the scenario in.
+    $files = resolveFilesForLanguage(
+        ScenarioFileApps::filter($stmt4->fetchAll(PDO::FETCH_ASSOC), $heldApps),
+        $viewerLang,
+        $scenarioDefaultLang
+    );
 
     // « Informations » (game_meta.story): licensee-facing notes typed in the
     // editor, never shown to players. Localized ({lang: text}) or a legacy
@@ -859,7 +868,8 @@ function handleList($pdo) {
         echo json_encode(['error' => 'Unauthorized']);
         return;
     }
-    if (!clientMayReadScenarioFiles($pdo, $scenarioId, $email)) {
+    $heldApps = scenarioFileAppsFor($pdo, $scenarioId, $email);
+    if ($heldApps === []) {
         http_response_code(403);
         echo json_encode(['error' => 'Forbidden']);
         return;
@@ -872,14 +882,15 @@ function handleList($pdo) {
     $stmt = $pdo->prepare("
         SELECT sf.id, sf.scenario_id, sf.name, sf.name_i18n, sf.language,
                sf.parent_file_id, sf.file_path, sf.file_size, sf.mime_type, sf.created_at,
-               sf.no_translation, sf.doc_type,
+               sf.no_translation, sf.doc_type, sf.apps,
                (SELECT COUNT(*) FROM scenario_file_texts t WHERE t.file_id = sf.id) AS texts_count
         FROM scenario_files sf
         WHERE sf.scenario_id = ?
         ORDER BY COALESCE(sf.parent_file_id, sf.id) ASC, sf.parent_file_id IS NOT NULL, sf.created_at DESC
     ");
     $stmt->execute([$scenarioId]);
-    $files = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Files restricted to apps the caller does not hold this scenario in.
+    $files = ScenarioFileApps::filter($stmt->fetchAll(PDO::FETCH_ASSOC), $heldApps);
 
     // A client never sees a variant in a language not validated yet.
     if (!$isAdmin) {
@@ -912,6 +923,8 @@ function handleList($pdo) {
             $row['no_translation'] = (int)$f['no_translation'] === 1;
             // Which required document this is; null = recognised from the name.
             $row['doc_type'] = $f['doc_type'];
+            // Apps this file is restricted to; null = every app.
+            $row['apps'] = ScenarioFileApps::parse($f['apps']);
         }
         return $row;
     }, $files);
@@ -1023,7 +1036,8 @@ function handleDownloadZip($pdo) {
     }
 
     // Same read rule as the per-file download (#59).
-    $isOwner = clientMayReadScenarioFiles($pdo, $scenario['id'], $email);
+    $heldApps = scenarioFileAppsFor($pdo, $scenario['id'], $email);
+    $isOwner = $heldApps !== [];
     $isAdmin = false;
 
     if (!$isOwner && !$isAdmin) {
@@ -1041,11 +1055,15 @@ function handleDownloadZip($pdo) {
     $zipLang = clientLanguageFor($pdo, $email, $zipDefaultLang, $scenario);
 
     $stmt4 = $pdo->prepare("
-        SELECT id, name, name_i18n, language, parent_file_id, file_path
+        SELECT id, name, name_i18n, language, parent_file_id, file_path, apps
         FROM scenario_files WHERE scenario_id = ?
     ");
     $stmt4->execute([$scenario['id']]);
-    $files = resolveFilesForLanguage($stmt4->fetchAll(PDO::FETCH_ASSOC), $zipLang, $zipDefaultLang);
+    $files = resolveFilesForLanguage(
+        ScenarioFileApps::filter($stmt4->fetchAll(PDO::FETCH_ASSOC), $heldApps),
+        $zipLang,
+        $zipDefaultLang
+    );
 
     if (empty($files)) {
         http_response_code(404);
@@ -1110,10 +1128,12 @@ function handleDownloadFile($pdo) {
 
     $stmt = $pdo->prepare("
         SELECT sf.name, sf.name_i18n, sf.language, sf.parent_file_id, sf.file_path, sf.mime_type,
+               IF(sf.parent_file_id IS NULL OR pf.id IS NULL, sf.apps, pf.apps) AS apps,
                s.id as scenario_id, s.client_id, s.created_by, s.data, s.validated_languages,
                c.email as client_email,
                a.email as admin_email
         FROM scenario_files sf
+        LEFT JOIN scenario_files pf ON pf.id = sf.parent_file_id
         JOIN scenarios s ON sf.scenario_id = s.id
         LEFT JOIN clients c ON s.client_id = c.id
         LEFT JOIN admin_users a ON s.created_by = a.id
@@ -1130,7 +1150,15 @@ function handleDownloadFile($pdo) {
 
     // Same read rule as the listing that offered this file (#59) - otherwise a
     // premium client can see the file but not download it.
-    if (!clientMayReadScenarioFiles($pdo, $file['scenario_id'], $email)) {
+    $heldApps = scenarioFileAppsFor($pdo, $file['scenario_id'], $email);
+    if ($heldApps === []) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Unauthorized']);
+        return;
+    }
+
+    // A file restricted to apps this caller does not hold the scenario in.
+    if (!ScenarioFileApps::visible($file['apps'], $heldApps)) {
         http_response_code(403);
         echo json_encode(['error' => 'Unauthorized']);
         return;

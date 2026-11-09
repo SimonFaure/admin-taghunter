@@ -334,11 +334,26 @@ try {
         // list sees what the client sees - the client's chips). Admin views of
         // drafts live in Admin > Translations.
         require_once __DIR__ . '/../utils/ScenarioLanguages.php';
-        $scenarios = array_map(function($s) use ($db, $clientId) {
+        require_once __DIR__ . '/../utils/ScenarioFileApps.php';
+        $pdo = $db->getConnection();
+        $scenarios = array_map(function($s) use ($db, $pdo, $clientId, $isPremium) {
             $s = ScenarioLanguages::narrowRow($db, $s, (int)$clientId);
             unset($s['validated_languages']);
-            $s['has_zip_files'] = (int)($s['files_count'] ?? 0) > 0;
-            $s['files_count'] = (int)($s['files_count'] ?? 0);
+            // Count only the documents meant for the apps this client holds the
+            // scenario in (files can be restricted to Playground / GO / Spot).
+            // Premium products reach this list released in the client's language.
+            if ((int)($s['files_count'] ?? 0) > 0) {
+                $held = ScenarioFileApps::heldByClient(
+                    $pdo,
+                    (int)$clientId,
+                    $s,
+                    $isPremium && ($s['scenario_type'] ?? '') === 'product'
+                );
+                $s['files_count'] = ScenarioFileApps::countDocuments($pdo, (int)$s['id'], $held);
+            } else {
+                $s['files_count'] = 0;
+            }
+            $s['has_zip_files'] = $s['files_count'] > 0;
             // Surface difficulty / audience (game_meta) for the list cards, then
             // drop the heavy data blob so the payload stays lean. Tolerate both
             // the flat (`game_meta.…`) and wrapped (`data.game_meta.…`) shapes.

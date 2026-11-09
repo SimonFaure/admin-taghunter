@@ -29,6 +29,30 @@ class LicenseeCustomers {
         return $migrated;
     }
 
+    // Hand-added history (add_licensee_customers_history.sql). False until that
+    // SQL ran: the studio then behaves as before (synced games only).
+    public static function historyMigrated(): bool {
+        static $migrated = null;
+        if ($migrated === null) {
+            try {
+                Database::getInstance()->fetch('SELECT id FROM licensee_customer_history LIMIT 1');
+                $migrated = true;
+            } catch (Exception $e) {
+                $migrated = false;
+            }
+        }
+        return $migrated;
+    }
+
+    // Game types a hand-added entry may carry.
+    const HISTORY_GAME_TYPES = ['tagquest', 'mystery', 'tracks', 'clash'];
+
+    // A hand-added entry's day -> the played_at shape of game_summaries. Noon
+    // UTC so the day never shifts when a browser shows it in local time.
+    public static function historyPlayedAt($day): ?string {
+        return $day ? $day . ' 12:00:00' : null;
+    }
+
     public static function uuidV4(): string {
         $b = random_bytes(16);
         $b[6] = chr((ord($b[6]) & 0x0f) | 0x40);

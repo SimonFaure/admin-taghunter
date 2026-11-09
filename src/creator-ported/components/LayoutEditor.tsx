@@ -6,7 +6,7 @@ import { bumpScenarioVersion } from '../../scenarios/shell/state/saveOrchestrato
 import { getMediaUrl } from '../utils/mediaUrl';
 import { Alert } from './Alert';
 import { authService } from '../services/authService';
-import { buildGroups, buildTracksGroups, buildClashGroups, TRACKS_HUD_ITEMS, TRACKS_HUD_MOCK, TRACKS_HUD_LABEL_RATIO, getGroupForElement, getQuestIndexFromElementId, getCounterpartId, getQuestItemRole, type GroupDef, type GroupItemDef } from '../utils/layoutGroups';
+import { buildGroups, buildTracksGroups, buildClashGroups, TRACKS_HUD_ITEMS, TRACKS_HUD_MOCK, TRACKS_HUD_LABEL_RATIO, TRACKS_HUD_NO_LABEL_SCALE, TRACKS_HUD_PLATE_DEFAULT, tracksHudPlateColor, getGroupForElement, getQuestIndexFromElementId, getCounterpartId, getQuestItemRole, type GroupDef, type GroupItemDef } from '../utils/layoutGroups';
 import { defaultClashTerritories } from '../../scenarios/bodies/clash/defaults';
 import { alignQuestMainImagesVertically, clampQuestInnerElement } from '../utils/questSync';
 import { TracksTextFit } from '../../scenarios/bodies/tracks/TracksTextFit';
@@ -112,6 +112,14 @@ interface ImageElement {
    * drawn over two lines. Undefined = 20 px (the default); 0 = always one line.
    */
   minFontSize?: number;
+  /** Tracks timer/score frames: hide the caption ("Time"/"Score"), keep the value. */
+  hideLabel?: boolean;
+  /** Tracks HUD frames: text colour (hex). Undefined = the scenario font colour. */
+  textColor?: string;
+  /** Tracks HUD frames with no frame image: plate colour (hex) + opacity
+   *  (0-100). Undefined = `TRACKS_HUD_PLATE_DEFAULT`. */
+  frameColor?: string;
+  frameOpacity?: number;
 }
 
 interface TextElement {
@@ -2469,7 +2477,9 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                         // knob (% of box height) persisted on
                                         // the layout element and honoured by
                                         // the playground runtime.
-                                        const defaultScale = TRACKS_HUD_MOCK[element.id]?.defaultScale ?? TRACKS_LEGEND_DEFAULT_SCALE;
+                                        const defaultScale = element.hideLabel
+                                          ? TRACKS_HUD_NO_LABEL_SCALE
+                                          : TRACKS_HUD_MOCK[element.id]?.defaultScale ?? TRACKS_LEGEND_DEFAULT_SCALE;
                                         const scale = element.textScale ?? defaultScale;
                                         const setScale = (v: number) => {
                                           const clamped = Math.max(5, Math.min(150, parseFloat(v.toFixed(1))));
@@ -2537,6 +2547,86 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                                           />
                                         </div>
                                       )}
+                                      {isTracksGame && element.type === 'image' && TRACKS_HUD_MOCK[element.id] && (() => {
+                                        // Per-frame style: caption on/off (timer/score), text
+                                        // colour, and the plate drawn when no frame image is set.
+                                        const mock = TRACKS_HUD_MOCK[element.id];
+                                        const patch = (p: Partial<ImageElement>) =>
+                                          setElements(prev => prev.map(el =>
+                                            el.id === element.id && el.type === 'image' ? { ...el, ...p } : el));
+                                        // <input type="color"> only takes #rrggbb.
+                                        const asPickerHex = (c: string | undefined, fallback: string) => {
+                                          const h = (c || '').trim();
+                                          if (/^#[0-9a-f]{6}$/i.test(h)) return h;
+                                          if (/^#[0-9a-f]{3}$/i.test(h)) return '#' + h.slice(1).split('').map((x) => x + x).join('');
+                                          return fallback;
+                                        };
+                                        const textColor = asPickerHex(element.textColor || scenarioFontColor, '#ffffff');
+                                        const plateColor = asPickerHex(element.frameColor, TRACKS_HUD_PLATE_DEFAULT.color);
+                                        const plateOpacity = element.frameOpacity ?? TRACKS_HUD_PLATE_DEFAULT.opacity;
+                                        return (
+                                          <div className="pl-5 space-y-1" onClick={(e) => e.stopPropagation()}>
+                                            {mock.label && (
+                                              <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={!element.hideLabel}
+                                                  onChange={(e) => patch({ hideLabel: e.target.checked ? undefined : true })}
+                                                />
+                                                Show title ("{mock.label}")
+                                              </label>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs text-gray-400">Text color:</span>
+                                              <input
+                                                type="color"
+                                                value={textColor}
+                                                onChange={(e) => patch({ textColor: e.target.value })}
+                                                className="w-6 h-5 bg-transparent border border-gray-600 rounded cursor-pointer"
+                                              />
+                                              {element.textColor ? (
+                                                <button
+                                                  onClick={() => patch({ textColor: undefined })}
+                                                  className="text-xs text-gray-400 hover:text-white underline"
+                                                >
+                                                  Reset
+                                                </button>
+                                              ) : (
+                                                <span className="text-xs text-gray-500">scenario color</span>
+                                              )}
+                                            </div>
+                                            {!element.filename && (
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-400">Frame:</span>
+                                                <input
+                                                  type="color"
+                                                  value={plateColor}
+                                                  onChange={(e) => patch({ frameColor: e.target.value })}
+                                                  className="w-6 h-5 bg-transparent border border-gray-600 rounded cursor-pointer"
+                                                />
+                                                <input
+                                                  type="range"
+                                                  min="0"
+                                                  max="100"
+                                                  step="5"
+                                                  value={plateOpacity}
+                                                  onChange={(e) => patch({ frameOpacity: parseInt(e.target.value, 10) })}
+                                                  className="w-20"
+                                                />
+                                                <span className="text-xs text-gray-500 w-8">{plateOpacity}%</span>
+                                                {(element.frameColor || element.frameOpacity !== undefined) && (
+                                                  <button
+                                                    onClick={() => patch({ frameColor: undefined, frameOpacity: undefined })}
+                                                    className="text-xs text-gray-400 hover:text-white underline"
+                                                  >
+                                                    Reset
+                                                  </button>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
                                       {element.type === 'text' && (
                                         <div className="flex items-center gap-2 pl-5">
                                           <span className="text-xs text-gray-400">Size:</span>
@@ -3097,7 +3187,10 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                     // shows the same thing instead of hiding the box entirely.
                     <div
                       className="w-full h-full pointer-events-none"
-                      style={{ background: 'rgba(0,0,0,0.45)', borderRadius: 8 }}
+                      style={{
+                        background: tracksHudPlateColor(element.frameColor, element.frameOpacity),
+                        borderRadius: 8,
+                      }}
                     />
                   ) : isClashGame && /^territory_\d+_(banner|purge)$/.test(element.id) ? (
                     // Clash banner / purge marker with no image yet - pin.
@@ -3122,10 +3215,15 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                     // Timer/score/team-name inherit the scenario font +
                     // font_color from the renderer root, so the preview shows
                     // the chosen font/colour too.
+                    const hudEl = element.type === 'image' ? element : undefined;
+                    const shownLabel = hudEl?.hideLabel ? undefined : hudMock.label;
+                    const hudTextColor = hudEl?.textColor || scenarioFontColor || '#ffffff';
                     const scale =
-                      element.type === 'image' && typeof element.textScale === 'number'
-                        ? element.textScale
-                        : hudMock.defaultScale;
+                      typeof hudEl?.textScale === 'number'
+                        ? hudEl.textScale
+                        : hudEl?.hideLabel
+                          ? TRACKS_HUD_NO_LABEL_SCALE
+                          : hudMock.defaultScale;
                     const valueFontSize = Math.max(8, elHeightPx * (scale / 100));
                     if (element.id === 'team_name_background_image') {
                       // Same fit as the playground: shrink to the frame, two
@@ -3140,7 +3238,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                           className="absolute inset-0 pointer-events-none select-none"
                           style={{
                             fontFamily: resolveFontFamily(scenarioFont) || undefined,
-                            color: scenarioFontColor || '#ffffff',
+                            color: hudTextColor,
                             textShadow: '0 1px 3px rgba(0,0,0,0.85)',
                           }}
                         >
@@ -3158,19 +3256,19 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
                         className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none select-none overflow-hidden"
                         style={{
                           fontFamily: resolveFontFamily(scenarioFont) || undefined,
-                          color: scenarioFontColor || '#ffffff',
+                          color: hudTextColor,
                           textShadow: '0 1px 3px rgba(0,0,0,0.85)',
                           whiteSpace: 'nowrap',
                         }}
                       >
                         {/* One trimmed block, as in the playground PositionedHudBox. */}
                         <div className="vcenter-text">
-                          {hudMock.label && (
+                          {shownLabel && (
                             <div
                               className="uppercase tracking-wider opacity-70 leading-none"
                               style={{ fontSize: `${Math.max(6, valueFontSize * TRACKS_HUD_LABEL_RATIO)}px` }}
                             >
-                              {hudMock.label}
+                              {shownLabel}
                             </div>
                           )}
                           <div className="font-bold leading-tight" style={{ fontSize: `${valueFontSize}px` }}>

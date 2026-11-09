@@ -47,6 +47,7 @@ require_once __DIR__ . '/../utils/ScenarioHashes.php';
 require_once __DIR__ . '/../utils/LocalizedCompat.php';
 require_once __DIR__ . '/../utils/LocalizedPath.php';
 require_once __DIR__ . '/../utils/ScenarioLanguages.php';
+require_once __DIR__ . '/../utils/ScenarioFileApps.php';
 
 const TRANSLATION_LANGS = ['en','fr','es','de','it','pt','nl','pl','ru','ja','zh','ar'];
 
@@ -662,7 +663,9 @@ function handleSaveFileTitle(PDO $pdo): void {
  *   - `no_translation`: the document needs no translation, so the Scenario
  *     overview leaves it out of its translation counts;
  *   - `doc_type`: which required document this is (src/scenarios/
- *     documentTypes.ts); empty/null = automatic, recognised from the name.
+ *     documentTypes.ts); empty/null = automatic, recognised from the name;
+ *   - `apps`: the apps this file is for (playground/go/spot, at least one);
+ *     licensees holding the scenario through none of them don't see it.
  */
 function handleSetFileMeta(PDO $pdo): void {
     $body = json_decode(file_get_contents('php://input'), true);
@@ -697,6 +700,28 @@ function handleSetFileMeta(PDO $pdo): void {
         }
         $sets[] = 'doc_type = ?';
         $params[] = ($docType === '' || $docType === null) ? null : $docType;
+    }
+
+    if (array_key_exists('apps', $body)) {
+        // Apps the file is restricted to (Playground / GO / Spot). Set on the
+        // primary only: language variants follow it.
+        $parent = $pdo->prepare('SELECT parent_file_id FROM scenario_files WHERE id = ?');
+        $parent->execute([$fileId]);
+        if ($parent->fetchColumn() !== null) {
+            respond(['error' => 'Set the apps on the main file'], 400);
+        }
+        $type = $pdo->prepare('SELECT s.game_type FROM scenario_files f JOIN scenarios s ON s.id = f.scenario_id WHERE f.id = ?');
+        $type->execute([$fileId]);
+        if (!ScenarioFileApps::appliesTo(['game_type' => $type->fetchColumn()])) {
+            respond(['error' => 'Apps can only be set on Mystery scenario files'], 400);
+        }
+        try {
+            $apps = ScenarioFileApps::encode($body['apps']);
+        } catch (InvalidArgumentException $e) {
+            respond(['error' => $e->getMessage()], 400);
+        }
+        $sets[] = 'apps = ?';
+        $params[] = $apps;
     }
 
     if (!$sets) respond(['error' => 'Nothing to update'], 400);

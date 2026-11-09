@@ -1,7 +1,9 @@
 // Client for backend/api/customers.php (licensee customers). A licensee token
 // is scoped server-side; admins pass the licensee's `clientId`.
 import { authFetch } from './authFetch';
-import type { Customer, CustomerGame, CustomerInput } from '../types/customer';
+import type {
+  Customer, CustomerGame, CustomerHistoryEntry, CustomerHistoryEntryInput, CustomerInput,
+} from '../types/customer';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -38,8 +40,15 @@ export const customersApi = {
   get: (id: string, clientId?: number) =>
     call<{ customer?: Customer; merged_from?: { id: string; name: string }[]; redirect_to?: string | null }>(url('get', clientId, { id })),
 
+  /** Synced games + hand-added entries (`entries` null: studio DB not migrated yet). */
   history: (id: string, clientId?: number) =>
-    call<{ games: CustomerGame[] }>(url('history', clientId, { id })).then((r) => r.games),
+    call<{ games: CustomerGame[]; entries?: CustomerHistoryEntry[] | null }>(url('history', clientId, { id }))
+      .then((r) => ({ games: r.games, entries: r.entries ?? null })),
+
+  saveEntry: (input: CustomerHistoryEntryInput, clientId?: number) =>
+    call<{ entry: CustomerHistoryEntry }>(url('entry_save', clientId), input).then((r) => r.entry),
+
+  deleteEntry: (id: string, clientId?: number) => call<{ success: true }>(url('entry_delete', clientId), { id }),
 
   candidates: (id: string, clientId: number | undefined, opts: { filter: 'untagged' | 'other' | 'all'; q?: string; offset?: number }) =>
     call<{ games: CustomerGame[]; total: number }>(url('candidates', clientId, {

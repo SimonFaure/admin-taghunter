@@ -67,6 +67,16 @@ export function ClashEventTextsSection() {
         />
         <p className="mt-1 text-xs text-gray-500">{t('editorClash:eventTexts.whens.ranking_title')}</p>
       </div>
+
+      <div className="mt-4 max-w-md">
+        <LocalizedField
+          label={t('editorClash:eventTexts.labels.join_text')}
+          value={meta.join_text as Localized<string> | string | undefined}
+          onChange={(next) => setField('join_text', next)}
+          placeholder={t('editorClash:eventTexts.placeholders.join_text')}
+        />
+        <p className="mt-1 text-xs text-gray-500">{t('editorClash:eventTexts.whens.join_text')}</p>
+      </div>
     </CollapsibleSection>
   );
 }

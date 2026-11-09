@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Save, Send, Download, Eye, Smartphone, ChevronsDownUp, ChevronsUpDown, LayoutGrid as Layout } from 'lucide-react';
 import { useScenarioEditor } from '../useScenarioEditor';
@@ -114,18 +115,26 @@ export function SaveBar() {
         </button>
       )}
 
-      {previewSupported && editor.gameType === 'tagquest' && (
-        <TagquestPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
-      )}
-      {previewSupported && editor.gameType === 'mystery' && (
-        <MysteryPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
-      )}
-      {isGo && <GoPreviewModal open={goPreviewOpen} onClose={() => setGoPreviewOpen(false)} />}
-      {editor.gameType === 'mystery' && (
-        <MysteryIngameLayoutModal
-          open={ingameLayoutOpen}
-          onClose={() => setIngameLayoutOpen(false)}
-        />
+      {/* Portaled to <body>: this bar is `sticky z-10`, a stacking context that
+          would cap the modals' z-50 at 10 and let the floating Sections menu
+          (z-40) draw on top of them. */}
+      {createPortal(
+        <>
+          {previewSupported && editor.gameType === 'tagquest' && (
+            <TagquestPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
+          )}
+          {previewSupported && editor.gameType === 'mystery' && (
+            <MysteryPreviewModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
+          )}
+          {isGo && <GoPreviewModal open={goPreviewOpen} onClose={() => setGoPreviewOpen(false)} />}
+          {editor.gameType === 'mystery' && (
+            <MysteryIngameLayoutModal
+              open={ingameLayoutOpen}
+              onClose={() => setIngameLayoutOpen(false)}
+            />
+          )}
+        </>,
+        document.body,
       )}
     </div>
   );

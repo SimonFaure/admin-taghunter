@@ -22,7 +22,8 @@ import { tagquestMediaSlots } from '../mediaSlots';
 
 const PRIMARY_KEYS = ['malus_image', 'late_malus_image'] as const;
 const CUSTOM_TEMPLATE_KEY = 'custom_template';
-const DEFAULT_TEMPLATE_URL = '/default_templates/tagquest_template.png';
+// Bump `?v=` whenever the PNG is replaced so browsers drop the cached copy.
+const DEFAULT_TEMPLATE_URL = '/default_templates/tagquest_template.png?v=2';
 const ASPECT_TOLERANCE = 0.01;          // 1%
 const TARGET_ASPECT = 16 / 9;
 const MAX_TEMPLATE_BYTES = 5 * 1024 * 1024; // 5 MB

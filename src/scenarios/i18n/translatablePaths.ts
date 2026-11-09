@@ -59,6 +59,8 @@ export const TAGQUEST_TEXT_KEYS = [
   'text_team_cheating',
   'text_team_ended',
   'text_if_error',
+  // Self-registration screen: a chip joined a team.
+  'text_team_joined',
 ] as const;
 
 /** Mystery doesn't surface ranking/podium/level UI strings. */
@@ -128,6 +130,8 @@ export const CLASH_SCALARS = [
   'purge_text_already_used',
   'purge_text_own_territory',
   'purge_text_no_target',
+  // Registration screen: a chip joined a clan.
+  'join_text',
 ] as const;
 
 /* -------------------------------------------------------------------------- */
@@ -239,6 +243,7 @@ export const TRANSLATABLE_LEAF_FIELDS: readonly string[] = [
   ...COMMON_SCALARS,
   ...TEXT_KEYS,
   'text_team_cheating',
+  'text_team_joined',
   ...TRACKS_LEGEND_TEXT_KEYS,
   ...CLASH_SCALARS,
   'name',

@@ -105,21 +105,24 @@
       "event_text_attack": "Ataque",
       "event_text_neutralized": "Neutralización",
       "event_text_purge": "Purga",
-      "ranking_title": "Título de la clasificación de clanes"
+      "ranking_title": "Título de la clasificación de clanes",
+      "join_text": "Mensaje de inscripción"
     },
     "placeholders": {
       "event_text_conquest": "¡%CLAN% ha conquistado %TERRITORY%!",
       "event_text_attack": "¡%CLAN% ataca %TERRITORY%!",
       "event_text_neutralized": "¡%CLAN% ha neutralizado %TERRITORY%!",
       "event_text_purge": "¡%CLAN% ha purgado %TERRITORY%!",
-      "ranking_title": "Clasificación de clanes"
+      "ranking_title": "Clasificación de clanes",
+      "join_text": "Has entrado en %CLAN%"
     },
     "whens": {
       "event_text_conquest": "Un clan toma el control de un territorio que no tenía.",
       "event_text_attack": "Un clan valida un territorio de otro clan sin arrebatárselo todavía.",
       "event_text_neutralized": "Un territorio vuelve a no tener dueño (empate entre clanes).",
       "event_text_purge": "Un clan usa su única purga y deja un territorio en neutral.",
-      "ranking_title": "Encabezado del panel de clasificación de clanes en la pantalla de juego."
+      "ranking_title": "Encabezado del panel de clasificación de clanes en la pantalla de juego.",
+      "join_text": "Se muestra en grande en la pantalla de inscripción cuando una tarjeta se une a un clan. %CLAN% se sustituye por el nombre del clan."
     }
   }
 }

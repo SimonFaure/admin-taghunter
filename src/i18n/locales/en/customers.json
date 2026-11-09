@@ -1,6 +1,6 @@
 {
   "title": "My Customers",
-  "subtitle": "The organisations you run games for. Tag a game with a customer in the Playground (when launching it, or afterwards) to build their history.",
+  "subtitle": "The organisations you run games for. Tag a game with a customer in the Playground (when launching it, or afterwards), or add their past games by hand, to build their history.",
   "fields": {
     "name": "Name",
     "type": "Type",
@@ -64,7 +64,12 @@
     "notPlayedTitle": "Not played yet",
     "notPlayedHint": "Your scenarios this customer has never played - ideas for their next visit.",
     "notPlayedEmpty": "This customer has played all your scenarios.",
-    "notFound": "This customer does not exist (any more)."
+    "notFound": "This customer does not exist (any more).",
+    "historyEmptyManual": "No game for this customer yet. Add their past games by hand, or attach games played with the Playground.",
+    "addEntry": "Add a game",
+    "manualBadge": "Added by hand",
+    "manualHint": "Game added by hand in Studio",
+    "deleteEntryConfirm": "Remove this game from the customer's history?"
   },
   "merge": {
     "title": "Merge \"{{name}}\"",
@@ -86,6 +91,25 @@
     "attachSelected_one": "Attach {{count}} game",
     "attachSelected_other": "Attach {{count}} games",
     "loadMore": "Load more"
+  },
+  "entry": {
+    "createTitle": "Add a game to \"{{name}}\"",
+    "editTitle": "Edit game",
+    "intro": "For a game played without the Playground, or before Taghunter. It counts in the customer's history and in the Playground's \"Already played\" warning, but not in your statistics.",
+    "date": "Date",
+    "teams": "Teams",
+    "players": "Players",
+    "scenario": "Scenario",
+    "scenarioPlaceholder": "Choose a scenario…",
+    "otherGame": "Other game (not in the catalogue)",
+    "title": "Game name",
+    "gameType": "Game type",
+    "gameTypeNone": "Not specified",
+    "notes": "Notes",
+    "notesPlaceholder": "Place, occasion, remarks…",
+    "dateRequired": "Enter a valid date.",
+    "dateFuture": "The date cannot be in the future.",
+    "gameRequired": "Choose a scenario, or give the game a name."
   },
   "import": {
     "title": "Import customers",

@@ -28,6 +28,14 @@ import {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
 
+/** Apps a scenario file can be restricted to (scenario_files.apps; null = all). */
+type FileApp = 'playground' | 'go' | 'spot';
+const FILE_APPS: { id: FileApp; label: string }[] = [
+  { id: 'playground', label: 'Playground' },
+  { id: 'go', label: 'GO' },
+  { id: 'spot', label: 'Spot' },
+];
+
 interface Scenario {
   id: number;
   title: string;
@@ -619,6 +627,35 @@ export function ScenariosView({
     }
   };
 
+  /**
+   * Restrict a document to some apps: a licensee sees it on the portal only if
+   * it holds the scenario through one of them. `apps` = every app ticked → no
+   * restriction (stored as null). Optimistic; reverts on failure.
+   */
+  const handleSetFileApps = async (fileId: number, apps: FileApp[]) => {
+    const previous = scenarioFiles;
+    const stored = apps.length === FILE_APPS.length ? null : apps;
+    setScenarioFiles(scenarioFiles.map((f) => (f.id === fileId ? { ...f, apps: stored } : f)));
+    try {
+      const response = await authFetch(
+        `${API_BASE_URL}/scenario_translations.php?action=set_file_meta`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file_id: fileId, apps }),
+        },
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to update the file');
+      }
+    } catch (err) {
+      setScenarioFiles(previous);
+      alert(err instanceof Error ? err.message : 'Failed to update the file');
+    }
+  };
+
   const handleDownloadFile = (file: { name?: string; file_path?: string }) => {
     if (!file.file_path) return;
     const url = `${MEDIA_BASE_URL}/media/${file.file_path}`;
@@ -1096,6 +1133,40 @@ export function ScenariosView({
                                   />
                                   No translation needed
                                 </label>
+                              )}
+                              {/* Only Mystery scenarios are played in Playground, GO and Spot. */}
+                              {!isVariant && selectedScenario?.game_type === 'mystery' && (
+                                <span
+                                  className="inline-flex items-center gap-2"
+                                  title="Apps this file is for: licensees who hold the scenario through none of them don't see it"
+                                >
+                                  Apps:
+                                  {FILE_APPS.map(({ id, label }) => {
+                                    const current: FileApp[] = Array.isArray(file.apps)
+                                      ? file.apps
+                                      : FILE_APPS.map((a) => a.id);
+                                    const checked = current.includes(id);
+                                    return (
+                                      <label key={id} className="inline-flex items-center gap-1 cursor-pointer select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          // The last ticked app can't be unticked.
+                                          disabled={checked && current.length === 1}
+                                          onChange={(e) =>
+                                            handleSetFileApps(
+                                              file.id,
+                                              FILE_APPS.map((a) => a.id).filter((a) =>
+                                                a === id ? e.target.checked : current.includes(a),
+                                              ),
+                                            )
+                                          }
+                                        />
+                                        {label}
+                                      </label>
+                                    );
+                                  })}
+                                </span>
                               )}
                             </p>
                           </div>

@@ -37,10 +37,10 @@ class LocalizedPath
         'text_scenario_ended', 'text_team_reached_new_level', 'text_card_empty',
         'text_late_malus', 'text_team_enters_top_ranking', 'text_team_enters_podium',
         'text_team_first_place', 'text_following_top_podium', 'text_if_error',
-        'text_is_card_empty', 'text_team_cheating',
+        'text_is_card_empty', 'text_team_cheating', 'text_team_joined',
         'text_legend_wrong_order', 'text_legend_missing_checkpoint',
         'event_text_conquest', 'event_text_attack', 'event_text_neutralized',
-        'event_text_purge', 'ranking_title',
+        'event_text_purge', 'ranking_title', 'join_text',
         'purge_text_already_used', 'purge_text_own_territory', 'purge_text_no_target',
         'name', 'text', 'spot_question', 'name_overscore_step',
     ];

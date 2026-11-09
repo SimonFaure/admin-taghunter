@@ -19,6 +19,10 @@
   "typographyFooter": "La taille est un pourcentage de la taille d'origine. Un scénario peut redéfinir chaque réglage séparément depuis son Aperçu.",
   "mainImageMargin": "Marge intérieure",
   "mainImageMarginHint": "Marge autour de l'image complète (en % du plus petit côté de la case). Le halo vert ou rouge de résultat suit le contour de l'image : sans marge, il débord sur le cadre du gabarit. Le quadrillage des quatre morceaux n'est pas concerné.",
+  "autoDimHint": "Champ vide = automatique : la largeur suit les proportions de l'image. Avec une valeur, l'image garde ses proportions et tient dans son cadre, sans jamais être déformée. Videz le champ pour revenir en automatique.",
+  "previewScenario": "Aperçu avec le scénario",
+  "previewScenarioNone": "Aucun scénario Quest",
+  "previewScenarioHint": "Affichage seulement : rien n'est enregistré dans ce scénario. Ses propres réglages de texte sont ignorés pour montrer les valeurs par défaut.",
   "types": {
     "tagquest": "Quest",
     "mystery": "Mystery",

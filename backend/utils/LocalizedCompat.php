@@ -46,6 +46,7 @@ class LocalizedCompat
         'text_if_error',
         'text_is_card_empty',
         'text_team_cheating',
+        'text_team_joined',
     ];
 
     /**

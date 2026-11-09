@@ -36,6 +36,12 @@ function playgroundDisabledTypes($db, $client) {
     return $cache[$key];
 }
 
+// Event bookings reach test-channel devices only for now (device override, else
+// the licensee's channel). Stable devices never get the feed.
+function playgroundEventBookingsAllowed($db, $client): bool {
+    return GameTypes::deviceChannel($db->getConnection(), (int)($client['id'] ?? 0), $client['device_id'] ?? null) === 'test';
+}
+
 // Filter a list of associative rows by their game-type column, dropping any whose
 // type is disabled for this device. $col defaults to 'game_type'.
 function playgroundFilterDisabledTypes($db, $client, array $rows, $col = 'game_type') {
@@ -1184,10 +1190,12 @@ try {
             ? LicenseeCustomers::version($db, (int)$userId)
             : null;
         // Events (phase 4): today's bookings feed. Key present only when Events is
-        // migrated AND enabled for this licensee; a device without it hides the feature.
+        // migrated AND enabled for this licensee AND the device is on the test
+        // update channel; a device without it hides the feature (and drops its cache).
         $eventBookingsVersion = null;
         try {
-            if (EventsCheckin::migrated($db) && EventsSettings::clientEnabled($db, (int)$userId)) {
+            if (EventsCheckin::migrated($db) && EventsSettings::clientEnabled($db, (int)$userId)
+                && playgroundEventBookingsAllowed($db, $client)) {
                 $eventBookingsVersion = EventsCheckin::version($db, (int)$userId);
             }
         } catch (Throwable $e) {
@@ -1376,7 +1384,8 @@ try {
             jsonResponse(['error' => 'Method not allowed'], 405);
         }
         $client = requirePlaygroundClient($db);
-        if (!EventsCheckin::migrated($db) || !EventsSettings::clientEnabled($db, (int)$client['id'])) {
+        if (!EventsCheckin::migrated($db) || !EventsSettings::clientEnabled($db, (int)$client['id'])
+            || !playgroundEventBookingsAllowed($db, $client)) {
             jsonResponse(['error' => 'Events not available'], 404);
         }
         $db->query("SET time_zone = '+00:00'");
@@ -1435,6 +1444,25 @@ try {
              WHERE client_id = ? AND customer_assigned_at IS NOT NULL',
             [$userId]
         ));
+        // Games added by hand in studio (add_licensee_customers_history.sql):
+        // same row shape under a "manual:" id that matches no device summary,
+        // so they only feed the "already played" badges (no flow-back).
+        if (LicenseeCustomers::historyMigrated()) {
+            foreach ($db->fetchAll(
+                'SELECT id, customer_id, scenario_uniqid, played_on, updated_at
+                 FROM licensee_customer_history
+                 WHERE client_id = ? AND scenario_uniqid IS NOT NULL',
+                [$userId]
+            ) as $h) {
+                $games[] = [
+                    'manual:' . $h['id'],
+                    $h['customer_id'],
+                    $h['scenario_uniqid'],
+                    LicenseeCustomers::historyPlayedAt($h['played_on']),
+                    LicenseeCustomers::utcToIso($h['updated_at']),
+                ];
+            }
+        }
 
         Logger::log('playground', $method, 'get_customers', $userId, [], [
             'version' => $version, 'customers' => count($customers), 'games' => count($games),

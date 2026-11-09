@@ -184,6 +184,8 @@ const BaseGameMetaSchema = z.looseObject({
   text_is_card_empty: LocalizedStringSchema.optional(),
   // Shown when a team is caught cheating (e.g. presenting an un-erased chip).
   text_team_cheating: LocalizedStringSchema.optional(),
+  // Quest self-registration: shown big when a chip joins a team (%team%).
+  text_team_joined: LocalizedStringSchema.optional(),
   message_display_time: z.string().optional(),
   animation_display_time: z.string().optional(),
   animation_image_duration: z.string().optional(),
@@ -646,6 +648,9 @@ export const ClashGameMetaSchema = BaseGameMetaSchema.extend({
   purge_text_no_target: LocalizedStringSchema.optional(),
   /** Heading of the clan-ranking panel. Blank ⇒ the app default. */
   ranking_title: LocalizedStringSchema.optional(),
+  /** Shown big on the registration screen when a chip joins a clan
+   *  (`%CLAN%` = the clan name). Blank ⇒ the app default. */
+  join_text: LocalizedStringSchema.optional(),
   /** Optional dashboard chrome frames (fall back to default styling if unset) (V2). */
   frame_separator: z.string().optional(),
   frame_ranking: z.string().optional(),

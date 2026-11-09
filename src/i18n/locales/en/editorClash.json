@@ -105,21 +105,24 @@
       "event_text_attack": "Attack",
       "event_text_neutralized": "Neutralised",
       "event_text_purge": "Purge",
-      "ranking_title": "Clan-ranking heading"
+      "ranking_title": "Clan-ranking heading",
+      "join_text": "Registration message"
     },
     "placeholders": {
       "event_text_conquest": "%CLAN% conquered %TERRITORY%!",
       "event_text_attack": "%CLAN% is attacking %TERRITORY%!",
       "event_text_neutralized": "%CLAN% neutralised %TERRITORY%!",
       "event_text_purge": "%CLAN% purged %TERRITORY%!",
-      "ranking_title": "Clan ranking"
+      "ranking_title": "Clan ranking",
+      "join_text": "You joined %CLAN%"
     },
     "whens": {
       "event_text_conquest": "A clan takes control of a territory it did not hold.",
       "event_text_attack": "A clan validates a territory held by another clan without taking it yet.",
       "event_text_neutralized": "A territory falls back to nobody (clans are tied).",
       "event_text_purge": "A clan spends its one purge and resets a territory to neutral.",
-      "ranking_title": "Heading of the clan-ranking panel on the game screen."
+      "ranking_title": "Heading of the clan-ranking panel on the game screen.",
+      "join_text": "Shown big on the registration screen when a chip joins a clan. %CLAN% is replaced by the clan name."
     }
   }
 }

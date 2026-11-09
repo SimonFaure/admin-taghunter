@@ -68,6 +68,7 @@ export function defaultTagquestGameMeta(): TagquestGameMeta {
     text_if_error: {},
     text_is_card_empty: {},
     text_team_cheating: {},
+    text_team_joined: {},
     message_display_time: '2',
     animation_display_time: '1',
     custom_fonts: [],

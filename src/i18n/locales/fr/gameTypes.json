@@ -51,5 +51,17 @@
     "uploadVtt": "Téléverser .vtt",
     "download": "Télécharger",
     "downloadDefault": "Télécharger (Tag Hunter)"
+  },
+  "uploadProgress": {
+    "uploading": "Envoi de {{name}}…",
+    "processing": "Enregistrement sur le serveur…",
+    "progress": "{{percent}} % · {{loaded}} / {{total}} Mo",
+    "remainingMin_one": "Environ {{count}} min restante",
+    "remainingMin_other": "Environ {{count}} min restantes",
+    "remainingSec_one": "Environ {{count}} s restante",
+    "remainingSec_other": "Environ {{count}} s restantes",
+    "cancel": "Annuler",
+    "pill": "Envoi {{percent}} %",
+    "pillProcessing": "Enregistrement…"
   }
 }

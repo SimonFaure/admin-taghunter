@@ -105,21 +105,24 @@
       "event_text_attack": "Attaque",
       "event_text_neutralized": "Neutralisation",
       "event_text_purge": "Purge",
-      "ranking_title": "Titre du classement des clans"
+      "ranking_title": "Titre du classement des clans",
+      "join_text": "Message d'inscription"
     },
     "placeholders": {
       "event_text_conquest": "%CLAN% a conquis %TERRITORY% !",
       "event_text_attack": "%CLAN% attaque %TERRITORY% !",
       "event_text_neutralized": "%CLAN% a neutralisé %TERRITORY% !",
       "event_text_purge": "%CLAN% a purgé %TERRITORY% !",
-      "ranking_title": "Classement des clans"
+      "ranking_title": "Classement des clans",
+      "join_text": "Vous êtes entré chez %CLAN%"
     },
     "whens": {
       "event_text_conquest": "Un clan prend le contrôle d'un territoire qu'il ne détenait pas.",
       "event_text_attack": "Un clan valide un territoire détenu par un autre clan sans encore le lui prendre.",
       "event_text_neutralized": "Un territoire repasse à personne (égalité entre clans).",
       "event_text_purge": "Un clan utilise sa purge unique et remet un territoire à neutre.",
-      "ranking_title": "En-tête du cadre de classement des clans, sur l'écran de jeu."
+      "ranking_title": "En-tête du cadre de classement des clans, sur l'écran de jeu.",
+      "join_text": "Affiché en grand sur l'écran d'inscription quand une puce rejoint un clan. %CLAN% est remplacé par le nom du clan."
     }
   }
 }

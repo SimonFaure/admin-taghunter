@@ -19,6 +19,10 @@
   "typographyFooter": "El tamaño es un porcentaje del tamaño original. Un escenario puede redefinir cada ajuste por separado desde su Aperçu.",
   "mainImageMargin": "Margen interior",
   "mainImageMarginHint": "Margen alrededor de la imagen completa (% del lado más corto de la casilla). El halo verde o rojo del resultado sigue el contorno de la imagen: sin margen, se desborda sobre el marco de la plantilla. La cuadrícula de las cuatro piezas no se ve afectada.",
+  "autoDimHint": "Campo vacío = automático: el ancho sigue las proporciones de la imagen. Con un valor, la imagen conserva sus proporciones y cabe en su marco, sin deformarse nunca. Vacía el campo para volver a automático.",
+  "previewScenario": "Vista previa con el escenario",
+  "previewScenarioNone": "Ningún escenario Quest",
+  "previewScenarioHint": "Solo visualización: no se guarda nada en este escenario. Sus propios ajustes de texto se ignoran para mostrar los valores por defecto.",
   "types": {
     "tagquest": "Quest",
     "mystery": "Mystery",

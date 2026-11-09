@@ -38,3 +38,37 @@ export interface CustomerGame {
   customer_id: string | null;
   customer_name: string | null;
 }
+
+/** A game added by hand to a customer's history (not synced from a playground). */
+export interface CustomerHistoryEntry {
+  id: string;
+  customer_id: string;
+  /** "YYYY-MM-DD" */
+  played_on: string;
+  /** played_on at noon UTC, same shape as CustomerGame.played_at. */
+  played_at: string;
+  scenario_uniqid: string | null;
+  scenario_title: string | null;
+  scenario_medias: Record<string, unknown> | null;
+  /** Free title when the game is not one of the catalog scenarios. */
+  title: string | null;
+  game_type: string | null;
+  teams_count: number | null;
+  players_count: number | null;
+  notes: string | null;
+  created_by: 'client' | 'admin';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomerHistoryEntryInput {
+  id?: string;
+  customer_id: string;
+  played_on: string;
+  scenario_uniqid: string | null;
+  title: string | null;
+  game_type: string | null;
+  teams_count: number | null;
+  players_count: number | null;
+  notes: string | null;
+}
