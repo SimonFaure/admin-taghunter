@@ -112,41 +112,44 @@ class OTPManager {
         return mail($email, $subject, $message, $headers);
     }
 
-    private static function getOTPEmailHTML(string $code): string {
-        $expiryMinutes = self::CODE_EXPIRY_MINUTES;
+    // Tag Hunter brand: black + red (#c30017), Playground logo (public/email/).
+    private const TH_RED = '#c30017';
+    private const TH_LOGO = 'https://studio.taghunter.fr/email/taghunter-playground-logo.png';
+
+    /** Shared Tag Hunter layout: white card, Playground logo, red accent bar, black footer. */
+    private static function brandedEmail(string $title, string $intro, string $body): string {
+        $red = self::TH_RED;
+        $logo = self::TH_LOGO;
         return <<<HTML
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Login Code</title>
+    <title>{$title}</title>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0f172a;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f2f2f2; color: #000000;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f2f2f2; padding: 32px 16px;">
         <tr>
             <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width: 100%; max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
                     <tr>
-                        <td style="padding: 48px 40px; text-align: center; background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
-                            <img src="https://studio.taghunter.fr/logo_tag_hunter.png" alt="Tag Hunter" style="height: 80px; width: auto; margin-bottom: 24px;">
-                            <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 12px 0;">Your Login Code</h1>
-                            <p style="color: #94a3b8; font-size: 16px; margin: 0; line-height: 1.5;">Enter this code to access your Tag Hunter dashboard</p>
+                        <td style="padding: 32px 40px 24px; text-align: center; background-color: #ffffff;">
+                            <img src="{$logo}" alt="Tag Hunter Playground" width="170" height="150" style="display: block; margin: 0 auto; width: 170px; height: auto; border: 0;">
+                        </td>
+                    </tr>
+                    <tr><td style="height: 4px; line-height: 4px; font-size: 0; background-color: {$red};">&nbsp;</td></tr>
+                    <tr>
+                        <td style="padding: 36px 40px 40px; text-align: center;">
+                            <h1 style="color: #000000; font-size: 26px; font-weight: 700; margin: 0 0 10px 0; letter-spacing: 0.5px;">{$title}</h1>
+                            <p style="color: #444444; font-size: 16px; margin: 0 0 32px 0; line-height: 1.5;">{$intro}</p>
+                            {$body}
                         </td>
                     </tr>
                     <tr>
-                        <td style="padding: 48px 40px; text-align: center;">
-                            <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-radius: 12px; padding: 32px; margin: 0 0 32px 0;">
-                                <div style="color: #ffffff; font-size: 48px; font-weight: 700; letter-spacing: 12px; font-family: 'Courier New', monospace;">{$code}</div>
-                            </div>
-                            <p style="color: #cbd5e1; font-size: 15px; margin: 0 0 8px 0; line-height: 1.6;">This code will expire in <strong style="color: #ffffff;">{$expiryMinutes} minutes</strong></p>
-                            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.6;">If you didn't request this code, please ignore this email.</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 32px 40px; text-align: center; background-color: #0f172a; border-top: 1px solid #334155;">
-                            <p style="color: #64748b; font-size: 13px; margin: 0; line-height: 1.5;">
-                                This is an automated message from Tag Hunter.<br>
+                        <td style="padding: 22px 40px; text-align: center; background-color: #000000;">
+                            <p style="color: #bdbdbd; font-size: 12px; margin: 0; line-height: 1.6;">
+                                This is an automated message from <span style="color: #ffffff; font-weight: 700;">TAG HUNTER</span>.<br>
                                 Please do not reply to this email.
                             </p>
                         </td>
@@ -160,49 +163,31 @@ class OTPManager {
 HTML;
     }
 
+    private static function getOTPEmailHTML(string $code): string {
+        $expiryMinutes = self::CODE_EXPIRY_MINUTES;
+        $red = self::TH_RED;
+        $body = <<<HTML
+<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin: 0 auto 28px auto;">
+    <tr>
+        <td style="background-color: #000000; border-radius: 10px; border-bottom: 4px solid {$red}; padding: 22px 36px;">
+            <div style="color: #ffffff; font-size: 44px; font-weight: 700; letter-spacing: 12px; font-family: 'Courier New', Courier, monospace;">{$code}</div>
+        </td>
+    </tr>
+</table>
+<p style="color: #222222; font-size: 15px; margin: 0 0 8px 0; line-height: 1.6;">This code will expire in <strong style="color: {$red};">{$expiryMinutes} minutes</strong></p>
+<p style="color: #777777; font-size: 14px; margin: 0; line-height: 1.6;">If you didn't request this code, please ignore this email.</p>
+HTML;
+        return self::brandedEmail('Your Login Code', 'Enter this code to access your Tag Hunter dashboard', $body);
+    }
+
     private static function getMagicLinkEmailHTML(string $magicLink): string {
         $expiryMinutes = self::CODE_EXPIRY_MINUTES;
-        return <<<HTML
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Login Link</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0f172a;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0f172a; padding: 40px 20px;">
-        <tr>
-            <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);">
-                    <tr>
-                        <td style="padding: 48px 40px; text-align: center; background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
-                            <img src="https://studio.taghunter.fr/logo_tag_hunter.png" alt="Tag Hunter" style="height: 80px; width: auto; margin-bottom: 24px;">
-                            <h1 style="color: #ffffff; font-size: 28px; font-weight: 700; margin: 0 0 12px 0;">Your Magic Login Link</h1>
-                            <p style="color: #94a3b8; font-size: 16px; margin: 0; line-height: 1.5;">Click the button below to access your Tag Hunter dashboard</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 48px 40px; text-align: center;">
-                            <a href="{$magicLink}" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 16px 48px; border-radius: 8px; font-size: 16px; font-weight: 600; margin: 0 0 32px 0;">Login to Tag Hunter</a>
-                            <p style="color: #cbd5e1; font-size: 15px; margin: 0 0 8px 0; line-height: 1.6;">This link will expire in <strong style="color: #ffffff;">{$expiryMinutes} minutes</strong></p>
-                            <p style="color: #64748b; font-size: 14px; margin: 0; line-height: 1.6;">If you didn't request this link, please ignore this email.</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 32px 40px; text-align: center; background-color: #0f172a; border-top: 1px solid #334155;">
-                            <p style="color: #64748b; font-size: 13px; margin: 0; line-height: 1.5;">
-                                This is an automated message from Tag Hunter.<br>
-                                Please do not reply to this email.
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-</body>
-</html>
+        $red = self::TH_RED;
+        $body = <<<HTML
+<a href="{$magicLink}" style="display: inline-block; background-color: {$red}; color: #ffffff; text-decoration: none; padding: 16px 44px; border-radius: 8px; font-size: 16px; font-weight: 700; margin: 0 0 28px 0;">Login to Tag Hunter</a>
+<p style="color: #222222; font-size: 15px; margin: 0 0 8px 0; line-height: 1.6;">This link will expire in <strong style="color: {$red};">{$expiryMinutes} minutes</strong></p>
+<p style="color: #777777; font-size: 14px; margin: 0; line-height: 1.6;">If you didn't request this link, please ignore this email.</p>
 HTML;
+        return self::brandedEmail('Your Magic Login Link', 'Click the button below to access your Tag Hunter dashboard', $body);
     }
 }

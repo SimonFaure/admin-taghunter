@@ -51,6 +51,17 @@ function offersFor(p: OrderProduct, kind: OrderKind): Offer[] {
   return p[f] != null ? [{ variant: null, price: p[f] as number }] : [];
 }
 
+/** Markdown -> one plain-text run for the card preview (paragraphs joined by a space). */
+function markdownToPlain(md: string): string {
+  return md
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}(#{1,6}|[-*+]|\d+\.|>)\s+/gm, '')
+    .replace(/(\*\*|__|\*|_|`)/g, '')
+    .replace(/\s*\n+\s*/g, ' ')
+    .trim();
+}
+
 function fromPrice(offers: Offer[]): { price: number; from: boolean } | null {
   if (!offers.length) return null;
   const prices = offers.map((o) => o.price);
@@ -442,12 +453,8 @@ function ProductCard({ product: p, kind, lang, basketQty, highlighted, otherPath
         )}
         <p className="text-base font-semibold text-slate-900">{priceText(offers, offer, kind, lang, t)}</p>
         <VariantSelect offers={offers} value={offer?.variant?.id ?? null} onChange={setVariantId} lang={lang} kind={kind} />
-        {description && (
-          <div className="relative max-h-16 overflow-hidden">
-            <OrderMarkdown source={description} />
-            <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white" />
-          </div>
-        )}
+        {/* Card preview: plain text, always 3 full lines (ellipsis beyond); the popup shows the formatted text. */}
+        {description && <p className="text-sm text-slate-700 line-clamp-3">{markdownToPlain(description)}</p>}
         <div><CrossBadge product={p} kind={kind} lang={lang} otherPath={otherPath} /></div>
         <div className="mt-auto pt-2 flex items-center justify-between gap-2">
           <button type="button" onClick={onOpen} className="text-sm text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline">{t('details')}</button>

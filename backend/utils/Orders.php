@@ -337,8 +337,8 @@ class Orders {
     /** Lines table + total, as HTML, in $lang (display names) for $out (requestOut with detail). */
     private static function linesHtml(array $out, string $lang): string {
         $rent = $out['kind'] === 'rent';
-        $th = 'style="text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;font-size:13px;color:#555"';
-        $td = 'style="padding:6px 8px;border-bottom:1px solid #eee;font-size:14px"';
+        $th = 'style="text-align:left;padding:8px;background:' . self::LUDIOM_RED . ';color:#ffffff;font-size:12px;font-weight:bold"';
+        $td = 'style="padding:8px;border-bottom:1px solid #eadede;font-size:14px"';
         $html = '<table style="border-collapse:collapse;width:100%;margin:12px 0">'
             . '<tr><th ' . $th . '>' . self::h(self::t($lang, 'product')) . '</th><th ' . $th . '>' . self::h(self::t($lang, 'qty'))
             . '</th><th ' . $th . '>' . self::h(self::t($lang, 'unit')) . '</th><th ' . $th . '>' . self::h(self::t($lang, 'total')) . '</th></tr>';
@@ -353,19 +353,36 @@ class Orders {
                 'a' => self::fmtDate($out['rent_start'], $lang), 'b' => self::fmtDate($out['rent_end'], $lang), 'd' => $out['days'],
             ])) . '</p>';
         }
-        $html .= '<p style="margin:4px 0;font-weight:bold">' . self::h(self::t($lang, 'estimate')) . ($lang === 'fr' ? ' : ' : ': ') . self::h(self::money($out['total_cents'], $lang)) . '</p>'
+        $html .= '<p style="margin:8px 0 4px;font-weight:bold;font-size:15px;color:' . self::LUDIOM_RED . '">' . self::h(self::t($lang, 'estimate')) . ($lang === 'fr' ? ' : ' : ': ') . self::h(self::money($out['total_cents'], $lang)) . '</p>'
             . '<p style="margin:4px 0;color:#666;font-size:12px">' . self::h(self::t($lang, 'vat_note')) . '</p>';
         return $html;
     }
 
+    // Ludiom brand (seller of the equipment): dark header with the white/red logo, red #951920 accents.
+    private const LUDIOM_RED = '#951920';
+    private const LUDIOM_DARK = '#1b1b1b';
+
     private static function wrap(string $title, string $body): string {
-        return '<!DOCTYPE html><html><body style="font-family:Arial,Helvetica,sans-serif;color:#1e293b;background:#f8fafc;margin:0;padding:24px">'
-            . '<div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:24px">'
-            . '<h2 style="margin:0 0 12px;font-size:18px">' . self::h($title) . '</h2>' . $body . '</div></body></html>';
+        $logo = self::h(PaymentsConfig::studioBase() . '/email/ludiom-logo.png');
+        $red = self::LUDIOM_RED;
+        $dark = self::LUDIOM_DARK;
+        return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>'
+            . '<body style="margin:0;padding:0;background:#f3eeee;font-family:Arial,Helvetica,sans-serif;color:#1f1f1f">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3eeee;padding:28px 12px"><tr><td align="center">'
+            . '<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e6dcdc">'
+            . "<tr><td style=\"background:$dark;padding:22px 28px\"><img src=\"$logo\" width=\"200\" height=\"38\" alt=\"LUDIOM\" style=\"display:block;width:200px;height:auto;border:0;color:#ffffff;font-size:22px;font-weight:bold;letter-spacing:3px\"></td></tr>"
+            . "<tr><td style=\"height:4px;line-height:4px;font-size:0;background:$red\">&nbsp;</td></tr>"
+            . '<tr><td style="padding:26px 28px 30px">'
+            . "<h2 style=\"margin:0 0 14px;font-size:20px;color:$red\">" . self::h($title) . '</h2>' . $body
+            . '</td></tr>'
+            . "<tr><td style=\"background:$dark;padding:16px 28px;font-size:12px;line-height:1.6;color:#bdb3b3\">"
+            . '<strong style="color:#ffffff;letter-spacing:1px">LUDIOM</strong> · Tag Hunter · '
+            . '<a href="https://taghunter.fr" style="color:#ffffff;text-decoration:underline">taghunter.fr</a>'
+            . '</td></tr></table></td></tr></table></body></html>';
     }
 
     private static function button(string $url, string $label): string {
-        return '<p style="margin:20px 0 0"><a href="' . self::h($url) . '" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px">' . self::h($label) . '</a></p>';
+        return '<p style="margin:22px 0 0"><a href="' . self::h($url) . '" style="display:inline-block;background:' . self::LUDIOM_RED . ';color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:bold">' . self::h($label) . '</a></p>';
     }
 
     /**
@@ -422,7 +439,7 @@ class Orders {
         $body .= '<p><strong>Contact</strong><br>' . implode('<br>', array_map([self::class, 'h'], $addr))
             . '<br>' . self::h($out['contact_email']) . ($out['contact_phone'] ? ' · ' . self::h($out['contact_phone']) : '') . '</p>';
         if ($out['message']) $body .= '<p><strong>Message</strong><br>' . nl2br(self::h($out['message'])) . '</p>';
-        $body .= '<p style="color:#b45309;font-size:12px">Pas de contrôle de stock : vérifiez la disponibilité avant de confirmer.</p>'
+        $body .= '<p style="color:' . self::LUDIOM_RED . ';font-size:12px">Pas de contrôle de stock : vérifiez la disponibilité avant de confirmer.</p>'
             . self::button(self::adminLink($out), 'Ouvrir dans Studio');
         $html = self::wrap('Nouvelle demande ' . $out['number'], $body);
         $replyTo = self::licenseeEmail($out, $client) ?: null;
@@ -443,7 +460,7 @@ class Orders {
         $lang = self::lang($out['language']);
         $s = self::t($lang, $out['status']);
         $body = '<p>' . self::h(self::t($lang, 'status_intro', ['s' => $s])) . '</p>';
-        if ($note) $body .= '<div style="background:#f1f5f9;border-radius:6px;padding:10px 12px;margin:12px 0"><strong>' . self::h(self::t($lang, 'note')) . '</strong><br>' . nl2br(self::h($note)) . '</div>';
+        if ($note) $body .= '<div style="background:#f7eeee;border-left:4px solid ' . self::LUDIOM_RED . ';border-radius:4px;padding:10px 12px;margin:12px 0"><strong>' . self::h(self::t($lang, 'note')) . '</strong><br>' . nl2br(self::h($note)) . '</div>';
         $body .= '<p><strong>' . self::h($out['number']) . '</strong> · ' . self::h(self::t($lang, $out['kind'])) . '</p>'
             . self::linesHtml($out, $lang) . self::button(self::licenseeLink($out), self::t($lang, 'view'));
         $subject = self::t($lang, 'status_subject', ['n' => $out['number'], 's' => $s]);
