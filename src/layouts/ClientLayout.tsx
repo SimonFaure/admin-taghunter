@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  LogOut, Home, Film, LayoutGrid, QrCode, Trophy, Gamepad2, BarChart3, FileText, Building2, Ticket, Wallet,
+  LogOut, Home, Film, LayoutGrid, Smartphone, Gamepad2, BarChart3, FileText, Building2, Ticket, Wallet,
   ShoppingCart, Video, Download, Calculator, HelpCircle, ChevronDown,
 } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -26,19 +26,19 @@ type NavLeaf = {
   show: (a: AppAccess) => boolean;
   badge?: Badge;
 };
-// A collapsible entry grouping several leaves (Playground, Commandes).
+// A collapsible entry grouping several leaves (Playground, GO / SPOT, Commandes).
 type NavSub = {
   id: string;
   labelKey: string;
+  // Untranslated product name depending on the licensee's apps; wins over labelKey.
+  labelFor?: (a: AppAccess) => string;
   icon: typeof Home;
   defaultOpen: boolean;
   show: (a: AppAccess) => boolean;
   children: Omit<NavLeaf, 'icon'>[];
 };
 type NavEntry = NavLeaf | NavSub;
-// A section title is either translated (titleKey) or a product name that depends
-// on the licensee's apps (titleFor, untranslated).
-type NavSection = { titleKey: string | null; titleFor?: (a: AppAccess) => string; entries: NavEntry[] };
+type NavSection = { titleKey: string | null; entries: NavEntry[] };
 const isSub = (e: NavEntry): e is NavSub => 'children' in e;
 
 const anyScenarioApp = (a: AppAccess) => a.playground || a.go || a.spot;
@@ -73,16 +73,20 @@ const NAV: NavSection[] = [
           { to: '/my/releases', labelKey: 'nav.releases', show: playground },
         ],
       },
-    ],
-  },
-  {
-    // Titled after the companion apps the licensee actually has.
-    titleKey: null,
-    titleFor: (a) => [a.go && 'GO', a.spot && 'SPOT'].filter(Boolean).join(' / '),
-    entries: [
-      { to: '/my/qr-codes', labelKey: 'nav.qrCodes', icon: QrCode, show: goOrSpot },
-      // One merged leaderboards page; RankingsView shows a GO/Spot tab when both are on.
-      { to: '/my/rankings', labelKey: 'nav.rankings', icon: Trophy, show: goOrSpot },
+      {
+        // Named after the companion apps the licensee actually has: GO / SPOT, GO or SPOT.
+        id: 'gospot',
+        labelKey: 'nav.qrCodes',
+        labelFor: (a) => [a.go && 'GO', a.spot && 'SPOT'].filter(Boolean).join(' / '),
+        icon: Smartphone,
+        defaultOpen: true,
+        show: goOrSpot,
+        children: [
+          { to: '/my/qr-codes', labelKey: 'nav.qrCodes', show: goOrSpot },
+          // One merged leaderboards page; RankingsView shows a GO/Spot tab when both are on.
+          { to: '/my/rankings', labelKey: 'nav.rankings', show: goOrSpot },
+        ],
+      },
     ],
   },
   {
@@ -192,7 +196,7 @@ function NavSubSection({ sub, access }: { sub: NavSub; access: AppAccess }) {
         className={`${itemBase} font-medium hover:bg-white/[.06] hover:text-white ${hasActiveChild ? 'text-white' : 'text-th-nav-text'}`}
       >
         <Icon className={`h-[18px] w-[18px] flex-none ${hasActiveChild ? 'text-th-accent-light' : ''}`} aria-hidden="true" />
-        <span className="flex-1 min-w-0">{t(sub.labelKey)}</span>
+        <span className="flex-1 min-w-0">{sub.labelFor ? sub.labelFor(access) : t(sub.labelKey)}</span>
         <ChevronDown
           className={`h-4 w-4 flex-none motion-safe:transition-transform motion-safe:duration-200 ${open ? 'rotate-180' : ''}`}
           aria-hidden="true"
@@ -271,7 +275,7 @@ function Sidebar({ access }: { access: AppAccess }) {
         {NAV.map((section, i) => {
           const entries = section.entries.filter((e) => e.show(access));
           if (entries.length === 0) return null;
-          const title = section.titleFor ? section.titleFor(access) : section.titleKey ? t(section.titleKey) : null;
+          const title = section.titleKey ? t(section.titleKey) : null;
           return (
             <div key={i} className="flex flex-col gap-0.5">
               {title && (
