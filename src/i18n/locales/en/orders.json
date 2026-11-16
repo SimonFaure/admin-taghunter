@@ -80,6 +80,7 @@
   "errors": {
     "product_unavailable": "An item is no longer available. The page was reloaded, please check your request.",
     "orders_unavailable": "Ordering is not available yet.",
+    "orders_disabled": "Ordering is not open on your account. Contact Tag Hunter if you need equipment.",
     "not_cancellable": "This request can no longer be cancelled.",
     "generic": "Something went wrong. Please try again."
   },

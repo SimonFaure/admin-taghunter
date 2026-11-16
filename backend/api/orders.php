@@ -22,6 +22,8 @@
 //   POST admin_request_status {id, status, note?, notify}
 //   GET  settings                         -> {notify_emails}
 //   POST settings_save {notify_emails}
+//   GET  access                           -> {all, client_ids, clients:[{id, name, email}]}
+//   POST access_save {all, client_ids}    (who may order; catalog/submit -> 403 orders_disabled otherwise)
 
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
@@ -35,6 +37,7 @@ require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
 require_once __DIR__ . '/../utils/Orders.php';
 require_once __DIR__ . '/../utils/ClientAddresses.php';
+require_once __DIR__ . '/../utils/OrdersAccess.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -382,6 +385,11 @@ try {
     if ($adminOnly && !$isAdmin) fail('Forbidden', 403);
     if (!$adminOnly && $isAdmin) fail('Forbidden', 403);
     $uiLang = Orders::lang($_GET['lang'] ?? null);
+    // Ordering switched off for this licensee: no catalogue, no new request. Past
+    // requests ("Mes demandes", cancel) stay available.
+    if (!$isAdmin && in_array($action, ['catalog', 'submit'], true) && !OrdersAccess::clientEnabled($db, $ctx['id'])) {
+        fail('orders_disabled', 403);
+    }
 
     switch ($action) {
         // ── Licensee ──────────────────────────────────────────────────────
@@ -527,6 +535,20 @@ try {
                 [json_encode($emails), $ctx['id']]
             );
             jsonResponse(['notify_emails' => $emails]);
+        }
+        case 'access': {
+            $clients = $db->fetchAll(
+                "SELECT id, COALESCE(NULLIF(company, ''), NULLIF(name, ''), email) AS name, email FROM clients ORDER BY name"
+            );
+            jsonResponse(OrdersAccess::settings($db) + ['clients' => array_map(fn($c) => [
+                'id' => (int)$c['id'], 'name' => $c['name'], 'email' => $c['email'],
+            ], $clients)]);
+        }
+        case 'access_save': {
+            if ($method !== 'POST') fail('Method not allowed', 405);
+            $out = OrdersAccess::save($db, !empty($data['all']), is_array($data['client_ids'] ?? null) ? $data['client_ids'] : [], $ctx['id']);
+            Logger::log('orders', 'POST', 'access_save', $ctx['id'], ['all' => $out['all'], 'count' => count($out['client_ids'])], ['success' => true], 200);
+            jsonResponse($out);
         }
 
         default:

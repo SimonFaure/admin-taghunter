@@ -31,6 +31,9 @@ export interface AuthUser {
   spot_enabled?: boolean;
   // Events / online ticketing (admin switch, backend EventsSettings::clientEnabled).
   events_enabled?: boolean;
+  // Commandes (backend OrdersAccess): may order / has past requests. Absent => ON / off.
+  orders_enabled?: boolean;
+  orders_history?: boolean;
   language?: string;
   created_at?: string;
   avatar_url?: string;
@@ -83,6 +86,8 @@ function buildUserFromPayload(payload: any, fallbackToken: string): AuthUser {
     go_enabled: !!payload.go_enabled,
     spot_enabled: !!payload.spot_enabled,
     events_enabled: !!payload.events_enabled,
+    orders_enabled: payload.orders_enabled === undefined ? true : !!payload.orders_enabled,
+    orders_history: !!payload.orders_history,
     language: payload.language,
     created_at: payload.created_at,
     avatar_url: payload.avatar_url,

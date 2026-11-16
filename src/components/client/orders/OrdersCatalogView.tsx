@@ -95,7 +95,9 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
       setCategories(r.categories);
       setProfile(r.profile);
     } catch (e) {
-      setError(e instanceof OrdersApiError && e.message === 'orders_unavailable' ? t('errors.orders_unavailable') : t('loadError'));
+      setError(e instanceof OrdersApiError && (e.message === 'orders_unavailable' || e.message === 'orders_disabled')
+        ? t(`errors.${e.message}`)
+        : t('loadError'));
     } finally {
       setLoading(false);
     }

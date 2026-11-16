@@ -80,6 +80,7 @@
   "errors": {
     "product_unavailable": "Un artículo ya no está disponible. La página se ha recargado, revise su solicitud.",
     "orders_unavailable": "Los pedidos aún no están disponibles.",
+    "orders_disabled": "Los pedidos no están abiertos en su cuenta. Contacte con Tag Hunter si necesita material.",
     "not_cancellable": "Esta solicitud ya no se puede cancelar.",
     "generic": "Se ha producido un error. Inténtelo de nuevo."
   },

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, Eye, EyeOff, ImageOff, ImagePlus, Mail, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
-import { ordersApi, OrdersApiError } from '../../../lib/ordersApi';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, ImageOff, ImagePlus, Mail, Pencil, Plus, Save, Trash2, Users, X } from 'lucide-react';
+import { ordersApi, OrdersApiError, type OrdersAccessSettings } from '../../../lib/ordersApi';
+import { OrdersAccessModal } from './OrdersAccessModal';
 import { centsToInput, formatMoney, mediaUrl, parseEuros, pickText } from '../../../lib/ordersFormat';
 import type { I18nText, OrderApp, OrderCategory, OrderImage, OrderLang, OrderProduct } from '../../../types/orders';
 import { OrderMarkdown } from '../../orders/OrderMarkdown';
@@ -35,6 +36,12 @@ export function OrderProductsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<OrderProduct | 'new' | null>(null);
+  const [access, setAccess] = useState<OrdersAccessSettings | null>(null);
+  const [accessOpen, setAccessOpen] = useState(false);
+
+  useEffect(() => {
+    ordersApi.access().then((r) => setAccess({ all: r.all, client_ids: r.client_ids })).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -86,9 +93,24 @@ export function OrderProductsView() {
             <h3 className="font-semibold text-slate-900">Products</h3>
             <p className="text-xs text-slate-500">Prices are in EUR excl. VAT. A licensee sees a product if one of its ticked apps is enabled for them (none ticked = everyone).</p>
           </div>
-          <button type="button" onClick={() => setEditing('new')} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm">
-            <Plus className="w-4 h-4" />New product
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setAccessOpen(true)}
+              title="Choose which licensees can order"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Users className="w-4 h-4" />Licensee access
+              {access && (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${access.all ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                  {access.all ? 'All' : `${access.client_ids.length} only`}
+                </span>
+              )}
+            </button>
+            <button type="button" onClick={() => setEditing('new')} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-slate-900 text-white text-sm">
+              <Plus className="w-4 h-4" />New product
+            </button>
+          </div>
         </div>
         {sorted.length === 0 ? (
           <p className="p-8 text-center text-slate-500 text-sm">No products yet.</p>
@@ -155,6 +177,16 @@ export function OrderProductsView() {
         <CategoriesCard categories={categories} onChange={setCategories} />
         <NotifyEmailsCard />
       </div>
+
+      {accessOpen && (
+        <OrdersAccessModal
+          onClose={() => setAccessOpen(false)}
+          onSaved={(s) => {
+            setAccess(s);
+            setAccessOpen(false);
+          }}
+        />
+      )}
 
       {editing && (
         <ProductEditor

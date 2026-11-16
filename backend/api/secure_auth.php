@@ -16,6 +16,7 @@ require_once __DIR__ . '/../utils/OTPManager.php';
 require_once __DIR__ . '/../utils/DeviceManager.php';
 require_once __DIR__ . '/../utils/PlaygroundAuthState.php';
 require_once __DIR__ . '/../utils/EventsSettings.php';
+require_once __DIR__ . '/../utils/OrdersAccess.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -166,6 +167,8 @@ try {
                     $response['data']['spot_enabled'] = (bool)($client['spot_enabled'] ?? false);
                     // Events (separate fail-closed read: login must work before the Events migration).
                     $response['data']['events_enabled'] = EventsSettings::clientEnabled($db, (int)$client['id']);
+                    // Commandes access (admin switch, fail-open) + whether past requests exist.
+                    $response['data'] += OrdersAccess::forClient($db, (int)$client['id']);
                 }
 
                 RateLimiter::recordAttempt($db, $email, $ipAddress, true, null);
@@ -415,6 +418,7 @@ try {
                 $response['data']['go_enabled'] = $goEnabled;
                 $response['data']['spot_enabled'] = $spotEnabled;
                 $response['data']['events_enabled'] = EventsSettings::clientEnabled($db, (int)$userId);
+                $response['data'] += OrdersAccess::forClient($db, (int)$userId);
             }
 
             Logger::log('secure_auth', 'POST', 'verify-code', $userId, ['email' => $email, 'user_type' => $userType], ['success' => true], 200);
@@ -477,6 +481,7 @@ try {
                 $response['go_enabled'] = (bool)($logoRow['go_enabled'] ?? false);
                 $response['spot_enabled'] = (bool)($logoRow['spot_enabled'] ?? false);
                 $response['events_enabled'] = EventsSettings::clientEnabled($db, (int)$tokenData['user_id']);
+                $response += OrdersAccess::forClient($db, (int)$tokenData['user_id']);
             }
 
             Logger::log('secure_auth', 'POST', 'validate', $tokenData['user_id'], ['user_type' => $tokenData['user_type']], $response, 200);

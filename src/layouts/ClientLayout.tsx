@@ -92,18 +92,19 @@ const NAV: NavSection[] = [
   {
     titleKey: 'navGroups.shop',
     entries: [
-      // Equipment sale + rental requests, every licensee; products filtered per
-      // app server-side (project_studio_commandes_equipment_orders).
+      // Equipment sale + rental requests; products filtered per app server-side
+      // (project_studio_commandes_equipment_orders). The admin can switch ordering
+      // off (all or per licensee); past requests then stay under "Mes demandes".
       {
         id: 'orders',
         labelKey: 'nav.orders',
         icon: ShoppingCart,
         defaultOpen: false,
-        show: always,
+        show: (a) => a.orders || a.ordersHistory,
         children: [
-          { to: '/my/orders/equipment', labelKey: 'nav.ordersSale', show: always },
-          { to: '/my/orders/rental', labelKey: 'nav.ordersRent', show: always },
-          { to: '/my/orders/requests', labelKey: 'nav.ordersRequests', show: always },
+          { to: '/my/orders/equipment', labelKey: 'nav.ordersSale', show: (a) => a.orders },
+          { to: '/my/orders/rental', labelKey: 'nav.ordersRent', show: (a) => a.orders },
+          { to: '/my/orders/requests', labelKey: 'nav.ordersRequests', show: (a) => a.orders || a.ordersHistory },
         ],
       },
     ],
@@ -288,7 +289,7 @@ export function ClientLayout() {
 
   const access = useMemo(
     () => getAppAccess(user),
-    [user?.playground_enabled, user?.go_enabled, user?.spot_enabled, user?.events_enabled], // eslint-disable-line react-hooks/exhaustive-deps
+    [user?.playground_enabled, user?.go_enabled, user?.spot_enabled, user?.events_enabled, user?.orders_enabled, user?.orders_history], // eslint-disable-line react-hooks/exhaustive-deps
   );
   // Help only shows the chapters of the products enabled on this account (GO, Spot, Playground).
   const helpProducts = useMemo(

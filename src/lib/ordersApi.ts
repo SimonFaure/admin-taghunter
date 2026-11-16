@@ -62,4 +62,12 @@ export const ordersApi = {
     call<{ request: OrderRequestDetail; mailed: boolean }>(url('admin_request_status'), { id, status, note, notify }),
   settings: () => call<{ notify_emails: string[] }>(url('settings')).then((r) => r.notify_emails),
   settingsSave: (emails: string[]) => call<{ notify_emails: string[] }>(url('settings_save'), { notify_emails: emails }).then((r) => r.notify_emails),
+  access: () => call<OrdersAccessSettings & { clients: { id: number; name: string; email: string }[] }>(url('access')),
+  accessSave: (s: OrdersAccessSettings) => call<OrdersAccessSettings>(url('access_save'), s),
 };
+
+/** Who may order: everyone, or only the listed licensees. */
+export interface OrdersAccessSettings {
+  all: boolean;
+  client_ids: number[];
+}
