@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Server, KeyRound, Lock, Power, BarChart3, RotateCcw, Building2, Ticket, Calculator } from 'lucide-react';
+import { ArrowLeft, Upload, User, GamepadIcon, Package, Plus, X, ShoppingCart, Key, Eye, EyeOff, FileText, Smartphone, Monitor, Calendar, ChevronDown, ChevronRight, ShieldCheck, Server, KeyRound, Lock, Power, BarChart3, RotateCcw, Building2, Ticket, Calculator, MapPin } from 'lucide-react';
 import { MysteryScoringEditor } from './mystery/MysteryScoringEditor';
 import { AdminCustomersSection } from './client/customers/AdminCustomersSection';
 import { AdminEventsSection } from './admin/events/AdminEventsSection';
+import { AddressesForm } from './addresses/AddressesForm';
 import { clientApi } from '../lib/clientApi';
 import { Client, UpdateClientData } from '../types/client';
 import { ScenarioData, adminCardsApi } from '../lib/api';
@@ -1380,6 +1381,15 @@ export function ClientDetailView({ clientId, onBack }: ClientDetailViewProps) {
         defaultCollapsed
       >
         <AdminCustomersSection clientId={Number(clientId)} />
+      </CollapsibleSection>
+
+      {/* Main + shipping addresses, same form as the licensee's Mon compte. */}
+      <CollapsibleSection
+        icon={<MapPin className="w-6 h-6 text-slate-700" />}
+        title="Addresses"
+        defaultCollapsed
+      >
+        <AddressesForm clientId={Number(clientId)} />
       </CollapsibleSection>
 
       {/* Events / online ticketing: switch, commission, slug, legal + Stripe state. */}

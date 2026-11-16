@@ -1,0 +1,26 @@
+{
+  "title": "Mes adresses",
+  "mainTitle": "Adresse principale",
+  "mainHint": "Adresse de votre société, utilisée pour la facturation de vos commandes (et pour vos événements).",
+  "shippingTitle": "Adresse de livraison",
+  "shippingHint": "Utilisée par défaut pour livrer vos commandes de matériel.",
+  "sameAsMain": "Identique à l'adresse principale",
+  "fields": {
+    "name": "Destinataire",
+    "company": "Société",
+    "phone": "Téléphone",
+    "address_line1": "Adresse",
+    "address_line2": "Complément d'adresse",
+    "postal_code": "Code postal",
+    "city": "Ville",
+    "country": "Pays"
+  },
+  "save": "Enregistrer les adresses",
+  "saving": "Enregistrement…",
+  "saved": "Adresses enregistrées",
+  "required": "Champ requis",
+  "invalid": "Valeur invalide",
+  "fixErrors": "Vérifiez les champs signalés.",
+  "loadError": "Impossible de charger les adresses.",
+  "saveError": "L'enregistrement a échoué."
+}

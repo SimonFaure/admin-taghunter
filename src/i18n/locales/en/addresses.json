@@ -1,0 +1,26 @@
+{
+  "title": "My addresses",
+  "mainTitle": "Main address",
+  "mainHint": "Your company address, used for invoicing your orders (and for your events).",
+  "shippingTitle": "Shipping address",
+  "shippingHint": "Used by default to deliver your equipment orders.",
+  "sameAsMain": "Same as main address",
+  "fields": {
+    "name": "Recipient",
+    "company": "Company",
+    "phone": "Phone",
+    "address_line1": "Address",
+    "address_line2": "Address line 2",
+    "postal_code": "Postal code",
+    "city": "City",
+    "country": "Country"
+  },
+  "save": "Save addresses",
+  "saving": "Saving…",
+  "saved": "Addresses saved",
+  "required": "Required",
+  "invalid": "Invalid value",
+  "fixErrors": "Please check the highlighted fields.",
+  "loadError": "Could not load the addresses.",
+  "saveError": "Saving failed."
+}

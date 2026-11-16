@@ -2,7 +2,7 @@
 // are split server-side by token type.
 import { authFetch } from './authFetch';
 import type {
-  AdminLineInput, OrderCategory, OrderContact, OrderKind, OrderProduct, OrderRequestDetail,
+  AdminLineInput, OrderCategory, OrderKind, OrderProduct, OrderProfile, OrderRequestDetail,
   OrderRequestSummary, OrderStatus, OrderSubmitInput, OrderVariant,
 } from '../types/orders';
 
@@ -35,7 +35,7 @@ async function call<T>(u: string, body?: unknown): Promise<T> {
 
 export const ordersApi = {
   // Licensee
-  catalog: () => call<{ categories: OrderCategory[]; products: OrderProduct[]; profile: OrderContact }>(url('catalog')),
+  catalog: () => call<{ categories: OrderCategory[]; products: OrderProduct[]; profile: OrderProfile }>(url('catalog')),
   submit: (input: OrderSubmitInput) => call<{ request: OrderRequestDetail }>(url('submit'), input).then((r) => r.request),
   myRequests: (lang: string) => call<{ requests: OrderRequestSummary[] }>(url('my_requests', { lang })).then((r) => r.requests),
   myRequest: (id: number, lang: string) => call<{ request: OrderRequestDetail }>(url('my_request', { id, lang })).then((r) => r.request),

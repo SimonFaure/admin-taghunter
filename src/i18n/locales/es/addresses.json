@@ -1,0 +1,26 @@
+{
+  "title": "Mis direcciones",
+  "mainTitle": "Dirección principal",
+  "mainHint": "La dirección de su empresa, utilizada para facturar sus pedidos (y para sus eventos).",
+  "shippingTitle": "Dirección de entrega",
+  "shippingHint": "Se utiliza por defecto para entregar sus pedidos de material.",
+  "sameAsMain": "Igual que la dirección principal",
+  "fields": {
+    "name": "Destinatario",
+    "company": "Empresa",
+    "phone": "Teléfono",
+    "address_line1": "Dirección",
+    "address_line2": "Complemento de dirección",
+    "postal_code": "Código postal",
+    "city": "Ciudad",
+    "country": "País"
+  },
+  "save": "Guardar las direcciones",
+  "saving": "Guardando…",
+  "saved": "Direcciones guardadas",
+  "required": "Obligatorio",
+  "invalid": "Valor no válido",
+  "fixErrors": "Revise los campos señalados.",
+  "loadError": "No se pudieron cargar las direcciones.",
+  "saveError": "No se pudo guardar."
+}

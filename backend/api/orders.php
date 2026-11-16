@@ -34,6 +34,7 @@ require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
 require_once __DIR__ . '/../utils/Orders.php';
+require_once __DIR__ . '/../utils/ClientAddresses.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -296,6 +297,12 @@ function submitRequest($db, array $client, array $d): array {
          str($d['message'] ?? null, 4000), $lang]
     );
     $rid = (int)$db->lastInsertId();
+    // Billing = the licensee's main address at send time (column set only exists after add_client_shipping_address.sql).
+    if (array_key_exists('shipping_same_as_main', $client)) {
+        $billing = ClientAddresses::billing($client);
+        $db->execute('UPDATE order_requests SET ' . implode(', ', array_map(fn($k) => "$k = ?", array_keys($billing))) . ' WHERE id = ?',
+            array_merge(array_values($billing), [$rid]));
+    }
     $i = 0;
     foreach ($qty as $key => $q) {
         [$pid, $vid] = array_map('intval', explode(':', $key));
@@ -383,17 +390,8 @@ try {
             jsonResponse([
                 'categories' => Orders::categories($db),
                 'products' => Orders::catalogForClient($db, $c),
-                'profile' => [
-                    'company' => ($c['company'] ?? null) ?: ($c['legal_name'] ?? null),
-                    'contact_name' => $c['name'] ?? null,
-                    'contact_email' => ($c['legal_email'] ?? null) ?: $c['email'],
-                    'contact_phone' => ($c['phone'] ?? null) ?: ($c['public_phone'] ?? null),
-                    'address_line1' => $c['address_line1'] ?? null,
-                    'address_line2' => $c['address_line2'] ?? null,
-                    'postal_code' => $c['postal_code'] ?? null,
-                    'city' => $c['city'] ?? null,
-                    'country' => $c['country'] ?? null,
-                ],
+                // Delivery prefill: the account's shipping address, else its main address.
+                'profile' => ClientAddresses::delivery($c) + ['contact_email' => ($c['legal_email'] ?? null) ?: $c['email']],
             ]);
         }
         case 'submit': {

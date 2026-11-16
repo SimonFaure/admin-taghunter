@@ -3,6 +3,7 @@ import { Mail, User, Building, Calendar, CheckCircle, XCircle, Upload, Image as 
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { AddressesCard } from '../addresses/AddressesForm';
 
 type TFn = (key: string, opts?: Record<string, unknown>) => string;
 
@@ -447,6 +448,8 @@ export function MyAccountView() {
           </div>
         </div>
       </div>
+
+      <AddressesCard />
 
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
         <h3 className="text-lg font-bold text-slate-900 mb-2">{t('language.title')}</h3>

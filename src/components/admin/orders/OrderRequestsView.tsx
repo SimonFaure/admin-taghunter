@@ -324,6 +324,16 @@ function RequestDetail({ id, onBack }: { id: number; onBack: () => void }) {
             )}
           </div>
 
+          <div className="bg-white rounded-xl border border-slate-200 p-4 text-sm">
+            <h4 className="font-semibold text-slate-900 mb-2">Billing</h4>
+            {req.billing ? (
+              [req.billing.company, req.billing.address_line1, req.billing.address_line2, [req.billing.postal_code, req.billing.city].filter(Boolean).join(' '), req.billing.country]
+                .filter(Boolean).map((a, i) => <p key={i} className="text-slate-700">{a}</p>)
+            ) : (
+              <p className="text-slate-500">No main address on the licensee account when this request was sent.</p>
+            )}
+          </div>
+
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <h4 className="font-semibold text-slate-900 mb-3">History</h4>
             <ol className="space-y-3 text-sm">

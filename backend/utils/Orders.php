@@ -257,6 +257,10 @@ class Orders {
                       'address_line1', 'address_line2', 'postal_code', 'city', 'country', 'message', 'language'] as $k) {
                 $out[$k] = $r[$k];
             }
+            $out['billing'] = !empty($r['billing_address_line1']) ? [
+                'company' => $r['billing_company'], 'address_line1' => $r['billing_address_line1'], 'address_line2' => $r['billing_address_line2'],
+                'postal_code' => $r['billing_postal_code'], 'city' => $r['billing_city'], 'country' => $r['billing_country'],
+            ] : null;
             $out['events'] = array_map(fn($e) => [
                 'id' => (int)$e['id'], 'type' => $e['type'], 'status' => $e['status'], 'note' => $e['note'],
                 'actor' => $e['actor'], 'created_at' => $e['created_at'],
@@ -438,6 +442,12 @@ class Orders {
         }
         $body .= '<p><strong>Contact</strong><br>' . implode('<br>', array_map([self::class, 'h'], $addr))
             . '<br>' . self::h($out['contact_email']) . ($out['contact_phone'] ? ' · ' . self::h($out['contact_phone']) : '') . '</p>';
+        if (!empty($out['billing'])) {
+            $b = $out['billing'];
+            $body .= '<p><strong>Facturation</strong><br>' . implode('<br>', array_map([self::class, 'h'], array_filter([
+                $b['company'], $b['address_line1'], $b['address_line2'], trim(($b['postal_code'] ?? '') . ' ' . ($b['city'] ?? '')), $b['country'],
+            ]))) . '</p>';
+        }
         if ($out['message']) $body .= '<p><strong>Message</strong><br>' . nl2br(self::h($out['message'])) . '</p>';
         $body .= '<p style="color:' . self::LUDIOM_RED . ';font-size:12px">Pas de contrôle de stock : vérifiez la disponibilité avant de confirmer.</p>'
             . self::button(self::adminLink($out), 'Ouvrir dans Studio');

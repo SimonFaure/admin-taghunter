@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, ImageOff, Minus, Package, Plus, ShoppingCart, Trash2, Truck, X } from 'lucide-react';
 import { ordersApi, OrdersApiError } from '../../../lib/ordersApi';
 import { formatMoney, isoDayFromNow, mediaUrl, pickText, rentalDays } from '../../../lib/ordersFormat';
-import type { OrderCategory, OrderContact, OrderImage, OrderKind, OrderMode, OrderProduct, OrderVariant } from '../../../types/orders';
+import type { OrderCategory, OrderContact, OrderImage, OrderKind, OrderMode, OrderProduct, OrderProfile, OrderVariant } from '../../../types/orders';
 import { OrderMarkdown } from '../../orders/OrderMarkdown';
 
 // /my/orders/equipment (kind=sale) and /my/orders/rental (kind=rent).
@@ -77,7 +77,7 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
 
   const [products, setProducts] = useState<OrderProduct[]>([]);
   const [categories, setCategories] = useState<OrderCategory[]>([]);
-  const [profile, setProfile] = useState<OrderContact | null>(null);
+  const [profile, setProfile] = useState<OrderProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [basket, setBasket] = useState<Basket>(() => loadBasket(kind));
@@ -540,7 +540,7 @@ function ProductDetailModal({ product: p, kind, lang, basketQty, otherPath, onAd
 type FieldKey = keyof OrderContact | 'message' | 'pickup_mode' | 'return_mode';
 
 function SubmitModal({ kind, profile, basket, lines, lang, onClose, onSent, onUnavailable }: {
-  kind: OrderKind; profile: OrderContact; basket: Basket; lines: { productId: number; variantId: number | null; qty: number }[]; lang: string;
+  kind: OrderKind; profile: OrderProfile; basket: Basket; lines: { productId: number; variantId: number | null; qty: number }[]; lang: string;
   onClose: () => void; onSent: (number: string) => void; onUnavailable: () => void;
 }) {
   const { t } = useTranslation('orders');
@@ -629,7 +629,13 @@ function SubmitModal({ kind, profile, basket, lines, lang, onClose, onSent, onUn
           </div>
           <div>
             <h4 className="text-sm font-semibold text-slate-900">{t('form.addressTitle')}</h4>
-            <p className="text-xs text-slate-500 mb-2">{t('form.addressHint')}</p>
+            <p className="text-xs text-slate-500 mb-2">
+              {profile.source === 'none' ? (
+                <>{t('form.addressNone')} <Link to="/my/account" className="underline text-slate-700">{t('form.addressManage')}</Link></>
+              ) : (
+                <>{t(profile.source === 'shipping' ? 'form.addressFromShipping' : 'form.addressFromMain')} <Link to="/my/account" className="underline text-slate-700">{t('form.addressManage')}</Link></>
+              )}
+            </p>
             <div className="grid sm:grid-cols-2 gap-3">
               {field('address_line1', t('form.address1'), { className: 'sm:col-span-2' })}
               {field('address_line2', t('form.address2'), { className: 'sm:col-span-2' })}

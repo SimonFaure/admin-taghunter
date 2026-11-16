@@ -60,6 +60,20 @@ export interface OrderContact {
   country: string | null;
 }
 
+/** Delivery prefill from the account: shipping address, else main address. */
+export interface OrderProfile extends OrderContact {
+  source: 'shipping' | 'main' | 'none';
+}
+
+export interface OrderBilling {
+  company: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  postal_code: string | null;
+  city: string | null;
+  country: string | null;
+}
+
 export interface OrderRequestLine {
   id: number;
   product_id: number | null;
@@ -104,6 +118,8 @@ export interface OrderRequestDetail extends OrderRequestSummary, OrderContact {
   message: string | null;
   language: OrderLang;
   events: OrderRequestEvent[];
+  /** The licensee's main address when the request was sent (null on older requests). */
+  billing: OrderBilling | null;
 }
 
 export interface OrderSubmitInput extends OrderContact {
