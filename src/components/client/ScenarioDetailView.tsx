@@ -7,13 +7,12 @@ import { authFetch } from '../../lib/authFetch';
 import { useAuth } from '../../auth/AuthContext';
 import { getAppAccess } from '../../auth/appAccess';
 import { getGameVisualUrl } from './MyScenariosView';
-import { GameTypeIcon } from '../icons/GameTypeIcons';
 import { getDifficultyLabel, getDifficultyBadgeClass } from '../../types/difficulty';
 import { getAudienceLabel } from '../../types/audience';
 import type { ClientScenario } from './types';
 import { GoPreviewContent, type GoPreviewEnigma } from '../../scenarios/preview/GoPreviewContent';
 import { ScenarioRecapView } from './ScenarioRecapView';
-import { displayGameType } from '../../lib/gameTypeLabel';
+import { GameTypeBadge, NewBadge } from './GameTypeBadge';
 
 /** Game types the scenario recap covers - the three the old app had one for. */
 const RECAP_GAME_TYPES = ['mystery', 'tagquest', 'tracks'];
@@ -492,12 +491,8 @@ export function ScenarioDetailView() {
         <div className="space-y-6">
           <div>
             <div className="flex items-start gap-3 mb-2 flex-wrap">
-              {scenario.game_type && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full capitalize tracking-wide">
-                  <GameTypeIcon type={scenario.game_type} className="w-3.5 h-3.5" />
-                  {displayGameType(scenario.game_type)}
-                </span>
-              )}
+              <GameTypeBadge type={scenario.game_type} size="md" />
+              {scenario.is_new && <NewBadge size="md" />}
               {scenario.scenario_type && (
                 <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-full capitalize tracking-wide">
                   {scenario.scenario_type}

@@ -335,10 +335,14 @@ try {
         // drafts live in Admin > Translations.
         require_once __DIR__ . '/../utils/ScenarioLanguages.php';
         require_once __DIR__ . '/../utils/ScenarioFileApps.php';
+        require_once __DIR__ . '/../utils/ScenarioNew.php';
         $pdo = $db->getConnection();
-        $scenarios = array_map(function($s) use ($db, $pdo, $clientId, $isPremium) {
+        $newIds = ScenarioNew::ids($db);
+        $scenarios = array_map(function($s) use ($db, $pdo, $clientId, $isPremium, $newIds) {
             $s = ScenarioLanguages::narrowRow($db, $s, (int)$clientId);
             unset($s['validated_languages']);
+            // "Nouveau" badge: a product published in the last ScenarioNew::DAYS days.
+            $s['is_new'] = isset($newIds[(int)$s['id']]);
             // Count only the documents meant for the apps this client holds the
             // scenario in (files can be restricted to Playground / GO / Spot).
             // Premium products reach this list released in the client's language.

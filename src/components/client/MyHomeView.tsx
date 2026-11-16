@@ -14,6 +14,7 @@ import { GameTypeIcon } from '../icons/GameTypeIcons';
 import { HomeSearch } from './home/HomeSearch';
 import { HomeNotifications, iconButtonClass } from './home/HomeNotifications';
 import { GAME_TYPE_BG, HOME_GAME_TYPES, asHomeGameType, gameTypeLabel, type HomeGameType } from './home/gameTypeStyle';
+import { GameTypeBadge, NewBadge } from './GameTypeBadge';
 import type { ClientScenario } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
@@ -342,7 +343,6 @@ function FilterChip({
 // One card = one link to the scenario's page.
 function ScenarioCard({ scenario: s, lang }: { scenario: ClientScenario; lang?: string | null }) {
   const visual = getGameVisualUrl(s.medias, s.uniqid, lang);
-  const type = asHomeGameType(s.game_type);
   return (
     <Link
       to={s.uniqid ? `/my/scenarios/${s.uniqid}` : '/my/scenarios'}
@@ -361,13 +361,10 @@ function ScenarioCard({ scenario: s, lang }: { scenario: ClientScenario; lang?: 
             <GameTypeIcon type={s.game_type} className="h-10 w-10" aria-hidden="true" />
           </div>
         )}
-        {s.game_type && (
-          <span
-            className={`absolute left-2.5 top-2.5 rounded-full px-[9px] py-1 text-[11px] font-bold uppercase tracking-[.04em] text-white ${type ? GAME_TYPE_BG[type] : 'bg-th-ink2'}`}
-          >
-            {gameTypeLabel(s.game_type)}
-          </span>
-        )}
+        <div className="absolute inset-x-2.5 top-2.5 flex flex-wrap items-start justify-between gap-1.5">
+          <GameTypeBadge type={s.game_type} />
+          {s.is_new && <NewBadge />}
+        </div>
       </div>
       <div className="flex flex-1 items-center gap-2.5 px-4 py-3.5">
         <h3 className="m-0 min-w-0 flex-1 text-sm font-semibold leading-[1.3] text-th-ink">{s.title}</h3>

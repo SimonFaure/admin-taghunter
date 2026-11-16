@@ -24,4 +24,6 @@ export interface ClientScenario extends Scenario {
   go_answer_count?: number | null;
   // Tag Hunter Spot: whether this scenario is Spot-capable.
   adaptable_spot?: boolean;
+  // Product published less than two weeks ago ("Nouveau" badge).
+  is_new?: boolean;
 }

@@ -611,6 +611,9 @@ try {
                 $clientLang = ScenarioLanguages::clientLanguage($db, $viewerId);
             }
 
+            require_once __DIR__ . '/../utils/ScenarioNew.php';
+            $newIds = ScenarioNew::ids($db);
+
             $catalog = [];
             foreach ($rows as $r) {
                 if ($disabledTypes && in_array($r['game_type'] ?? '', $disabledTypes, true)) {
@@ -641,6 +644,8 @@ try {
                     'owned' => $isAdminViewer
                         || ($ownsEverything && ($r['status'] ?? '') === 'published')
                         || isset($ownedIds[(int)$r['id']]),
+                    // Published in the last ScenarioNew::DAYS days ("Nouveau" badge).
+                    'is_new' => isset($newIds[(int)$r['id']]),
                 ];
             }
 

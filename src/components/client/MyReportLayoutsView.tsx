@@ -5,6 +5,7 @@ import { reportLayoutsClientApi } from '../../lib/reportLayoutsClientApi';
 import type { ReportLayout, ReportPrintFormat } from '../../lib/api';
 import { ReportLayoutEditor } from '../ReportLayoutEditor';
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
+import { GAME_TYPE_BG, type HomeGameType } from './home/gameTypeStyle';
 
 // Client-portal mission-report PDF editor. Each game type starts on the
 // TagHunter default designed in admin → Report layouts; saving here creates
@@ -310,10 +311,12 @@ export function MyReportLayoutsView() {
           <button
             key={gt}
             onClick={() => setActive(gt)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               active === gt ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
+            {/* Game-type color dot, as on the home filter chips. */}
+            <span aria-hidden="true" className={`h-2 w-2 rounded-full ${GAME_TYPE_BG[gt as HomeGameType] ?? 'bg-th-ink2'}`} />
             {GAME_TYPE_LABELS[gt] || gt}
             {customized[gt] && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-emerald-500 align-middle" title={t('reportLayouts.customizedBadge')} />}
           </button>

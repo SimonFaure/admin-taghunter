@@ -5,7 +5,7 @@ import { customersApi } from '../../../lib/customersApi';
 import type { Customer, CustomerGame } from '../../../types/customer';
 import { CustomerModal, btnPrimary, btnSecondary } from './customerUi';
 import { errorMessage, fmtDay } from './customerFormat';
-import { displayGameType } from '../../../lib/gameTypeLabel';
+import { GameTypeBadge } from '../GameTypeBadge';
 
 type Filter = 'untagged' | 'other' | 'all';
 
@@ -101,7 +101,7 @@ export function AttachGamesModal({ clientId, customer, onClose, onAttached }: {
                       {[g.name, g.customer_name ? t('attach.currentlyWith', { name: g.customer_name }) : null].filter(Boolean).join(' · ')}
                     </span>
                   </span>
-                  <span className="text-xs text-slate-500 capitalize shrink-0">{displayGameType(g.game_type)}</span>
+                  <GameTypeBadge type={g.game_type} />
                 </label>
               </li>
             ))}

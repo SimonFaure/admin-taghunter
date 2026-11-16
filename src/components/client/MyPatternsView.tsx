@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { useSecureAuth } from '../../contexts/SecureAuthContext';
 import { Package, Search, Filter, Download, Eye, Trash2, Plus, Pencil, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
 import { HelpButton } from '../../help';
-import { GameTypeIcon } from '../icons/GameTypeIcons';
 import { PatternBuilderModal } from './PatternBuilderModal';
 import { parsePatternData, patternColumns } from './patternShapes';
 import { downloadPatternCsv, downloadPatternXlsx } from './patternExport';
-import { displayGameType } from '../../lib/gameTypeLabel';
+import { GameTypeBadge } from './GameTypeBadge';
+import { gameTypeLabel } from './home/gameTypeStyle';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -253,10 +253,7 @@ function PatternTable({ patterns, onPreview, getOnEdit, getOnSetStatus, getOnDel
                   )}
                 </td>
                 <td className="px-4 py-2.5">
-                  <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded capitalize">
-                    <GameTypeIcon type={pattern.game_type} className="w-3.5 h-3.5" />
-                    {displayGameType(pattern.game_type)}
-                  </span>
+                  <GameTypeBadge type={pattern.game_type} />
                   {pattern.mode === 'go' && (
                     <span className="ml-1.5 inline-flex items-center text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded font-medium">
                       GO{pattern.answer_count ? ` · ${pattern.answer_count === 4 ? 'A/B/C/D' : 'A/B'}` : ''}
@@ -561,7 +558,7 @@ export function MyPatternsView() {
             <option value="all">{t('allGameTypes')}</option>
             {gameTypes.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {gameTypeLabel(type)}
               </option>
             ))}
           </select>
@@ -627,10 +624,7 @@ export function MyPatternsView() {
             <div className="flex items-center justify-between p-6 border-b border-slate-200">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">{selectedPattern.name}</h3>
-                <span className="inline-flex items-center gap-1.5 mt-1 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded capitalize">
-                  <GameTypeIcon type={selectedPattern.game_type} className="w-3.5 h-3.5" />
-                  {selectedPattern.game_type}
-                </span>
+                <GameTypeBadge type={selectedPattern.game_type} className="mt-1" />
               </div>
               <button
                 onClick={() => setShowPreview(false)}

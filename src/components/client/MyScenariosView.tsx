@@ -15,7 +15,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { recencyKey } from './scenarioSort';
 import { ScenarioListControls } from '../scenarios/ScenarioListControls';
-import { GameTypeIcon } from '../icons/GameTypeIcons';
 import { AUDIENCE_BANDS, type AudienceBand, getBandLabel, resolveBands } from '../../types/audience';
 import {
   DIFFICULTY_LEVELS,
@@ -33,7 +32,8 @@ import { HelpButton } from '../../help';
 // chips can be derived from the registry even when the editor route hasn't
 // been visited yet (mirrors the admin ScenariosView).
 import '../../scenarios/bootstrap';
-import { displayGameType } from '../../lib/gameTypeLabel';
+import { GameTypeBadge, NewBadge } from './GameTypeBadge';
+import { GAME_TYPE_BG, asHomeGameType, gameTypeLabel } from './home/gameTypeStyle';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -409,21 +409,26 @@ export function MyScenariosView() {
           <span className="mx-1 h-5 w-px bg-slate-200" aria-hidden="true" />
         )}
 
-        {!goClientOnly && gameTypeFilters.map(({ key, label }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => toggleSetItem<string>(setGameTypeFilter, key)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-              gameTypeFilter.has(key)
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            <GameTypeIcon type={key} className="w-3.5 h-3.5" />
-            {label}
-          </button>
-        ))}
+        {/* Same chips as the home filter: a dot in the game-type color. */}
+        {!goClientOnly && gameTypeFilters.map(({ key }) => {
+          const k = asHomeGameType(key);
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={gameTypeFilter.has(key)}
+              onClick={() => toggleSetItem<string>(setGameTypeFilter, key)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full border transition-colors ${
+                gameTypeFilter.has(key)
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <span aria-hidden="true" className={`h-2 w-2 rounded-full ${k ? GAME_TYPE_BG[k] : 'bg-th-ink2'}`} />
+              {gameTypeLabel(key)}
+            </button>
+          );
+        })}
       </div>
 
       {/* Catalog facets - age bands (the six admin ranges, not the coarse trio),
@@ -543,7 +548,7 @@ export function MyScenariosView() {
             <section key={g.key || 'flat'}>
               {g.label && (
                 <h2 className="text-xs uppercase tracking-wide text-slate-500 mb-3 font-semibold">
-                  {g.label}
+                  {groupBy === 'game_type' ? <GameTypeBadge type={g.key} size="md" /> : g.label}
                 </h2>
               )}
               {viewMode === 'grid' ? (
@@ -678,6 +683,12 @@ function ScenarioGrid({
                 </div>
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              {/* Type + "Nouveau" on the visual, as on the home cards. Only products
+                  are ever new, and only customs have the edit pencil (top right). */}
+              <div className="absolute inset-x-3 top-3 flex flex-wrap items-start justify-between gap-1.5">
+                <GameTypeBadge type={scenario.game_type} />
+                {scenario.is_new && <NewBadge />}
+              </div>
               <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 rounded-full text-xs font-medium text-slate-700">
                   <Play className="w-3 h-3" />
@@ -697,14 +708,8 @@ function ScenarioGrid({
               </div>
               <p className="text-sm text-slate-500 line-clamp-2 mb-3">{scenario.description}</p>
 
-              {(scenario.game_type || scenario.difficulty || bands.length > 0 || languages.length > 0 || scenario.scenario_type || scenario.version || scenario.adaptable_go || scenario.adaptable_spot) && (
+              {(scenario.difficulty || bands.length > 0 || languages.length > 0 || scenario.scenario_type || scenario.version || scenario.adaptable_go || scenario.adaptable_spot) && (
                 <div className="flex gap-1.5 flex-wrap items-center">
-                  {scenario.game_type && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
-                      <GameTypeIcon type={scenario.game_type} className="w-3 h-3" />
-                      {displayGameType(scenario.game_type)}
-                    </span>
-                  )}
                   {scenario.adaptable_go && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">
                       GO
@@ -807,14 +812,14 @@ function ScenarioTable({
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-2 font-medium text-slate-900">{scenario.title}</td>
-                <td className="px-4 py-2 text-slate-600 capitalize">
-                  {scenario.game_type ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <GameTypeIcon type={scenario.game_type} className="w-4 h-4 text-slate-400" />
-                      {displayGameType(scenario.game_type)}
-                    </span>
-                  ) : '-'}
+                <td className="px-4 py-2 font-medium text-slate-900">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    {scenario.title}
+                    {scenario.is_new && <NewBadge />}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-slate-600">
+                  {scenario.game_type ? <GameTypeBadge type={scenario.game_type} /> : '-'}
                 </td>
                 <td className="px-4 py-2">
                   {bands.length > 0 ? (

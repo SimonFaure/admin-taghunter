@@ -8,7 +8,7 @@ import { useAuth } from '../../../auth/AuthContext';
 import type { Customer, CustomerGame, CustomerHistoryEntry } from '../../../types/customer';
 import type { ClientScenario } from '../types';
 import { getGameVisualUrl } from '../MyScenariosView';
-import { GameTypeIcon } from '../../icons/GameTypeIcons';
+import { GameTypeBadge, NewBadge } from '../GameTypeBadge';
 import { CustomerFormModal } from './CustomerFormModal';
 import { CustomerMergeModal } from './CustomerMergeModal';
 import { AttachGamesModal } from './AttachGamesModal';
@@ -284,13 +284,14 @@ export function CustomerDetailPanel({ clientId, customerId, onBack, onNavigate }
               const visual = getGameVisualUrl(s.medias, s.uniqid, user?.language);
               return (
                 <div key={s.uniqid} className="border border-slate-200 rounded-lg overflow-hidden">
-                  <div className="aspect-video bg-slate-100 flex items-center justify-center">
+                  <div className="relative aspect-video bg-slate-100 flex items-center justify-center">
                     {visual ? <img src={visual} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-6 h-6 text-slate-300" />}
+                    <div className="absolute inset-x-2 top-2 flex flex-wrap items-start justify-between gap-1">
+                      <GameTypeBadge type={s.game_type} />
+                      {s.is_new && <NewBadge />}
+                    </div>
                   </div>
-                  <div className="p-2 text-sm font-medium text-slate-900 flex items-center gap-1.5">
-                    <GameTypeIcon type={s.game_type} className="w-4 h-4 text-slate-500 shrink-0" />
-                    <span className="truncate">{s.title}</span>
-                  </div>
+                  <div className="p-2 text-sm font-medium text-slate-900 truncate">{s.title}</div>
                 </div>
               );
             })}
@@ -336,7 +337,7 @@ function HistoryLine({ date, visual, gameType, title, badge, details, action }: 
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium text-slate-900 flex items-center gap-1.5 min-w-0">
-          <GameTypeIcon type={gameType ?? undefined} className="w-4 h-4 text-slate-500 shrink-0" />
+          <GameTypeBadge type={gameType} />
           <span className="truncate">{title}</span>
           {badge}
         </div>

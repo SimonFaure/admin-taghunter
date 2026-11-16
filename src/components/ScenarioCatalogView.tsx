@@ -32,6 +32,8 @@ import {
 } from '../types/audience';
 import { DIFFICULTY_LEVELS, coerceDifficulty, formatDifficultyStars } from '../types/difficulty';
 import { normalizeUnivers } from '../types/univers';
+import { GAME_TYPE_BG, type HomeGameType } from './client/home/gameTypeStyle';
+import { NewBadge } from './client/GameTypeBadge';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -52,6 +54,8 @@ interface CatalogRow {
   adaptable_spot: boolean;
   // Already in the licensee's account (always true for admins).
   owned: boolean;
+  // Published in the last two weeks (backend/utils/ScenarioNew.php).
+  is_new?: boolean;
 }
 
 interface CatalogScenario {
@@ -68,6 +72,7 @@ interface CatalogScenario {
   adaptableGo: boolean;
   adaptableSpot: boolean;
   owned: boolean;
+  isNew: boolean;
 }
 
 // The two companion apps a scenario can be adapted to, as filter chips.
@@ -130,6 +135,7 @@ export function ScenarioCatalogView({ audience = 'admin' }: { audience?: Catalog
             adaptableGo: s.adaptable_go === true,
             adaptableSpot: s.adaptable_spot === true,
             owned: s.owned === true,
+            isNew: s.is_new === true,
           };
         });
         if (!cancelled) setScenarios(rows);
@@ -398,7 +404,8 @@ export function ScenarioCatalogView({ audience = 'admin' }: { audience?: Catalog
         <div className="space-y-8">
           {sections.map((section) => (
             <div key={section.gameType} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden print:shadow-none print:break-inside-auto">
-              <div className="bg-red-600 text-white px-4 py-2 font-bold tracking-wide">{section.label}</div>
+              {/* Game-type color of the home badges (gameTypeStyle). */}
+              <div className={`${GAME_TYPE_BG[section.gameType as HomeGameType] ?? 'bg-th-ink2'} text-white px-4 py-2 font-bold tracking-wide`}>{section.label}</div>
               <div className="overflow-x-auto print:overflow-visible">
                 <table className="w-full text-left text-sm">
                   <thead>
@@ -433,7 +440,12 @@ export function ScenarioCatalogView({ audience = 'admin' }: { audience?: Catalog
                               onClick={() => openScenario(s)}
                               className={`border-b border-slate-100 ${isClickable(s) ? 'cursor-pointer hover:bg-slate-50' : ''}`}
                             >
-                              <td className="px-3 py-2 font-medium text-slate-900">{s.title}</td>
+                              <td className="px-3 py-2 font-medium text-slate-900">
+                                <span className="inline-flex flex-wrap items-center gap-2">
+                                  {s.title}
+                                  {s.isNew && <NewBadge />}
+                                </span>
+                              </td>
                               {AUDIENCE_BANDS.map((b) => (
                                 <td key={b.value} className="px-2 py-2 text-center">
                                   {bandSet.has(b.value) ? (
