@@ -10,9 +10,12 @@
 //   device_detail         GET   one device + its recent errors + game launches
 //   list_errors           GET   fleet-wide error feed, grouped by fingerprint
 //   error_detail          GET   every report row behind one feed group (drill-down)
+//   error_clients         GET   licensees that have reported errors (export picker)
+//   export_errors         GET   report rows in [from, to), optional ?client_id= (CSV export)
+//   delete_errors         POST  delete one feed group, or every report in a range (+ dry_run count)
 //
-// All actions are read-only. No writes from the admin UI; the playground is
-// the only writer (via telemetry.php).
+// The playground is the only writer of telemetry rows (via telemetry.php);
+// the admin UI may only rename devices, set their channel and delete errors.
 
 require_once __DIR__ . '/../utils/cors.php';
 setCorsHeaders();
@@ -336,6 +339,148 @@ try {
             if ($hasDevice) $params[] = (int)$rawDevice;
 
             jsonResponse(['data' => $db->fetchAll($sql, $params)]);
+            break;
+        }
+
+        case 'error_clients': {
+            // Licensees that have ever reported an error - feeds the Export
+            // panel's licensee picker (only names worth choosing).
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            $rows = $db->fetchAll(
+                "SELECT e.client_id, c.name AS client_name, c.email AS client_email,
+                        COUNT(*) AS report_count, MAX(e.created_at) AS last_reported_at
+                 FROM error_reports e
+                 LEFT JOIN clients c ON c.id = e.client_id
+                 GROUP BY e.client_id, c.name, c.email
+                 ORDER BY COALESCE(NULLIF(c.name, ''), c.email)"
+            );
+            jsonResponse(['data' => $rows]);
+            break;
+        }
+
+        case 'export_errors': {
+            // Every individual report row in [from, to) - optionally one
+            // licensee - joined with licensee + device info, for CSV export.
+            // from/to are UTC "YYYY-MM-DD HH:MM:SS" (the browser converts the
+            // admin's local calendar days), filtered on created_at = when the
+            // report reached the studio, same column as the feed's window.
+            // Grouping (one line per error group) is done client-side from
+            // these rows so both export shapes share one query.
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            $dtRe = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
+            $from = (string)($_GET['from'] ?? '');
+            $to = (string)($_GET['to'] ?? '');
+            if (!preg_match($dtRe, $from) || !preg_match($dtRe, $to) || $from >= $to) {
+                jsonResponse(['error' => 'from and to (YYYY-MM-DD HH:MM:SS, UTC, from < to) are required'], 400);
+            }
+            $clientId = isset($_GET['client_id']) ? (int)$_GET['client_id'] : 0;
+
+            // Pin the session to UTC so the boundaries and the returned
+            // TIMESTAMPs mean the same thing as the browser assumes.
+            $db->query("SET time_zone = '+00:00'");
+
+            $cap = 20000;
+            $where = 'e.created_at >= ? AND e.created_at < ?';
+            $params = [$from, $to];
+            if ($clientId > 0) {
+                $where .= ' AND e.client_id = ?';
+                $params[] = $clientId;
+            }
+            $rows = $db->fetchAll(
+                "SELECT
+                    e.id, e.event_uuid, e.client_id, e.device_id, e.app_version,
+                    e.fingerprint_hash, e.error_message, e.stack_trace,
+                    e.occurrence_count, e.first_seen_at, e.last_seen_at,
+                    e.context_json, e.created_at,
+                    c.email AS client_email,
+                    c.name AS client_name,
+                    d.device_label,
+                    d.display_name,
+                    d.device_uniq,
+                    d.os AS device_os,
+                    d.os_version AS device_os_version,
+                    d.playground_version AS device_current_version
+                 FROM error_reports e
+                 LEFT JOIN clients c ON c.id = e.client_id
+                 LEFT JOIN devices d ON d.id = e.device_id
+                 WHERE $where
+                 ORDER BY e.id DESC
+                 LIMIT " . ($cap + 1),
+                $params
+            );
+            $truncated = count($rows) > $cap;
+            if ($truncated) array_pop($rows);
+
+            jsonResponse(['data' => $rows, 'truncated' => $truncated, 'cap' => $cap]);
+            break;
+        }
+
+        case 'delete_errors': {
+            // Permanently removes error_reports rows. Nothing references the
+            // table (bug report detail looks errors up by time window), and the
+            // playground never re-sends a delivered event, so a delete sticks.
+            // Two shapes:
+            //   {mode:'group', client_id, device_id|null, fingerprint}
+            //       one feed group (device_id null = the "unknown device" group)
+            //   {mode:'range', from, to, client_id?, dry_run?}
+            //       same filter as export_errors; dry_run returns the count only
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                jsonResponse(['error' => 'Method not allowed'], 405);
+            }
+            $data = getRequestData();
+            $mode = (string)($data['mode'] ?? '');
+
+            if ($mode === 'group') {
+                $clientId = (int)($data['client_id'] ?? 0);
+                $fingerprint = (string)($data['fingerprint'] ?? '');
+                if ($clientId <= 0 || strlen($fingerprint) !== 64 || !ctype_xdigit($fingerprint)) {
+                    jsonResponse(['error' => 'client_id and a 64-hex fingerprint are required'], 400);
+                }
+                $deviceId = (int)($data['device_id'] ?? 0);
+                $sql = 'DELETE FROM error_reports WHERE client_id = ? AND fingerprint_hash = ? AND device_id '
+                     . ($deviceId > 0 ? '= ?' : 'IS NULL');
+                $params = [$clientId, $fingerprint];
+                if ($deviceId > 0) $params[] = $deviceId;
+                $deleted = $db->query($sql, $params)->rowCount();
+                jsonResponse(['success' => true, 'deleted' => $deleted]);
+            }
+
+            if ($mode === 'range') {
+                $dtRe = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
+                $from = (string)($data['from'] ?? '');
+                $to = (string)($data['to'] ?? '');
+                if (!preg_match($dtRe, $from) || !preg_match($dtRe, $to) || $from >= $to) {
+                    jsonResponse(['error' => 'from and to (YYYY-MM-DD HH:MM:SS, UTC, from < to) are required'], 400);
+                }
+                $db->query("SET time_zone = '+00:00'");
+                $where = 'created_at >= ? AND created_at < ?';
+                $params = [$from, $to];
+                $clientId = (int)($data['client_id'] ?? 0);
+                if ($clientId > 0) {
+                    $where .= ' AND client_id = ?';
+                    $params[] = $clientId;
+                }
+
+                if (!empty($data['dry_run'])) {
+                    $row = $db->fetch("SELECT COUNT(*) AS n FROM error_reports WHERE $where", $params);
+                    jsonResponse(['count' => (int)($row['n'] ?? 0)]);
+                }
+
+                // Chunked so a wide range never holds one long lock on the
+                // table the playground ingest writes to.
+                $deleted = 0;
+                do {
+                    $n = $db->query("DELETE FROM error_reports WHERE $where LIMIT 5000", $params)->rowCount();
+                    $deleted += $n;
+                } while ($n === 5000);
+                jsonResponse(['success' => true, 'deleted' => $deleted]);
+            }
+
+            jsonResponse(['error' => "mode must be 'group' or 'range'"], 400);
             break;
         }
 
