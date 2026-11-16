@@ -14,7 +14,8 @@ type Sort = 'name' | 'last_played' | 'games';
 // Licensee customers list (search, sort, archived toggle, create, import,
 // CSV export). Used by the licensee's /my/customers page and, with clientId,
 // by the admin licensee page. `onOpen` shows one customer's detail.
-export function CustomersPanel({ clientId, onOpen }: { clientId?: number; onOpen: (id: string) => void }) {
+// `startCreating` opens the create form right away (home "Ajouter un client").
+export function CustomersPanel({ clientId, onOpen, startCreating = false }: { clientId?: number; onOpen: (id: string) => void; startCreating?: boolean }) {
   const { t, i18n } = useTranslation('customers');
   const types = useCustomerTypes();
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -24,7 +25,7 @@ export function CustomersPanel({ clientId, onOpen }: { clientId?: number; onOpen
   const [sort, setSort] = useState<Sort>('name');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(startCreating);
   const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {

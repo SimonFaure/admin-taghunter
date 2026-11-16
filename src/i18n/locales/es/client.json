@@ -2,6 +2,13 @@
   "portal": "Portal del cliente",
   "role": "Cliente",
   "signOut": "Cerrar sesión",
+  "navLabel": "Navegación principal",
+  "navGroups": {
+    "play": "Jugar",
+    "manage": "Gestionar",
+    "shop": "Tienda",
+    "resources": "Recursos"
+  },
   "nav": {
     "home": "Inicio",
     "scenarios": "Mis escenarios",

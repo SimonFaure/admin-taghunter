@@ -359,7 +359,8 @@ try {
 
             // File uploads are handled separately via scenario_files.php
             // Check if scenario with this uniqid already exists
-            $existingScenario = $db->fetch('SELECT id, created_at FROM scenarios WHERE uniqid = ?', [$uniqid]);
+            // status/data/type/owner too: the licensee notifications compare before/after.
+            $existingScenario = $db->fetch('SELECT id, created_at, status, data, scenario_type, client_id FROM scenarios WHERE uniqid = ?', [$uniqid]);
 
             // Set created_by: prefer session user, fall back to email-based lookup
             $created_by = $_SESSION['user_id'] ?? ($emailBasedCreatedBy ?? null);
@@ -420,6 +421,13 @@ try {
             } catch (Exception $e) {
                 Logger::log('scenarios', $method, 'recompute_hashes', $_SESSION['user_id'] ?? null, ['uniqid' => $uniqid], ['error' => $e->getMessage()], 200);
             }
+
+            // Licensee bell: product published / became GO- or Spot-capable. Never throws.
+            require_once __DIR__ . '/../utils/LicenseeNotifications.php';
+            LicenseeNotifications::onScenarioSaved($db, $existingScenario ?: null, [
+                'id' => $scenario_id, 'title' => $title, 'game_type' => $game_type, 'status' => $status,
+                'scenario_type' => $scenario_type, 'client_id' => $client_id, 'data' => $data,
+            ]);
 
             $responseData = [
                 'success' => true,
@@ -811,6 +819,13 @@ try {
             } catch (Exception $e) {
                 Logger::log('scenarios', $method, 'recompute_hashes', $_SESSION['user_id'] ?? null, ['uniqid' => $scenario['uniqid']], ['error' => $e->getMessage()], 200);
             }
+
+            // Licensee bell: product published / became GO- or Spot-capable. Never throws.
+            require_once __DIR__ . '/../utils/LicenseeNotifications.php';
+            LicenseeNotifications::onScenarioSaved($db, $scenario, [
+                'id' => $id, 'title' => $title, 'game_type' => $game_type, 'status' => $status,
+                'scenario_type' => $scenario_type, 'client_id' => $scenario['client_id'], 'data' => $data,
+            ]);
 
             jsonResponse([
                 'success' => true,

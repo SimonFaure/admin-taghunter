@@ -2,6 +2,13 @@
   "portal": "Espace licencié",
   "role": "Licencié",
   "signOut": "Déconnexion",
+  "navLabel": "Navigation principale",
+  "navGroups": {
+    "play": "Jouer",
+    "manage": "Piloter",
+    "shop": "Boutique",
+    "resources": "Ressources"
+  },
   "nav": {
     "home": "Accueil",
     "scenarios": "Mes scénarios",

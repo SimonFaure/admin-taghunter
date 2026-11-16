@@ -46,6 +46,7 @@ require_once __DIR__ . '/../database/Database.php';
 require_once __DIR__ . '/../utils/Logger.php';
 require_once __DIR__ . '/../utils/TokenManager.php';
 require_once __DIR__ . '/../utils/PlaygroundReleaseSettings.php';
+require_once __DIR__ . '/../utils/LicenseeNotifications.php';
 
 setCorsHeaders();
 session_start();
@@ -527,6 +528,8 @@ try {
             );
             if ($markLatest && $row) {
                 setLatest($db, $row);
+                // Licensee bell: a new latest version on this channel (once per version+channel).
+                LicenseeNotifications::onReleaseOnChannel($db, $version, $channel);
             }
 
             Logger::log('playground_releases_admin', $method, 'upload', $adminId,
@@ -575,6 +578,7 @@ try {
             );
             if ($markLatest && $row) {
                 setLatest($db, $row);
+                LicenseeNotifications::onReleaseOnChannel($db, $version, $channel);
             }
 
             Logger::log('playground_releases_admin', $method, 'upload_mobile', $adminId,
@@ -662,6 +666,8 @@ try {
             }
             if ($becameLatest) {
                 setLatest($db, array_merge($row, ['channel' => $channel]));
+                // e.g. a test build promoted to stable: stable licensees get told now.
+                LicenseeNotifications::onReleaseOnChannel($db, $row['version'], $channel);
             }
 
             Logger::log('playground_releases_admin', $method, 'set_channel', $adminId,

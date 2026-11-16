@@ -2,6 +2,13 @@
   "portal": "Licensee Portal",
   "role": "Licensee",
   "signOut": "Sign Out",
+  "navLabel": "Main navigation",
+  "navGroups": {
+    "play": "Play",
+    "manage": "Manage",
+    "shop": "Shop",
+    "resources": "Resources"
+  },
   "nav": {
     "home": "Home",
     "scenarios": "My Scenarios",
