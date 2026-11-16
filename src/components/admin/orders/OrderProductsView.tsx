@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Eye, EyeOff, ImageOff, ImagePlus, Mail, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import { ordersApi, OrdersApiError } from '../../../lib/ordersApi';
 import { centsToInput, formatMoney, mediaUrl, parseEuros, pickText } from '../../../lib/ordersFormat';
-import type { I18nText, OrderApp, OrderCategory, OrderLang, OrderProduct } from '../../../types/orders';
+import type { I18nText, OrderApp, OrderCategory, OrderImage, OrderLang, OrderProduct } from '../../../types/orders';
 import { OrderMarkdown } from '../../orders/OrderMarkdown';
 import { StockNotice } from './StockNotice';
 
@@ -16,6 +16,17 @@ const APPS: { id: OrderApp; label: string }[] = [
   { id: 'spot', label: 'Spot' },
 ];
 const emptyI18n = (): I18nText => ({ fr: null, en: null, es: null });
+
+/** "12,00 €", or "4,00 € – 7,00 €" across variants; "-" when nothing is priced. */
+function priceRange(p: OrderProduct, f: 'sale_price_cents' | 'rent_price_cents_per_day') {
+  const prices = (p.variants.length ? p.variants.map((v) => v[f]) : [p[f]]).filter((x): x is number => x != null);
+  if (!prices.length) return <span className="text-rose-500">no price</span>;
+  const lo = Math.min(...prices);
+  const hi = Math.max(...prices);
+  return lo === hi ? formatMoney(lo, 'fr') : `${formatMoney(lo, 'fr')} – ${formatMoney(hi, 'fr')}`;
+}
+
+type VariantDraft = { key: string; id?: number; label: I18nText; sku: string; sale: string; rent: string; image: OrderImage | null };
 const inputCls = 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm';
 
 export function OrderProductsView() {
@@ -109,11 +120,12 @@ export function OrderProductsView() {
                       {p.sku && <span className="block text-xs text-slate-400">{p.sku}</span>}
                       <span className="block text-xs text-slate-400">
                         {LANGS.filter((l) => p.name_i18n[l]).map((l) => l.toUpperCase()).join(' · ')}
+                        {p.variants.length > 0 && ` · ${p.variants.length} variants`}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-slate-600">{catName(p.category_id)}</td>
-                    <td className="px-4 py-2 text-right">{p.sale_enabled && p.sale_price_cents != null ? formatMoney(p.sale_price_cents, 'fr') : <span className="text-slate-300">-</span>}</td>
-                    <td className="px-4 py-2 text-right">{p.rent_enabled && p.rent_price_cents_per_day != null ? formatMoney(p.rent_price_cents_per_day, 'fr') : <span className="text-slate-300">-</span>}</td>
+                    <td className="px-4 py-2 text-right">{p.sale_enabled ? priceRange(p, 'sale_price_cents') : <span className="text-slate-300">-</span>}</td>
+                    <td className="px-4 py-2 text-right">{p.rent_enabled ? priceRange(p, 'rent_price_cents_per_day') : <span className="text-slate-300">-</span>}</td>
                     <td className="px-4 py-2">
                       {p.apps.length === 0 ? <span className="text-xs text-slate-500">All</span> : (
                         <div className="flex flex-wrap gap-1">
@@ -189,7 +201,30 @@ function ProductEditor({ product, categories, onClose, onSaved }: {
   const [apps, setApps] = useState<OrderApp[]>(product?.apps ?? []);
   const [visible, setVisible] = useState(product?.visible ?? true);
   const [images, setImages] = useState(product?.images ?? []);
+  const [variants, setVariants] = useState<VariantDraft[]>(() => (product?.variants ?? []).map((v) => ({
+    key: `v${v.id}`, id: v.id, label: v.label_i18n, sku: v.sku ?? '', sale: centsToInput(v.sale_price_cents), rent: centsToInput(v.rent_price_cents_per_day), image: v.image,
+  })));
   const [uploading, setUploading] = useState(false);
+  const editVariant = (key: string, patch: Partial<VariantDraft>) => setVariants((list) => list.map((v) => (v.key === key ? { ...v, ...patch } : v)));
+  const moveVariant = (i: number, d: -1 | 1) => setVariants((list) => {
+    const j = i + d;
+    if (j < 0 || j >= list.length) return list;
+    const next = [...list];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
+  const uploadVariantImage = async (key: string, files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    setErr(null);
+    try {
+      editVariant(key, { image: await ordersApi.productUpload(files[0]) });
+    } catch (e) {
+      setErr(e instanceof OrdersApiError ? `Upload failed: ${e.message}` : 'Upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -228,16 +263,26 @@ function ProductEditor({ product, categories, onClose, onSaved }: {
     const rp = parseEuros(rentPrice);
     if (!name.fr?.trim()) return setErr('The French name is required.');
     if (!saleEnabled && !rentEnabled) return setErr('Enable "For sale" and/or "For rent".');
-    if (saleEnabled && sp == null) return setErr('Enter a sale price.');
-    if (rentEnabled && rp == null) return setErr('Enter a rental price per day.');
+    const vars = variants.map((v, i) => ({
+      id: v.id, label_i18n: v.label, sku: v.sku.trim() || null, image: v.image, sort_order: i,
+      sale_price_cents: parseEuros(v.sale), rent_price_cents_per_day: parseEuros(v.rent),
+    }));
+    if (vars.length) {
+      if (vars.some((v) => !v.label_i18n.fr?.trim())) return setErr('Each variant needs a French label.');
+      if (saleEnabled && !vars.some((v) => v.sale_price_cents != null)) return setErr('Give at least one variant a sale price.');
+      if (rentEnabled && !vars.some((v) => v.rent_price_cents_per_day != null)) return setErr('Give at least one variant a rental price.');
+    } else {
+      if (saleEnabled && sp == null) return setErr('Enter a sale price.');
+      if (rentEnabled && rp == null) return setErr('Enter a rental price per day.');
+    }
     setSaving(true);
     try {
       const saved = await ordersApi.productSave({
         ...(product ? { id: product.id } : {}),
         name_i18n: name, sale_description_i18n: saleDesc, rent_description_i18n: rentDesc,
         sku: sku.trim() || null, category_id: categoryId ? Number(categoryId) : null, sort_order: Number(sortOrder) || 0,
-        sale_enabled: saleEnabled, sale_price_cents: sp, rent_enabled: rentEnabled, rent_price_cents_per_day: rp,
-        apps, visible, images,
+        sale_enabled: saleEnabled, sale_price_cents: vars.length ? null : sp, rent_enabled: rentEnabled, rent_price_cents_per_day: vars.length ? null : rp,
+        apps, visible, images, variants: vars,
       });
       onSaved(saved);
     } catch (e) {
@@ -318,9 +363,13 @@ function ProductEditor({ product, categories, onClose, onSaved }: {
                 <input type="checkbox" checked={saleEnabled} onChange={(e) => setSaleEnabled(e.target.checked)} />
                 For sale <span className="text-xs font-normal text-slate-500">(Matériel supplémentaire & back up)</span>
               </label>
-              <label className="block text-sm text-slate-700">Price excl. VAT (€)
-                <input value={salePrice} onChange={(e) => setSalePrice(e.target.value)} inputMode="decimal" disabled={!saleEnabled} className={`mt-1 ${inputCls}`} />
-              </label>
+              {variants.length ? (
+                <p className="text-xs text-slate-500">Sale prices are set per variant below.</p>
+              ) : (
+                <label className="block text-sm text-slate-700">Price excl. VAT (€)
+                  <input value={salePrice} onChange={(e) => setSalePrice(e.target.value)} inputMode="decimal" disabled={!saleEnabled} className={`mt-1 ${inputCls}`} />
+                </label>
+              )}
               {descBox('Sale description', saleDesc, setSaleDesc)}
             </div>
             <div className={`rounded-lg border p-4 space-y-3 ${rentEnabled ? 'border-slate-300' : 'border-slate-200 bg-slate-50'}`}>
@@ -328,11 +377,77 @@ function ProductEditor({ product, categories, onClose, onSaved }: {
                 <input type="checkbox" checked={rentEnabled} onChange={(e) => setRentEnabled(e.target.checked)} />
                 For rent <span className="text-xs font-normal text-slate-500">(Location de matériel)</span>
               </label>
-              <label className="block text-sm text-slate-700">Price per day excl. VAT (€)
-                <input value={rentPrice} onChange={(e) => setRentPrice(e.target.value)} inputMode="decimal" disabled={!rentEnabled} className={`mt-1 ${inputCls}`} />
-              </label>
+              {variants.length ? (
+                <p className="text-xs text-slate-500">Rental prices are set per variant below.</p>
+              ) : (
+                <label className="block text-sm text-slate-700">Price per day excl. VAT (€)
+                  <input value={rentPrice} onChange={(e) => setRentPrice(e.target.value)} inputMode="decimal" disabled={!rentEnabled} className={`mt-1 ${inputCls}`} />
+                </label>
+              )}
               {descBox('Rental description', rentDesc, setRentDesc)}
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Variants <span className="font-normal text-slate-500">(optional, e.g. 100 / 250 livrets, sans / avec balise)</span></p>
+                <p className="text-xs text-slate-500">Blank price = that variant isn't offered for sale / for rent. Labels follow the language tab above ({lang.toUpperCase()}).</p>
+              </div>
+              <button type="button" onClick={() => setVariants((list) => [...list, { key: `n${Date.now()}`, label: emptyI18n(), sku: '', sale: list.length ? '' : salePrice, rent: list.length ? '' : rentPrice, image: null }])}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 text-sm shrink-0">
+                <Plus className="w-4 h-4" />Add variant
+              </button>
+            </div>
+            {variants.length > 0 && (
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs text-slate-500">
+                  <tr>
+                    <th className="py-1 pr-2 font-medium">Label ({lang.toUpperCase()}){lang === 'fr' ? ' *' : ''}</th>
+                    <th className="py-1 pr-2 font-medium w-28">SKU</th>
+                    <th className="py-1 pr-2 font-medium w-24">Sale €</th>
+                    <th className="py-1 pr-2 font-medium w-24">Rent €/day</th>
+                    <th className="py-1 pr-2 font-medium w-28">Photo</th>
+                    <th className="py-1 w-20" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {variants.map((v, i) => (
+                    <tr key={v.key} className="align-top">
+                      <td className="py-1 pr-2">
+                        <input value={v.label[lang] ?? ''} placeholder={lang !== 'fr' ? (v.label.fr ?? '') : ''}
+                          onChange={(e) => editVariant(v.key, { label: { ...v.label, [lang]: e.target.value || null } })} className={inputCls} />
+                      </td>
+                      <td className="py-1 pr-2"><input value={v.sku} placeholder={sku} onChange={(e) => editVariant(v.key, { sku: e.target.value })} maxLength={60} className={inputCls} /></td>
+                      <td className="py-1 pr-2"><input value={v.sale} inputMode="decimal" disabled={!saleEnabled} onChange={(e) => editVariant(v.key, { sale: e.target.value })} className={inputCls} /></td>
+                      <td className="py-1 pr-2"><input value={v.rent} inputMode="decimal" disabled={!rentEnabled} onChange={(e) => editVariant(v.key, { rent: e.target.value })} className={inputCls} /></td>
+                      <td className="py-1 pr-2">
+                        <div className="flex items-center gap-1">
+                          {v.image ? (
+                            <>
+                              <img src={mediaUrl(v.image.url)} alt="" className="w-9 h-9 rounded object-cover border border-slate-200" />
+                              <button type="button" title="Remove photo" onClick={() => editVariant(v.key, { image: null })} className="text-slate-400 hover:text-rose-600"><X className="w-4 h-4" /></button>
+                            </>
+                          ) : (
+                            <label className="inline-flex items-center gap-1 text-xs text-slate-600 cursor-pointer hover:text-slate-900">
+                              <ImagePlus className="w-4 h-4" />Add
+                              <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => void uploadVariantImage(v.key, e.target.files)} />
+                            </label>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-1">
+                        <div className="flex items-center gap-1 text-slate-500 pt-1.5">
+                          <button type="button" disabled={i === 0} onClick={() => moveVariant(i, -1)} className="disabled:opacity-30"><ArrowLeft className="w-4 h-4 rotate-90" /></button>
+                          <button type="button" disabled={i === variants.length - 1} onClick={() => moveVariant(i, 1)} className="disabled:opacity-30"><ArrowRight className="w-4 h-4 rotate-90" /></button>
+                          <button type="button" onClick={() => setVariants((list) => list.filter((x) => x.key !== v.key))} className="hover:text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
 
           <div>

@@ -4,15 +4,22 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, ImageOff, Minus, Package, Plus, ShoppingCart, Trash2, Truck, X } from 'lucide-react';
 import { ordersApi, OrdersApiError } from '../../../lib/ordersApi';
 import { formatMoney, isoDayFromNow, mediaUrl, pickText, rentalDays } from '../../../lib/ordersFormat';
-import type { OrderCategory, OrderContact, OrderKind, OrderMode, OrderProduct } from '../../../types/orders';
+import type { OrderCategory, OrderContact, OrderImage, OrderKind, OrderMode, OrderProduct, OrderVariant } from '../../../types/orders';
 import { OrderMarkdown } from '../../orders/OrderMarkdown';
 
 // /my/orders/equipment (kind=sale) and /my/orders/rental (kind=rent).
 // Memory: project_studio_commandes_equipment_orders.
 
-type Basket = { qty: Record<number, number>; start: string; end: string };
+// Basket lines are keyed "productId:variantId" (variant 0 = product without variants).
+// Older baskets keyed by product id alone still parse as variant 0.
+type Basket = { qty: Record<string, number>; start: string; end: string };
 const EMPTY_BASKET: Basket = { qty: {}, start: '', end: '' };
 const storageKey = (kind: OrderKind) => `th_orders_basket_${kind}`;
+const lineKey = (productId: number, variantId: number | null) => `${productId}:${variantId ?? 0}`;
+const parseKey = (k: string) => {
+  const [p, v] = k.split(':').map(Number);
+  return { productId: p, variantId: v || null };
+};
 
 function loadBasket(kind: OrderKind): Basket {
   try {
@@ -33,7 +40,23 @@ function saveBasket(kind: OrderKind, b: Basket) {
   }
 }
 
-const unitPrice = (p: OrderProduct, kind: OrderKind) => (kind === 'rent' ? p.rent_price_cents_per_day : p.sale_price_cents) ?? 0;
+const priceField = (kind: OrderKind): 'rent_price_cents_per_day' | 'sale_price_cents' => (kind === 'rent' ? 'rent_price_cents_per_day' : 'sale_price_cents');
+
+/** What can be ordered for this kind: the priced variants, or the product itself. */
+type Offer = { variant: OrderVariant | null; price: number };
+function offersFor(p: OrderProduct, kind: OrderKind): Offer[] {
+  const f = priceField(kind);
+  if (!(kind === 'rent' ? p.rent_enabled : p.sale_enabled)) return [];
+  if (p.variants.length) return p.variants.filter((v) => v[f] != null).map((v) => ({ variant: v, price: v[f] as number }));
+  return p[f] != null ? [{ variant: null, price: p[f] as number }] : [];
+}
+
+function fromPrice(offers: Offer[]): { price: number; from: boolean } | null {
+  if (!offers.length) return null;
+  const prices = offers.map((o) => o.price);
+  const min = Math.min(...prices);
+  return { price: min, from: prices.some((x) => x !== min) };
+}
 
 export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
   const { t, i18n } = useTranslation('orders');
@@ -83,24 +106,30 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
     });
   };
 
-  const pageProducts = useMemo(
-    () => products.filter((p) => (kind === 'rent' ? p.rent_enabled : p.sale_enabled)),
-    [products, kind],
-  );
+  const pageProducts = useMemo(() => products.filter((p) => offersFor(p, kind).length > 0), [products, kind]);
   const byId = useMemo(() => new Map(pageProducts.map((p) => [p.id, p])), [pageProducts]);
 
-  // Drop basket lines whose product disappeared (hidden, deleted, no longer for this mode).
+  // Resolve a basket key to its product + offer; null when it's no longer orderable.
+  const resolve = useCallback((key: string) => {
+    const { productId, variantId } = parseKey(key);
+    const product = byId.get(productId);
+    if (!product) return null;
+    const offer = offersFor(product, kind).find((o) => (o.variant?.id ?? null) === variantId);
+    return offer ? { product, offer } : null;
+  }, [byId, kind]);
+
+  // Drop basket lines whose product/variant disappeared (hidden, deleted, no longer for this mode).
   useEffect(() => {
     if (loading) return;
-    const stale = Object.keys(basket.qty).map(Number).filter((id) => !byId.has(id));
+    const stale = Object.keys(basket.qty).filter((k) => !resolve(k));
     if (stale.length) {
       updateBasket((b) => {
         const qty = { ...b.qty };
-        stale.forEach((id) => delete qty[id]);
+        stale.forEach((k) => delete qty[k]);
         return { ...b, qty };
       });
     }
-  }, [loading, byId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loading, resolve]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sections = useMemo(() => {
     const byName = (a: OrderProduct, b: OrderProduct) =>
@@ -116,20 +145,21 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
   }, [categories, pageProducts, lang, t]);
 
   const lines = Object.entries(basket.qty)
-    .map(([id, q]) => ({ product: byId.get(Number(id)), qty: q }))
-    .filter((l): l is { product: OrderProduct; qty: number } => !!l.product && l.qty > 0);
+    .map(([key, qty]) => ({ key, qty, r: resolve(key) }))
+    .filter((l): l is { key: string; qty: number; r: { product: OrderProduct; offer: Offer } } => !!l.r && l.qty > 0);
   const days = kind === 'rent' ? rentalDays(basket.start, basket.end) : 1;
-  const total = lines.reduce((s, l) => s + unitPrice(l.product, kind) * l.qty * Math.max(days, kind === 'rent' ? 0 : 1), 0);
+  const total = lines.reduce((s, l) => s + l.r.offer.price * l.qty * (kind === 'rent' ? days : 1), 0);
   const minStart = isoDayFromNow(1);
   const datesOk = kind === 'sale' || (days > 0 && basket.start >= minStart);
 
-  const setQty = (id: number, q: number) =>
+  const setQty = (key: string, q: number) =>
     updateBasket((b) => {
       const qty = { ...b.qty };
-      if (q <= 0) delete qty[id];
-      else qty[id] = Math.min(999, q);
+      if (q <= 0) delete qty[key];
+      else qty[key] = Math.min(999, q);
       return { ...b, qty };
     });
+  const add = (key: string) => setQty(key, (basket.qty[key] ?? 0) + 1);
 
   // Deep link from the other page's "Aussi ..." badge: scroll to + highlight the product.
   const focusRef = useRef<HTMLDivElement | null>(null);
@@ -138,6 +168,7 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
   }, [loading, focusId]);
 
   const otherPath = kind === 'sale' ? '/my/orders/rental' : '/my/orders/equipment';
+  const unitLabel = (price: number) => (kind === 'rent' ? t('pricePerDay', { price: formatMoney(price, lang) }) : t('priceHt', { price: formatMoney(price, lang) }));
 
   return (
     <div className="space-y-6">
@@ -179,10 +210,10 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
                           product={p}
                           kind={kind}
                           lang={lang}
-                          inBasket={basket.qty[p.id] ?? 0}
+                          basketQty={basket.qty}
                           highlighted={p.id === focusId}
                           otherPath={otherPath}
-                          onAdd={() => setQty(p.id, (basket.qty[p.id] ?? 0) + 1)}
+                          onAdd={add}
                           onOpen={() => setDetail(p)}
                         />
                       </div>
@@ -226,16 +257,15 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
               <p className="text-sm text-slate-500">{t('basket.empty')}</p>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {lines.map(({ product: p, qty }) => (
-                  <li key={p.id} className="py-2 flex items-center gap-2">
+                {lines.map(({ key, qty, r: { product: p, offer } }) => (
+                  <li key={key} className="py-2 flex items-center gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900 truncate">{pickText(p.name_i18n, lang)}</p>
-                      <p className="text-xs text-slate-500">
-                        {kind === 'rent' ? t('pricePerDay', { price: formatMoney(unitPrice(p, kind), lang) }) : t('priceHt', { price: formatMoney(unitPrice(p, kind), lang) })}
-                      </p>
+                      {offer.variant && <p className="text-xs text-slate-700 truncate">{pickText(offer.variant.label_i18n, lang)}</p>}
+                      <p className="text-xs text-slate-500">{unitLabel(offer.price)}</p>
                     </div>
-                    <QtyStepper value={qty} onChange={(q) => setQty(p.id, q)} />
-                    <button type="button" onClick={() => setQty(p.id, 0)} className="text-slate-400 hover:text-rose-600" title={t('basket.remove')}>
+                    <QtyStepper value={qty} onChange={(q) => setQty(key, q)} />
+                    <button type="button" onClick={() => setQty(key, 0)} className="text-slate-400 hover:text-rose-600" title={t('basket.remove')}>
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </li>
@@ -274,9 +304,9 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
           product={detail}
           kind={kind}
           lang={lang}
-          inBasket={basket.qty[detail.id] ?? 0}
+          basketQty={basket.qty}
           otherPath={otherPath}
-          onAdd={() => setQty(detail.id, (basket.qty[detail.id] ?? 0) + 1)}
+          onAdd={add}
           onClose={() => setDetail(null)}
         />
       )}
@@ -286,7 +316,7 @@ export function OrdersCatalogView({ kind }: { kind: OrderKind }) {
           kind={kind}
           profile={profile}
           basket={basket}
-          lines={lines}
+          lines={lines.map((l) => ({ productId: l.r.product.id, variantId: l.r.offer.variant?.id ?? null, qty: l.qty }))}
           lang={lang}
           onClose={() => setSubmitOpen(false)}
           onSent={(number) => {
@@ -326,40 +356,73 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (v: number) 
 
 function CrossBadge({ product, kind, lang, otherPath }: { product: OrderProduct; kind: OrderKind; lang: string; otherPath: string }) {
   const { t } = useTranslation('orders');
-  if (kind === 'sale' && product.rent_enabled && product.rent_price_cents_per_day != null) {
-    return (
-      <Link to={`${otherPath}?product=${product.id}`} className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-100">
-        <CalendarDays className="w-3.5 h-3.5" />
-        {t('alsoRent', { price: formatMoney(product.rent_price_cents_per_day, lang) })}
-        <ArrowRight className="w-3 h-3" />
-      </Link>
-    );
-  }
-  if (kind === 'rent' && product.sale_enabled && product.sale_price_cents != null) {
-    return (
-      <Link to={`${otherPath}?product=${product.id}`} className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2.5 py-1 text-xs font-medium text-sky-800 hover:bg-sky-100">
-        <Package className="w-3.5 h-3.5" />
-        {t('alsoSale', { price: formatMoney(product.sale_price_cents, lang) })}
-        <ArrowRight className="w-3 h-3" />
-      </Link>
-    );
-  }
-  return null;
+  const other: OrderKind = kind === 'sale' ? 'rent' : 'sale';
+  const fp = fromPrice(offersFor(product, other));
+  if (!fp) return null;
+  const price = formatMoney(fp.price, lang);
+  const rentBadge = kind === 'sale';
+  const label = rentBadge
+    ? t(fp.from ? 'alsoRentFrom' : 'alsoRent', { price })
+    : t(fp.from ? 'alsoSaleFrom' : 'alsoSale', { price });
+  return (
+    <Link
+      to={`${otherPath}?product=${product.id}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${rentBadge ? 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100' : 'bg-sky-50 border-sky-200 text-sky-800 hover:bg-sky-100'}`}
+    >
+      {rentBadge ? <CalendarDays className="w-3.5 h-3.5" /> : <Package className="w-3.5 h-3.5" />}
+      {label}
+      <ArrowRight className="w-3 h-3" />
+    </Link>
+  );
 }
 
-function priceLabel(p: OrderProduct, kind: OrderKind, lang: string, t: (k: string, o?: Record<string, unknown>) => string) {
-  return kind === 'rent'
-    ? t('pricePerDay', { price: formatMoney(p.rent_price_cents_per_day ?? 0, lang) })
-    : t('priceHt', { price: formatMoney(p.sale_price_cents ?? 0, lang) });
+/** Selected offer of a product card / popup (first priced variant by default). */
+function useOffer(product: OrderProduct, kind: OrderKind) {
+  const offers = useMemo(() => offersFor(product, kind), [product, kind]);
+  const [variantId, setVariantId] = useState<number | null>(offers[0]?.variant?.id ?? null);
+  const offer = offers.find((o) => (o.variant?.id ?? null) === variantId) ?? offers[0];
+  return { offers, offer, setVariantId };
 }
 
-function ProductCard({ product: p, kind, lang, inBasket, highlighted, otherPath, onAdd, onOpen }: {
-  product: OrderProduct; kind: OrderKind; lang: string; inBasket: number; highlighted: boolean; otherPath: string;
-  onAdd: () => void; onOpen: () => void;
+function VariantSelect({ offers, value, onChange, lang, kind }: {
+  offers: Offer[]; value: number | null; onChange: (id: number) => void; lang: string; kind: OrderKind;
 }) {
   const { t } = useTranslation('orders');
-  const cover = p.images[0];
+  if (!offers[0]?.variant) return null;
+  return (
+    <label className="block text-xs text-slate-600">
+      {t('variant')}
+      <select
+        value={value ?? ''}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-900"
+      >
+        {offers.map((o) => (
+          <option key={o.variant!.id} value={o.variant!.id}>
+            {pickText(o.variant!.label_i18n, lang)} · {formatMoney(o.price, lang)}{kind === 'rent' ? t('requests.perDay') : ''}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function priceText(offers: Offer[], selected: Offer | undefined, kind: OrderKind, lang: string, t: (k: string, o?: Record<string, unknown>) => string) {
+  const price = selected?.price ?? fromPrice(offers)?.price ?? 0;
+  return kind === 'rent' ? t('pricePerDay', { price: formatMoney(price, lang) }) : t('priceHt', { price: formatMoney(price, lang) });
+}
+
+function ProductCard({ product: p, kind, lang, basketQty, highlighted, otherPath, onAdd, onOpen }: {
+  product: OrderProduct; kind: OrderKind; lang: string; basketQty: Record<string, number>; highlighted: boolean; otherPath: string;
+  onAdd: (key: string) => void; onOpen: () => void;
+}) {
+  const { t } = useTranslation('orders');
+  const { offers, offer, setVariantId } = useOffer(p, kind);
+  const key = lineKey(p.id, offer?.variant?.id ?? null);
+  const inBasket = basketQty[key] ?? 0;
+  const cover: OrderImage | undefined = offer?.variant?.image ?? p.images[0];
   const description = pickText(kind === 'rent' ? p.rent_description_i18n : p.sale_description_i18n, lang);
+  const fp = fromPrice(offers);
   return (
     <div className={`h-full flex flex-col rounded-xl border bg-white overflow-hidden transition-shadow ${highlighted ? 'border-amber-400 ring-2 ring-amber-300' : 'border-slate-200'}`}>
       <button type="button" onClick={onOpen} className="aspect-[4/3] bg-slate-100 flex items-center justify-center overflow-hidden">
@@ -372,9 +435,13 @@ function ProductCard({ product: p, kind, lang, inBasket, highlighted, otherPath,
       <div className="flex-1 flex flex-col p-4 gap-2">
         <button type="button" onClick={onOpen} className="text-left">
           <h4 className="font-semibold text-slate-900 hover:underline">{pickText(p.name_i18n, lang)}</h4>
-          {p.sku && <p className="text-xs text-slate-400">{p.sku}</p>}
+          {(offer?.variant?.sku || p.sku) && <p className="text-xs text-slate-400">{offer?.variant?.sku || p.sku}</p>}
         </button>
-        <p className="text-base font-semibold text-slate-900">{priceLabel(p, kind, lang, t)}</p>
+        {offer?.variant && fp?.from && (
+          <p className="text-xs text-slate-500">{t('priceFrom', { price: formatMoney(fp.price, lang) })}{kind === 'rent' ? t('requests.perDay') : ''}</p>
+        )}
+        <p className="text-base font-semibold text-slate-900">{priceText(offers, offer, kind, lang, t)}</p>
+        <VariantSelect offers={offers} value={offer?.variant?.id ?? null} onChange={setVariantId} lang={lang} kind={kind} />
         {description && (
           <div className="relative max-h-16 overflow-hidden">
             <OrderMarkdown source={description} />
@@ -386,7 +453,7 @@ function ProductCard({ product: p, kind, lang, inBasket, highlighted, otherPath,
           <button type="button" onClick={onOpen} className="text-sm text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline">{t('details')}</button>
           <div className="flex items-center gap-2">
             {inBasket > 0 && <span className="text-xs text-emerald-700">{t('inBasket', { count: inBasket })}</span>}
-            <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">
+            <button type="button" onClick={() => onAdd(key)} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">
               <Plus className="w-4 h-4" />{t('add')}
             </button>
           </div>
@@ -396,12 +463,23 @@ function ProductCard({ product: p, kind, lang, inBasket, highlighted, otherPath,
   );
 }
 
-function ProductDetailModal({ product: p, kind, lang, inBasket, otherPath, onAdd, onClose }: {
-  product: OrderProduct; kind: OrderKind; lang: string; inBasket: number; otherPath: string; onAdd: () => void; onClose: () => void;
+function ProductDetailModal({ product: p, kind, lang, basketQty, otherPath, onAdd, onClose }: {
+  product: OrderProduct; kind: OrderKind; lang: string; basketQty: Record<string, number>; otherPath: string;
+  onAdd: (key: string) => void; onClose: () => void;
 }) {
   const { t } = useTranslation('orders');
+  const { offers, offer, setVariantId } = useOffer(p, kind);
+  // Gallery: the picked variant's photo first, then the product photos.
+  const gallery = useMemo(() => {
+    const list = [...p.images];
+    const vi = offer?.variant?.image;
+    return vi ? [vi, ...list.filter((i) => i.file !== vi.file)] : list;
+  }, [p.images, offer]);
   const [idx, setIdx] = useState(0);
-  const img = p.images[idx];
+  useEffect(() => setIdx(0), [offer?.variant?.id]);
+  const img = gallery[Math.min(idx, gallery.length - 1)];
+  const key = lineKey(p.id, offer?.variant?.id ?? null);
+  const inBasket = basketQty[key] ?? 0;
   const description = pickText(kind === 'rent' ? p.rent_description_i18n : p.sale_description_i18n, lang);
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
@@ -409,7 +487,7 @@ function ProductDetailModal({ product: p, kind, lang, inBasket, otherPath, onAdd
         <div className="flex items-start justify-between p-5 border-b border-slate-200">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">{pickText(p.name_i18n, lang)}</h3>
-            {p.sku && <p className="text-xs text-slate-400">{p.sku}</p>}
+            {(offer?.variant?.sku || p.sku) && <p className="text-xs text-slate-400">{offer?.variant?.sku || p.sku}</p>}
           </div>
           <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="w-5 h-5" /></button>
         </div>
@@ -417,16 +495,16 @@ function ProductDetailModal({ product: p, kind, lang, inBasket, otherPath, onAdd
           <div>
             <div className="relative aspect-[4/3] bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden">
               {img ? <img src={mediaUrl(img.url)} alt="" className="w-full h-full object-contain" /> : <ImageOff className="w-8 h-8 text-slate-400" />}
-              {p.images.length > 1 && (
+              {gallery.length > 1 && (
                 <>
-                  <button type="button" onClick={() => setIdx((idx - 1 + p.images.length) % p.images.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-1"><ChevronLeft className="w-5 h-5" /></button>
-                  <button type="button" onClick={() => setIdx((idx + 1) % p.images.length)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-1"><ChevronRight className="w-5 h-5" /></button>
+                  <button type="button" onClick={() => setIdx((idx - 1 + gallery.length) % gallery.length)} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-1"><ChevronLeft className="w-5 h-5" /></button>
+                  <button type="button" onClick={() => setIdx((idx + 1) % gallery.length)} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-1"><ChevronRight className="w-5 h-5" /></button>
                 </>
               )}
             </div>
-            {p.images.length > 1 && (
+            {gallery.length > 1 && (
               <div className="flex gap-2 mt-2 overflow-x-auto">
-                {p.images.map((im, i) => (
+                {gallery.map((im, i) => (
                   <button key={im.file} type="button" onClick={() => setIdx(i)} className={`w-14 h-14 rounded border shrink-0 overflow-hidden ${i === idx ? 'border-slate-900' : 'border-slate-200'}`}>
                     <img src={mediaUrl(im.url)} alt="" className="w-full h-full object-cover" />
                   </button>
@@ -435,11 +513,12 @@ function ProductDetailModal({ product: p, kind, lang, inBasket, otherPath, onAdd
             )}
           </div>
           <div className="space-y-3">
-            <p className="text-lg font-semibold text-slate-900">{priceLabel(p, kind, lang, t)}</p>
+            <p className="text-lg font-semibold text-slate-900">{priceText(offers, offer, kind, lang, t)}</p>
+            <VariantSelect offers={offers} value={offer?.variant?.id ?? null} onChange={setVariantId} lang={lang} kind={kind} />
             <CrossBadge product={p} kind={kind} lang={lang} otherPath={otherPath} />
             <OrderMarkdown source={description} />
             <div className="flex items-center gap-3 pt-2">
-              <button type="button" onClick={onAdd} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">
+              <button type="button" onClick={() => onAdd(key)} className="inline-flex items-center gap-1 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800">
                 <Plus className="w-4 h-4" />{t('add')}
               </button>
               {inBasket > 0 && <span className="text-sm text-emerald-700">{t('inBasket', { count: inBasket })}</span>}
@@ -454,7 +533,7 @@ function ProductDetailModal({ product: p, kind, lang, inBasket, otherPath, onAdd
 type FieldKey = keyof OrderContact | 'message' | 'pickup_mode' | 'return_mode';
 
 function SubmitModal({ kind, profile, basket, lines, lang, onClose, onSent, onUnavailable }: {
-  kind: OrderKind; profile: OrderContact; basket: Basket; lines: { product: OrderProduct; qty: number }[]; lang: string;
+  kind: OrderKind; profile: OrderContact; basket: Basket; lines: { productId: number; variantId: number | null; qty: number }[]; lang: string;
   onClose: () => void; onSent: (number: string) => void; onUnavailable: () => void;
 }) {
   const { t } = useTranslation('orders');
@@ -478,7 +557,7 @@ function SubmitModal({ kind, profile, basket, lines, lang, onClose, onSent, onUn
       const req = await ordersApi.submit({
         kind,
         lang,
-        lines: lines.map((l) => ({ product_id: l.product.id, quantity: l.qty })),
+        lines: lines.map((l) => ({ product_id: l.productId, ...(l.variantId ? { variant_id: l.variantId } : {}), quantity: l.qty })),
         ...(kind === 'rent' ? { rent_start: basket.start, rent_end: basket.end, pickup_mode: form.pickup_mode as OrderMode, return_mode: form.return_mode as OrderMode } : {}),
         company: form.company || null, contact_name: form.contact_name || null, contact_email: form.contact_email || null,
         contact_phone: form.contact_phone || null, address_line1: form.address_line1 || null, address_line2: form.address_line2 || null,

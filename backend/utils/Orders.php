@@ -72,7 +72,51 @@ class Orders {
 
     // ── Products ─────────────────────────────────────────────────────────
 
-    public static function productOut(array $r): array {
+    /** Non-deleted variants grouped by product id (ordered). */
+    public static function variantsByProduct($db, array $productIds): array {
+        $productIds = array_values(array_unique(array_map('intval', $productIds)));
+        if (!$productIds) return [];
+        $in = implode(',', array_fill(0, count($productIds), '?'));
+        $out = [];
+        foreach ($db->fetchAll("SELECT * FROM order_product_variants WHERE deleted_at IS NULL AND product_id IN ($in) ORDER BY sort_order, id", $productIds) as $v) {
+            $out[(int)$v['product_id']][] = self::variantOut($v);
+        }
+        return $out;
+    }
+
+    public static function variantOut(array $v): array {
+        return [
+            'id' => (int)$v['id'],
+            'label_i18n' => self::decodeI18n($v['label_i18n']),
+            'sku' => $v['sku'],
+            'sale_price_cents' => $v['sale_price_cents'] !== null ? (int)$v['sale_price_cents'] : null,
+            'rent_price_cents_per_day' => $v['rent_price_cents_per_day'] !== null ? (int)$v['rent_price_cents_per_day'] : null,
+            'image' => $v['image'] ? ['file' => $v['image'], 'url' => self::mediaPath($v['image'])] : null,
+            'sort_order' => (int)$v['sort_order'],
+        ];
+    }
+
+    /** Products + their variants, in one extra query. */
+    public static function productsOut($db, array $rows): array {
+        $vars = self::variantsByProduct($db, array_column($rows, 'id'));
+        return array_map(fn($r) => self::productOut($r, $vars[(int)$r['id']] ?? []), $rows);
+    }
+
+    /**
+     * Unit price of a product (or one of its variants) for a kind; null = not orderable that way.
+     * With variants, only variant prices count.
+     */
+    public static function unitPrice(array $p, string $kind, ?int $variantId): ?int {
+        $field = $kind === 'rent' ? 'rent_price_cents_per_day' : 'sale_price_cents';
+        if (!($kind === 'rent' ? $p['rent_enabled'] : $p['sale_enabled'])) return null;
+        if ($p['variants']) {
+            foreach ($p['variants'] as $v) if ($v['id'] === $variantId) return $v[$field];
+            return null;
+        }
+        return $variantId ? null : $p[$field];
+    }
+
+    public static function productOut(array $r, array $variants = []): array {
         $apps = json_decode($r['apps'] ?? 'null', true);
         $images = json_decode($r['images'] ?? 'null', true);
         $images = is_array($images) ? array_values(array_filter($images, 'is_string')) : [];
@@ -91,6 +135,7 @@ class Orders {
             'images' => array_map(fn($f) => ['file' => $f, 'url' => self::mediaPath($f)], $images),
             'visible' => (int)$r['visible'] === 1,
             'sort_order' => (int)$r['sort_order'],
+            'variants' => $variants,
         ];
     }
 
@@ -121,12 +166,16 @@ class Orders {
         $apps = self::clientApps($client);
         $rows = $db->fetchAll('SELECT * FROM order_products WHERE deleted_at IS NULL AND visible = 1 AND (sale_enabled = 1 OR rent_enabled = 1)');
         $out = [];
-        foreach ($rows as $r) {
-            $p = self::productOut($r);
+        foreach (self::productsOut($db, $rows) as $p) {
             if (!self::visibleToApps($p, $apps)) continue;
-            // A side without a price is not orderable.
-            if ($p['sale_enabled'] && $p['sale_price_cents'] === null) $p['sale_enabled'] = false;
-            if ($p['rent_enabled'] && $p['rent_price_cents_per_day'] === null) $p['rent_enabled'] = false;
+            // A side without a price is not orderable (with variants: no variant priced for it).
+            if ($p['variants']) {
+                $p['sale_enabled'] = $p['sale_enabled'] && count(array_filter($p['variants'], fn($v) => $v['sale_price_cents'] !== null)) > 0;
+                $p['rent_enabled'] = $p['rent_enabled'] && count(array_filter($p['variants'], fn($v) => $v['rent_price_cents_per_day'] !== null)) > 0;
+            } else {
+                if ($p['sale_enabled'] && $p['sale_price_cents'] === null) $p['sale_enabled'] = false;
+                if ($p['rent_enabled'] && $p['rent_price_cents_per_day'] === null) $p['rent_enabled'] = false;
+            }
             if (!$p['sale_enabled'] && !$p['rent_enabled']) continue;
             unset($p['visible']);
             $out[] = $p;
@@ -178,6 +227,7 @@ class Orders {
             $linesOut[] = [
                 'id' => (int)$l['id'],
                 'product_id' => $l['product_id'],
+                'variant_id' => isset($l['variant_id']) && $l['variant_id'] !== null ? (int)$l['variant_id'] : null,
                 'sku' => $l['sku'],
                 'name' => $l['name'],
                 'display_name' => self::pick($i18n, $lang) ?: $l['name'],

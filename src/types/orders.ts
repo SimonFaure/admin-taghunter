@@ -18,6 +18,17 @@ export interface OrderCategory {
   sort_order: number;
 }
 
+/** A priced option of a product; null price = not offered in that mode. */
+export interface OrderVariant {
+  id: number;
+  label_i18n: I18nText;
+  sku: string | null;
+  sale_price_cents: number | null;
+  rent_price_cents_per_day: number | null;
+  image: OrderImage | null;
+  sort_order: number;
+}
+
 export interface OrderProduct {
   id: number;
   sku: string | null;
@@ -33,6 +44,8 @@ export interface OrderProduct {
   images: OrderImage[];
   visible?: boolean; // admin only
   sort_order: number;
+  /** When non-empty, prices come from the variants (product prices unused). */
+  variants: OrderVariant[];
 }
 
 export interface OrderContact {
@@ -50,6 +63,7 @@ export interface OrderContact {
 export interface OrderRequestLine {
   id: number;
   product_id: number | null;
+  variant_id: number | null;
   sku: string | null;
   name: string;
   display_name: string;
@@ -95,7 +109,7 @@ export interface OrderRequestDetail extends OrderRequestSummary, OrderContact {
 export interface OrderSubmitInput extends OrderContact {
   kind: OrderKind;
   lang: string;
-  lines: { product_id: number; quantity: number }[];
+  lines: { product_id: number; variant_id?: number; quantity: number }[];
   rent_start?: string;
   rent_end?: string;
   pickup_mode?: OrderMode;

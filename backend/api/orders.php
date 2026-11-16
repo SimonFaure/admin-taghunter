@@ -104,10 +104,31 @@ function productSave($db, array $d): array {
     $sale = !empty($d['sale_enabled']);
     $rent = !empty($d['rent_enabled']);
     if (!$sale && !$rent) $errors['mode'] = 'one_required';
-    $salePrice = cents($d['sale_price_cents'] ?? null);
-    $rentPrice = cents($d['rent_price_cents_per_day'] ?? null);
-    if ($sale && $salePrice === null) $errors['sale_price_cents'] = 'required';
-    if ($rent && $rentPrice === null) $errors['rent_price_cents_per_day'] = 'required';
+    // Variants: own label, SKU, sale price / rental price (NULL = not offered that way), optional photo.
+    $variants = [];
+    foreach (is_array($d['variants'] ?? null) ? array_values($d['variants']) : [] as $i => $v) {
+        if (!is_array($v)) continue;
+        $label = Orders::cleanI18n($v['label_i18n'] ?? [], 120);
+        if (!$label['fr']) $errors['variants'] = 'label_required';
+        $img = is_array($v['image'] ?? null) ? ($v['image']['file'] ?? null) : ($v['image'] ?? null);
+        if (!is_string($img) || !validMediaFile($img)) $img = null;
+        $variants[] = [
+            'id' => (int)($v['id'] ?? 0), 'label' => $label, 'sku' => str($v['sku'] ?? null, 60),
+            'sale' => cents($v['sale_price_cents'] ?? null), 'rent' => cents($v['rent_price_cents_per_day'] ?? null),
+            'image' => $img, 'sort' => $i,
+        ];
+    }
+    if ($variants) {
+        // Product-level prices are unused when variants exist.
+        $salePrice = $rentPrice = null;
+        if ($sale && !array_filter($variants, fn($v) => $v['sale'] !== null)) $errors['sale_price_cents'] = 'variant_price_required';
+        if ($rent && !array_filter($variants, fn($v) => $v['rent'] !== null)) $errors['rent_price_cents_per_day'] = 'variant_price_required';
+    } else {
+        $salePrice = cents($d['sale_price_cents'] ?? null);
+        $rentPrice = cents($d['rent_price_cents_per_day'] ?? null);
+        if ($sale && $salePrice === null) $errors['sale_price_cents'] = 'required';
+        if ($rent && $rentPrice === null) $errors['rent_price_cents_per_day'] = 'required';
+    }
     $categoryId = !empty($d['category_id']) ? (int)$d['category_id'] : null;
     if ($categoryId && !$db->fetch('SELECT id FROM order_product_categories WHERE id = ? AND deleted_at IS NULL', [$categoryId])) {
         $errors['category_id'] = 'invalid';
@@ -118,7 +139,7 @@ function productSave($db, array $d): array {
     $images = [];
     foreach (is_array($d['images'] ?? null) ? $d['images'] : [] as $f) {
         $f = is_array($f) ? ($f['file'] ?? '') : $f;
-        if (is_string($f) && preg_match('/^[a-z0-9_]+\.(png|jpg)$/', $f) && is_file(Orders::mediaDir() . '/' . $f)) $images[] = $f;
+        if (is_string($f) && validMediaFile($f)) $images[] = $f;
     }
     $vals = [
         str($d['sku'] ?? null, 60),
@@ -135,6 +156,7 @@ function productSave($db, array $d): array {
     ];
     $cols = 'sku = ?, category_id = ?, name_i18n = ?, sale_enabled = ?, sale_price_cents = ?, sale_description_i18n = ?,
              rent_enabled = ?, rent_price_cents_per_day = ?, rent_description_i18n = ?, apps = ?, images = ?, visible = ?, sort_order = ?';
+    $db->begin();
     if ($id > 0) {
         if (!$db->fetch('SELECT id FROM order_products WHERE id = ? AND deleted_at IS NULL', [$id])) fail('not_found', 404);
         $db->execute("UPDATE order_products SET $cols WHERE id = ?", array_merge($vals, [$id]));
@@ -142,7 +164,27 @@ function productSave($db, array $d): array {
         $db->execute("INSERT INTO order_products SET $cols", $vals);
         $id = (int)$db->lastInsertId();
     }
-    return Orders::productOut($db->fetch('SELECT * FROM order_products WHERE id = ?', [$id]));
+    // Upsert variants; the ones no longer listed are soft-deleted (old request lines keep their copy).
+    $existing = array_map('intval', array_column($db->fetchAll('SELECT id FROM order_product_variants WHERE product_id = ? AND deleted_at IS NULL', [$id]), 'id'));
+    $kept = [];
+    foreach ($variants as $v) {
+        $vv = [json_encode($v['label'], JSON_UNESCAPED_UNICODE), $v['sku'], $v['sale'], $v['rent'], $v['image'], $v['sort']];
+        if ($v['id'] && in_array($v['id'], $existing, true)) {
+            $db->execute('UPDATE order_product_variants SET label_i18n = ?, sku = ?, sale_price_cents = ?, rent_price_cents_per_day = ?, image = ?, sort_order = ? WHERE id = ?', array_merge($vv, [$v['id']]));
+            $kept[] = $v['id'];
+        } else {
+            $db->execute('INSERT INTO order_product_variants (label_i18n, sku, sale_price_cents, rent_price_cents_per_day, image, sort_order, product_id) VALUES (?, ?, ?, ?, ?, ?, ?)', array_merge($vv, [$id]));
+        }
+    }
+    foreach (array_diff($existing, $kept) as $gone) {
+        $db->execute('UPDATE order_product_variants SET deleted_at = NOW() WHERE id = ?', [$gone]);
+    }
+    $db->commit();
+    return Orders::productsOut($db, [$db->fetch('SELECT * FROM order_products WHERE id = ?', [$id])])[0];
+}
+
+function validMediaFile(string $f): bool {
+    return (bool)preg_match('/^[a-z0-9_]+\.(png|jpg)$/', $f) && is_file(Orders::mediaDir() . '/' . $f);
 }
 
 function handleProductUpload(): array {
@@ -195,14 +237,16 @@ function submitRequest($db, array $client, array $d): array {
 
     $catalog = [];
     foreach (Orders::catalogForClient($db, $client) as $p) $catalog[$p['id']] = $p;
+    // Keyed "productId:variantId" (variant 0 = product without variants).
     $qty = [];
     foreach (is_array($d['lines'] ?? null) ? $d['lines'] : [] as $l) {
         $pid = (int)($l['product_id'] ?? 0);
+        $vid = (int)($l['variant_id'] ?? 0);
         $q = (int)($l['quantity'] ?? 0);
         if ($q <= 0) continue;
         $p = $catalog[$pid] ?? null;
-        if (!$p || !($kind === 'rent' ? $p['rent_enabled'] : $p['sale_enabled'])) fail('product_unavailable', 422, ['product_id' => $pid]);
-        $qty[$pid] = min(999, ($qty[$pid] ?? 0) + $q);
+        if (!$p || Orders::unitPrice($p, $kind, $vid ?: null) === null) fail('product_unavailable', 422, ['product_id' => $pid, 'variant_id' => $vid ?: null]);
+        $qty["$pid:$vid"] = min(999, ($qty["$pid:$vid"] ?? 0) + $q);
     }
     if (!$qty) $errors['lines'] = 'required';
 
@@ -253,12 +297,22 @@ function submitRequest($db, array $client, array $d): array {
     );
     $rid = (int)$db->lastInsertId();
     $i = 0;
-    foreach ($qty as $pid => $q) {
+    foreach ($qty as $key => $q) {
+        [$pid, $vid] = array_map('intval', explode(':', $key));
         $p = $catalog[$pid];
+        $variant = null;
+        foreach ($p['variants'] as $v) if ($v['id'] === $vid) $variant = $v;
+        // Line name = "Product – Variant" per language (falls back like the catalogue).
+        $nameI18n = $p['name_i18n'];
+        if ($variant) {
+            foreach (Orders::LANGS as $l) {
+                $nameI18n[$l] = Orders::pick($p['name_i18n'], $l) . ' – ' . Orders::pick($variant['label_i18n'], $l);
+            }
+        }
         $db->execute(
-            'INSERT INTO order_request_lines (request_id, product_id, sku, name, name_i18n, unit_price_cents, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [$rid, $pid, $p['sku'], Orders::pick($p['name_i18n'], 'fr'), json_encode($p['name_i18n'], JSON_UNESCAPED_UNICODE),
-             $kind === 'rent' ? $p['rent_price_cents_per_day'] : $p['sale_price_cents'], $q, $i++]
+            'INSERT INTO order_request_lines (request_id, product_id, variant_id, sku, name, name_i18n, unit_price_cents, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [$rid, $pid, $variant ? $vid : null, ($variant['sku'] ?? null) ?: $p['sku'], mb_substr(Orders::pick($nameI18n, 'fr'), 0, 190),
+             json_encode($nameI18n, JSON_UNESCAPED_UNICODE), Orders::unitPrice($p, $kind, $variant ? $vid : null), $q, $i++]
         );
     }
     Orders::logEvent($db, $rid, 'created', 'new', null, 'client', (int)$client['id']);
@@ -279,6 +333,7 @@ function adminUpdateRequest($db, array $r, array $d, int $adminId): void {
         $old = $existing[(int)($l['id'] ?? 0)] ?? null;
         $lines[] = [
             'product_id' => $old['product_id'] ?? null,
+            'variant_id' => $old['variant_id'] ?? null,
             'sku' => str($l['sku'] ?? null, 60),
             'name' => $name,
             // Keep the licensee-language snapshot only while the admin did not rename the line.
@@ -299,8 +354,8 @@ function adminUpdateRequest($db, array $r, array $d, int $adminId): void {
     $db->execute('DELETE FROM order_request_lines WHERE request_id = ?', [$r['id']]);
     foreach ($lines as $i => $l) {
         $db->execute(
-            'INSERT INTO order_request_lines (request_id, product_id, sku, name, name_i18n, unit_price_cents, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [$r['id'], $l['product_id'], $l['sku'], $l['name'], $l['name_i18n'], $l['unit_price_cents'], $l['quantity'], $i]
+            'INSERT INTO order_request_lines (request_id, product_id, variant_id, sku, name, name_i18n, unit_price_cents, quantity, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [$r['id'], $l['product_id'], $l['variant_id'], $l['sku'], $l['name'], $l['name_i18n'], $l['unit_price_cents'], $l['quantity'], $i]
         );
     }
     $db->execute('UPDATE order_requests SET rent_start = ?, rent_end = ? WHERE id = ?', [$start, $end, $r['id']]);
@@ -372,8 +427,7 @@ try {
         // ── Admin: catalogue ──────────────────────────────────────────────
         case 'admin_products': {
             jsonResponse([
-                'products' => array_map([Orders::class, 'productOut'],
-                    $db->fetchAll('SELECT * FROM order_products WHERE deleted_at IS NULL ORDER BY sort_order, id')),
+                'products' => Orders::productsOut($db, $db->fetchAll('SELECT * FROM order_products WHERE deleted_at IS NULL ORDER BY sort_order, id')),
                 'categories' => Orders::categories($db),
             ]);
         }

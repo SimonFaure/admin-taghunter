@@ -3,7 +3,7 @@
 import { authFetch } from './authFetch';
 import type {
   AdminLineInput, OrderCategory, OrderContact, OrderKind, OrderProduct, OrderRequestDetail,
-  OrderRequestSummary, OrderStatus, OrderSubmitInput,
+  OrderRequestSummary, OrderStatus, OrderSubmitInput, OrderVariant,
 } from '../types/orders';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
@@ -43,7 +43,7 @@ export const ordersApi = {
 
   // Admin
   adminProducts: () => call<{ products: OrderProduct[]; categories: OrderCategory[] }>(url('admin_products')),
-  productSave: (p: Partial<OrderProduct>) => call<{ product: OrderProduct }>(url('product_save'), p).then((r) => r.product),
+  productSave: (p: Omit<Partial<OrderProduct>, 'variants'> & { variants?: (Omit<OrderVariant, 'id'> & { id?: number })[] }) => call<{ product: OrderProduct }>(url('product_save'), p).then((r) => r.product),
   productDelete: (id: number) => call<{ ok: boolean }>(url('product_delete'), { id }),
   productUpload: async (file: File) => {
     const fd = new FormData();
