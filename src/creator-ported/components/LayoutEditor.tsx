@@ -1744,7 +1744,7 @@ export function LayoutEditor({ scenarioId, onBack, initialLayoutMode }: LayoutEd
     const placedTextCount = placedTextById.size;
     setAlert({
       type: 'success',
-      message: `Tracks layout saved (${cps.length} checkpoints + HUD frames${
+      message: `Track layout saved (${cps.length} checkpoints + HUD frames${
         placedTextCount > 0 ? ` + ${placedTextCount} text element${placedTextCount === 1 ? '' : 's'}` : ''
       }).`,
     });

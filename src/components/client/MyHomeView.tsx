@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
-  Film, Gamepad2, User, Flag, Sparkles, Smartphone, Users, CheckCircle2, QrCode, UserPlus, FileDown, Package,
+  Film, Gamepad2, User, Flag, Sparkles, Smartphone, Users, CheckCircle2, UserPlus, FileDown, Package,
   ChevronRight, ArrowRight, HelpCircle,
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
@@ -118,7 +118,6 @@ export function MyHomeView() {
     .slice(0, 3);
 
   const quickLinks = [
-    { show: hasGoSpot, to: '/my/qr-codes', labelKey: 'quickQr', icon: QrCode, tile: 'bg-[#EEF0FF] text-[#4C3FD1]' },
     { show: access.playground, to: '/my/customers?new=1', labelKey: 'quickAddCustomer', icon: UserPlus, tile: 'bg-[#E7F6EE] text-[#187A43]' },
     { show: access.playground, to: '/my/report-layouts', labelKey: 'quickExportReport', icon: FileDown, tile: 'bg-[#FDF0E3] text-[#A14A06]' },
     { show: true, to: '/my/orders/equipment', labelKey: 'quickOrderEquipment', icon: Package, tile: 'bg-[#FDECEE] text-[#B42330]' },

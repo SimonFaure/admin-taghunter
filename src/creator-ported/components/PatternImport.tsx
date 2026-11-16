@@ -5,6 +5,7 @@ import { parseCSV } from '../utils/csvParser';
 import { db } from '../lib/db';
 import { authService } from '../services/authService';
 import { Alert } from './Alert';
+import { displayGameType } from '../../lib/gameTypeLabel';
 
 interface PatternImportProps {
   onClose: () => void;
@@ -531,7 +532,7 @@ export function PatternImport({ onClose, onSuccess }: PatternImportProps) {
                 </div>
                 <div>
                   <label className="text-xs text-slate-500 uppercase tracking-wide">Game Type</label>
-                  <p className="text-white font-medium mt-1 capitalize">{parsedPattern.game_type}</p>
+                  <p className="text-white font-medium mt-1 capitalize">{displayGameType(parsedPattern.game_type)}</p>
                 </div>
                 <div>
                   <label className="text-xs text-slate-500 uppercase tracking-wide">Items</label>

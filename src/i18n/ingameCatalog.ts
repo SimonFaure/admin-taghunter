@@ -89,19 +89,19 @@ export const INGAME_CATALOG: Record<IngameNamespace, IngameStringDef[]> = {
     },
     {
       key: 'track_finished',
-      context: 'Tracks - shown when a team completes the route.',
+      context: 'Track - shown when a team completes the route.',
       charLimit: 40,
       seed: { en: 'Route complete!', fr: 'Parcours terminé !', es: '¡Recorrido completado!', de: 'Strecke abgeschlossen!', it: 'Percorso completato!', pt: 'Percurso concluído!' },
     },
     {
       key: 'no_checkpoints',
-      context: 'Tracks - no checkpoints were validated.',
+      context: 'Track - no checkpoints were validated.',
       charLimit: 40,
       seed: { en: 'No checkpoints found', fr: 'Aucun point validé', es: 'Ningún punto validado', de: 'Keine Posten gefunden', it: 'Nessun punto trovato', pt: 'Nenhum ponto validado' },
     },
     {
       key: 'reuse_cooldown',
-      context: 'Tracks - card replay cooldown. {{n}} = minutes remaining (keep the {{n}} token).',
+      context: 'Track - card replay cooldown. {{n}} = minutes remaining (keep the {{n}} token).',
       charLimit: 50,
       seed: { en: 'Card playable again in {{n}} min', fr: 'Puce rejouable dans {{n}} min', es: 'Tarjeta disponible en {{n}} min', de: 'Karte in {{n}} Min wieder spielbar', it: 'Tessera riutilizzabile tra {{n}} min', pt: 'Cartão jogável em {{n}} min' },
     },

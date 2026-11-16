@@ -16,6 +16,7 @@ import { LANGUAGES, SUPPORTED_LANGS, CLIENT_LANGS, type Lang } from '../../../i1
 import { getMediaUrl } from '../../../creator-ported/utils/mediaUrl';
 import { useVideoSubtitles, type SubtitleScenarioRow } from './useVideoSubtitles';
 import { guessSubtitle, isSubtitleFileName, toWebVtt, slugify } from './subtitleFileNames';
+import { displayGameType } from '../../../lib/gameTypeLabel';
 
 interface PendingFile {
   key: string;
@@ -454,7 +455,7 @@ export default function VideoSubtitlesPanel() {
                           <option value="">— not recognised —</option>
                           {scenarios.map((s) => (
                             <option key={s.uniqid} value={s.uniqid}>
-                              {s.game_type} · {s.title}
+                              {displayGameType(s.game_type)} · {s.title}
                               {s.video ? '' : ' (no video)'}
                             </option>
                           ))}
@@ -572,7 +573,7 @@ export default function VideoSubtitlesPanel() {
                     <td className="px-3 py-2 sticky left-0 bg-white min-w-[18rem]">
                       <div className="font-medium text-slate-800">{s.title}</div>
                       <div className="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2">
-                        <span>{s.game_type}</span>
+                        <span>{displayGameType(s.game_type)}</span>
                         <span className="font-mono">{s.uniqid}</span>
                         <span className="uppercase">source {s.default_language}</span>
                         {!s.video ? (

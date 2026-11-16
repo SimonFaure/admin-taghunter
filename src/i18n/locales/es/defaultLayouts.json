@@ -26,7 +26,7 @@
   "types": {
     "tagquest": "Quest",
     "mystery": "Mystery",
-    "tracks": "Tracks",
+    "tracks": "Track",
     "clash": "Clash"
   },
   "tabs": {

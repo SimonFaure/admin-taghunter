@@ -33,6 +33,7 @@ import { HelpButton } from '../../help';
 // chips can be derived from the registry even when the editor route hasn't
 // been visited yet (mirrors the admin ScenariosView).
 import '../../scenarios/bootstrap';
+import { displayGameType } from '../../lib/gameTypeLabel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 const MEDIA_BASE_URL = import.meta.env.VITE_MEDIA_BASE_URL || '';
@@ -701,7 +702,7 @@ function ScenarioGrid({
                   {scenario.game_type && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium capitalize">
                       <GameTypeIcon type={scenario.game_type} className="w-3 h-3" />
-                      {scenario.game_type}
+                      {displayGameType(scenario.game_type)}
                     </span>
                   )}
                   {scenario.adaptable_go && (
@@ -811,7 +812,7 @@ function ScenarioTable({
                   {scenario.game_type ? (
                     <span className="inline-flex items-center gap-1.5">
                       <GameTypeIcon type={scenario.game_type} className="w-4 h-4 text-slate-400" />
-                      {scenario.game_type}
+                      {displayGameType(scenario.game_type)}
                     </span>
                   ) : '-'}
                 </td>

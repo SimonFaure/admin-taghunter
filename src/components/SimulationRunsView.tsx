@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
+import { displayGameType } from '../lib/gameTypeLabel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -1105,7 +1106,7 @@ export function SimulationRunsView() {
                     <td className="p-3 font-mono text-slate-900 max-w-[140px]">
                       {[...ids].sort((a, b) => b - a).map((id) => `#${id}`).join(' ')}
                     </td>
-                    <td className="p-3 capitalize">{latest.game_type}</td>
+                    <td className="p-3 capitalize">{displayGameType(latest.game_type)}</td>
                     <td className="p-3 text-slate-700">{configLabel(latest.config)}</td>
                     <td className="p-3 whitespace-nowrap">
                       {current ? (
@@ -1209,7 +1210,7 @@ export function SimulationRunsView() {
                       <span className={`px-2 py-0.5 rounded ${VERDICT_STYLE[r.verdict]}`}>{r.verdict}</span>
                     </td>
                     <td className="p-3">
-                      <div className="capitalize font-medium">{r.game_type}</div>
+                      <div className="capitalize font-medium">{displayGameType(r.game_type)}</div>
                       <div className="text-slate-600">{configLabel(r.config)}</div>
                       {r.scenario_title && <div className="text-slate-400">{r.scenario_title}</div>}
                     </td>

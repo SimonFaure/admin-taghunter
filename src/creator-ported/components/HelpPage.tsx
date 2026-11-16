@@ -86,7 +86,7 @@ export function HelpPage({ onBack }: HelpPageProps) {
                   <h3 className="font-semibold text-white">Create New Scenario</h3>
                 </div>
                 <p className="text-slate-400 text-sm">
-                  Click "Create New" to start a fresh scenario. Choose a game type (Mystery, Tagquest, or Tracks),
+                  Click "Create New" to start a fresh scenario. Choose a game type (Mystery, Tagquest, or Track),
                   add a title, slug, and description.
                 </p>
               </div>
@@ -146,7 +146,7 @@ export function HelpPage({ onBack }: HelpPageProps) {
               </div>
 
               <div className="bg-slate-700/50 rounded-lg p-5 border border-slate-600">
-                <h3 className="font-semibold text-white mb-2">Tracks Games</h3>
+                <h3 className="font-semibold text-white mb-2">Track Games</h3>
                 <p className="text-slate-400 text-sm">
                   Track-based challenges and races. Configuration coming soon.
                 </p>

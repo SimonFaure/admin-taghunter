@@ -6,6 +6,7 @@ import { HelpButton } from '../help';
 import { StatsActivityChart, type TimeseriesRow } from './StatsActivityChart';
 import { customersApi } from '../lib/customersApi';
 import { CustomerInlinePicker, type PickerCustomer } from './client/customers/CustomerInlinePicker';
+import { displayGameType } from '../lib/gameTypeLabel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -309,7 +310,7 @@ export function StatisticsView() {
                   <tr key={g.summary_uuid} className="hover:bg-slate-50">
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-900">{fmtDate(g.played_at)}</td>
                     <td className="px-4 py-3 text-sm text-slate-900">{g.name || t('empty')}</td>
-                    <td className="px-4 py-3 text-sm text-slate-700 capitalize">{g.game_type}</td>
+                    <td className="px-4 py-3 text-sm text-slate-700 capitalize">{displayGameType(g.game_type)}</td>
                     <td className="px-4 py-3 text-sm text-slate-900">{g.scenario_title || g.scenario_uniqid || t('empty')}</td>
                     {isAdmin && (
                       <td className="px-4 py-3 text-sm">

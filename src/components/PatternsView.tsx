@@ -7,6 +7,7 @@ import { GameTypeIcon } from './icons/GameTypeIcons';
 import { PatternImport } from '../creator-ported/components/PatternImport';
 import { PatternCorrespondence } from './PatternCorrespondence';
 import { HelpButton } from '../help';
+import { displayGameType } from '../lib/gameTypeLabel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -397,7 +398,7 @@ export function PatternsView() {
                 <div className="flex items-center gap-2 text-sm">
                   <GameTypeIcon type={selectedPattern.game_type} className="w-4 h-4 text-slate-400 shrink-0" />
                   <span className="text-slate-500">Game Type:</span>
-                  <span className="font-medium text-slate-900 capitalize">{selectedPattern.game_type}</span>
+                  <span className="font-medium text-slate-900 capitalize">{displayGameType(selectedPattern.game_type)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Package className="w-4 h-4 text-slate-400 shrink-0" />

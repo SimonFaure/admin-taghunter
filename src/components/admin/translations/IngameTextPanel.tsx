@@ -394,7 +394,7 @@ export default function IngameTextPanel() {
       </div>
       <p className="text-xs text-slate-400 mt-3">
         Languages: {SUPPORTED_LANGS.length} total. Saving updates the synced store; field devices
-        pick up changes on their next sync. (Mystery / Tracks namespaces have no shared keys yet.)
+        pick up changes on their next sync. (Mystery / Track namespaces have no shared keys yet.)
       </p>
     </div>
   );

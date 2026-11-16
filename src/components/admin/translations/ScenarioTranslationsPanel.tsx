@@ -22,6 +22,7 @@ import {
   type ScenarioPickerRow,
   type ScenarioTranslationModel,
 } from './useScenarioTranslations';
+import { displayGameType } from '../../../lib/gameTypeLabel';
 
 type Filter = 'all' | 'fields' | 'files';
 
@@ -742,7 +743,7 @@ export default function ScenarioTranslationsPanel() {
           <option value="">Select a scenario…</option>
           {filteredScenarios.map((s) => (
             <option key={s.uniqid} value={s.uniqid}>
-              {s.game_type} · {s.title} ({pickerLangs(s)})
+              {displayGameType(s.game_type)} · {s.title} ({pickerLangs(s)})
               {s.files_count ? ` · ${s.files_count} file(s)` : ''}
             </option>
           ))}

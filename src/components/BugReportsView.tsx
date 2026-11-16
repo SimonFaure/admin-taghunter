@@ -10,6 +10,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { authFetch } from '../lib/authFetch';
+import { displayGameType } from '../lib/gameTypeLabel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -330,7 +331,7 @@ export function BugReportsView() {
                       </p>
                       <p className="text-xs text-slate-600 mt-1 pl-6">
                         {r.game_name || 'unknown game'}
-                        {r.game_type && <span className="text-slate-400"> · {r.game_type}</span>}
+                        {r.game_type && <span className="text-slate-400"> · {displayGameType(r.game_type)}</span>}
                         {teams.length > 0 && (
                           <span className="text-slate-500"> · teams: {teams.map(teamLabel).join(', ')}</span>
                         )}

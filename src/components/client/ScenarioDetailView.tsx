@@ -13,6 +13,7 @@ import { getAudienceLabel } from '../../types/audience';
 import type { ClientScenario } from './types';
 import { GoPreviewContent, type GoPreviewEnigma } from '../../scenarios/preview/GoPreviewContent';
 import { ScenarioRecapView } from './ScenarioRecapView';
+import { displayGameType } from '../../lib/gameTypeLabel';
 
 /** Game types the scenario recap covers - the three the old app had one for. */
 const RECAP_GAME_TYPES = ['mystery', 'tagquest', 'tracks'];
@@ -494,7 +495,7 @@ export function ScenarioDetailView() {
               {scenario.game_type && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full capitalize tracking-wide">
                   <GameTypeIcon type={scenario.game_type} className="w-3.5 h-3.5" />
-                  {scenario.game_type}
+                  {displayGameType(scenario.game_type)}
                 </span>
               )}
               {scenario.scenario_type && (

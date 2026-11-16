@@ -7,6 +7,7 @@ import { GameTypeIcon } from '../icons/GameTypeIcons';
 import { PatternBuilderModal } from './PatternBuilderModal';
 import { parsePatternData, patternColumns } from './patternShapes';
 import { downloadPatternCsv, downloadPatternXlsx } from './patternExport';
+import { displayGameType } from '../../lib/gameTypeLabel';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/backend/api';
 
@@ -254,7 +255,7 @@ function PatternTable({ patterns, onPreview, getOnEdit, getOnSetStatus, getOnDel
                 <td className="px-4 py-2.5">
                   <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded capitalize">
                     <GameTypeIcon type={pattern.game_type} className="w-3.5 h-3.5" />
-                    {pattern.game_type}
+                    {displayGameType(pattern.game_type)}
                   </span>
                   {pattern.mode === 'go' && (
                     <span className="ml-1.5 inline-flex items-center text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded font-medium">

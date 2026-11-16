@@ -36,7 +36,9 @@ type NavSub = {
   children: Omit<NavLeaf, 'icon'>[];
 };
 type NavEntry = NavLeaf | NavSub;
-type NavSection = { titleKey: string | null; entries: NavEntry[] };
+// A section title is either translated (titleKey) or a product name that depends
+// on the licensee's apps (titleFor, untranslated).
+type NavSection = { titleKey: string | null; titleFor?: (a: AppAccess) => string; entries: NavEntry[] };
 const isSub = (e: NavEntry): e is NavSub => 'children' in e;
 
 const anyScenarioApp = (a: AppAccess) => a.playground || a.go || a.spot;
@@ -57,9 +59,6 @@ const NAV: NavSection[] = [
   {
     titleKey: 'navGroups.play',
     entries: [
-      { to: '/my/qr-codes', labelKey: 'nav.qrCodes', icon: QrCode, show: goOrSpot },
-      // One merged leaderboards page; RankingsView shows a GO/Spot tab when both are on.
-      { to: '/my/rankings', labelKey: 'nav.rankings', icon: Trophy, show: goOrSpot },
       {
         id: 'playground',
         labelKey: 'nav.playground',
@@ -74,6 +73,16 @@ const NAV: NavSection[] = [
           { to: '/my/releases', labelKey: 'nav.releases', show: playground },
         ],
       },
+    ],
+  },
+  {
+    // Titled after the companion apps the licensee actually has.
+    titleKey: null,
+    titleFor: (a) => [a.go && 'GO', a.spot && 'SPOT'].filter(Boolean).join(' / '),
+    entries: [
+      { to: '/my/qr-codes', labelKey: 'nav.qrCodes', icon: QrCode, show: goOrSpot },
+      // One merged leaderboards page; RankingsView shows a GO/Spot tab when both are on.
+      { to: '/my/rankings', labelKey: 'nav.rankings', icon: Trophy, show: goOrSpot },
     ],
   },
   {
@@ -221,11 +230,11 @@ function Sidebar({ access }: { access: AppAccess }) {
     // Fixed 248px column from 840px up (sticky, own scroll); below that it takes
     // the full width above the content and scrolls with the page.
     <aside className="flex basis-full flex-col gap-7 bg-th-sidebar px-4 py-6 text-th-nav-text min-[840px]:sticky min-[840px]:top-0 min-[840px]:h-screen min-[840px]:flex-[0_0_248px] min-[840px]:overflow-y-auto print:hidden">
-      <div className="px-2">
+      <div className="flex justify-center px-2">
         <img src="/logo_th_blanc.png" alt="Tag Hunter" className="block h-10 w-auto max-w-full object-contain" />
       </div>
 
-      <div className="-mt-2 flex flex-col gap-2.5 rounded-[14px] border border-white/[.08] bg-white/[.05] p-3">
+      <div className="-mt-2 rounded-[14px] border border-white/[.08] bg-white/[.05] p-3">
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
@@ -233,8 +242,8 @@ function Sidebar({ access }: { access: AppAccess }) {
           >
             {initialsOf(displayName)}
           </span>
-          <div className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-white" title={displayName}>{displayName}</span>
+          <div className="min-w-0 flex-1">
+            <span className="line-clamp-2 break-words text-sm font-semibold leading-tight text-white" title={displayName}>{displayName}</span>
             <NavLink
               to="/my/account"
               className={({ isActive }) =>
@@ -245,26 +254,29 @@ function Sidebar({ access }: { access: AppAccess }) {
               {t('nav.account')}
             </NavLink>
           </div>
+          {/* Icon only; the label stays for screen readers and as a tooltip. */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label={t('signOut')}
+            title={t('signOut')}
+            className={`flex h-11 w-11 flex-none items-center justify-center rounded-th-sm border border-white/[.14] text-[#E2E6EF] transition-colors hover:bg-white/[.06] hover:text-white ${focusRing}`}
+          >
+            <LogOut className="h-[18px] w-[18px]" aria-hidden="true" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className={`flex h-11 items-center justify-center gap-2 rounded-th-sm border border-white/[.14] text-[13px] font-semibold text-[#E2E6EF] transition-colors hover:bg-white/[.06] ${focusRing}`}
-        >
-          <LogOut className="h-4 w-4" aria-hidden="true" />
-          {t('signOut')}
-        </button>
       </div>
 
       <nav aria-label={t('navLabel')} className="flex flex-1 flex-col gap-5">
         {NAV.map((section, i) => {
           const entries = section.entries.filter((e) => e.show(access));
           if (entries.length === 0) return null;
+          const title = section.titleFor ? section.titleFor(access) : section.titleKey ? t(section.titleKey) : null;
           return (
-            <div key={section.titleKey ?? i} className="flex flex-col gap-0.5">
-              {section.titleKey && (
+            <div key={i} className="flex flex-col gap-0.5">
+              {title && (
                 <span className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-[.1em] text-th-nav-label">
-                  {t(section.titleKey)}
+                  {title}
                 </span>
               )}
               {entries.map((entry) =>

@@ -29,8 +29,8 @@
       "text_team_joined": "Pantalla de inscripción en modo equipo: se muestra en grande cuando una tarjeta se une a un equipo. %team% se sustituye por el nombre del equipo. Vacío: «Has entrado en %team%».",
       "text_team_ended": "El equipo ya ha terminado su partida (hora de fin registrada) y vuelve a picar. Ejemplo: un jugador regresa al puesto tras la picada de llegada.",
       "text_if_error": "El procesamiento de la picada falló técnicamente: datos del juego ilegibles, escritura imposible, puesto madre inaccesible. Nunca es un error del jugador. La causa exacta se añade detrás de tu texto en pantalla para que el operador sepa qué hacer.",
-      "text_all_team_ended": "El ÚLTIMO equipo que seguía jugando acaba de terminar. El mensaje se muestra una sola vez y luego la partida se cierra automáticamente. Es el equivalente en Mystery de «escenario finalizado» (usado por Tracks): ambos se activan en el mismo momento y cada tipo de juego usa solo uno.",
-      "text_scenario_ended": "Todos los equipos han terminado su recorrido: el mensaje aparece justo después del «equipo finalizado» del último equipo. Es el equivalente en Tracks de «todos los equipos finalizados» (usado por Mystery): ambos se activan en el mismo momento y cada tipo de juego usa solo uno."
+      "text_all_team_ended": "El ÚLTIMO equipo que seguía jugando acaba de terminar. El mensaje se muestra una sola vez y luego la partida se cierra automáticamente. Es el equivalente en Mystery de «escenario finalizado» (usado por Track): ambos se activan en el mismo momento y cada tipo de juego usa solo uno.",
+      "text_scenario_ended": "Todos los equipos han terminado su recorrido: el mensaje aparece justo después del «equipo finalizado» del último equipo. Es el equivalente en Track de «todos los equipos finalizados» (usado por Mystery): ambos se activan en el mismo momento y cada tipo de juego usa solo uno."
     }
   },
   "typography": {

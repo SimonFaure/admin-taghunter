@@ -6,7 +6,7 @@ export type HomeGameType = (typeof HOME_GAME_TYPES)[number];
 const LABELS: Record<HomeGameType, string> = {
   mystery: 'Mystery',
   clash: 'Clash',
-  tracks: 'Tracks',
+  tracks: 'Track',
   tagquest: 'Tagquest',
 };
 

@@ -29,8 +29,8 @@
       "text_team_joined": "Écran d'inscription en mode équipe : affiché en grand quand une puce rejoint une équipe. %team% est remplacé par le nom de l'équipe. Vide : « Vous êtes entré chez %team% ».",
       "text_team_ended": "L'équipe a déjà terminé sa partie (heure de fin enregistrée) et bipe à nouveau. Exemple : un joueur revient au poste après le poinçon d'arrivée.",
       "text_if_error": "Le traitement du bip a échoué techniquement : données du jeu illisibles, écriture impossible, poste mère injoignable. Ce n'est jamais une erreur du joueur. La cause exacte est ajoutée derrière votre texte, à l'écran, pour que l'opérateur sache quoi faire.",
-      "text_all_team_ended": "La DERNIÈRE équipe encore en jeu vient de terminer. Le message s'affiche une seule fois, puis la partie se clôture automatiquement. C'est le pendant Mystery de « scénario terminé » (utilisé par Tracks) : les deux se déclenchent au même moment, chaque type de jeu n'en utilise qu'un.",
-      "text_scenario_ended": "Toutes les équipes ont terminé leur parcours : le message s'affiche juste après le « équipe terminée » de la dernière équipe. C'est le pendant Tracks de « toutes les équipes terminées » (utilisé par Mystery) : les deux se déclenchent au même moment, chaque type de jeu n'en utilise qu'un."
+      "text_all_team_ended": "La DERNIÈRE équipe encore en jeu vient de terminer. Le message s'affiche une seule fois, puis la partie se clôture automatiquement. C'est le pendant Mystery de « scénario terminé » (utilisé par Track) : les deux se déclenchent au même moment, chaque type de jeu n'en utilise qu'un.",
+      "text_scenario_ended": "Toutes les équipes ont terminé leur parcours : le message s'affiche juste après le « équipe terminée » de la dernière équipe. C'est le pendant Track de « toutes les équipes terminées » (utilisé par Mystery) : les deux se déclenchent au même moment, chaque type de jeu n'en utilise qu'un."
     }
   },
   "typography": {
