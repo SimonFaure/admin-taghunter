@@ -1,5 +1,5 @@
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical, Smartphone, BookOpen, LayoutTemplate, Bug, Ticket } from 'lucide-react';
+import { LogOut, Home, Users, Settings, FileText, Code, Film, TrendingUp, Image, Shield, Activity, Package, Clock, CreditCard, Monitor, AlertTriangle, Languages, Rocket, Terminal, ChevronDown, ChevronRight, Video, FolderOpen, HelpCircle, Printer, Tags, LayoutGrid, FlaskConical, Smartphone, BookOpen, LayoutTemplate, Bug, Ticket, ShoppingCart, CalendarDays, Boxes } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -36,6 +36,8 @@ import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 import { HelpProvider, DocsShell, studioOpenPdf } from '../help';
 import { EventsSettingsView } from './admin/events/EventsSettingsView';
 import { EventsRevenueView } from './admin/events/EventsRevenueView';
+import { OrderRequestsView } from './admin/orders/OrderRequestsView';
+import { OrderProductsView } from './admin/orders/OrderProductsView';
 
 type MenuItem = { id: string; label: string; icon: typeof Home; route?: string };
 type NavGroup = { id: string; label: string; icon: typeof Home; items: MenuItem[]; storageKey: string };
@@ -90,6 +92,15 @@ const eventsMenuItems: MenuItem[] = [
   { id: 'events-settings', label: 'Settings', icon: Settings },
 ];
 
+// Commandes: licensee equipment sale + rental requests, and the product catalogue.
+// Menu names in French to match what licensees see; page UI stays English.
+// Memory: project_studio_commandes_equipment_orders.
+const ordersMenuItems: MenuItem[] = [
+  { id: 'orders-sale', label: 'Matériel supplémentaire & back up', icon: Package },
+  { id: 'orders-rent', label: 'Location de matériel', icon: CalendarDays },
+  { id: 'orders-products', label: 'Produits', icon: Boxes },
+];
+
 // Developer / operations tools, grouped under the collapsible "Dev" section.
 const devMenuItems: MenuItem[] = [
   { id: 'logs', label: 'API Logs', icon: FileText },
@@ -108,11 +119,12 @@ const navGroups: NavGroup[] = [
   { id: 'go', label: 'GO', icon: Smartphone, items: goMenuItems, storageKey: 'studioGoNavOpen' },
   { id: 'spot', label: 'Spot', icon: Smartphone, items: spotMenuItems, storageKey: 'studioSpotNavOpen' },
   { id: 'events', label: 'Events', icon: Ticket, items: eventsMenuItems, storageKey: 'studioEventsNavOpen' },
+  { id: 'orders', label: 'Commandes', icon: ShoppingCart, items: ordersMenuItems, storageKey: 'studioOrdersNavOpen' },
   { id: 'media', label: 'Media', icon: FolderOpen, items: mediaMenuItems, storageKey: 'studioMediaNavOpen' },
   { id: 'dev', label: 'Dev', icon: Terminal, items: devMenuItems, storageKey: 'studioDevNavOpen' },
 ];
 
-const allMenuItems: MenuItem[] = [...mainMenuItems, ...goMenuItems, ...spotMenuItems, ...eventsMenuItems, ...mediaMenuItems, ...devMenuItems];
+const allMenuItems: MenuItem[] = [...mainMenuItems, ...goMenuItems, ...spotMenuItems, ...eventsMenuItems, ...ordersMenuItems, ...mediaMenuItems, ...devMenuItems];
 
 // Tabs reached from inside another page rather than from the sidebar.
 const hiddenTabTitles: Record<string, string> = {
@@ -375,6 +387,10 @@ export function Dashboard() {
 
           {activeTab === 'events-settings' && <EventsSettingsView />}
           {activeTab === 'events-revenue' && <EventsRevenueView />}
+
+          {activeTab === 'orders-sale' && <OrderRequestsView key="sale" kind="sale" />}
+          {activeTab === 'orders-rent' && <OrderRequestsView key="rent" kind="rent" />}
+          {activeTab === 'orders-products' && <OrderProductsView />}
 
           {activeTab === 'game-types' && <GameTypesView />}
 

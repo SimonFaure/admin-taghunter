@@ -25,6 +25,10 @@
     "mysteryScoring": "Mystery scoring",
     "events": "Events",
     "payments": "Payments",
+    "orders": "Orders",
+    "ordersSale": "Extra equipment & backup",
+    "ordersRent": "Equipment rental",
+    "ordersRequests": "My requests",
     "settings": "Settings",
     "account": "My Account",
     "help": "Help"

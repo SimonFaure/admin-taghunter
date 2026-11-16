@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, LayoutGrid, ChevronDown, FileVideo, Building2, Wallet, Ticket, Calculator } from 'lucide-react';
+import { LogOut, Home, User, Film, CreditCard, Smartphone, Package, Video, BarChart3, HelpCircle, Rocket, QrCode, Trophy, Tags, Printer, Gamepad2, LayoutGrid, ChevronDown, FileVideo, Building2, Wallet, Ticket, Calculator, ShoppingCart, CalendarDays, ClipboardList } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/AuthContext';
@@ -70,6 +70,20 @@ const NAV_ITEMS: NavEntry[] = [
   // Events / online ticketing: legal info + Stripe Connect (admin-enabled per licensee).
   { to: '/my/events', labelKey: 'nav.events', icon: Ticket, end: false, show: (a) => a.events },
   { to: '/my/payments', labelKey: 'nav.payments', icon: Wallet, end: false, show: (a) => a.events },
+  // Commandes: equipment sale + rental order requests, for every licensee. What each
+  // licensee sees is filtered per product (Playground/GO/Spot) server-side
+  // (project_studio_commandes_equipment_orders).
+  {
+    group: true,
+    labelKey: 'nav.orders',
+    icon: ShoppingCart,
+    show: () => true,
+    children: [
+      { to: '/my/orders/equipment', labelKey: 'nav.ordersSale', icon: Package, end: false, show: () => true },
+      { to: '/my/orders/rental', labelKey: 'nav.ordersRent', icon: CalendarDays, end: false, show: () => true },
+      { to: '/my/orders/requests', labelKey: 'nav.ordersRequests', icon: ClipboardList, end: false, show: () => true },
+    ],
+  },
   // "Paramètres" (/my/settings) hidden from clients; MySettingsView is kept, the
   // route redirects to home (see AppRouter).
   { to: '/my/account', labelKey: 'nav.account', icon: User, end: false, show: () => true },

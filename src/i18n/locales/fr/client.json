@@ -25,6 +25,10 @@
     "mysteryScoring": "Barème Mystery",
     "events": "Événements",
     "payments": "Paiements",
+    "orders": "Commandes",
+    "ordersSale": "Matériel supplémentaire & back up",
+    "ordersRent": "Location de matériel",
+    "ordersRequests": "Mes demandes",
     "settings": "Paramètres",
     "account": "Mon compte",
     "help": "Aide"

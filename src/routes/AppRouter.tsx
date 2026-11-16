@@ -34,6 +34,8 @@ import { LicenseeCheckinRoute, StaffCheckinRoute } from '../components/checkin/C
 import { MyHelpView } from '../components/client/MyHelpView';
 import { MyReleasesView } from '../components/client/MyReleasesView';
 import { TutorialVideoDownloadsView } from '../components/client/TutorialVideoDownloadsView';
+import { OrdersCatalogView } from '../components/client/orders/OrdersCatalogView';
+import { MyOrderRequestsView, MyOrderRequestDetailView } from '../components/client/orders/MyOrderRequestsView';
 
 // Admin list views (/admin/scenarios etc.) aren't split out yet - Dashboard's
 // existing tab state still owns those. Leaving them as placeholder routes for
@@ -111,6 +113,12 @@ export function AppRouter() {
             <Route path="events" element={<MyEventsView />} />
             <Route path="events/:id/:tab?" element={<EventEditorView />} />
             <Route path="payments" element={<MyPaymentsView />} />
+            {/* Commandes (project_studio_commandes_equipment_orders). key= remounts per page. */}
+            <Route path="orders" element={<Navigate to="equipment" replace />} />
+            <Route path="orders/equipment" element={<OrdersCatalogView key="sale" kind="sale" />} />
+            <Route path="orders/rental" element={<OrdersCatalogView key="rent" kind="rent" />} />
+            <Route path="orders/requests" element={<MyOrderRequestsView />} />
+            <Route path="orders/requests/:id" element={<MyOrderRequestDetailView />} />
             {/* Settings page hidden from clients; old bookmarks land on home. */}
             <Route path="settings" element={<Navigate to="../home" replace />} />
             <Route path="help" element={<MyHelpView />} />

@@ -25,6 +25,10 @@
     "mysteryScoring": "Puntuación Mystery",
     "events": "Eventos",
     "payments": "Pagos",
+    "orders": "Pedidos",
+    "ordersSale": "Material adicional y de reserva",
+    "ordersRent": "Alquiler de material",
+    "ordersRequests": "Mis solicitudes",
     "settings": "Ajustes",
     "account": "Mi cuenta",
     "help": "Ayuda"
