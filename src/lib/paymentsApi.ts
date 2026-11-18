@@ -2,6 +2,7 @@
 // backend/api/events_admin.php (admin-only Events settings).
 import { authFetch } from './authFetch';
 import type {
+  AdminEventRow,
   AdminLicenseeEvents,
   CommissionInvoice,
   RevenueRow,
@@ -96,6 +97,9 @@ export const eventsAdminApi = {
 
   viesRecheck: (clientId: number) =>
     call<{ data: AdminLicenseeEvents }>(url('events_admin.php', 'vies_recheck'), { client_id: clientId }).then((r) => r.data),
+
+  events: () =>
+    call<{ events: AdminEventRow[] }>(url('events_admin.php', 'events')).then((r) => r.events),
 
   revenue: (year: number) =>
     call<{ year: number; rows: RevenueRow[] }>(url('events_admin.php', 'revenue', undefined, { year })).then((r) => r.rows),

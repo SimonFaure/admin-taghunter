@@ -13,6 +13,7 @@
 // GET  invoices[&period=YYYY-MM]    -> every commission invoice
 // POST invoices_generate            {period: YYYY-MM, client_id?} -> issue missing invoices (idempotent)
 // GET  invoice_download&id&what=pdf|csv
+// GET  events                       -> every licensee's events with sales figures (Admin -> Events -> Events)
 //
 // Kept out of clients.php on purpose: these fields are admin-only by design
 // and must never ride on a generic update allowlist.
@@ -31,6 +32,7 @@ require_once __DIR__ . '/../utils/LegalInfo.php';
 require_once __DIR__ . '/../utils/StripeConnect.php';
 require_once __DIR__ . '/../utils/Slug.php';
 require_once __DIR__ . '/../utils/EventsInvoices.php';
+require_once __DIR__ . '/../utils/EventsRepo.php';
 
 function jsonResponse($data, $statusCode = 200) {
     http_response_code($statusCode);
@@ -241,6 +243,70 @@ try {
             Logger::log('events_admin', 'POST', 'invoices_generate', $adminId, ['period' => $period], ['issued' => count($ids)], 200);
             jsonResponse(['issued' => count($ids)]);
             break;
+
+        case 'events': {
+            // Every licensee's events (Admin -> Events -> Events). Archived ones
+            // are included; the page filters them out by default.
+            if ($method !== 'GET') jsonResponse(['error' => 'Method not allowed'], 405);
+            $rows = $db->fetchAll(
+                "SELECT e.id, e.uniqid, e.client_id, e.slug, e.status, e.listed, e.sales_paused, e.main_language,
+                        e.venue_name, e.venue_city, e.first_slot_at, e.last_slot_end_at, e.published_at,
+                        e.cancelled_at, e.created_at, e.layout,
+                        COALESCE(NULLIF(c.company, ''), NULLIF(c.name, ''), c.email) AS licensee,
+                        c.events_enabled,
+                        ec.content AS main_content,
+                        (SELECT COUNT(*) FROM event_slots s WHERE s.event_id = e.id AND s.status <> 'cancelled') AS slots_count,
+                        (SELECT COALESCE(SUM(s.capacity), 0) FROM event_slots s WHERE s.event_id = e.id AND s.status <> 'cancelled') AS capacity,
+                        (SELECT COUNT(*) FROM bookings b WHERE b.event_id = e.id AND b.status = 'confirmed') AS bookings_count,
+                        (SELECT COUNT(*) FROM bookings b JOIN booking_tickets bt ON bt.booking_id = b.id
+                          WHERE b.event_id = e.id AND b.status = 'confirmed') AS tickets_sold,
+                        (SELECT COALESCE(SUM(b.total_cents - b.booking_fee_cents - b.refunded_cents + b.fee_refunded_cents), 0)
+                           FROM bookings b WHERE b.event_id = e.id AND b.status = 'confirmed') AS revenue_cents,
+                        (SELECT COALESCE(SUM(b.booking_fee_cents - b.fee_refunded_cents), 0)
+                           FROM bookings b WHERE b.event_id = e.id AND b.status IN ('confirmed', 'cancelled')) AS fees_cents
+                   FROM events e
+                   JOIN clients c ON c.id = e.client_id
+                   LEFT JOIN event_contents ec ON ec.event_id = e.id AND ec.lang = e.main_language
+                  ORDER BY COALESCE(e.first_slot_at, e.created_at) DESC
+                  LIMIT 2000"
+            );
+            $iso = fn($v) => $v ? str_replace(' ', 'T', $v) . 'Z' : null;
+            $base = PaymentsConfig::eventsPublicBase();
+            $out = [];
+            foreach ($rows as $r) {
+                $content = EventsRepo::json($r['main_content']) ?: [];
+                $layout = EventsRepo::json($r['layout']) ?: [];
+                $hero = is_array($layout['hero'] ?? null) ? ($layout['hero']['image'] ?? null) : null;
+                $out[] = [
+                    'id' => (int)$r['id'],
+                    'client_id' => (int)$r['client_id'],
+                    'licensee' => $r['licensee'],
+                    'licensee_events_enabled' => (int)$r['events_enabled'] === 1,
+                    'slug' => $r['slug'],
+                    'title' => is_string($content['title'] ?? null) ? $content['title'] : '',
+                    'status' => $r['status'],
+                    'listed' => (int)$r['listed'] === 1,
+                    'sales_paused' => (int)$r['sales_paused'] === 1,
+                    'main_language' => $r['main_language'],
+                    'venue_name' => $r['venue_name'],
+                    'venue_city' => $r['venue_city'],
+                    'first_slot_at' => $iso($r['first_slot_at']),
+                    'last_slot_end_at' => $iso($r['last_slot_end_at']),
+                    'published_at' => $iso($r['published_at']),
+                    'cancelled_at' => $iso($r['cancelled_at']),
+                    'created_at' => $iso($r['created_at']),
+                    'hero' => is_string($hero) ? EventsRepo::mediaUrl($r, basename($hero)) : null,
+                    'slots_count' => (int)$r['slots_count'],
+                    'capacity' => (int)$r['capacity'],
+                    'bookings_count' => (int)$r['bookings_count'],
+                    'tickets_sold' => (int)$r['tickets_sold'],
+                    'revenue_cents' => (int)$r['revenue_cents'],
+                    'fees_cents' => (int)$r['fees_cents'],
+                    'public_url' => $base . '/' . $r['slug'],
+                ];
+            }
+            jsonResponse(['events' => $out]);
+        }
 
         case 'invoice_download':
             $inv = $db->fetch('SELECT * FROM commission_invoices WHERE id = ?', [(int)($_GET['id'] ?? 0)]);

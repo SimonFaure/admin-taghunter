@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Ban, Loader2, Plus, Trash2, Wand2 } from 'lucide-react';
-import { EventsApiError, eventsApi, formatLocal } from '../../../../lib/eventsApi';
+import { EventsApiError, eventsApi, formatLocal, getEventsClientId } from '../../../../lib/eventsApi';
 import { authFetch } from '../../../../lib/authFetch';
 import type { EventSlot } from '../../../../types/events';
 import { btnGhost, btnPrimary, btnSecondary, CancelFlowModal, Card, errorText, IntInput, isDirty, Pill, SaveBar, smallInputCls, type TabProps } from '../ui';
@@ -13,7 +13,9 @@ function useScenarioOptions(): { id: number; title: string; game_type: string }[
   const [list, setList] = useState<{ id: number; title: string; game_type: string }[] | null>(null);
   useEffect(() => {
     let alive = true;
-    authFetch(`${API_BASE_URL}/client_scenarios.php?action=list`)
+    // An admin editing a licensee's event lists THAT licensee's scenarios.
+    const cid = getEventsClientId();
+    authFetch(`${API_BASE_URL}/client_scenarios.php?action=list${cid ? `&client_id=${cid}` : ''}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => {
         if (!alive || !Array.isArray(body?.data)) return;

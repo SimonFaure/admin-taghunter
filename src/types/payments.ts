@@ -116,6 +116,37 @@ export interface CommissionInvoice {
   licensee?: string;
 }
 
+/** Admin -> Events -> Events: one row per event, every licensee. Dates are UTC ISO. */
+export interface AdminEventRow {
+  id: number;
+  client_id: number;
+  licensee: string;
+  licensee_events_enabled: boolean;
+  slug: string;
+  title: string;
+  status: 'draft' | 'published' | 'archived';
+  listed: boolean;
+  sales_paused: boolean;
+  main_language: string;
+  venue_name: string | null;
+  venue_city: string | null;
+  first_slot_at: string | null;
+  last_slot_end_at: string | null;
+  published_at: string | null;
+  cancelled_at: string | null;
+  created_at: string | null;
+  hero: string | null;
+  slots_count: number;
+  capacity: number;
+  bookings_count: number;
+  tickets_sold: number;
+  /** What the licensee keeps (confirmed, net of fees and refunds). */
+  revenue_cents: number;
+  /** Taghunter booking fees net of fee refunds. */
+  fees_cents: number;
+  public_url: string;
+}
+
 export interface RevenueRow {
   client_id: number;
   licensee: string;

@@ -26,6 +26,10 @@ let adminClientId: number | undefined;
 export function setEventsClientId(id: number | undefined) {
   adminClientId = id;
 }
+/** The licensee an admin is currently editing, or undefined in the licensee's own session. */
+export function getEventsClientId(): number | undefined {
+  return adminClientId;
+}
 
 function url(action: string, params: Record<string, string | number> = {}): string {
   const p = new URLSearchParams({ action });

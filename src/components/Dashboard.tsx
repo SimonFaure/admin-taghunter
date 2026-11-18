@@ -36,6 +36,7 @@ import { dashboardApi, DashboardStats, DashboardActivity } from '../lib/api';
 import { HelpProvider, DocsShell, studioOpenPdf } from '../help';
 import { EventsSettingsView } from './admin/events/EventsSettingsView';
 import { EventsRevenueView } from './admin/events/EventsRevenueView';
+import { EventsListView } from './admin/events/EventsListView';
 import { OrderRequestsView } from './admin/orders/OrderRequestsView';
 import { OrderProductsView } from './admin/orders/OrderProductsView';
 
@@ -88,6 +89,7 @@ const spotMenuItems: MenuItem[] = [
 // Events / online ticketing (Claude plan "ok-i-need-a-moonlit-goose"). Per-licensee
 // switch + commission live on the licensee page; this group holds platform pages.
 const eventsMenuItems: MenuItem[] = [
+  { id: 'events-list', label: 'Events', icon: CalendarDays },
   { id: 'events-revenue', label: 'Revenue', icon: TrendingUp },
   { id: 'events-settings', label: 'Settings', icon: Settings },
 ];
@@ -385,6 +387,7 @@ export function Dashboard() {
 
           {activeTab === 'settings' && <SettingsView />}
 
+          {activeTab === 'events-list' && <EventsListView />}
           {activeTab === 'events-settings' && <EventsSettingsView />}
           {activeTab === 'events-revenue' && <EventsRevenueView />}
 

@@ -18,12 +18,25 @@ import { CheckinTab } from './tabs/CheckinTab';
 const TABS = ['page', 'tickets', 'addons', 'promo', 'sessions', 'checkout', 'bookings', 'checkin', 'settings'] as const;
 type Tab = typeof TABS[number];
 
+/** Admin -> Events -> Events opens the same editor inside the Dashboard (tab
+ *  state, no URL). The caller must have called setEventsClientId() first. */
+export interface EventEditorAdminProps {
+  eventId: number;
+  tab: string;
+  onTab: (tab: string) => void;
+  onBack: () => void;
+  backLabel: string;
+}
+
 // /my/events/:id/:tab? - the event editor (Events phases 2-3).
-export function EventEditorView() {
+export function EventEditorView({ admin }: { admin?: EventEditorAdminProps } = {}) {
   const { t } = useTranslation('events');
   const navigate = useNavigate();
-  const { id = '', tab = 'page' } = useParams();
+  const params = useParams();
+  const id = admin ? String(admin.eventId) : (params.id ?? '');
+  const tab = admin ? admin.tab : (params.tab ?? 'page');
   const eventId = Number(id);
+  const goTab = (tb: string) => (admin ? admin.onTab(tb) : navigate(`/my/events/${eventId}/${tb}`));
   const active: Tab = (TABS as readonly string[]).includes(tab) ? (tab as Tab) : 'page';
   const [data, setData] = useState<EventEditorPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +81,9 @@ export function EventEditorView() {
 
   return (
     <div className="space-y-5 max-w-6xl">
-      <Link to="/my/events" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"><ArrowLeft className="w-4 h-4" />{t('editor.back')}</Link>
+      {admin
+        ? <button onClick={admin.onBack} className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"><ArrowLeft className="w-4 h-4" />{admin.backLabel}</button>
+        : <Link to="/my/events" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900"><ArrowLeft className="w-4 h-4" />{t('editor.back')}</Link>}
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
@@ -101,11 +116,11 @@ export function EventEditorView() {
         </p>
       )}
       {notice && <p className={`text-sm ${notice.ok ? 'text-emerald-700' : 'text-red-600'}`}>{notice.text}</p>}
-      {missing && missing.length > 0 && <ChecklistBox codes={missing} title={t('editor.notReady')} onGo={(tb) => navigate(`/my/events/${ev.id}/${tb}`)} />}
+      {missing && missing.length > 0 && <ChecklistBox codes={missing} title={t('editor.notReady')} onGo={goTab} adminView={!!admin} />}
 
       <nav className="flex gap-1 overflow-x-auto border-b border-slate-200">
         {TABS.map((tb) => (
-          <button key={tb} onClick={() => navigate(`/my/events/${ev.id}/${tb}`)}
+          <button key={tb} onClick={() => goTab(tb)}
             className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px ${active === tb ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
             {t(`tabs.${tb}`)}
           </button>
@@ -117,12 +132,12 @@ export function EventEditorView() {
       {active === 'addons' && <AddonsTab data={data} onSaved={onSaved} />}
       {active === 'promo' && <PromoTab data={data} onSaved={onSaved} />}
       {active === 'sessions' && <SessionsTab data={data} onSaved={onSaved} />}
-      {active === 'checkout' && <CheckoutTab data={data} onSaved={onSaved} onGoPage={() => navigate(`/my/events/${ev.id}/page`)} />}
+      {active === 'checkout' && <CheckoutTab data={data} onSaved={onSaved} onGoPage={() => goTab('page')} />}
       {active === 'bookings' && <BookingsTab data={data} onSaved={onSaved} />}
       {active === 'checkin' && <CheckinTab data={data} onSaved={onSaved} />}
       {active === 'settings' && (
         <SettingsTab data={data} onSaved={onSaved}
-          checklist={<ChecklistBox codes={data.checklist} title={t('editor.notReady')} onGo={(tb) => navigate(`/my/events/${ev.id}/${tb}`)} />} />
+          checklist={<ChecklistBox codes={data.checklist} title={t('editor.notReady')} onGo={goTab} adminView={!!admin} />} />
       )}
     </div>
   );
@@ -133,7 +148,11 @@ const FIX_TAB: Record<ChecklistCode, string | null> = {
   legal_info: null, platform_terms: null, stripe: null,
 };
 
-export function ChecklistBox({ codes, title, onGo }: { codes: ChecklistCode[]; title: string; onGo: (tab: string) => void }) {
+export function ChecklistBox({ codes, title, onGo, adminView = false }: {
+  codes: ChecklistCode[]; title: string; onGo: (tab: string) => void;
+  /** Admin view: /my/payments is a licensee route, so no link to it. */
+  adminView?: boolean;
+}) {
   const { t } = useTranslation('events');
   if (codes.length === 0) {
     return <p className="text-sm text-emerald-700 bg-emerald-50 rounded-lg p-3 flex items-center gap-2"><Check className="w-4 h-4" />{t('checklist.ready')}</p>;
@@ -147,7 +166,7 @@ export function ChecklistBox({ codes, title, onGo }: { codes: ChecklistCode[]; t
             <span>• {t(`checklist.${c}`)}</span>
             {FIX_TAB[c]
               ? <button className="text-blue-700 hover:underline" onClick={() => onGo(FIX_TAB[c] as string)}>{t(`tabs.${FIX_TAB[c]}`)} →</button>
-              : <Link to="/my/payments" className="text-blue-700 hover:underline">{t('checklist.goPayments')} →</Link>}
+              : adminView ? null : <Link to="/my/payments" className="text-blue-700 hover:underline">{t('checklist.goPayments')} →</Link>}
           </li>
         ))}
       </ul>

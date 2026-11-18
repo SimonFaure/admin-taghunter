@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Check, Copy, KeyRound, Loader2, Lock, Plus, Smartphone, Trash2, Users } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { eventsApi } from '../../../../lib/eventsApi';
+import { eventsApi, getEventsClientId } from '../../../../lib/eventsApi';
 import type { StaffLink } from '../../../../types/events';
 import { btnDanger, btnPrimary, btnSecondary, Card, errorText, inputCls, Modal, Pill, type TabProps } from '../ui';
 
@@ -94,7 +94,8 @@ export function CheckinTab({ data, onSaved }: TabProps) {
           <div className="flex-1 min-w-[160px] h-3 rounded-full bg-slate-100 overflow-hidden">
             <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
           </div>
-          <Link to={`/m/checkin/${ev.id}`} className={btnPrimary}><Smartphone className="w-4 h-4" />{t('checkin.open')}</Link>
+          {/* /m/checkin is a licensee-only route: hidden when an admin edits the event. */}
+          {!getEventsClientId() && <Link to={`/m/checkin/${ev.id}`} className={btnPrimary}><Smartphone className="w-4 h-4" />{t('checkin.open')}</Link>}
         </div>
       </Card>
 
