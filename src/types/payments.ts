@@ -76,6 +76,8 @@ export interface EventsPlatformSettings {
   commission_fixed_cents_default: number;
   platform_terms_version: string;
   platform_terms_url: string;
+  /** Legal info + platform terms + Stripe block publishing (default off). */
+  publish_requires_payment_setup: boolean;
   invoice_series_prefix: string;
   invoice_issuer: Record<string, string>;
   stripe_configured: boolean;

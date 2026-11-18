@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
 import { eventsApi } from '../../../../lib/eventsApi';
-import { emptyContent, type EventContent, type EventLang, type EventLayout, type EventTheme } from '../../../../types/events';
+import { emptyContent, EVENT_ONLY_FONTS, EVENT_THEMES, type EventContent, type EventLang, type EventLayout, type EventTheme } from '../../../../types/events';
 import {
   btnSecondary, Card, errorText, Field, inputCls, isDirty, move, MoveButtons, SaveBar, smallInputCls, Toggle, UploadButton, type TabProps,
 } from '../ui';
@@ -163,6 +163,133 @@ function ListEditor<T>({ title, addLabel, items, max, blank, onChange, render }:
   );
 }
 
+// ── Page theme (preset + decorations of the public page) ─────────────────
+
+/** Theme chips. Picking one pre-fills its preset (colours, mode, heading font, top bar);
+ *  every field stays editable. Decorations on the public page follow the theme only. */
+function ThemePicker({ theme, setTheme }: { theme: EventTheme; setTheme: (t: EventTheme) => void }) {
+  const { t } = useTranslation('events');
+  const current = theme.template ?? EVENT_THEMES[0].id;
+  return (
+    <div className="mb-5">
+      <div className="text-sm font-medium text-slate-700 mb-1" id="page-theme-label">{t('page.pageTheme')}</div>
+      <p className="text-sm text-slate-500 mb-2">{t('page.pageThemeHelp')}</p>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-labelledby="page-theme-label">
+        {EVENT_THEMES.map((th) => {
+          const on = current === th.id;
+          return (
+            <button key={th.id} type="button" role="radio" aria-checked={on}
+              onClick={() => setTheme({ ...theme, ...th.preset, template: th.id })}
+              className={`flex items-center gap-2 rounded-full border-2 py-1 pl-1 pr-3 text-sm font-medium transition ${on ? 'border-slate-900 bg-slate-50 text-slate-900' : 'border-slate-200 text-slate-700 hover:border-slate-400'}`}>
+              <span aria-hidden="true" className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full border border-black/10" style={{ background: th.swatch }}>
+                <span className="absolute bottom-1 right-1 h-2.5 w-2.5 rounded-full border border-white/70" style={{ background: th.preset.accent }} />
+              </span>
+              {t(`page.themes.${th.id}`)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const loadedEventFonts = new Set<string>();
+
+/** Loads an event-only heading font (Fredoka, Mountains of Christmas) for the preview, from
+ *  Studio's own copy in public/fonts/ (the events site host does not send CORS headers on fonts). */
+function EventFontLoader({ family }: { family: string | null }) {
+  useEffect(() => {
+    if (!family || !EVENT_ONLY_FONTS[family] || loadedEventFonts.has(family)) return;
+    loadedEventFonts.add(family);
+    const face = new FontFace(family, `url("/fonts/${EVENT_ONLY_FONTS[family]}") format("woff2")`, { weight: '700', display: 'swap' });
+    face.load().then((f) => document.fonts.add(f)).catch(() => loadedEventFonts.delete(family));
+  }, [family]);
+  return null;
+}
+
+// ── Top bar (colour, opacity, section menu) ──────────────────────────────
+
+const HEADER_DEFAULT_BG = '#000000';
+const HEADER_DEFAULT_OPACITY = 40;
+
+/** Same rule as the public site (taghunter-events/src/lib/theme.ts barColors):
+ *  dark text only on a light (luminance > 0.5), at least 60 % opaque bar. */
+function headerInk(bg: string, opacity: number): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(bg);
+  if (!m || opacity < 60) return '#ffffff';
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => {
+    const c = parseInt(h, 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5 ? '#0f172a' : '#ffffff';
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  return m ? `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})` : `rgba(0, 0, 0, ${alpha})`;
+}
+
+function HeaderBarSettings({ theme, setTheme, layout, heroImage, logo, title }: {
+  theme: EventTheme; setTheme: (t: EventTheme) => void; layout: EventLayout; heroImage: string | null; logo: string | null; title: string;
+}) {
+  const { t } = useTranslation('events');
+  const bg = theme.header_bg ?? HEADER_DEFAULT_BG;
+  const opacity = theme.header_opacity ?? HEADER_DEFAULT_OPACITY;
+  const nav = theme.nav !== false;
+  const ink = headerInk(bg, opacity);
+  const navKeys = layout.sections.filter((s) => s.enabled && s.key !== 'hero').map((s) => s.key);
+  const validHex = /^#[0-9a-f]{6}$/i.test(bg);
+  return (
+    <>
+      <h4 className="font-semibold text-slate-900 mt-6 mb-1">{t('page.headerBar')}</h4>
+      <p className="text-sm text-slate-500 mb-3">{t('page.headerBarHelp')}</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label={t('page.headerBg')}>
+          <div className="flex items-center gap-2">
+            <input type="color" className="h-9 w-12 rounded border border-slate-300" value={validHex ? bg : HEADER_DEFAULT_BG} onChange={(e) => setTheme({ ...theme, header_bg: e.target.value })} />
+            <input className={smallInputCls + ' w-24 font-mono'} value={bg} maxLength={7} onChange={(e) => setTheme({ ...theme, header_bg: e.target.value })} />
+          </div>
+        </Field>
+        <Field label={`${t('page.headerOpacity')} : ${opacity} %`} help={t('page.headerOpacityHelp')}>
+          <input type="range" min={0} max={100} step={5} className="w-full accent-slate-900" value={opacity}
+            aria-valuetext={`${opacity} %`}
+            onChange={(e) => setTheme({ ...theme, header_opacity: Number(e.target.value) })} />
+        </Field>
+        <div className="flex items-end pb-1">
+          <Toggle checked={nav} onChange={(v) => setTheme({ ...theme, nav: v })} label={t('page.showNav')} />
+        </div>
+      </div>
+
+      {/* Live preview: the bar over the hero, as on the public page. */}
+      <div className="mt-3 overflow-hidden rounded-lg border border-slate-200" aria-label={t('page.headerPreview')}>
+        <div className="relative h-36"
+          style={heroImage
+            ? { backgroundImage: `url("${heroImage}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : { background: `linear-gradient(135deg, ${theme.primary}, #000)` }}>
+          <div className="flex items-center gap-4 border-b px-4 py-2.5 backdrop-blur-md"
+            style={{ backgroundColor: hexToRgba(validHex ? bg : HEADER_DEFAULT_BG, opacity / 100), color: ink, borderColor: hexToRgba(ink, 0.12) }}>
+            {logo
+              ? <img src={logo} alt="" className="h-7 w-auto max-w-[100px] object-contain" />
+              : <span className="truncate text-sm font-semibold max-w-[10rem]">{title}</span>}
+            {nav && navKeys.length >= 2 && (
+              <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+                {navKeys.slice(0, 5).map((k, i) => (
+                  <span key={k} className="whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium"
+                    style={{ opacity: i === 0 ? 1 : 0.75, backgroundColor: i === 0 ? hexToRgba(ink, 0.16) : undefined }}>
+                    {t(`page.section.${k}`)}
+                  </span>
+                ))}
+              </div>
+            )}
+            <span className="ml-auto text-xs font-bold opacity-80">FR EN</span>
+          </div>
+          <span className="absolute bottom-2 right-3 rounded bg-black/50 px-2 py-0.5 text-[11px] text-white">{t('page.headerPreview')}</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Layout + theme ───────────────────────────────────────────────────────
 
 function DesignCard({ data, onSaved }: TabProps) {
@@ -247,6 +374,7 @@ function DesignCard({ data, onSaved }: TabProps) {
       )}
 
       <h4 className="font-semibold text-slate-900 mt-6 mb-3">{t('page.theme')}</h4>
+      <ThemePicker theme={theme} setTheme={setTheme} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label={t('page.primary')}>
           <div className="flex items-center gap-2">
@@ -271,6 +399,7 @@ function DesignCard({ data, onSaved }: TabProps) {
             <option value="">{t('page.defaultFont')}</option>
             {data.fonts.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
+          <EventFontLoader family={theme.heading_font} />
           {theme.heading_font && (
             <div className="mt-1 text-xl text-slate-800 truncate" style={{ fontFamily: `"${theme.heading_font}"` }}>{data.contents[ev.main_language]?.title || 'Aa Bb Cc'}</div>
           )}
@@ -283,6 +412,9 @@ function DesignCard({ data, onSaved }: TabProps) {
           </div>
         </Field>
       </div>
+
+      <HeaderBarSettings theme={theme} setTheme={setTheme} layout={layout} heroImage={media(layout.hero.image)} logo={media(theme.logo)}
+        title={data.contents[ev.main_language]?.title || ev.slug} />
 
       <div className="mt-6"><SaveBar dirty={dirty} saving={saving} onSave={save} label={t('page.saveDesign')} msg={msg} /></div>
     </Card>

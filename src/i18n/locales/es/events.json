@@ -155,7 +155,23 @@
     "headingFont": "Fuente de los títulos",
     "defaultFont": "Fuente por defecto",
     "logo": "Logotipo",
-    "saveDesign": "Guardar el diseño"
+    "saveDesign": "Guardar el diseño",
+    "headerBar": "Barra superior",
+    "headerBarHelp": "La barra que permanece en la parte superior de la página: color, transparencia y menú de secciones. El texto pasa solo a oscuro o claro para seguir siendo legible.",
+    "headerBg": "Color de fondo",
+    "headerOpacity": "Opacidad",
+    "headerOpacityHelp": "0 % = transparente (se ve la imagen superior), 100 % = color sólido.",
+    "showNav": "Mostrar el menú de secciones",
+    "headerPreview": "Vista previa",
+    "pageTheme": "Tema",
+    "pageThemeHelp": "Un tema aplica sus colores, su fuente, su barra superior y sus decoraciones. Después puede cambiar cada ajuste.",
+    "themes": {
+      "general": "General",
+      "halloween": "Halloween",
+      "zombie": "Zombi",
+      "christmas": "Navidad",
+      "easter": "Pascua"
+    }
   },
   "tickets": {
     "title": "Tipos de entrada",
@@ -219,7 +235,9 @@
     "cancelSlot": "Cancelar esta sesión",
     "game": "Juego",
     "noGame": "— Ninguno —",
-    "gameHelp": "El juego de esta sesión: el Playground lo propone primero en «Cargar equipos»."
+    "gameHelp": "El juego de esta sesión: el Playground lo propone primero en «Cargar equipos».",
+    "showGame": "Mostrar en la página",
+    "showGameHelp": "Muestra la imagen y el nombre del juego en la tarjeta de esta sesión, en la página del evento."
   },
   "checkout": {
     "team": "Equipos",

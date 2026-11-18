@@ -183,6 +183,10 @@ function cleanLayout($in): array {
     return $out;
 }
 
+/** Event-page templates the public site knows; the first one is the default.
+ *  Keep in sync with taghunter-events src/templates/registry.ts and the Studio EVENT_TEMPLATES. */
+const EVENT_TEMPLATES = ['general', 'halloween', 'zombie', 'christmas', 'easter'];
+
 function cleanTheme($in): array {
     $in = is_array($in) ? $in : [];
     return [
@@ -191,6 +195,12 @@ function cleanTheme($in): array {
         'mode' => ($in['mode'] ?? 'dark') === 'light' ? 'light' : 'dark',
         'heading_font' => FontCatalog::canonical($in['heading_font'] ?? null),
         'logo' => cleanFile($in['logo'] ?? null),
+        // Top bar: colour + opacity (0 = fully see-through, 100 = solid), section menu on/off.
+        'header_bg' => hexColor($in['header_bg'] ?? null, '#000000'),
+        'header_opacity' => is_numeric($in['header_opacity'] ?? null) ? max(0, min(100, (int)round((float)$in['header_opacity']))) : 40,
+        'nav' => !array_key_exists('nav', $in) || !empty($in['nav']),
+        // Event-page template (taghunter-events src/templates/registry.ts).
+        'template' => in_array($in['template'] ?? null, EVENT_TEMPLATES, true) ? $in['template'] : EVENT_TEMPLATES[0],
     ];
 }
 
@@ -314,6 +324,7 @@ function slotsPayload($db, array $e): array {
             'capacity' => $s['capacity'],
             'status' => $s['status'],
             'scenario_id' => $s['scenario_id'] !== null ? (int)$s['scenario_id'] : null,
+            'show_scenario' => !empty($s['show_scenario']),
             'label_i18n' => (object)$s['label_i18n'],
             'types' => (object)$types,
             'taken' => $taken[$s['id']]['total'] ?? 0,
@@ -347,11 +358,16 @@ function checklist($db, array $e): array {
     }
     if (!$futureSlot) $missing[] = 'slots';
 
-    $client = $db->fetch('SELECT * FROM clients WHERE id = ?', [$e['client_id']]);
-    if (LegalInfo::missing($client)) $missing[] = 'legal_info';
-    $termsVersion = EventsSettings::get($db, 'platform_terms_version', '');
-    if (($client['events_terms_version'] ?? null) !== $termsVersion) $missing[] = 'platform_terms';
-    if ($paid && EventsSettings::salesGateReason($db, (int)$e['client_id'], true) === 'payments_unavailable') $missing[] = 'stripe';
+    // Legal info, platform terms and Stripe block publishing only when the admin
+    // switch "publish_requires_payment_setup" is on (off by default for the pilot).
+    // Without Stripe, a buyer choosing paid tickets gets "payments_unavailable".
+    if (EventsSettings::get($db, 'publish_requires_payment_setup', '0') === '1') {
+        $client = $db->fetch('SELECT * FROM clients WHERE id = ?', [$e['client_id']]);
+        if (LegalInfo::missing($client)) $missing[] = 'legal_info';
+        $termsVersion = EventsSettings::get($db, 'platform_terms_version', '');
+        if (($client['events_terms_version'] ?? null) !== $termsVersion) $missing[] = 'platform_terms';
+        if ($paid && EventsSettings::salesGateReason($db, (int)$e['client_id'], true) === 'payments_unavailable') $missing[] = 'stripe';
+    }
     return $missing;
 }
 
@@ -875,6 +891,7 @@ try {
                 $rows[] = [$id, $start, nInt($s['duration_minutes'] ?? null, 5, 24 * 60) ?? 90, $capacity,
                     in_array($s['status'] ?? 'open', ['open', 'closed'], true) ? ($s['status'] ?? 'open') : 'open',
                     nInt($s['scenario_id'] ?? null, 1, PHP_INT_MAX),
+                    !empty($s['show_scenario']) ? 1 : 0,
                     json_encode(EventsRepo::cleanI18n($s['label_i18n'] ?? [], 80), JSON_UNESCAPED_UNICODE),
                     is_array($s['types'] ?? null) ? $s['types'] : null];
             }
@@ -883,14 +900,14 @@ try {
             $db->begin();
             try {
                 $keep = [];
-                foreach ($rows as [$id, $start, $dur, $cap, $status, $scenario, $label, $types]) {
+                foreach ($rows as [$id, $start, $dur, $cap, $status, $scenario, $showScenario, $label, $types]) {
                     if ($id && isset($existing[$id])) {
                         if ($existing[$id]['status'] === 'cancelled') { $keep[$id] = true; continue; }
-                        $db->query('UPDATE event_slots SET starts_at = ?, duration_minutes = ?, capacity = ?, status = ?, scenario_id = ?, label_i18n = ? WHERE id = ?',
-                            [$start, $dur, $cap, $status, $scenario, $label, $id]);
+                        $db->query('UPDATE event_slots SET starts_at = ?, duration_minutes = ?, capacity = ?, status = ?, scenario_id = ?, show_scenario = ?, label_i18n = ? WHERE id = ?',
+                            [$start, $dur, $cap, $status, $scenario, $showScenario, $label, $id]);
                     } else {
-                        $db->query('INSERT INTO event_slots (event_id, starts_at, duration_minutes, capacity, status, scenario_id, label_i18n) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                            [$e['id'], $start, $dur, $cap, $status, $scenario, $label]);
+                        $db->query('INSERT INTO event_slots (event_id, starts_at, duration_minutes, capacity, status, scenario_id, show_scenario, label_i18n) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                            [$e['id'], $start, $dur, $cap, $status, $scenario, $showScenario, $label]);
                         $id = (int)$db->lastInsertId();
                         if ($types === null) $types = array_fill_keys($typeIds, null);
                     }

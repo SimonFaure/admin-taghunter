@@ -152,8 +152,10 @@ function publicSlots($db, array $event, array $types, string $lang, bool $salesO
     $now = time();
     $taken = EventsRepo::takenBySlot($db, (int)$event['id']);
     $exact = $event['availability_display'] === 'exact';
+    $allSlots = EventsRepo::slots($db, (int)$event['id']);
+    $games = slotScenarios($db, $event, $allSlots, $lang);
     $out = [];
-    foreach (EventsRepo::slots($db, (int)$event['id']) as $s) {
+    foreach ($allSlots as $s) {
         if ($s['status'] === 'cancelled') continue;
         $start = strtotime($s['starts_at'] . ' UTC');
         if ($start <= $now) continue;
@@ -180,7 +182,47 @@ function publicSlots($db, array $event, array $types, string $lang, bool $salesO
             'remaining' => $remaining,
             'show_remaining' => $exact,
             'types' => $slotTypes,
+            // The session's game, only when the organiser ticked "show on the event page".
+            'scenario' => !empty($s['show_scenario']) && $s['scenario_id'] !== null ? ($games[(int)$s['scenario_id']] ?? null) : null,
         ];
+    }
+    return $out;
+}
+
+/**
+ * Title + cover of the scenarios shown on session cards, keyed by scenario id.
+ * Only scenarios the organiser may use: a published product, or one of their own /
+ * granted to them (a hand-typed id must not leak someone else's game).
+ * Cover: French visual, or the "other languages" one for a non-French page.
+ */
+function slotScenarios($db, array $event, array $slots, string $lang): array {
+    $ids = [];
+    foreach ($slots as $s) {
+        if (!empty($s['show_scenario']) && $s['scenario_id'] !== null) $ids[(int)$s['scenario_id']] = true;
+    }
+    if (!$ids) return [];
+    $in = implode(',', array_keys($ids));
+    $clientId = (int)$event['client_id'];
+    $rows = $db->fetchAll(
+        "SELECT s.id, s.title, s.uniqid, s.medias FROM scenarios s
+          WHERE s.id IN ($in)
+            AND ((s.scenario_type = 'product' AND s.status = 'published')
+                 OR s.client_id = ?
+                 OR s.id IN (SELECT scenario_id FROM client_scenarios WHERE client_id = ?))",
+        [$clientId, $clientId]
+    );
+    $out = [];
+    foreach ($rows as $r) {
+        $medias = json_decode($r['medias'] ?? '', true);
+        $images = is_array($medias['images'] ?? null) ? $medias['images'] : [];
+        $gv = ($lang !== 'fr' && !empty($images['game_visual_intl'])) ? $images['game_visual_intl'] : ($images['game_visual'] ?? null);
+        $image = null;
+        if (is_string($gv) && $gv !== '') {
+            if (preg_match('#^https?://#', $gv)) $image = $gv;
+            elseif ($gv[0] === '/') $image = PaymentsConfig::studioBase() . $gv;
+            else $image = PaymentsConfig::studioBase() . '/media/' . rawurlencode($r['uniqid']) . '/' . implode('/', array_map('rawurlencode', explode('/', $gv)));
+        }
+        $out[(int)$r['id']] = ['title' => (string)$r['title'], 'image' => $image];
     }
     return $out;
 }
@@ -196,6 +238,25 @@ function refundText(array $event, string $lang): string {
         case 'partial': return EventsEmails::str($lang, 'refund_partial', ['rate' => EventsEmails::percent((int)$event['refund_retention_bp'], $lang)]);
         default: return EventsEmails::str($lang, 'refund_none');
     }
+}
+
+/** The organiser theme as the public pages need it (event page, booking form,
+ *  confirmation, ticket): colours, mode, heading font + faces, logo, top bar,
+ *  section menu and the page theme (template id: general / halloween / ...). */
+function publicTheme(array $e, array $theme): array {
+    $font = FontCatalog::canonical($theme['heading_font'] ?? null);
+    return [
+        'primary' => $theme['primary'] ?? '#b91c1c',
+        'accent' => $theme['accent'] ?? '#f59e0b',
+        'mode' => $theme['mode'] ?? 'dark',
+        'heading_font' => $font,
+        'font_faces' => FontCatalog::faces($font),
+        'logo' => EventsRepo::mediaUrl($e, $theme['logo'] ?? null),
+        'header_bg' => $theme['header_bg'] ?? '#000000',
+        'header_opacity' => isset($theme['header_opacity']) ? (int)$theme['header_opacity'] : 40,
+        'nav' => !array_key_exists('nav', $theme) || !empty($theme['nav']),
+        'template' => is_string($theme['template'] ?? null) ? $theme['template'] : 'general',
+    ];
 }
 
 function eventPayload($db, array $e, string $lang): array {
@@ -215,7 +276,6 @@ function eventPayload($db, array $e, string $lang): array {
     foreach ($layout['partners'] ?? [] as $p) {
         $partners[] = ['name' => $p['name'] ?? '', 'url' => $p['url'] ?? null, 'logo' => EventsRepo::mediaUrl($e, $p['logo'] ?? null)];
     }
-    $font = FontCatalog::canonical($theme['heading_font'] ?? null);
     return [
         'event' => [
             'slug' => $e['slug'],
@@ -233,14 +293,7 @@ function eventPayload($db, array $e, string $lang): array {
                 'countdown' => !empty($hero['countdown']),
             ],
             'partners' => $partners,
-            'theme' => [
-                'primary' => $theme['primary'] ?? '#b91c1c',
-                'accent' => $theme['accent'] ?? '#f59e0b',
-                'mode' => $theme['mode'] ?? 'dark',
-                'heading_font' => $font,
-                'font_faces' => FontCatalog::faces($font),
-                'logo' => EventsRepo::mediaUrl($e, $theme['logo'] ?? null),
-            ],
+            'theme' => publicTheme($e, $theme),
             'venue' => [
                 'name' => $e['venue_name'], 'address' => $e['venue_address'], 'postal_code' => $e['venue_postal_code'],
                 'city' => $e['venue_city'], 'country' => $e['venue_country'],
@@ -348,7 +401,7 @@ function bookingPayload($db, array $b, bool $withManage): array {
             'venue' => trim(implode(', ', array_filter([$e['venue_name'], $e['venue_address'], trim(($e['venue_postal_code'] ?? '') . ' ' . ($e['venue_city'] ?? ''))]))),
             'lat' => $e['lat'] !== null ? (float)$e['lat'] : null,
             'lng' => $e['lng'] !== null ? (float)$e['lng'] : null,
-            'theme' => ['primary' => $theme['primary'] ?? '#b91c1c', 'mode' => $theme['mode'] ?? 'dark', 'logo' => EventsRepo::mediaUrl($e, $theme['logo'] ?? null)],
+            'theme' => publicTheme($e, $theme),
         ],
         'slot' => ['starts_at' => gmdate('c', $start), 'ends_at' => gmdate('c', $start + (int)$slot['duration_minutes'] * 60), 'duration_minutes' => (int)$slot['duration_minutes']],
         'team_name' => $b['team_name'],

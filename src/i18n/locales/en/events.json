@@ -155,7 +155,23 @@
     "headingFont": "Heading font",
     "defaultFont": "Default font",
     "logo": "Logo",
-    "saveDesign": "Save layout"
+    "saveDesign": "Save layout",
+    "headerBar": "Top bar",
+    "headerBarHelp": "The bar that stays at the top of the page: colour, transparency and section menu. Its text switches between dark and light by itself to stay readable.",
+    "headerBg": "Background colour",
+    "headerOpacity": "Opacity",
+    "headerOpacityHelp": "0 % = see-through (the top image shows through), 100 % = solid colour.",
+    "showNav": "Show the section menu",
+    "headerPreview": "Preview",
+    "pageTheme": "Theme",
+    "pageThemeHelp": "A theme applies its colours, font, top bar and decorations. You can then change every setting.",
+    "themes": {
+      "general": "General",
+      "halloween": "Halloween",
+      "zombie": "Zombie",
+      "christmas": "Christmas",
+      "easter": "Easter"
+    }
   },
   "tickets": {
     "title": "Ticket types",
@@ -219,7 +235,9 @@
     "cancelSlot": "Cancel this session",
     "game": "Game",
     "noGame": "— None —",
-    "gameHelp": "The game played in this session: Playground suggests it first for \"Load teams\"."
+    "gameHelp": "The game played in this session: Playground suggests it first for \"Load teams\".",
+    "showGame": "Show on the page",
+    "showGameHelp": "Shows the game's picture and name on this session's card on the event page."
   },
   "checkout": {
     "team": "Teams",

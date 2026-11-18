@@ -34,9 +34,19 @@ class FontCatalog {
         'Georgia', 'Times New Roman', 'Courier New', 'Comic Sans MS', 'Palatino Linotype', 'Lucida Sans',
     ];
 
+    /**
+     * Heading fonts for event pages ONLY (event themes Noël / Pâques), self-hosted by
+     * the events site in taghunter-events/public/fonts/ (same origin as the pages).
+     * Not part of the game font catalog, so they are not in catalog.ts / go.php.
+     */
+    const EVENT_ONLY = [
+        'Fredoka' => [['fredoka-700.woff2', 700, 'normal']],
+        'Mountains of Christmas' => [['mountains-of-christmas-700.woff2', 700, 'normal']],
+    ];
+
     /** Every family name a licensee can pick, for the Studio picker. */
     public static function families(): array {
-        return array_merge(array_keys(self::BUNDLED), self::SYSTEM);
+        return array_merge(array_keys(self::BUNDLED), array_keys(self::EVENT_ONLY), self::SYSTEM);
     }
 
     /** Canonical family name, or null when unknown. */
@@ -51,10 +61,18 @@ class FontCatalog {
     /** @font-face descriptors (absolute URLs) for one family; [] for system / unknown. */
     public static function faces(?string $family): array {
         $family = self::canonical($family);
-        if (!$family || !isset(self::BUNDLED[$family])) return [];
-        $base = PaymentsConfig::studioBase() . '/backend/api/go.php?action=font&f=';
+        if (!$family) return [];
+        if (isset(self::EVENT_ONLY[$family])) {
+            $faces = self::EVENT_ONLY[$family];
+            $base = PaymentsConfig::eventsPublicBase() . '/fonts/';
+        } elseif (isset(self::BUNDLED[$family])) {
+            $faces = self::BUNDLED[$family];
+            $base = PaymentsConfig::studioBase() . '/backend/api/go.php?action=font&f=';
+        } else {
+            return [];
+        }
         $out = [];
-        foreach (self::BUNDLED[$family] as [$file, $weight, $style]) {
+        foreach ($faces as [$file, $weight, $style]) {
             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
             $out[] = [
                 'family' => $family,

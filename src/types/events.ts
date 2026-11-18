@@ -20,7 +20,43 @@ export interface EventTheme {
   mode: 'dark' | 'light';
   heading_font: string | null;
   logo: string | null;
+  /** Top bar colour and opacity 0-100 (absent on events saved before 2026-11-18). */
+  header_bg?: string;
+  header_opacity?: number;
+  /** Section menu in the top bar (default on). */
+  nav?: boolean;
+  /** Page theme id (see EVENT_THEMES). */
+  template?: string;
 }
+
+/** Page themes of the public event page (taghunter-events src/templates/, backend
+ *  EVENT_TEMPLATES in events.php; stored in theme.template). The first one is the default.
+ *  Picking one pre-fills its preset; the organiser can change every field afterwards.
+ *  Names: i18n events `page.themes.<id>`. `swatch` = chip preview (the theme's hero fallback). */
+export interface EventThemePreset {
+  id: string;
+  preset: Pick<EventTheme, 'primary' | 'accent' | 'mode' | 'heading_font'> & { header_bg: string; header_opacity: number };
+  swatch: string;
+}
+export const EVENT_THEMES: EventThemePreset[] = [
+  { id: 'general', preset: { primary: '#c8102e', accent: '#f5b301', mode: 'dark', heading_font: null, header_bg: '#000000', header_opacity: 40 },
+    swatch: 'linear-gradient(160deg, #c8102e 0%, #000 80%)' },
+  { id: 'halloween', preset: { primary: '#c2410c', accent: '#c084fc', mode: 'dark', heading_font: 'Mortified Drip', header_bg: '#12091f', header_opacity: 35 },
+    swatch: 'radial-gradient(circle at 78% 28%, #5b21b6 0%, #1e1033 42%, #000 85%)' },
+  { id: 'zombie', preset: { primary: '#b91c1c', accent: '#a3e635', mode: 'dark', heading_font: 'Zombie Blood', header_bg: '#000000', header_opacity: 55 },
+    swatch: 'linear-gradient(170deg, #1a2e05 0%, #0b0f17 55%, #450a0a 100%)' },
+  { id: 'christmas', preset: { primary: '#c8102e', accent: '#fbbf24', mode: 'dark', heading_font: 'Mountains of Christmas', header_bg: '#0b1a2e', header_opacity: 30 },
+    swatch: 'linear-gradient(170deg, #0f2a4a 0%, #0b1a2e 50%, #000 100%)' },
+  { id: 'easter', preset: { primary: '#be185d', accent: '#f59e0b', mode: 'light', heading_font: 'Fredoka', header_bg: '#ffffff', header_opacity: 85 },
+    swatch: 'linear-gradient(160deg, #a78bfa 0%, #f472b6 50%, #fbbf24 100%)' },
+];
+
+/** Event-page-only heading fonts, self-hosted by the events site (/fonts/<file>);
+ *  Studio keeps a copy in public/fonts/ for the editor preview (same origin). */
+export const EVENT_ONLY_FONTS: Record<string, string> = {
+  'Fredoka': 'fredoka-700.woff2',
+  'Mountains of Christmas': 'mountains-of-christmas-700.woff2',
+};
 
 export type EventStatus = 'draft' | 'published' | 'archived';
 export type RefundPolicy = 'none' | 'full_until' | 'partial';
@@ -115,6 +151,8 @@ export interface EventSlot {
   capacity: number;
   status: 'open' | 'closed' | 'cancelled';
   scenario_id: number | null;
+  /** Show the game's cover + title on the public session card. */
+  show_scenario?: boolean;
   label_i18n: I18n;
   /** ticket_type_id -> cap (null = no specific cap) */
   types: Record<string, number | null>;

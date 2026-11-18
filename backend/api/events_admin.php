@@ -73,6 +73,7 @@ function settingsPayload($db): array {
         'commission_fixed_cents_default' => $fixed,
         'platform_terms_version' => $all['platform_terms_version'] ?? '',
         'platform_terms_url' => $all['platform_terms_url'] ?? '',
+        'publish_requires_payment_setup' => ($all['publish_requires_payment_setup'] ?? '0') === '1',
         'invoice_series_prefix' => $all['invoice_series_prefix'] ?? 'TH-COM',
         'invoice_issuer' => is_array($issuer) ? $issuer : new stdClass(),
         'stripe_configured' => PaymentsConfig::stripeConfigured(),
@@ -136,6 +137,9 @@ try {
                 $v = trim((string)$d['platform_terms_url']);
                 if ($v !== '' && !preg_match('#^https?://#i', $v)) jsonResponse(['error' => 'validation', 'errors' => ['platform_terms_url' => 'invalid_url']], 422);
                 EventsSettings::set($db, 'platform_terms_url', substr($v, 0, 500), $adminId);
+            }
+            if (array_key_exists('publish_requires_payment_setup', $d)) {
+                EventsSettings::set($db, 'publish_requires_payment_setup', !empty($d['publish_requires_payment_setup']) ? '1' : '0', $adminId);
             }
             if (array_key_exists('invoice_series_prefix', $d)) {
                 $v = strtoupper(preg_replace('/[^A-Za-z0-9-]/', '', (string)$d['invoice_series_prefix']));

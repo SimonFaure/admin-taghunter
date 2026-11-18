@@ -176,6 +176,13 @@ export function SessionsTab({ data, onSaved }: TabProps) {
                             {s.scenario_id !== null && !scenarios.some((x) => x.id === s.scenario_id) && <option value={s.scenario_id}>#{s.scenario_id}</option>}
                             {scenarios.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}
                           </select>
+                          {s.scenario_id !== null && (
+                            <label className="mt-1 flex items-center gap-1.5 text-xs text-slate-600 whitespace-nowrap" title={t('sessions.showGameHelp')}>
+                              <input type="checkbox" checked={!!s.show_scenario} disabled={cancelled}
+                                onChange={(e) => upd(i, { ...s, show_scenario: e.target.checked })} />
+                              {t('sessions.showGame')}
+                            </label>
+                          )}
                         </td>
                       )}
                       <td className="py-2 whitespace-nowrap">
@@ -197,7 +204,7 @@ export function SessionsTab({ data, onSaved }: TabProps) {
           const prev = slots[slots.length - 1];
           setSlots([...slots, {
             starts_at: nextStart(slots), duration_minutes: prev?.duration_minutes ?? 90, capacity: prev?.capacity ?? 30, status: 'open',
-            scenario_id: null, label_i18n: {}, types: Object.fromEntries(types.filter((x) => x.active).map((x) => [String(x.id), null])), taken: 0,
+            scenario_id: null, show_scenario: false, label_i18n: {}, types: Object.fromEntries(types.filter((x) => x.active).map((x) => [String(x.id), null])), taken: 0,
           }]);
         }}><Plus className="w-4 h-4" />{t('sessions.add')}</button>
         <div className="mt-6"><SaveBar dirty={dirty} saving={saving} onSave={save} label={t('sessions.save')} msg={msg} /></div>

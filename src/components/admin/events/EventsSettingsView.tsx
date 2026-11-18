@@ -56,6 +56,7 @@ export function EventsSettingsView() {
         commission_fixed_cents_default: Math.round(parseFloat(fixed.replace(',', '.') || '0') * 100),
         platform_terms_version: s.platform_terms_version,
         platform_terms_url: s.platform_terms_url,
+        publish_requires_payment_setup: s.publish_requires_payment_setup,
         invoice_series_prefix: s.invoice_series_prefix,
         invoice_issuer: s.invoice_issuer,
       }));
@@ -86,6 +87,18 @@ export function EventsSettingsView() {
           <input className={`${inputCls} w-24`} value={pct} onChange={(e) => setPct(e.target.value)} /> % +
           <input className={`${inputCls} w-24`} value={fixed} onChange={(e) => setFixed(e.target.value)} /> € per paid ticket
         </div>
+      </div>
+
+      <div className={card}>
+        <h3 className="text-lg font-semibold text-slate-900">Publishing</h3>
+        <label className="mt-2 flex items-start gap-3 text-sm text-slate-700">
+          <input type="checkbox" className="mt-0.5" checked={!!s.publish_requires_payment_setup}
+            onChange={(e) => setS({ ...s, publish_requires_payment_setup: e.target.checked })} />
+          <span>
+            <span className="font-medium text-slate-900">Require the Payments page before publishing</span>
+            <span className="block text-slate-600">When on, a licensee must fill in their legal info, accept the platform terms and (for paid tickets) connect Stripe before an event can be published. When off, events publish without them; buyers choosing paid tickets are told online payment is unavailable until Stripe is connected.</span>
+          </span>
+        </label>
       </div>
 
       <div className={card}>
