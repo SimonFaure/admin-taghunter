@@ -1396,8 +1396,14 @@ export function ScenariosView({
     const db = getScenarioDifficulty(b) ?? 0;
     return difficultySort === 'asc' ? da - db : db - da;
   };
-  const orderedScenarios =
-    difficultySort === 'none' ? filteredScenarios : [...filteredScenarios].sort(byDifficulty);
+  // Licensee-authored (custom) scenarios always go to the bottom of the page:
+  // last group when grouping by scenario type, last within each game-type
+  // group, last in the list view. Stable sort keeps the other orderings.
+  const customLast = (a: Scenario, b: Scenario) =>
+    Number(a.scenario_type === 'custom') - Number(b.scenario_type === 'custom');
+  const orderedScenarios = [
+    ...(difficultySort === 'none' ? filteredScenarios : [...filteredScenarios].sort(byDifficulty)),
+  ].sort(customLast);
 
   const groupedScenarios = orderedScenarios.reduce((acc, scenario) => {
     const key =
@@ -1411,17 +1417,20 @@ export function ScenariosView({
     return acc;
   }, {} as Record<string, Scenario[]>);
 
-  const scenarioTypes = Object.keys(groupedScenarios).sort();
+  const scenarioTypes = Object.keys(groupedScenarios).sort(
+    (a, b) => Number(a === 'custom') - Number(b === 'custom') || a.localeCompare(b),
+  );
 
   const sortedListScenarios =
     difficultySort !== 'none'
       ? orderedScenarios
       : groupBy === 'game_type'
       ? [...filteredScenarios].sort((a, b) =>
+          customLast(a, b) ||
           (a.game_type || '').localeCompare(b.game_type || '') ||
           a.title.localeCompare(b.title)
         )
-      : filteredScenarios;
+      : orderedScenarios;
 
   const getScenarioThumbnail = (scenario: Scenario): string | null => {
     if (!scenario.uniqid) return null;
